@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 19:04:18 +0200
+Subject: [PATCH 048/154] refactor: the Atrium window compiles as C++
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The last Objective-C dependency was one accelerator lookup. Its API is plain
+C++ - it returns a const ui::Accelerator* - but accelerators_cocoa.h imports
+Cocoa, so including it dragged the whole translation unit along.
+atrium_accelerator_lookup.h wraps it in one portable function.
+
+With that gone, all seven #import lines went, and two more includes with them:
+native_widget_mac_ns_window_host.h and native_widget_mac.h had no live use
+left, only mentions in comments.
+
+atrium_browser_window.mm is now atrium_browser_window.cc: no #import, no
+Objective-C syntax, no NS type.
+
+Verified: devtools-dock 2 of 2, little-window-hotkey 2 of 2 with two windows,
+sidebar-row-click 3 of 3, glass-surround-control 2 of 2. The glass
+frame was pixel-compared against the baseline captured BEFORE any of H3.4:
+UNCHANGED, delta 0.24 for the window body and 0.08 for the corner mask,
+against a threshold of 8.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 22c272de81112..35ff75f497e4a 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3509,9 +3509,11 @@ static_library("ui") {
+       "atrium/atrium_native_widget_mac.h",
+       "atrium/atrium_native_widget_mac.mm",
+       "atrium/atrium_browser_window_mac.mm",
++      "atrium/atrium_accelerator_lookup.h",
++      "atrium/atrium_accelerator_lookup_mac.mm",
+       "atrium/atrium_window_metrics.h",
+       "atrium/atrium_browser_window.h",
+-      "atrium/atrium_browser_window.mm",
++      "atrium/atrium_browser_window.cc",
+       "atrium/atrium_capture.h",
+       "atrium/atrium_command_bar_widget.h",
+       "atrium/atrium_command_bar_widget.mm",

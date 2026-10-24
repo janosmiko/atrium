@@ -1,0 +1,182 @@
+{
+  "name": "modifier-glyphs-read-on-the-tint",
+  "description": "The Option (amber) and Cmd+Shift (red) plates on back/forward/reload read under 2:1 against a light sidebar tint - a translucent wash lets the tint through, and a same-hue glyph on a same-hue plate has almost no contrast of its own to fall back on. The fix filled the plate and darkened the ink, which decouples the contrast from the tint entirely: the plate is opaque now, so what the glyph reads against is the plate's own colour, not a blend with whatever sits behind it. Two phases on one fixture: space 'Dark' is tinted #12282E (the darkest surround preset) and space 'Light' #F0F4F8 (the lightest), reused rather than invented so the two scenarios agree on what the extremes are. Reload is the probe button rather than back or forward - both of those grey out under navdim on a fresh tab with no history, which would read as a contrast pass for the wrong reason. THE MODIFIER COMES FROM THE PUSH: cgevent cannot hold a modifier across an ssh round trip (a known limit), so this arms each state through window.atriumSetNavModifiers - the same receiver AtriumBrowserWindow::SetSidebarNavModifiers calls on a real flagsChanged, and the same one devbar-test.mjs and sidebar-nav-row-test.mjs already exercise in the unit suite. The contrast expression is the-loading-ring-reads-at-a-glance's own relative-luminance formula, reused rather than reimplemented; it reads colour and backgroundColor directly off the button instead of compositing against --selbase, because an opaque plate no longer needs that step - the plate IS the ground.",
+  "fixture": "7-nav-modifier-contrast.spaces.json",
+  "startup_space": "73000007-0000-4000-8000-000000000001",
+  "settings": "page-tint-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the nav row announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "dark-rest",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the three controls on the darkest preset tint, no modifier held"
+    },
+    {
+      "type": "eval",
+      "id": "dark-option",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumSetNavModifiers(false, false, true); const row = document.querySelector('.sbnav'); const el = row && row.querySelector('.sbreload'); if (!row || !el) { return 'no button'; } const cs = getComputedStyle(el); const rgba = (raw) => { const s = (raw || '').trim(); const h = /^#([0-9a-fA-F]{6})$/.exec(s); if (h) { return [0, 2, 4].map((i) => parseInt(h[1].substr(i, 2), 16)).concat(1); } const m = /^rgba?\\(([^)]*)\\)/.exec(s); const n = m && m[1].match(/[0-9.]+/g); if (!n || n.length < 3) { return null; } return [Number(n[0]), Number(n[1]), Number(n[2]), n.length > 3 ? Number(n[3]) : 1]; }; const lin = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }; const lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]); const ink = rgba(cs.color); const plate = rgba(cs.backgroundColor); if (!ink || !plate) { return 'unreadable ' + cs.color + ' on ' + cs.backgroundColor; } const a = lum(ink); const b = lum(plate); const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); return (row.dataset.mod || '-') + '|' + (ratio >= 3 ? 'clears 3:1' : 'faint ' + ratio.toFixed(2)); })()",
+      "note": "On the darkest tint: Option's amber plate against its ink"
+    },
+    {
+      "type": "capture",
+      "id": "dark-option-frame",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the Option state painted on the darkest tint"
+    },
+    {
+      "type": "eval",
+      "id": "dark-cmdshift",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumSetNavModifiers(true, true, false); const row = document.querySelector('.sbnav'); const el = row && row.querySelector('.sbreload'); if (!row || !el) { return 'no button'; } const cs = getComputedStyle(el); const rgba = (raw) => { const s = (raw || '').trim(); const h = /^#([0-9a-fA-F]{6})$/.exec(s); if (h) { return [0, 2, 4].map((i) => parseInt(h[1].substr(i, 2), 16)).concat(1); } const m = /^rgba?\\(([^)]*)\\)/.exec(s); const n = m && m[1].match(/[0-9.]+/g); if (!n || n.length < 3) { return null; } return [Number(n[0]), Number(n[1]), Number(n[2]), n.length > 3 ? Number(n[3]) : 1]; }; const lin = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }; const lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]); const ink = rgba(cs.color); const plate = rgba(cs.backgroundColor); if (!ink || !plate) { return 'unreadable ' + cs.color + ' on ' + cs.backgroundColor; } const a = lum(ink); const b = lum(plate); const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); return (row.dataset.mod || '-') + '|' + (ratio >= 3 ? 'clears 3:1' : 'faint ' + ratio.toFixed(2)); })()",
+      "note": "On the darkest tint: Cmd+Shift's red plate against its ink"
+    },
+    {
+      "type": "capture",
+      "id": "dark-cmdshift-frame",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the Cmd+Shift state painted on the darkest tint"
+    },
+    {
+      "type": "eval",
+      "id": "dark-released",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumSetNavModifiers(false, false, false); const r = document.querySelector('.sbnav'); return r.dataset.mod || '-'; })()",
+      "note": "restores the row before the space switch below repaints it"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "nextSpace, onto the #F0F4F8 space"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 0 -> 1 ",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "the second pane's first paint, after the switch itself already gated"
+    },
+    {
+      "type": "eval",
+      "id": "light-tint-in-force",
+      "target": "/sidebar",
+      "expression": "(() => { const rail = document.querySelector('.rail'); const idx = rail ? (rail.dataset.activeSpace || '0') : '0'; const pane = document.querySelector('.railpane[data-space-index=\"' + idx + '\"] .sidebar'); if (!pane) { return 'no active pane'; } const raw = getComputedStyle(pane).getPropertyValue('--selbase').trim(); const h = /^#([0-9a-fA-F]{6})$/.exec(raw); if (h) { return [0, 2, 4].map((i) => parseInt(h[1].substr(i, 2), 16)).join(','); } const m = /^rgba?\\(([^)]*)\\)/.exec(raw); const n = m && m[1].match(/[0-9.]+/g); return n && n.length >= 3 ? n.slice(0, 3).map(Number).join(',') : 'unreadable ' + raw; })()",
+      "note": "VACUITY GUARD: the second phase really is on the light space"
+    },
+    {
+      "type": "capture",
+      "id": "light-rest",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the three controls on the lightest preset tint, no modifier held"
+    },
+    {
+      "type": "eval",
+      "id": "light-option",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumSetNavModifiers(false, false, true); const row = document.querySelector('.sbnav'); const el = row && row.querySelector('.sbreload'); if (!row || !el) { return 'no button'; } const cs = getComputedStyle(el); const rgba = (raw) => { const s = (raw || '').trim(); const h = /^#([0-9a-fA-F]{6})$/.exec(s); if (h) { return [0, 2, 4].map((i) => parseInt(h[1].substr(i, 2), 16)).concat(1); } const m = /^rgba?\\(([^)]*)\\)/.exec(s); const n = m && m[1].match(/[0-9.]+/g); if (!n || n.length < 3) { return null; } return [Number(n[0]), Number(n[1]), Number(n[2]), n.length > 3 ? Number(n[3]) : 1]; }; const lin = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }; const lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]); const ink = rgba(cs.color); const plate = rgba(cs.backgroundColor); if (!ink || !plate) { return 'unreadable ' + cs.color + ' on ' + cs.backgroundColor; } const a = lum(ink); const b = lum(plate); const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); return (row.dataset.mod || '-') + '|' + (ratio >= 3 ? 'clears 3:1' : 'faint ' + ratio.toFixed(2)); })()",
+      "note": "On the lightest tint: Option's amber plate against its ink"
+    },
+    {
+      "type": "capture",
+      "id": "light-option-frame",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the Option state painted on the lightest tint"
+    },
+    {
+      "type": "eval",
+      "id": "light-cmdshift",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumSetNavModifiers(true, true, false); const row = document.querySelector('.sbnav'); const el = row && row.querySelector('.sbreload'); if (!row || !el) { return 'no button'; } const cs = getComputedStyle(el); const rgba = (raw) => { const s = (raw || '').trim(); const h = /^#([0-9a-fA-F]{6})$/.exec(s); if (h) { return [0, 2, 4].map((i) => parseInt(h[1].substr(i, 2), 16)).concat(1); } const m = /^rgba?\\(([^)]*)\\)/.exec(s); const n = m && m[1].match(/[0-9.]+/g); if (!n || n.length < 3) { return null; } return [Number(n[0]), Number(n[1]), Number(n[2]), n.length > 3 ? Number(n[3]) : 1]; }; const lin = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }; const lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]); const ink = rgba(cs.color); const plate = rgba(cs.backgroundColor); if (!ink || !plate) { return 'unreadable ' + cs.color + ' on ' + cs.backgroundColor; } const a = lum(ink); const b = lum(plate); const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); return (row.dataset.mod || '-') + '|' + (ratio >= 3 ? 'clears 3:1' : 'faint ' + ratio.toFixed(2)); })()",
+      "note": "On the lightest tint: Cmd+Shift's red plate against its ink"
+    },
+    {
+      "type": "capture",
+      "id": "light-cmdshift-frame",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the Cmd+Shift state painted on the lightest tint"
+    },
+    {
+      "type": "eval",
+      "id": "light-released",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumSetNavModifiers(false, false, false); const r = document.querySelector('.sbnav'); return r.dataset.mod || '-'; })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "dark-option",
+      "expected": "\"option|clears 3:1\"",
+      "desc": "THE MEASUREMENT, on the darkest tint: Option's plate reads 3:1 or better"
+    },
+    {
+      "type": "eval_equals",
+      "id": "dark-cmdshift",
+      "expected": "\"cmdshift|clears 3:1\"",
+      "desc": "THE MEASUREMENT, on the darkest tint: Cmd+Shift's plate reads 3:1 or better"
+    },
+    {
+      "type": "eval_equals",
+      "id": "dark-released",
+      "expected": "\"-\"",
+      "desc": "the release puts the row back before the space switch"
+    },
+    {
+      "type": "eval_equals",
+      "id": "light-tint-in-force",
+      "expected": "\"240,244,248\"",
+      "desc": "gates the phase: the second read really happened on #F0F4F8, not on #12282E"
+    },
+    {
+      "type": "eval_equals",
+      "id": "light-option",
+      "expected": "\"option|clears 3:1\"",
+      "desc": "THE MEASUREMENT, on the lightest tint: Option's plate reads 3:1 or better"
+    },
+    {
+      "type": "eval_equals",
+      "id": "light-cmdshift",
+      "expected": "\"cmdshift|clears 3:1\"",
+      "desc": "THE MEASUREMENT, on the lightest tint: Cmd+Shift's plate reads 3:1 or better"
+    },
+    {
+      "type": "eval_equals",
+      "id": "light-released",
+      "expected": "\"-\"",
+      "desc": "the release puts the row back at the end of the run"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

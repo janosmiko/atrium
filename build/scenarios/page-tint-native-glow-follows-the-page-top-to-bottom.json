@@ -1,0 +1,89 @@
+{
+  "name": "page-tint-native-glow-follows-the-page-top-to-bottom",
+  "description": "Native app view showed one grey band on every edge of telex.hu: the core drifts the space tint at most 22% toward each sampled colour, and the brand blend pulls grey edges 60% toward the favicon. On a flat surround that reads as a smudge, not the page. The window now paints the sampled colours as they are in native mode. A page with a navy header over a white body, no theme-color, so the ambilight sampler is the only source. The band beside the card is graded at two heights: navy next to the header, near the surround next to the white body.",
+  "fixture": "page-tint-navy.spaces.json",
+  "settings": "page-tint-native.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the sampler reads at 125ms, then backs off, and the band crossfades in over the tint fade"
+    },
+    {
+      "type": "eval_until",
+      "id": "navy-page",
+      "target": "edge-navy-header.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/edge-navy-header.html",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "native-mark",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.classList.contains('atrium-native-chrome'))"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: ambilight edges",
+      "timeout_ms": 10000,
+      "note": "GATE: the sampler produced a read"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the crossfade land"
+    },
+    {
+      "type": "capture",
+      "id": "navy",
+      "duration_ms": 500,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "native-mark",
+      "expected": "\"true\"",
+      "desc": "THE CONTROL: Native app view is on"
+    },
+    {
+      "type": "region_mean",
+      "capture": "navy",
+      "x": 206,
+      "y": 130,
+      "w": 16,
+      "h": 60,
+      "min_mean": 0,
+      "max_mean": 200,
+      "label": "the-band-beside-the-header-is-navy",
+      "desc": "THE MEASUREMENT: navy at the band's strength over the F2F2F7 surround reads near 130. The drifted space tint read 182 on the crimson page and the smudge on telex read higher still."
+    },
+    {
+      "type": "region_mean",
+      "capture": "navy",
+      "x": 206,
+      "y": 600,
+      "w": 16,
+      "h": 60,
+      "min_mean": 225,
+      "max_mean": 256,
+      "label": "the-band-beside-the-white-body-stays-light",
+      "desc": "THE MEASUREMENT: a white edge paints white over the surround, so the band below the header stays within a few units of it."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+ "spaces": [
+  {
+   "id": "1ab00001-0000-4000-8000-000000000001",
+   "name": "Favs",
+   "emoji": "R",
+   "tint": "oceanBlue",
+   "profileID": "Default",
+   "order": 0,
+   "pinnedTabs": [],
+   "tabs": [
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/favicon-page.html",
+     "title": "FAVOURITE NOT A ROW"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/swipe-lab.html",
+     "title": "Ordinary Row"
+    }
+   ],
+   "groups": []
+  }
+ ],
+ "favorites": [
+  {
+   "url": "http://127.0.0.1:8000/favicon-page.html",
+   "title": "Blue Favicon Site",
+   "profileID": "Default"
+  },
+  {
+   "url": "http://127.0.0.1:8000/edit-focus-field.html",
+   "title": "Edit Focus",
+   "profileID": "Default"
+  },
+  {
+   "url": "http://127.0.0.1:8000/redirect-to-lab.html",
+   "title": "Redirecting Fav",
+   "profileID": "Default"
+  }
+ ],
+ "archived": [
+  {
+   "id": "archived-1ab0",
+   "url": "http://127.0.0.1:8000/peek-scrim-red.html",
+   "title": "An Archived Tab",
+   "spaceID": "1ab00001-0000-4000-8000-000000000001",
+   "archivedAt": 805130000.0,
+   "lastActiveAt": 805129000.0,
+   "closeReason": "archived"
+  }
+ ],
+ "appState": {
+  "sidebarWidth": 280,
+  "schemaVersion": 1,
+  "activeSpaceID": "1ab00001-0000-4000-8000-000000000001"
+ }
+}

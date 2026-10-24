@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sat, 29 Aug 2026 19:44:25 +0200
+Subject: [PATCH 083/154] feat(commandbar): build action rows from the hotkey
+ registry
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The page owned a literal list of seven verbs, so a row and the key that
+runs it could drift apart and no row could show its binding. The rows
+come from the hotkey table now, pushed once per open, each carrying the
+combo it is bound to. A rebinding is in force by the next open, which is
+when the chip follows it. Two letters is the shortest query that offers
+a verb, or one letter buries the omnibox rows under the whole catalog.
+
+The build file hunks interleave, so this also carries the URL and net
+dependencies the hygiene pass needs, the target for the shared scorer,
+and a reordering of entries that belongs to neither.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index ec3acd9d6b975..75abf3e7ea55f 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -640,6 +640,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:memory_saver",
+     "//chrome/browser/ui/atrium:move_target_decision",
+     "//chrome/browser/ui/atrium:native_hotkey_defaults",
++    "//chrome/browser/ui/atrium:command_bar_actions",
+     "//chrome/browser/ui/atrium:command_bar_matches",
+     "//chrome/browser/ui/atrium:tab_cycle",
+     "//chrome/browser/ui/atrium:tab_recency_bridge",

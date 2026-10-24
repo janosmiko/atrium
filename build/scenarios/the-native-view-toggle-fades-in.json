@@ -1,0 +1,118 @@
+{
+  "name": "the-native-view-toggle-fades-in",
+  "description": "Turning Native app view on crossfades the surround over the glass instead of painting it in one frame. The fade is a timer on the window, and the two lines it logs - started, then finished a run of ticks later - are what say a run of intermediate frames existed. A snap logs neither.",
+  "fixture": "ambilight.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "the window paints its tint, which is what the fade needs to fade from"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma"
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "the settings window builds and the route answers"
+    },
+    {
+      "type": "eval",
+      "id": "appearance-pane",
+      "target": "settings",
+      "expression": "(() => { const b = document.querySelector('.settings-rail-item[data-pane=\"appearance\"]'); if (!b) return 'no-pane'; b.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the sidebar column on glass"
+    },
+    {
+      "type": "eval",
+      "id": "native-view-on",
+      "target": "settings",
+      "expression": "(() => { const t = document.querySelector('.settings-row[data-key=\"opaqueSurround\"] .settings-row-toggle'); if (!t) return 'no-toggle'; t.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "capture",
+      "id": "during",
+      "duration_ms": 600,
+      "fps": 20,
+      "note": "kept for the artifacts: the fade runs 300ms after the write lands, and the write's timing is the file system's"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "desc": "sanity: the browser window and the settings window"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: settings written",
+      "label": "the-setting-landed",
+      "desc": "THE CONTROL: the toggle reached the file, so the window had a change to apply."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: surround fade in started",
+      "label": "the-fade-began",
+      "desc": "The toggle went through the crossfade, not the instant install."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: surround fade in finished",
+      "label": "the-fade-ran-out",
+      "desc": "The fade's timer reached its end. Started with no finished would be a fade that hung."
+    },
+    {
+      "type": "vlog_after",
+      "pattern": "Atrium: surround fade in finished",
+      "after_pattern": "Atrium: surround fade in started",
+      "label": "finished-after-started",
+      "desc": "The order is the proof of an interval between them."
+    },
+    {
+      "type": "theme_changed",
+      "before": "before",
+      "after": "after",
+      "region": [
+        40,
+        600,
+        150,
+        60
+      ],
+      "min_delta": 20,
+      "desc": "THE OUTCOME: the sidebar column ended up on the new appearance. Without this the fade lines could come from a fade to nowhere.",
+      "note": "Low in the sidebar column, under the rows and clear of the settings window."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

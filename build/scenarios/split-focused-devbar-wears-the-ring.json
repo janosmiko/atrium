@@ -1,0 +1,295 @@
+{
+  "name": "split-focused-devbar-wears-the-ring",
+  "description": "A split of two strip tabs, opened by the sidebarTabSplit message a row drop sends (a-row-dropped-on-the-right-edge-opens-a-split drives the real drag). The /note split is no use here: the notes pad is not a strip tab, so no press can make it the active pane.\n\nEvery click lands on a point read at run time. AtriumDevBar::PushShadow hands each bar its screen origin as window.atriumDevBarScreenOrigin, because the bar's own window.screenX reads the app window's. The eval adds a point in the bar's page: the centre of the widest bare stretch of the plate, or of the back button, or a spot 150px under the bar for the pane's page, and the click takes that answer through from_eval. The ring is the bar's 'focused' class, which PushDevBarFocusRing sets from the active pane.\n\nEach pane first navigates from a real click on its page, so the entry it leaves keeps a user activation and back is live. A real click on pane 1's bar plate makes pane 1 active. A real click on pane 0's gives the ring back. A click on the url is avoided: it opens the command bar. Then a real click on pane 1's back button takes pane 1 back and leaves pane 0 on its page, and the split stays up.",
+  "fixture": "frost-two-tabs.spaces.json",
+  "settings": "accent-theme-nord.settings.json",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "wake-first",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 2) { return 'rows ' + rows.length; } rows[0].click(); return 'clicked'; })()",
+      "note": "both rows are cold at launch, and a cold row has no tab id"
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "wake-second",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 2) { return 'rows ' + rows.length; } rows[1].click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "split",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 2) { return 'rows ' + rows.length; } const dragged = rows[1].dataset.tabId; const target = rows[0].dataset.tabId; if (!dragged || !target) { return 'cold'; } chrome.send('sidebarTabSplit', [dragged, target, 'right']); return 'sent'; })()",
+      "note": "the message a drop on row 0's right quarter sends"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: pane devbars 2",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "eval_until",
+      "id": "origins-ready",
+      "target": "/devbar#1",
+      "expression": "window.atriumDevBarScreenOrigin ? 'ready' : 'none'",
+      "expected": "ready",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "arm-checkerboard",
+      "target": "/checkerboard.html",
+      "expression": "document.addEventListener('click', () => { location.href = '/solid-white.html'; }, {once: true}), 'armed'"
+    },
+    {
+      "type": "eval",
+      "id": "pane1-body",
+      "target": "/devbar#1",
+      "expression": "(() => { const o = window.atriumDevBarScreenOrigin; if (!o) { return 'none'; } return Math.round(o[0] + innerWidth / 2) + ',' + Math.round(o[1] + innerHeight + 150); })()"
+    },
+    {
+      "type": "click",
+      "from_eval": "pane1-body",
+      "x": 0,
+      "y": 0,
+      "note": "a real click, so the page leaves with a user activation and Chromium keeps its entry for back; the listener armed above navigates"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "arm-panel-legibility-type",
+      "target": "/panel-legibility-type.html",
+      "expression": "document.addEventListener('click', () => { location.href = '/solid-orange.html'; }, {once: true}), 'armed'"
+    },
+    {
+      "type": "eval",
+      "id": "pane0-body",
+      "target": "/devbar",
+      "expression": "(() => { const o = window.atriumDevBarScreenOrigin; if (!o) { return 'none'; } return Math.round(o[0] + innerWidth / 2) + ',' + Math.round(o[1] + innerHeight + 150); })()"
+    },
+    {
+      "type": "click",
+      "from_eval": "pane0-body",
+      "x": 0,
+      "y": 0,
+      "note": "pane 0 clicked last, so it is the active pane below"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "bar1-back-live",
+      "target": "/devbar#1",
+      "expression": "(document.querySelector('.dvurl').textContent.endsWith('/solid-white.html') && !document.querySelector('.sbback').classList.contains('navdim')) ? 'live' : document.querySelector('.dvurl').textContent + (document.querySelector('.sbback').classList.contains('navdim') ? ' dim' : '')",
+      "expected": "live",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "eval_until",
+      "id": "bar0-ringed-first",
+      "target": "/devbar",
+      "expression": "String(document.querySelector('.devbar').classList.contains('focused'))",
+      "expected": "true",
+      "timeout_ms": 5000,
+      "note": "the target row's pane starts active"
+    },
+    {
+      "type": "eval",
+      "id": "bar1-ringed-first",
+      "target": "/devbar#1",
+      "expression": "String(document.querySelector('.devbar').classList.contains('focused'))"
+    },
+    {
+      "type": "move",
+      "x": 900,
+      "y": 650,
+      "note": "park the pointer off both bars"
+    },
+    {
+      "type": "eval_until",
+      "id": "bar1-url-point",
+      "target": "/devbar#1",
+      "expression": "(() => { const p = (() => { const o = window.atriumDevBarScreenOrigin; const bar = document.querySelector('.devbar'); if (!o || !bar) { return 'none'; } const r = bar.getBoundingClientRect(); const y = Math.round((r.top + r.bottom) / 2); let best = [0, 0]; let start = -1; for (let x = Math.ceil(r.left) + 1; x <= Math.floor(r.right); x++) { const bare = x < r.right - 1 && document.elementFromPoint(x, y) === bar; if (bare && start < 0) { start = x; } if (!bare && start >= 0) { if (x - start > best[1] - best[0]) { best = [start, x]; } start = -1; } } if (best[1] - best[0] < 6) { return 'no bare plate'; } return Math.round(o[0] + (best[0] + best[1]) / 2) + ',' + (o[1] + y); })(); return /^[0-9]+,[0-9]+$/.test(p) ? 'ready' : p; })()",
+      "expected": "ready",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "bar1-url",
+      "target": "/devbar#1",
+      "expression": "(() => { const o = window.atriumDevBarScreenOrigin; const bar = document.querySelector('.devbar'); if (!o || !bar) { return 'none'; } const r = bar.getBoundingClientRect(); const y = Math.round((r.top + r.bottom) / 2); let best = [0, 0]; let start = -1; for (let x = Math.ceil(r.left) + 1; x <= Math.floor(r.right); x++) { const bare = x < r.right - 1 && document.elementFromPoint(x, y) === bar; if (bare && start < 0) { start = x; } if (!bare && start >= 0) { if (x - start > best[1] - best[0]) { best = [start, x]; } start = -1; } } if (best[1] - best[0] < 6) { return 'no bare plate'; } return Math.round(o[0] + (best[0] + best[1]) / 2) + ',' + (o[1] + y); })()"
+    },
+    {
+      "type": "click",
+      "from_eval": "bar1-url",
+      "x": 0,
+      "y": 0,
+      "note": "bare plate, not the url: a url click opens the command bar and the next click only closes it"
+    },
+    {
+      "type": "eval_until",
+      "id": "bar1-ringed",
+      "target": "/devbar#1",
+      "expression": "String(document.querySelector('.devbar').classList.contains('focused'))",
+      "expected": "true",
+      "timeout_ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "bar0-cleared",
+      "target": "/devbar",
+      "expression": "String(document.querySelector('.devbar').classList.contains('focused'))"
+    },
+    {
+      "type": "eval",
+      "id": "bar0-url",
+      "target": "/devbar",
+      "expression": "(() => { const o = window.atriumDevBarScreenOrigin; const bar = document.querySelector('.devbar'); if (!o || !bar) { return 'none'; } const r = bar.getBoundingClientRect(); const y = Math.round((r.top + r.bottom) / 2); let best = [0, 0]; let start = -1; for (let x = Math.ceil(r.left) + 1; x <= Math.floor(r.right); x++) { const bare = x < r.right - 1 && document.elementFromPoint(x, y) === bar; if (bare && start < 0) { start = x; } if (!bare && start >= 0) { if (x - start > best[1] - best[0]) { best = [start, x]; } start = -1; } } if (best[1] - best[0] < 6) { return 'no bare plate'; } return Math.round(o[0] + (best[0] + best[1]) / 2) + ',' + (o[1] + y); })()"
+    },
+    {
+      "type": "click",
+      "from_eval": "bar0-url",
+      "x": 0,
+      "y": 0,
+      "note": "bare plate, not the url: a url click opens the command bar and the next click only closes it"
+    },
+    {
+      "type": "eval_until",
+      "id": "bar0-ringed-again",
+      "target": "/devbar",
+      "expression": "String(document.querySelector('.devbar').classList.contains('focused'))",
+      "expected": "true",
+      "timeout_ms": 5000,
+      "note": "pane 0 active again, so the back below starts from the other pane"
+    },
+    {
+      "type": "eval",
+      "id": "bar1-back",
+      "target": "/devbar#1",
+      "expression": "(() => { const o = window.atriumDevBarScreenOrigin; const e = document.querySelector('.sbback'); if (!o || !e) { return 'none'; } const r = e.getBoundingClientRect(); return Math.round(o[0] + (r.left + r.right) / 2) + ',' + Math.round(o[1] + (r.top + r.bottom) / 2); })()"
+    },
+    {
+      "type": "click",
+      "from_eval": "bar1-back",
+      "x": 0,
+      "y": 0
+    },
+    {
+      "type": "eval_until",
+      "id": "pane1-went-back",
+      "target": "/devbar#1",
+      "expression": "document.querySelector('.dvurl').textContent.endsWith('/checkerboard.html') ? 'back' : document.querySelector('.dvurl').textContent",
+      "expected": "back",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "pane0-stayed",
+      "target": "/solid-orange.html",
+      "expression": "'stayed'"
+    },
+    {
+      "type": "eval",
+      "id": "bar1-alive",
+      "target": "/devbar#1",
+      "expression": "document.querySelector('.devbar') ? 'alive' : 'gone'"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "wake-first",
+      "expected": "\"clicked\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "wake-second",
+      "expected": "\"clicked\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "split",
+      "expected": "\"sent\""
+    },
+    {
+      "type": "vlog",
+      "label": "the-window-opened-the-split",
+      "pattern": "Atrium: sidebar split tab [0-9]+ right of tab [0-9]+"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bar1-ringed-first",
+      "expected": "\"false\"",
+      "desc": "pane 1's bar has no ring while pane 0 is active"
+    },
+    {
+      "type": "vlog",
+      "label": "the-real-click-reached-the-window",
+      "pattern": "Atrium: devbar press on pane 1"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bar0-cleared",
+      "expected": "\"false\"",
+      "desc": "THE GATE: the ring left pane 0 once pane 1's bar was clicked"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pane0-stayed",
+      "expected": "\"stayed\"",
+      "desc": "pane 1's back left pane 0 on its page"
+    },
+    {
+      "type": "vlog",
+      "label": "the-back-reached-the-window",
+      "pattern": "Atrium: sidebar back on tab [0-9]+"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bar1-alive",
+      "expected": "\"alive\"",
+      "desc": "no click on a bar closes the split"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-split-teardown",
+      "pattern": "Atrium: pane devbars 0"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

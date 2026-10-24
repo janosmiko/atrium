@@ -1,0 +1,122 @@
+{
+  "name": "peek-dismiss-escape",
+  "description": "Escape closes a peek. Asserts the PAGE, not a log line - the parent goes back to its undimmed red once the card is gone. Built on peek-scrim, which established that a peek can be opened here at all: eligibility comes from a favorite rather than pinning, and the gate watches 'Atrium: peek widget showing for parent'.",
+  "fixture": "peek-scrim.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "27027027-2702-4702-8702-270270270270",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the startup tab commit before navigating"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "peek-scrim-red.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-scrim-red.html",
+      "timeout_ms": 15000,
+      "note": "GATE: the red page really committed as the STARTUP tab. Navigating to it through Cmd+L was tried first and does not work here: the command bar opens and gains key, then the run log shows a dismiss op rather than a commit, which matches the known flakiness of committing the command bar through synthetic input. Making the page the startup tab removes the navigation step entirely."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the undimmed parent"
+    },
+    {
+      "type": "move",
+      "x": 338,
+      "y": 96,
+      "note": "Hover the link before pressing it. The click alone opened a peek on roughly half of the runs, with the page loaded and the link at exactly these coordinates in every captured frame - so the press was landing without the pointer having settled there. cgevent's move posts a plain mouseMoved with no button."
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "click",
+      "x": 338,
+      "y": 96,
+      "note": "the link, at coordinates READ OFF a captured frame rather than derived from assumed chrome widths. The first attempt clicked 300,120 from arithmetic (280px sidebar + 40px page padding) and landed just below the link: the sidebar is about 220px here, not 280, and the web pane starts at y=40. A plain click, because MaybeOpenPeek fires on the navigation itself rather than on a modifier."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: peek widget showing for parent",
+      "timeout_ms": 15000,
+      "note": "GATE: a peek really opened. It watches PeekWidget::Show's own line (atrium_peek_widget.mm:527), the sole writer of peek-opened state left in the tree - confirmed by VM run 2026-08-10."
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the open animation finish so the scrim is at full strength rather than mid-fade"
+    },
+    {
+      "type": "capture",
+      "id": "peeked",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the parent WITH a peek over it - 166,0,0 if the scrim is working"
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "Escape is an accelerator on the peek widget itself (atrium_peek_widget.mm, AddAccelerator VKEY_ESCAPE), so it does not depend on the parent page having focus."
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the dismiss animation finish - kPeekDismissDuration is 0.17s, this is generous"
+    },
+    {
+      "type": "capture",
+      "id": "dismissed",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the parent after the peek is gone - must be back to 255,0,0"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "theme_changed",
+      "before": "peeked",
+      "after": "dismissed",
+      "region": [
+        240,
+        400,
+        60,
+        150
+      ],
+      "min_delta": 4.0,
+      "desc": "THE MEASUREMENT: the parent's red must come BACK. With the peek open this strip reads 166,0,0; once the card is gone it must read 255,0,0 again. Measuring the page rather than a log line is deliberate - the app announcing a dismiss does not prove the card left the screen, and the scrim is the thing a user actually sees. Region and its variance rationale are peek-scrim's, verified there."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits"
+    }
+  ]
+}

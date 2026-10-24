@@ -1,0 +1,125 @@
+{
+  "name": "favourites-slide-across-a-profile-change",
+  "description": "The other half of favourites-grid-stays-put-across-a-swipe. Inside one profile the tiles are identical and must not move, and that scenario proves it. Into a DIFFERENT profile they genuinely differ, so they have to travel with their pane the way they did before the pinned copy existed - otherwise the outgoing profile's tiles would sit still while the rows beneath them changed to another profile's.\n\nTWO GRIDS EXIST. Every rail pane draws its own, and a pinned copy sits beside the rail. A stylesheet class picks which is visible: inside a profile the pinned copy shows and the pane grids are hidden, and across a profile change they swap. So the claim here is that the swap really happens during the animation, and that it has swapped back by the time the rail is at rest on the new space.\n\nWHY AN OBSERVER AND NOT A READ AFTER THE FACT. The swap lasts only as long as the animation. A read taken once the rail has settled sees the finished state and cannot say whether the pane grids were ever shown, so it would pass just as well on a build that never slid anything. The observer records every class change from before the chord until after the settle.\n\nWHY THE TILES ARE READ BY ID. The two profiles carry one favourite each, and they are different URLs. Reading the id says WHICH profile's tiles the pinned copy ended up holding, which a count or a visibility flag cannot.\n\nThe fixture's first two spaces share a profile and the third does not. This run starts on the SECOND space, so the single cycle below crosses the boundary. The gate on the second space's own page is what makes that starting point a fact rather than an assumption.",
+  "fixture": "three-spaces-two-profiles.json",
+  "startup_space": "3ab00002-0000-4000-8000-000000000002",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "started-on-the-second-space",
+      "target": "long-page.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/long-page.html",
+      "timeout_ms": 20000,
+      "note": "GATE: the run really starts on the second space, whose neighbour is the other profile. Without it a run that came up on the first space would cycle WITHIN one profile and prove the opposite of what this scenario claims."
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "activate",
+      "note": "an ssh-launched Atrium is not frontmost on a clean snapshot, and the chord below would land in Finder"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "tiles-before",
+      "target": "/sidebar",
+      "expression": "(() => { const ids = [...document.querySelectorAll('#atrium-root > .favgrid .fav')].map(f => f.dataset.favId); return ids.join(',') || 'none'; })()",
+      "note": "which profile's tiles the pinned copy holds to start with - the Default profile's single favourite"
+    },
+    {
+      "type": "eval",
+      "id": "watch-the-swap",
+      "target": "/sidebar",
+      "expression": "(() => { const root = document.getElementById('atrium-root'); if (!root) { return 'no root'; } window.__sawSlide = root.classList.contains('xprofile'); new MutationObserver(() => { if (root.classList.contains('xprofile')) { window.__sawSlide = true; } }).observe(root, {attributes: true, attributeFilter: ['class']}); return 'watching'; })()",
+      "note": "records whether the sidebar ever switched to the sliding grids. The swap lasts only as long as the animation, so a read taken after the settle cannot see it."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "into the third space, which belongs to the other profile"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 1 -> 2",
+      "timeout_ms": 8000,
+      "note": "gate the setup: the document really moved, and from the second space to the third rather than from anywhere else"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "past the glide, the spring and the rebuild the switch posts"
+    },
+    {
+      "type": "eval",
+      "id": "slid-then-settled",
+      "target": "/sidebar",
+      "expression": "(() => { const root = document.getElementById('atrium-root'); const resting = root.classList.contains('xprofile') ? 'still sliding' : 'settled'; return (window.__sawSlide ? 'slid ' : 'never slid ') + 'and ' + resting; })()",
+      "note": "BOTH HALVES. The tiles must have travelled during the animation AND the pinned copy must be back in charge once the rail is at rest, or the sidebar is left permanently in its sliding mode."
+    },
+    {
+      "type": "eval",
+      "id": "tiles-after",
+      "target": "/sidebar",
+      "expression": "(() => { const ids = [...document.querySelectorAll('#atrium-root > .favgrid .fav')].map(f => f.dataset.favId); return ids.join(',') || 'none'; })()",
+      "note": "and the pinned copy now holds the NEW profile's tiles rather than the ones it was drawn with"
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the third space, for the eye: a different tile above different rows"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window throughout",
+      "label": "one-window-still"
+    },
+    {
+      "type": "eval_equals",
+      "id": "tiles-before",
+      "expected": "\"http://127.0.0.1:8000/peek-scrim-red.html\"",
+      "desc": "THE CONTROL: the pinned copy starts on the Default profile's favourite. A 'none' answer means no tiles were drawn at all and every read below would be meaningless."
+    },
+    {
+      "type": "eval_equals",
+      "id": "watch-the-swap",
+      "expected": "\"watching\"",
+      "desc": "the observer was really installed, so the read below is a measurement rather than an untouched initial value"
+    },
+    {
+      "type": "eval_equals",
+      "id": "slid-then-settled",
+      "expected": "\"slid and settled\"",
+      "desc": "THE CLAIM. 'never slid' means the tiles stayed pinned across a profile change, which leaves the outgoing profile's favourites sitting over another profile's rows. 'still sliding' means the sidebar never returned to the pinned copy and would stay in its animating mode for good."
+    },
+    {
+      "type": "eval_equals",
+      "id": "tiles-after",
+      "expected": "\"http://127.0.0.1:8000/example-domain-tall.html\"",
+      "desc": "and the tiles on screen at the end belong to the space the rail landed on, not the one it left"
+    },
+    {
+      "type": "vlog",
+      "label": "the-rail-really-crossed-the-boundary",
+      "pattern": "Atrium: active space 1 -> 2",
+      "note": "the setup gate again as a graded assertion, so a run whose chord never landed fails here rather than passing on a sidebar that never moved"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

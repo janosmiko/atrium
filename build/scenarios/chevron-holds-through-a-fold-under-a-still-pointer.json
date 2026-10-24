@@ -1,0 +1,136 @@
+{
+  "name": "chevron-holds-through-a-fold-under-a-still-pointer",
+  "description": "A fold or unfold under a still pointer must keep the chevron up the whole time, on a folder head and on the workspace name row. The echoed push rebuilds the rail with replaceChildren, and a rebuilt head has no :hover until Chromium's next hover update - sidebar.js carryHover marks it .hoverhold so the glyph (.fic-g / .wsic-i) never paints. The probe is a rAF sampler armed in the page before the click: it records the max computed opacity of the held head's glyph across ~3s. Pre-fix the glyph jumps to 1 and fades over .15s, so the sampler reads ~1; post-fix it stays 0. The apply-count delta makes the pass non-vacuous: a run where no rebuild happened cannot report 'held'. Real cgevent input, not synthetic JS events, because the whole bug lives in Chromium's hover bookkeeping.",
+  "fixture": "chevron-holds-through-a-fold.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "80880880-8088-4088-8088-808808808808",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "example-domain.html?g1",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/example-domain.html?g1"
+    },
+    { "type": "settle", "ms": 4000 },
+    { "type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot" },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 500,
+      "note": "park in page content so nothing in the sidebar starts hovered"
+    },
+    { "type": "settle", "ms": 400 },
+    {
+      "type": "eval",
+      "id": "rects",
+      "target": "/sidebar",
+      "expression": "(() => { const r = (el) => { if (!el) return null; const b = el.getBoundingClientRect(); return [Math.round(b.x), Math.round(b.y), Math.round(b.width), Math.round(b.height)]; }; return JSON.stringify({ws: r(document.querySelector('.wsname')), news: r(document.querySelector('.row.frow'))}); })()",
+      "note": "page-space rects of the two heads, to correct the cgevent coordinates below when they miss"
+    },
+    {
+      "type": "capture",
+      "id": "layout",
+      "duration_ms": 400,
+      "fps": 10,
+      "note": "the settled sidebar, for measuring the screen positions the rects map onto"
+    },
+    {
+      "type": "move",
+      "x": 90,
+      "y": 260,
+      "note": "over the News folder head. Page rect from the rects eval: y 207 h 36, and the workspace head (page mid 108) hovers at screen 143, so content maps to screen at +35"
+    },
+    { "type": "settle", "ms": 600 },
+    {
+      "type": "eval",
+      "id": "hover-folder",
+      "target": "/sidebar",
+      "expression": "document.querySelector('.frow:hover')?.dataset.folderId || 'NONE'",
+      "note": "the pointer really sits on the folder head before anything is armed"
+    },
+    {
+      "type": "eval",
+      "id": "arm-folder",
+      "target": "/sidebar",
+      "expression": "(() => { const head = document.querySelector('.frow:hover'); if (!head) return 'NOHOVER'; const id = head.dataset.folderId; const st = {id, max: 0, ticks: 0, applies0: window.__atriumApplyCount || 0, bad: []}; window.__chevhold = st; const tick = () => { const h = document.querySelector(`.frow[data-folder-id=\"${CSS.escape(id)}\"]`); const g = h && h.querySelector('.fic-g, .wsic-i'); if (!h) { if (st.bad.length < 12) st.bad.push({t: st.ticks, gone: 1}); } else if (g) { const o = parseFloat(getComputedStyle(g).opacity); if (o > 0.01 && st.bad.length < 12) st.bad.push({t: st.ticks, o: +o.toFixed(2), hov: h.matches(':hover') ? 1 : 0, hold: h.classList.contains('hoverhold') ? 1 : 0, ap: (window.__atriumApplyCount || 0) - st.applies0}); if (o > st.max) st.max = o; } st.ticks++; if (st.ticks < 200) requestAnimationFrame(tick); }; requestAnimationFrame(tick); return 'ARMED'; })()"
+    },
+    { "type": "click", "x": 90, "y": 260, "note": "fold News, pointer stays put" },
+    { "type": "settle", "ms": 1800, "note": "the echoed push is parked ~320ms (FOLD_SETTLE_MS) before the rebuild the sampler is watching for" },
+    {
+      "type": "eval",
+      "id": "verdict-folder",
+      "target": "/sidebar",
+      "expression": "(() => { const st = window.__chevhold; if (!st) return 'NOSTATE'; const applies = (window.__atriumApplyCount || 0) - st.applies0; const verdict = st.max <= 0.01 ? 'held' : 'flashed'; const base = verdict + ' applies=' + (applies > 0 ? 'yes' : 'no') + ' sampled=' + (st.ticks >= 60 ? 'yes' : 'no'); return verdict === 'held' ? base : base + ' | ' + JSON.stringify({max: +st.max.toFixed(2), applies, ticks: st.ticks, bad: st.bad}); })()"
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 500,
+      "note": "off the rail - the pointermove releases the hold before the second leg"
+    },
+    { "type": "settle", "ms": 500 },
+    {
+      "type": "move",
+      "x": 90,
+      "y": 143,
+      "note": "over the workspace name row - verified by the hover-ws eval"
+    },
+    { "type": "settle", "ms": 600 },
+    {
+      "type": "eval",
+      "id": "hover-ws",
+      "target": "/sidebar",
+      "expression": "document.querySelector('.wsname.frow:hover') ? 'PINNED_HEAD' : (document.querySelector('.frow:hover')?.dataset.folderId || 'NONE')"
+    },
+    {
+      "type": "eval",
+      "id": "arm-ws",
+      "target": "/sidebar",
+      "expression": "(() => { const head = document.querySelector('.frow:hover'); if (!head) return 'NOHOVER'; const id = head.dataset.folderId; const st = {id, max: 0, ticks: 0, applies0: window.__atriumApplyCount || 0, bad: []}; window.__chevhold = st; const tick = () => { const h = document.querySelector(`.frow[data-folder-id=\"${CSS.escape(id)}\"]`); const g = h && h.querySelector('.fic-g, .wsic-i'); if (!h) { if (st.bad.length < 12) st.bad.push({t: st.ticks, gone: 1}); } else if (g) { const o = parseFloat(getComputedStyle(g).opacity); if (o > 0.01 && st.bad.length < 12) st.bad.push({t: st.ticks, o: +o.toFixed(2), hov: h.matches(':hover') ? 1 : 0, hold: h.classList.contains('hoverhold') ? 1 : 0, ap: (window.__atriumApplyCount || 0) - st.applies0}); if (o > st.max) st.max = o; } st.ticks++; if (st.ticks < 200) requestAnimationFrame(tick); }; requestAnimationFrame(tick); return 'ARMED'; })()"
+    },
+    { "type": "click", "x": 90, "y": 143, "note": "fold the pinned section, pointer stays put" },
+    { "type": "settle", "ms": 1800 },
+    {
+      "type": "eval",
+      "id": "verdict-ws",
+      "target": "/sidebar",
+      "expression": "(() => { const st = window.__chevhold; if (!st) return 'NOSTATE'; const applies = (window.__atriumApplyCount || 0) - st.applies0; const verdict = st.max <= 0.01 ? 'held' : 'flashed'; const base = verdict + ' applies=' + (applies > 0 ? 'yes' : 'no') + ' sampled=' + (st.ticks >= 60 ? 'yes' : 'no'); return verdict === 'held' ? base : base + ' | ' + JSON.stringify({max: +st.max.toFixed(2), applies, ticks: st.ticks, bad: st.bad}); })()"
+    },
+    {
+      "type": "capture",
+      "id": "end",
+      "duration_ms": 400,
+      "fps": 10,
+      "note": "both sections folded, chevron still up under the parked pointer"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "hover-folder",
+      "expected": "\"11111111-8088-4088-8088-808808808808\"",
+      "desc": "THE CONTROL for the first leg: the pointer sat on the News head before the click. NONE means the move coordinates missed - measure the layout frame and fix them, the verdicts mean nothing on a miss."
+    },
+    {
+      "type": "eval_equals",
+      "id": "verdict-folder",
+      "expected": "\"held applies=yes sampled=yes\"",
+      "desc": "THE RULE on a folder: the glyph never rose above opacity 0 while the pointer held still across the fold's echoed rebuild. applies=no means no rebuild ran, so a 'held' would be vacuous; flashed@N is the bug, N is the worst frame."
+    },
+    {
+      "type": "eval_equals",
+      "id": "hover-ws",
+      "expected": "\"PINNED_HEAD\"",
+      "desc": "THE CONTROL for the second leg: the pointer sat on the workspace name row."
+    },
+    {
+      "type": "eval_equals",
+      "id": "verdict-ws",
+      "expected": "\"held applies=yes sampled=yes\"",
+      "desc": "THE RULE on the workspace row: same hold across the pinned fold's rebuild."
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "spaces": [
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "name": "Foreign",
+      "emoji": "\ud83e\udded",
+      "tint": "oceanBlue",
+      "profileID": "Profile 1",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135094.0,
+          "url": "http://127.0.0.1:8000/example-domain-tall.html",
+          "title": "Example Domain"
+        }
+      ]
+    },
+    {
+      "id": "22222222-2222-2222-2222-222222222222",
+      "name": "Themed",
+      "emoji": "\ud83c\udfa8",
+      "tint": "atriumGreen",
+      "profileID": "Default",
+      "order": 1,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135131.0,
+          "url": "http://127.0.0.1:8000/example-domain-tall.html",
+          "title": "Example Domain"
+        }
+      ]
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "11111111-1111-1111-1111-111111111111"
+  }
+}

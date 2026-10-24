@@ -1,0 +1,103 @@
+{
+  "name": "nav-buttons-animate",
+  "description": "Reload's click nudges its glyph through the lab's reloadspin (sidebar-nav-row.css, ported from swipe-lab.html:68-69). A DOM class toggle proves the wiring but not the paint, so this reads it as pixels: a capture mid-animation must differ from rest (the spin is actually running), and a capture after animationend must match rest again (the class came back off, so a build that left the glyph stuck mid-turn is caught too). cgevent click/capture coordinates are SCREEN-absolute, not window-local: every Atrium window opens at pos=0,30 (move_window's own comment in vm-scenario.sh), so a point derived from CSS math alone needs +30 added to y before it reaches the button. The pointer is walked off the row after the click too, so the sticky :hover tint left behind by a real OS click cannot be mistaken for a stuck animation in the settled capture.",
+  "fixture": "two-tabs.spaces.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the nav row announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "rest",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the reload glyph at rest, before the click"
+    },
+    {
+      "type": "click",
+      "x": 239,
+      "y": 50,
+      "note": "reload's centre in SCREEN coordinates: x = 260 - kNavGroupRightInset(10) - half a 22px button(11) = 239, unshifted since the window's own x is 0. y = window pos.y(30) + .sbnav's top inset(9) + half the button height(11) = 50 - a sibling scenario's y=20 was window-local only and landed in the menu bar. Confirmed against the run's own frame: the reload glyph's painted pixels sit at screen x 234-243, y 44-54. A real OS click, so it clears AtriumClientView::NonClientHitTest before the DOM ever sees it."
+    },
+    {
+      "type": "capture",
+      "id": "mid",
+      "duration_ms": 100,
+      "fps": 20,
+      "note": "well inside reloadspin's .45s (sidebar-nav-row.css) - the glyph is rotated partway through the turn, not yet back at rest"
+    },
+    {
+      "type": "move",
+      "x": 600,
+      "y": 400,
+      "note": "off the row and onto the page, so the pointer cgevent left parked over reload cannot keep .sbnav .nb:hover's background lit through the settled capture below"
+    },
+    {
+      "type": "settle",
+      "ms": 700,
+      "note": "the spin finishes and animationend clears the class (sidebar-nav-row.js installReplayableAnimation), and the hover fade (.12s) clears behind the moved pointer"
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the glyph back at rest, the same as before the click"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "pixels_changed",
+      "before": "rest",
+      "after": "mid",
+      "region": [
+        228,
+        39,
+        22,
+        22
+      ],
+      "min_changed_pct": 4.0,
+      "desc": "THE MEASUREMENT: the glyph region changed mid-spin - the click actually started an animation, not just a state flip"
+    },
+    {
+      "type": "region_stable",
+      "before": "rest",
+      "after": "after",
+      "region": [
+        228,
+        39,
+        22,
+        22
+      ],
+      "max_delta": 3,
+      "desc": "the glyph settles back to its resting paint once animationend clears the class, rather than sticking mid-turn"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: sidebar reload on tab [0-9]+",
+      "desc": "the click also reached the reload message, not just the glyph"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

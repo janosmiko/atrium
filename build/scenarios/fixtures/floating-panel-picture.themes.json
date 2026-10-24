@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "themes": {
+    "89100002-0000-4000-8000-000000000002": {
+      "name": "Loud Gradient",
+      "stops": [
+        {
+          "x": 0.15,
+          "y": 0.15,
+          "color": "#D63A5A",
+          "alpha": 1.0
+        },
+        {
+          "x": 0.85,
+          "y": 0.9,
+          "color": "#12306E",
+          "alpha": 1.0
+        }
+      ],
+      "opacity": 1.0,
+      "effects": {
+        "grain": 0,
+        "vignette": 0,
+        "frost": 0,
+        "warmth": 0
+      },
+      "darkAdaptation": 0,
+      "version": 1,
+      "nightShiftEnabled": false,
+      "ambientEnabled": false
+    }
+  }
+}

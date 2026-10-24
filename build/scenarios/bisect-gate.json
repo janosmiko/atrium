@@ -1,0 +1,68 @@
+{
+  "name": "bisect-gate",
+  "description": "RETIRED DIAGNOSTIC, excluded from `all` via wip. A bisect step, written to answer one question rather than to guard a behaviour. It has one stored run and has never been green. Still runnable by name if that investigation is reopened. ORIGINAL NOTE: The earlier bisection arm B. Identical to idle-wake except the activation gate's timeout is raised from 60s to 300s. Nothing the app sees changes, so a slow result here means the HARNESS is perturbing what it measures: wait_vlog polls the VM for the whole window, and a 300s budget polls far longer than a 60s one. Worth running even though it sounds unlikely - two of this task's three dead theories came from probe artifacts rather than app behaviour.",
+  "wip": true,
+  "fixture": "space-cycle.spaces.json",
+  "startup_space": "a276b002-0000-0000-0000-000000000002",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "scroll",
+      "x": 100,
+      "y": 200,
+      "dx": 90,
+      "phase_ms": 900,
+      "momentum_ms": 0,
+      "step_ms": 20
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval_until",
+      "id": "scrub-forward",
+      "target": "peek-target.html",
+      "expression": "location.href",
+      "expected": "file:///Users/admin/atrium-probe/vm-fixtures/peek-target.html",
+      "timeout_ms": 8000,
+      "note": "precondition: the forward scrub committed"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "scroll",
+      "x": 100,
+      "y": 200,
+      "dx": -90,
+      "phase_ms": 900,
+      "momentum_ms": 0,
+      "step_ms": 20
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ activated on host",
+      "timeout_ms": 300000,
+      "note": "THE VARIABLE: 300s instead of idle-wake's 60s. The action list is otherwise byte-identical to the control."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "quit",
+      "desc": "sanity: the run completes"
+    }
+  ]
+}

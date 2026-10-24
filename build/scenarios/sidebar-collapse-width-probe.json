@@ -1,0 +1,101 @@
+{
+  "name": "sidebar-collapse-width-probe",
+  "description": "Hiding the sidebar must slide the pane out, not re-flow it. A rAF sampler records, on every frame of a Cmd+S hide and the Cmd+S show after it, the viewport width, the root's width, the .sidebar element's width, the favourites grid's width and its column count. The grid and the address row are hoisted out of the panes as absolute children of the root, so a hold on .sidebar alone left the grid re-filling its columns on every tick, which is the reflow the recording showed. The verdict evals assert that the grid, the root and .sidebar kept one width for the whole animation while the viewport actually moved. The raw logs are kept as evidence for a human reading the run log.",
+  "fixture": "lab-compare.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "sampler-armed",
+      "target": "/sidebar",
+      "expression": "(() => { if (window.__w) { return 'armed'; } const w = []; window.__w = w; window.__verdict = (viewportOk) => { const one = (i) => new Set(w.map((r) => r[i])).size === 1; const viewport = w[w.length - 1][1]; const ok = w.length > 1 && one(2) && one(3) && one(4) && one(5) && viewportOk(viewport); return ok ? 'held' : 'moved ' + JSON.stringify(w); }; const tick = () => { const de = document.documentElement; const root = document.getElementById('atrium-root'); const sb = document.querySelector('.sidebar'); const g = document.querySelector('.favgrid'); const cols = g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0; const row = [Math.round(performance.now()), de.clientWidth, root ? Math.round(root.getBoundingClientRect().width) : -1, sb ? Math.round(sb.getBoundingClientRect().width) : -1, g ? Math.round(g.getBoundingClientRect().width) : -1, cols]; const last = w[w.length - 1]; if (!last || last.slice(1).join() !== row.slice(1).join()) { w.push(row); } requestAnimationFrame(tick); }; requestAnimationFrame(tick); return 'armed'; })()",
+      "expected": "armed",
+      "timeout_ms": 5000,
+      "note": "A row is recorded only when a width changed, so the log stays short. The verdict wants ONE root, .sidebar, grid width and column count across every row, and the viewport at the expected end value so a chord that missed cannot pass as a perfect hold."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "hide-log",
+      "target": "/sidebar",
+      "expression": "JSON.stringify(window.__w)"
+    },
+    {
+      "type": "eval",
+      "id": "hide-verdict",
+      "target": "/sidebar",
+      "expression": "window.__verdict((v) => v < 10)",
+      "note": "The slot closes, and the last frame the page paints before the widget hides sits a few pixels wide, so under 10 means the collapse ran."
+    },
+    {
+      "type": "eval",
+      "id": "reset",
+      "target": "/sidebar",
+      "expression": "(window.__w.length = 0, 'reset')"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "show-log",
+      "target": "/sidebar",
+      "expression": "JSON.stringify(window.__w)"
+    },
+    {
+      "type": "eval",
+      "id": "show-verdict",
+      "target": "/sidebar",
+      "expression": "window.__verdict((v) => v === window.__w[window.__w.length - 1][2])",
+      "note": "On the way back the viewport must end at the root's held width, which is the docked width the native side pushed."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "hide-verdict",
+      "expected": "\"held\"",
+      "label": "the-hide-slides-the-whole-pane"
+    },
+    {
+      "type": "eval_equals",
+      "id": "show-verdict",
+      "expected": "\"held\"",
+      "label": "the-show-slides-the-whole-pane"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "label": "the-window-survived"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

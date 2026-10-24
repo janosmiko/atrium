@@ -1,0 +1,82 @@
+{
+  "name": "sidebar-row-click",
+  "description": "Second half: clicking an HTML sidebar row reaches the right tab. The first half - the sidebar renders real tabs and spaces from Rust - is covered by rust-core-sidebar. This is the half that needs real input.\n\nThe fixture holds two tabs in one space. Session restore brings up ONE of them, example.com, which the sidebar draws as the selected row at y=329. The other row, example.org at y=298, is COLD: a persisted tab with no live counterpart. So the click under test is the harder of the two cases, and passing it means the row is not inert.\n\nCoordinates are READ OFF the captured frame of the measurement run, not derived from assumed chrome widths - the rule peek-dismiss-click-away follows. The sidebar spans x 10 to 208, so x=110 is a row's horizontal centre.\n\nThe url assertion was measured ABSENT on that measurement run, which sent no click: its only url line was example.com. So it cannot pass on a startup line.\n\nThe sidebar's activation paths log lines, so the click is asserted directly rather than only through its side effect. The before and after captures still carry the visual half: the selected row moves from the lower one to the upper one.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: measure nothing until the restored tab has loaded"
+    },
+    {
+      "type": "settle",
+      "ms": 8000,
+      "note": "let both rows reach the sidebar and the snapshot settle"
+    },
+    {
+      "type": "activate",
+      "note": "Atrium frontmost, so a synthetic click lands on it"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the window come forward"
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "two rows, the lower one selected"
+    },
+    {
+      "type": "click",
+      "x": 110,
+      "y": 227,
+      "note": "the COLD row - the first one, whose tab is not live. Re-measured 2026-08-30 from pixel evidence across five runs today: the rows sit at y=227 and y=267, and y=339 now lands in empty sidebar. The second row is the LIVE one and draws selected, so clicking it would assert something else entirely."
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "let the reopened tab load and reach the sidebar"
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence of which row is selected once the click has landed"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "note": "a window exists at all - the post-cut question this milestone turns on"
+    },
+    {
+      "type": "vlog",
+      "label": "rust-core-produced-the-sidebar-model",
+      "pattern": "Atrium: sidebar model from the RUST CORE, [0-9]+ bytes",
+      "note": "the rows under test came from Rust, not from a leftover dylib"
+    },
+    {
+      "type": "vlog",
+      "label": "clicked-row-opened-its-own-url",
+      "pattern": "Atrium: tab [0-9]+ url http://0y\\.localhost",
+      "note": "the click reached the RIGHT row. example.org is deliberate: restore loads example.com, so this url can only come from the row that was clicked. A pattern of example\\.(com|org) would match the startup tab and pass without a click"
+    },
+    {
+      "type": "vlog",
+      "label": "the-cold-row-path-said-what-it-did",
+      "pattern": "Atrium: cold sidebar row opening",
+      "note": "The row clicked here is COLD - persisted with no live tab - so this is the path that ran, and it now says so instead of returning silently. Startup never opens a cold row, so the line can only come from the click. The line no longer carries a URL; example.org is the only page this fixture ever opens cold, so the bare prefix still means the same click."
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "name": "an-extension-side-panel-opens-resizes-and-closes",
+  "description": "A real unpacked extension with openPanelOnActionClick, pinned through the seeded Preferences. A left-click on its chip opens the native side panel on the edge opposite the sidebar. A tab switch keeps the window panel. A drag on the panel's grip widens it and stores the width. The header close button hides it. The light, dark and cyan-accent captures are the theme evidence. The panel is a card shaped like the page card: inset from the window edges, with rounded corners.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "chip-test-pinned.prefs.json",
+  "settings": "side-panel-cyan.settings.json",
+  "load_extension_dir": "build/scenarios/fixtures/extensions/side-panel-test",
+  "app_process": "Atrium",
+  "actions": [
+    {"type": "wait_vlog", "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost", "timeout_ms": 20000, "note": "gate: the startup tab committed, so the app is up"},
+    {"type": "settle", "ms": 4000},
+    {"type": "activate"},
+    {"type": "settle", "ms": 1000},
+    {"type": "eval", "id": "chip-point", "target": "/sidebar", "expression": "(() => { const c = document.querySelector('.exs-chip[data-extension-id=\"ockdpgepnciealdnaddnkfcnbieickai\"]'); if (!c) { return 'no-chip'; } const b = c.getBoundingClientRect(); return Math.round((b.left + b.right) / 2) + ',' + Math.round((b.top + b.bottom) / 2 + 30); })()", "note": "the chip's centre on screen, 30px below its client y"},
+    {"type": "click", "from_eval": "chip-point"},
+    {"type": "wait_vlog", "pattern": "Atrium: extension panel shown ockdpgepnciealdnaddnkfcnbieickai", "timeout_ms": 10000, "note": "THE GATE: only ShowExtensionPanel writes this line"},
+    {"type": "settle", "ms": 1500},
+    {"type": "key", "combo": "cmd+opt+down", "note": "next tab: a window panel must stay"},
+    {"type": "settle", "ms": 1500},
+    {"type": "capture", "id": "light", "duration_ms": 400, "fps": 20, "note": "the header and grip in light mode"},
+    {"type": "drag_during_capture", "x1": 627, "y1": 400, "x2": 527, "y2": 400, "steps": 40, "capture_id": "grip-drag", "duration_ms": 2500, "fps": 30, "drag_delay_ms": 400, "note": "100 points left, so the panel widens from 400 to about 500. The capture shows the cyan accent line while held"},
+    {"type": "settle", "ms": 1500},
+    {"type": "system_appearance", "value": "dark"},
+    {"type": "settle", "ms": 2000},
+    {"type": "capture", "id": "dark", "duration_ms": 400, "fps": 20, "note": "the header and grip in dark mode"},
+    {"type": "click", "x": 992, "y": 55, "note": "the header close button, at the point the gate line names"}
+  ],
+  "assertions": [
+    {"type": "vlog", "pattern": "Atrium: extension panel shown ockdpgepnciealdnaddnkfcnbieickai width 400 close 992,55 grip 627", "desc": "setup: the panel opened at the default width, with the close and grip points the clicks below use"},
+    {"type": "vlog", "pattern": "Atrium: extension panel width ockdpgepnciealdnaddnkfcnbieickai (4[6-9][0-9]|5[01][0-9])", "desc": "the grip drag widened the panel and stored the width"},
+    {"type": "vlog_count", "label": "only-the-close-hid-it", "pattern": "Atrium: extension panel hidden", "min": 1, "max": 1, "desc": "the tab switch kept the window panel, and the close button hid it once"},
+    {"type": "theme_changed", "before": "light", "after": "dark", "region": "650,44,280,20", "min_delta": 6, "desc": "the header follows the system appearance"},
+    {"type": "region_mean", "capture": "light", "x": 900, "y": 48, "w": 20, "h": 12, "min_mean": 230, "max_mean": 256, "label": "the-header-wears-the-page-surface", "desc": "the header inside the card is the page card's white, not the tinted backdrop"},
+    {"type": "region_mean", "capture": "light", "x": 1011, "y": 40, "w": 2, "h": 2, "max_mean": 200, "label": "the-card-top-right-corner-is-round", "desc": "just inside the card's top-right corner the backdrop shows, a square card is white here"},
+    {"type": "region_mean", "capture": "light", "x": 1016, "y": 300, "w": 4, "h": 40, "max_mean": 200, "label": "a-gutter-on-the-window-edge", "desc": "the backdrop shows between the card and the window's right edge"},
+    {"type": "region_mean", "capture": "light", "x": 630, "y": 300, "w": 3, "h": 40, "max_mean": 200, "label": "a-gutter-between-the-two-cards", "desc": "the backdrop shows between the page card and the panel card"},
+    {"type": "region_mean", "capture": "dark", "x": 900, "y": 48, "w": 20, "h": 12, "max_mean": 90, "label": "the-dark-header-wears-the-dark-page-surface", "desc": "in dark mode the header takes the page card's dark surface"},
+    {"type": "ax_window_count", "expected": 1, "min_area": 200000, "desc": "the browser window alone"},
+    {"type": "quit", "desc": "Cmd+Q still quits cleanly"}
+  ]
+}

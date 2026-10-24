@@ -1,0 +1,78 @@
+{
+  "name": "ambilight-holds-through-a-cold-open",
+  "description": "Round 2: opening a cold tab must not flash the space default between the old tab's glow and the new page's first read. The commit arrives with no theme-color and no favicon yet, and the event path used to answer that with the plain space tint - one jump to the default, then a second jump when the sampler read the new page. While the sampler is live the event path holds the glow instead.\n\nThe control is the commit of the cold page; the measurement is the hold line on that commit and the ABSENCE of a uniform tint being pushed between the two pages' glows.",
+  "fixture": "ambilight-cold-open.spaces.json",
+  "settings": "icon-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "the split page commits and the sampler starts on it"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "second-row-point",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = document.querySelector('.railpane:not(.ovrailpane)').querySelectorAll('[data-dropzone=\"tabs\"] .tabrow'); if (rows.length < 2) { return 'rows ' + rows.length; } const b = rows[1].getBoundingClientRect(); return '100,' + Math.round((b.top + b.bottom) / 2 + 30); })()",
+      "note": "the second row's centre on screen, 30px below its client y, so a layout change cannot move the click off it"
+    },
+    {
+      "type": "click",
+      "from_eval": "second-row-point",
+      "note": "the Brand row, COLD - it navigates, which is the case under test"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "eval_until",
+      "id": "cold-page",
+      "target": "brand-dark-red-icon.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/brand-dark-red-icon.html",
+      "timeout_ms": 8000,
+      "note": "the cold tab's page, read from the page itself"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "cold-page",
+      "expected": "http://127.0.0.1:8000/brand-dark-red-icon.html",
+      "label": "the-cold-page-committed",
+      "desc": "THE CONTROL: the cold tab navigated, so the event path had a colourless commit to answer."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: page tint held for the sampler",
+      "label": "the-glow-held",
+      "desc": "THE MEASUREMENT: the colourless commit was answered with a hold, not with the space default."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: ambilight edges L=#7A1A1A",
+      "label": "the-new-page-then-glowed",
+      "desc": "And the sampler's own read of the new page arrived after the hold, so the chrome went from the split page's glow straight to this one."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

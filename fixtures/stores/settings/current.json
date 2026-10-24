@@ -1,0 +1,18 @@
+{
+  "animationsEnabled" : false,
+  "appIconVariant" : "solarized-ink",
+  "archiveThreshold" : "twelveHours",
+  "autoPipEnabled" : true,
+  "confirmToQuitEnabled" : true,
+  "glassOpacity" : 0.55000000000000004,
+  "horizontalScrollOverride" : "auto",
+  "importPromptShown" : true,
+  "memorySaverEnabled" : false,
+  "memorySaverThreshold" : "twoHours",
+  "opaqueSurround" : true,
+  "promptForDownload" : true,
+  "schemaVersion" : 1,
+  "sidebarPosition" : "left",
+  "startupBehavior" : "restoreLastActive",
+  "surroundColor" : "#12282E"
+}

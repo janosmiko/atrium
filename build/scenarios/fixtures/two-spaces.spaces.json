@@ -1,0 +1,41 @@
+{
+  "spaces": [
+    {
+      "id": "a7160001-0000-0000-0000-000000000001",
+      "name": "Daylight",
+      "emoji": "☀️",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "url": "http://127.0.0.1:8000/peek-target.html",
+          "title": "Peek Target"
+        }
+      ],
+      "groups": []
+    },
+    {
+      "id": "a7160002-0000-0000-0000-000000000002",
+      "name": "Zephyr",
+      "emoji": "🌬️",
+      "tint": "atriumSolarized",
+      "profileID": "Default",
+      "order": 1,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "url": "http://127.0.0.1:8000/favicon-page.html",
+          "title": "Blue Favicon Site"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 200,
+    "schemaVersion": 1,
+    "activeSpaceID": "a7160001-0000-0000-0000-000000000001"
+  }
+}

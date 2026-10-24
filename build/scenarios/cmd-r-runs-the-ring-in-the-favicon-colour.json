@@ -1,0 +1,85 @@
+{
+  "name": "cmd-r-runs-the-ring-in-the-favicon-colour",
+  "description": "A reload from the keyboard never clicked a row, so the click-driven mark never ran. The ring now follows the browser's DidStartLoading and DidStopLoading, and it takes the favicon's colour. The fixture is the dark page with a solid red icon: a watcher on the selected row records whether the loading class came and went across a Cmd+R, and the row's ring colour reads red.",
+  "fixture": "ambilight-brand.spaces.json",
+  "settings": "icon-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "brand-dark-red-icon.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/brand-dark-red-icon.html",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "ring-colour",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.row.sel'); if (!r) { return 'no selected row'; } const m = /rgb\\((\\d+) (\\d+) (\\d+)\\)/.exec(r.style.getPropertyValue('--ringb')); if (!m) { return 'tint mix: ' + r.style.getPropertyValue('--ringb'); } const [r1, g1, b1] = m.slice(1).map(Number); return (r1 > 150 && g1 < 60 && b1 < 60) ? 'red' : 'rgb ' + m.slice(1).join(' '); })()"
+    },
+    {
+      "type": "eval",
+      "id": "armed",
+      "target": "/sidebar",
+      "expression": "(() => { window.__ringSeen = 'not yet'; if (!document.querySelector('.row.sel')) { return 'no selected row'; } const mo = new MutationObserver(() => { const lit = document.querySelector('.row.sel.loading'); if (lit) { window.__ringSeen = 'seen'; } else if (window.__ringSeen === 'seen') { window.__ringSeen = 'seen then cleared'; } }); mo.observe(document.body, {subtree: true, childList: true, attributes: true, attributeFilter: ['class']}); return 'armed'; })()"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+r"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "eval",
+      "id": "ring-seen",
+      "target": "/sidebar",
+      "expression": "String(window.__ringSeen)"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "armed",
+      "expected": "\"armed\"",
+      "desc": "the watcher sat on the selected row before the chord"
+    },
+    {
+      "type": "eval_equals",
+      "id": "ring-seen",
+      "expected": "\"seen then cleared\"",
+      "desc": "THE MEASUREMENT: the loading class arrived with the browser's start and left with its stop. 'not yet' is the old build, where a keyboard reload marked nothing."
+    },
+    {
+      "type": "eval_equals",
+      "id": "ring-colour",
+      "desc": "the ring carries the icon's red, not the tint mix",
+      "expected": "\"red\""
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

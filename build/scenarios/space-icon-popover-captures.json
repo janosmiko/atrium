@@ -1,0 +1,34 @@
+{
+  "name": "space-icon-popover-captures",
+  "description": "Visual capture of the space icon popover's Icon tab and Emoji tab, for a light/dark review pass. Not an assertion scenario - the frames are the artifact.",
+  "fixture": "canvas.spaces.json",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {"type": "settle", "ms": 6000},
+    {"type": "activate"},
+    {"type": "settle", "ms": 1500},
+    {"type": "rightclick", "x": 110, "y": 620, "note": "EMPTY SPACE below the rows, which opens the space menu"},
+    {"type": "settle", "ms": 1200},
+    {
+      "type": "eval",
+      "id": "open-popover",
+      "target": "/sidebar",
+      "expression": "(() => { const item = [...document.querySelectorAll('.ctxitem')].find((b) => b.textContent === 'Change Space Icon'); if (!item) { return 'no item'; } item.click(); const tab = document.querySelector('.spiconpop .spicon-seg .settings-seg-option[data-tab=\"icon\"]'); if (tab) { tab.click(); } return document.querySelector('.spiconpop') ? 'open' : 'not open'; })()"
+    },
+    {"type": "settle", "ms": 500},
+    {"type": "capture", "id": "icon-tab", "duration_ms": 300, "fps": 10},
+    {
+      "type": "eval",
+      "id": "switch-to-emoji",
+      "target": "/sidebar",
+      "expression": "(() => { const tab = document.querySelector('.spiconpop .spicon-seg .settings-seg-option[data-tab=\"emoji\"]'); if (!tab) { return 'no-emoji-tab'; } tab.click(); return 'switched'; })()"
+    },
+    {"type": "settle", "ms": 500},
+    {"type": "capture", "id": "emoji-tab", "duration_ms": 300, "fps": 10}
+  ],
+  "assertions": [
+    {"type": "eval_equals", "id": "open-popover", "expected": "\"open\""},
+    {"type": "eval_equals", "id": "switch-to-emoji", "expected": "\"switched\""}
+  ]
+}

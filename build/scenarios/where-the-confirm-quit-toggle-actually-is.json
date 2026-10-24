@@ -1,0 +1,70 @@
+{
+  "name": "where-the-confirm-quit-toggle-actually-is",
+  "description": "Diagnostic, and a check on my own bug report. settings-confirm-quit-toggle clicks a HARDCODED (888, 570) for the Warn before quitting toggle. Its run shows four 'Atrium: settings pushed' lines and not one 'Atrium: settings written', so the page never sent a save at all - which is equally consistent with a product defect in the toggle and with a click that simply misses it.\n\nCoordinates in this repo have drifted before, and the settings route is mid-redesign with four tokens it reads defined nowhere. So the coordinate is the first thing to rule out, not the last.\n\nThis opens settings the same way and asks the DOCUMENT where the toggle is, rather than clicking anything. If the row's rect contains 888,570 the coordinate is fine and it is a real product defect. If it does not, I filed a scenario bug as a product bug and the report needs correcting.\n\nNothing is asserted. This pass produces a rect and the row's structure, so the two scenarios can be rewritten to dispatch on the control itself.",
+  "fixture": "two-tabs.spaces.json",
+  "settings": "confirm-quit-on.settings.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "same open as the scenario under test"
+    },
+    {
+      "type": "settle",
+      "ms": 7000,
+      "note": "the window builds and the core's values land, as the scenario allows for"
+    },
+    {
+      "type": "eval",
+      "id": "settings-surface",
+      "target": "/settings",
+      "expression": "location.pathname + ' ' + window.innerWidth + 'x' + window.innerHeight",
+      "note": "which document answered, and how big it is - the click coordinate is in SCREEN space, so the window's own origin matters too"
+    },
+    {
+      "type": "eval",
+      "id": "toggle-row-rects",
+      "target": "/settings",
+      "expression": "(() => { const hits = [...document.querySelectorAll('*')].filter((e) => /warn before quitting/i.test(e.textContent || '') && e.children.length <= 3); if (!hits.length) { return 'no row matching Warn before quitting'; } return hits.slice(-3).map((e) => { const r = e.getBoundingClientRect(); return e.tagName + '.' + (e.className || '(none)') + ' ' + Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height); }).join(' | '); })()",
+      "note": "the innermost elements carrying the label, with their boxes. The toggle sits at the right of that row."
+    },
+    {
+      "type": "eval",
+      "id": "row-innards",
+      "target": "/settings",
+      "expression": "(() => { const row = [...document.querySelectorAll('.settings-row')].find((r) => /warn before quitting/i.test(r.textContent || '')); if (!row) { return 'no row'; } const walk = (el, d) => [el.tagName + '.' + (el.className || '(none)') + (el.getAttribute('role') ? '[role=' + el.getAttribute('role') + ']' : '') + (el.getAttribute('aria-checked') ? '[checked=' + el.getAttribute('aria-checked') + ']' : ''), ...(d > 0 ? [...el.children].flatMap((c) => walk(c, d - 1)) : [])]; return walk(row, 3).join(' > '); })()",
+      "note": "what the row is actually made of, so the click can name its target instead of guessing a coordinate"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 100000,
+      "desc": "the browser window and the settings window - a count that only says the settings window opened at all"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

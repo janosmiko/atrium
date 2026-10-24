@@ -1,0 +1,175 @@
+{
+  "name": "dark-rail-and-segmented-focus-ring",
+  "description": "Two checks that settings-rail-chrome-and-focus-ring.json did not cover: The ring must be visible against both a light and a dark pane, and the segmented control's ring must not collide with its sliding thumb. Both are presence-and-contrast claims about pixels, not DOM state, so this scenario exists only to produce the two captures - the eval assertions confirm the SETUP (who has focus, what is selected) rather than the ring's look, the same limit a sibling scenario's own report named.\n\nDARK PANE, REAL PATH. settings.js has no in-app light/dark control of its own - overlay.css's dark tokens (--ov-paper, --ov-ground, etc.) come entirely from @media (prefers-color-scheme: dark), so the only real path to a dark pane is the OS appearance. system_appearance below drives that through System Events (vm-scenario.sh's apply_system_appearance), the same mechanism quit-panel-corners-are-transparent-in-dark.json already uses and the same one that scenario's own history warns is easy to get wrong: a plain `defaults write` sets the preference key but a launched app still reads Light, because AppKit takes the appearance from a session property loginwindow owns, not a preference the process polls. The renderer-side matchMedia read below is logged as a diagnostic only, exactly as that scenario treats it - a WebUI page not tracking AppleInterfaceStyle would be a Chromium behaviour, not a defect in this fix, so it is not asserted.\n\nSEGMENTED COLLISION, ADJACENT NOT UNDER. Sidebar position (settings.js, PANE_ROWS.general) is the segmented row visible on General without navigating anywhere, choices ['left', 'right'], defaulting to 'left' - so the thumb sits under Left from the moment the window opens. Every .settings-seg-option is an independent <button> with its own default tabIndex (buildSegmentedControl in settings.js) and no arrow-key handler of its own (unlike the rail's railKey - a segmented row is one Tab stop, not one Tab-stop-per-choice group in the WAI-ARIA sense, but Chromium still lets Tab reach every button in DOM order). Clicking Right would select it and move the thumb there too, erasing the exact case this scenario needs, so the setup script-focuses Left first (a .focus() call fires no click handler, so selection is untouched) and then sends one real Tab keypress - Left and Right are adjacent siblings with nothing focusable between them, so Tab lands on Right without disturbing which one is selected. The result is the one shape that matters: a focus ring on Right while the accent-filled thumb is still under Left, sharing the row's 3px gap.",
+  "fixture": "presenter-startup.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "system_appearance": "dark",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the browser window finish first paint"
+    },
+    {
+      "type": "activate",
+      "note": "Atrium MUST be frontmost or cmd+comma opens Finder Settings instead"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "open Settings; its menu item is not reachable from a scenario"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "window opens on General - the open-time .focus() already put DOM focus on the General rail item, and system_appearance already switched the OS before launch"
+    },
+    {
+      "type": "eval",
+      "id": "renderer-colour-scheme",
+      "target": "/settings",
+      "expression": "String(window.matchMedia('(prefers-color-scheme: dark)').matches)",
+      "note": "DIAGNOSTIC ONLY, deliberately not asserted - same treatment quit-panel-corners-are-transparent-in-dark.json gives this read. It narrows a capture that looks wrong to the appearance rather than the fix; the capture's own pixels are the control"
+    },
+    {
+      "type": "capture",
+      "id": "rail-focus-dark",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "Evidence: General selected and holding real keyboard focus (the open-time .focus()), rendered against the dark pane"
+    },
+    {
+      "type": "eval",
+      "id": "rail-dark-selected",
+      "target": "/settings",
+      "expression": "(() => document.querySelector('.settings-rail-item.selected')?.dataset.pane)()"
+    },
+    {
+      "type": "eval",
+      "id": "rail-dark-active-pane",
+      "target": "/settings",
+      "expression": "(() => document.activeElement.dataset.pane)()",
+      "note": "confirms activeElement IS the rail item the capture claims, not something else"
+    },
+    {
+      "type": "eval",
+      "id": "rail-dark-focus-visible",
+      "target": "/settings",
+      "expression": "(() => document.activeElement.matches(':focus-visible'))()"
+    },
+    {
+      "type": "eval",
+      "id": "focus-left-option",
+      "target": "/settings",
+      "expression": "(() => { document.querySelector('.settings-row[data-key=\"sidebarPosition\"] .settings-seg-option[data-choice=\"left\"]').focus(); return document.activeElement.dataset.choice; })()",
+      "note": "a bare .focus() fires no click handler, so this does not disturb which option is selected - only sets up a known Tab origin"
+    },
+    {
+      "type": "key",
+      "combo": "tab",
+      "note": "THE MEASUREMENT. Left and Right are adjacent buttons with nothing focusable between them, so one real Tab keypress moves focus from Left to Right without selecting it"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "segment-focus-collision",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "Evidence: Right holds keyboard focus while the accent-filled thumb is still under Left - the one place the ring shares space with a moving element"
+    },
+    {
+      "type": "eval",
+      "id": "seg-focus-active-choice",
+      "target": "/settings",
+      "expression": "(() => document.activeElement.dataset.choice)()"
+    },
+    {
+      "type": "eval",
+      "id": "seg-focus-is-focus-visible",
+      "target": "/settings",
+      "expression": "(() => document.activeElement.matches(':focus-visible'))()"
+    },
+    {
+      "type": "eval",
+      "id": "seg-thumb-still-on-left",
+      "target": "/settings",
+      "expression": "(() => document.querySelector('.settings-row[data-key=\"sidebarPosition\"] .settings-seg-option[data-choice=\"left\"]').classList.contains('on'))()",
+      "note": "proves the thumb did not follow the Tab - this is genuinely the adjacent-option case, not an accidental selection"
+    },
+    {
+      "type": "eval",
+      "id": "seg-right-not-selected",
+      "target": "/settings",
+      "expression": "(() => document.querySelector('.settings-row[data-key=\"sidebarPosition\"] .settings-seg-option[data-choice=\"right\"]').classList.contains('on'))()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "note": "the browser window AND the settings window"
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-window-opens-on-general-in-dark-too",
+      "id": "rail-dark-selected",
+      "expected": "\"general\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-focused-rail-item-is-the-one-the-capture-shows",
+      "id": "rail-dark-active-pane",
+      "expected": "\"general\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-open-time-focus-is-a-visible-arrival-in-dark-too",
+      "id": "rail-dark-focus-visible",
+      "expected": "true"
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-tab-origin-is-really-left",
+      "id": "focus-left-option",
+      "expected": "\"left\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "tab-moves-focus-onto-right",
+      "id": "seg-focus-active-choice",
+      "expected": "\"right\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-tab-arrival-on-right-is-visible",
+      "id": "seg-focus-is-focus-visible",
+      "expected": "true"
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-thumb-stayed-on-left",
+      "id": "seg-thumb-still-on-left",
+      "expected": "true"
+    },
+    {
+      "type": "eval_equals",
+      "label": "right-is-focused-but-not-selected",
+      "id": "seg-right-not-selected",
+      "expected": "false"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits with the settings window open"
+    }
+  ]
+}

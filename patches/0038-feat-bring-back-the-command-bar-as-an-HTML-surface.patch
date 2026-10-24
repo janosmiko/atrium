@@ -1,0 +1,54 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 08:53:25 +0200
+Subject: [PATCH 038/154] feat: bring back the command bar as an HTML surface
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The palette has been a no-op since the Swift cut: OpenCommandBar showed a
+widget nothing constructed, so all 47 call sites reached nothing. This
+rebuilds it on the sidebar's shape - a WebUI surface fed from the browser
+process - and leaves those call sites untouched.
+
+- /commandbar route: commandbar.js and commandbar.css, no innerHTML and no
+  Trusted Types policy, with 13 unit tests behind make webui-test.
+- Five chrome.send names in kSurfaceMessages. An unregistered name kills the
+  browser process, so the JS suite reads the list from the header.
+- atrium_command_bar_matches: which omnibox string goes on which line, and
+  the wire snapshot. Portable C++, 7 gtest cases.
+- CommandBarWidget hosts a WebView instead of a Swift NSView, and lost its
+  AtriumHost and UIBridge parameters.
+- AutocompleteBridge pushes finished passes to the page and answers where a
+  match points.
+
+Six command_bar_connected() gates removed. They asked the dylib whether a
+palette existed, which since the cut is never, so every trigger declined
+before it reached the widget. The VM found that, not review.
+
+Two more the VM found: accept resolved its URL after Close() had clobbered
+the autocomplete result, and the WebView was never the focused view, so the
+palette came up visible, key, and deaf to every keystroke.
+
+Verified: scenario command-bar, 4 passed 0 failed, with
+command_bar=0 in the same run - Cmd+T opens it, seven keystrokes each reach
+the bridge, Escape closes it.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index eef299e55832f..dbdcd1b0c5b4f 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -623,6 +623,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:edit_focus_gate",
+     "//chrome/browser/ui/atrium:extension_popup_watchdog_policy",
+     "//chrome/browser/ui/atrium:little_marker",
++    "//chrome/browser/ui/atrium:command_bar_matches",
+     "//chrome/browser/ui/atrium:command_intercept_decision",
+     "//chrome/browser/ui/atrium:command_target_decision",
+     "//chrome/browser/ui/atrium:peek_decision",

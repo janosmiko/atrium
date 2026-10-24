@@ -1,0 +1,200 @@
+{
+  "name": "settings-pane-header-drags-the-window",
+  "description": "The settings window has no native titlebar, and until now its only drag handle was the 40px .settings-drag-region strip above the sidebar - a press anywhere else on the window's own background, including the pane header row beside the pane title or the sidebar's own empty space, started a text selection instead of moving the window. settings.css now marks the pane heading and the sidebar background as drag regions, with every control, row, scroll container (.settings-rail, .settings-search-results) and a few plain-div pointer targets (the glass-opacity slider track, an engine/routing row, the theme studio canvas) punching their own hole back out. The pane content itself is deliberately NOT a drag region: on macOS a wheel over a drag region never reaches the page (AppKit picks the wheel target with the hitTest: that returns nil for HTCAPTION), so a drag rule on the whole pane stalled the scroll everywhere but over a control. The heading is a block, so a press beside its text still moves the window.\n\nThis measures the part the node suite cannot: dom-shim has no layout engine, so it can assert the CSS rule text and that a real element matches the no-drag selector list, but not that an actual mouse press at a real point on screen moves a real OS window. That is what this scenario drives, with a real cgevent drag rather than move_window's own AX call - AX would move the window on its own regardless of whether the fix works, which would make the assertion pass either way. Two drags run, from two different backgrounds - the pane content and the sidebar - since each is its own drag region in the CSS and a fix to one does not prove the other.\n\naxresize (move_window/resize/get) always targets the LARGEST AX window of the app, not the frontmost one, so the browser window is shrunk to 700x500 before Settings opens - otherwise move_window would reposition the browser window behind it instead. move_window puts Settings at a known screen position before each drag, so its start and end points can be aimed in absolute screen coordinates: the pane point (40+650, 50+35) is computed from the layout (a 190px sidebar column, the pane's own 24px/26px padding, a 20px heading) and sits well clear of both the heading text and the pane's right edge; the sidebar point (40+3, 50+46) sits in the search field's own wrap padding, left of the field and above the rail. Both points are gated by their own elementFromPoint check before the real drag runs.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so the app is up"
+    },
+    { "type": "settle", "ms": 4000 },
+    { "type": "activate", "note": "Atrium frontmost, so the chord reaches it" },
+    { "type": "settle", "ms": 1200 },
+    {
+      "type": "resize",
+      "w": 700,
+      "h": 500,
+      "note": "the browser window - only one window exists yet, so this cannot land anywhere else. Shrinks it under Settings' own 860x620 default, or the next move_window would target this window instead"
+    },
+    { "type": "settle", "ms": 800 },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "open Settings; its menu item is not reachable from a scenario"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "window opens on General at 860x620 - now the largest AX window, so it is the one axresize reaches below"
+    },
+    {
+      "type": "move_window",
+      "x": 40,
+      "y": 50,
+      "note": "a known screen position, so the drag below can be aimed in absolute coordinates rather than wherever CenterWindow happened to land it"
+    },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "drag-point-is-pane-background",
+      "target": "/settings",
+      "expression": "(() => { const el = document.elementFromPoint(650, 35); if (!el) return 'nothing-there'; if (el.closest('.settings-drag-region')) return 'on-old-strip'; return (el.closest('.settings-pane-content') && !el.closest('button, input, select, textarea')) ? 'on-pane-background' : 'unexpected: ' + el.className; })()",
+      "note": "gates the scenario's own setup - 650,35 has to land beside the General heading, past the old strip and off every control, or the drag below would prove nothing"
+    },
+    {
+      "type": "eval",
+      "id": "app-regions",
+      "target": "/settings",
+      "expression": "(() => { const r = (s) => getComputedStyle(document.querySelector(s)).webkitAppRegion || getComputedStyle(document.querySelector(s)).appRegion; return 'heading=' + r('.settings-heading') + ' pane=' + r('.settings-pane-content'); })()",
+      "note": "the deployed CSS, as the renderer resolved it: the heading is the drag handle, and the pane content is not - a wheel over a drag region never reaches the page on macOS, so this line is the scroll bug's regression guard"
+    },
+    {
+      "type": "eval",
+      "id": "stash-pos-pane",
+      "target": "/settings",
+      "expression": "(() => { window.__dragStart = {x: window.screenX, y: window.screenY}; return true; })()",
+      "note": "screenX/screenY read the window's real position from the renderer - stashed here so the after-drag eval can diff against it without a second round trip"
+    },
+    {
+      "type": "drag",
+      "x1": 690,
+      "y1": 85,
+      "x2": 750,
+      "y2": 85,
+      "note": "THE MEASUREMENT (pane): a real cgevent mouse drag from the pane background (40+650, 50+35) rightward by 60. Horizontal, like every other drag action in this suite - a first diagonal attempt moved the window in x by the full delta and not at all in y, which is AppKit's native window-drag loop under a synthetic gesture, not this fix. No expect_width - that correction loop only understands the sidebar resize grip's own vlog line, not a window move"
+    },
+    { "type": "settle", "ms": 1500 },
+    {
+      "type": "eval",
+      "id": "moved-right-pane",
+      "target": "/settings",
+      "expression": "(() => Math.abs((window.screenX - window.__dragStart.x) - 60) <= 15)()",
+      "note": "a real cgevent drag lands short by a different amount each run, so this checks against the 60 asked for within a loose tolerance rather than an exact match"
+    },
+    {
+      "type": "eval",
+      "id": "moved-detail-pane",
+      "target": "/settings",
+      "expression": "(() => { const b = window.__dragStart; return 'before ' + b.x + ',' + b.y + ' after ' + window.screenX + ',' + window.screenY; })()",
+      "note": "recorded: the numbers behind moved-right-pane, including y for evidence even though nothing asserts on it"
+    },
+    {
+      "type": "capture",
+      "id": "after-drag-pane",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the window at its new position after the pane drag"
+    },
+    {
+      "type": "move_window",
+      "x": 40,
+      "y": 50,
+      "note": "reset to the same known position for the second drag below - the pane drag above already moved the window, and the sidebar drag's own screen coordinates are computed from this exact origin"
+    },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "drag-point-is-sidebar-background",
+      "target": "/settings",
+      "expression": "(() => { const el = document.elementFromPoint(3, 46); if (!el) return 'nothing-there'; if (el.closest('.settings-drag-region')) return 'on-old-strip'; if (el.closest('.settings-rail')) return 'on-rail'; return (el.closest('.settings-sidebar') && !el.closest('button, input, select, textarea')) ? 'on-sidebar-background' : 'unexpected: ' + el.className; })()",
+      "note": "gates the second drag - 3,46 sits in the search wrap's own padding (past the 40px strip, left of the field, above the rail), not on the rail or the old strip"
+    },
+    {
+      "type": "eval",
+      "id": "stash-pos-sidebar",
+      "target": "/settings",
+      "expression": "(() => { window.__dragStart = {x: window.screenX, y: window.screenY}; return true; })()",
+      "note": "re-stashed against the position after the reset move_window above, not the pane drag's own result"
+    },
+    {
+      "type": "drag",
+      "x1": 43,
+      "y1": 96,
+      "x2": 83,
+      "y2": 96,
+      "note": "THE MEASUREMENT (sidebar): a real cgevent mouse drag from the sidebar background (40+3, 50+46) rightward by 40 - a point in the sidebar column, off the rail and off the old strip"
+    },
+    { "type": "settle", "ms": 1500 },
+    {
+      "type": "eval",
+      "id": "moved-right-sidebar",
+      "target": "/settings",
+      "expression": "(() => Math.abs((window.screenX - window.__dragStart.x) - 40) <= 15)()",
+      "note": "same loose tolerance as moved-right-pane, against the 40 asked for here"
+    },
+    {
+      "type": "eval",
+      "id": "moved-detail-sidebar",
+      "target": "/settings",
+      "expression": "(() => { const b = window.__dragStart; return 'before ' + b.x + ',' + b.y + ' after ' + window.screenX + ',' + window.screenY; })()",
+      "note": "recorded: the numbers behind moved-right-sidebar"
+    },
+    {
+      "type": "capture",
+      "id": "after-drag-sidebar",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the window at its new position after the sidebar drag"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "note": "the browser window and the settings window"
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-pane-drag-point-is-real-pane-background",
+      "id": "drag-point-is-pane-background",
+      "expected": "\"on-pane-background\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-heading-drags-and-the-pane-content-does-not-so-a-wheel-reaches-the-page",
+      "id": "app-regions",
+      "expected": "\"heading=drag pane=none\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-window-position-could-be-read-before-the-pane-drag",
+      "id": "stash-pos-pane",
+      "expected": "true"
+    },
+    {
+      "type": "eval_equals",
+      "label": "a-press-and-drag-on-the-pane-header-moves-the-window-by-the-dragged-distance",
+      "id": "moved-right-pane",
+      "expected": "true"
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-sidebar-drag-point-is-real-sidebar-background-off-the-rail",
+      "id": "drag-point-is-sidebar-background",
+      "expected": "\"on-sidebar-background\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-window-position-could-be-read-before-the-sidebar-drag",
+      "id": "stash-pos-sidebar",
+      "expected": "true"
+    },
+    {
+      "type": "eval_equals",
+      "label": "a-press-and-drag-on-the-sidebar-background-moves-the-window-by-the-dragged-distance",
+      "id": "moved-right-sidebar",
+      "expected": "true"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

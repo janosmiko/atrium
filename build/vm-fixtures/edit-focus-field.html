@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Edit Focus Field</title></head>
+<body style="margin:0;padding:40px;font-family:sans-serif;font-size:24px;background:#fdf0d5;">
+<p>Edit-focus gate test page.</p>
+<!-- The gated-chord test surface. cmd+shift+left is macOS's
+     moveToLeftEndOfLineAndModifySelection: - if the hotkey gate works, pressing
+     it with this field focused must extend the selection here instead of firing
+     whatever action the scenario's hotkeys.json bound to that chord.
+
+     The selection is reported into document.title (not just into the DOM)
+     because the title crosses the bridge and lands in the run log via
+     TabEventForwarder::TitleWasSet's VLOG - which is what makes "the keystroke
+     actually reached the field" a machine assertion rather than a screenshot
+     someone has to eyeball. ATRIUM-SEL-0-11 means the whole of "hello world"
+     got selected, i.e. the chord did its real AppKit job. -->
+<input id="field" type="text" value="hello world"
+       style="font-size:24px;padding:8px;width:400px;">
+<p>selection: <span id="marker">none</span></p>
+<script>
+  var field = document.getElementById('field');
+  var marker = document.getElementById('marker');
+
+  function report() {
+    var label = 'ATRIUM-SEL-' + field.selectionStart + '-' + field.selectionEnd;
+    marker.textContent = label;
+    document.title = label;
+  }
+
+  // Caret to the end on focus, so cmd+shift+left has a full line to select
+  // backwards over and the resulting range is unambiguous.
+  field.addEventListener('focus', function () {
+    field.setSelectionRange(field.value.length, field.value.length);
+    report();
+  });
+  // selectionchange on the element is the modern signal; keyup is the fallback
+  // for engines that only fire it on the document.
+  field.addEventListener('selectionchange', report);
+  field.addEventListener('keyup', report);
+  document.addEventListener('selectionchange', function () {
+    if (document.activeElement === field) { report(); }
+  });
+  field.addEventListener('blur', function () {
+    marker.textContent = 'blurred';
+    document.title = 'ATRIUM-SEL-blurred';
+  });
+</script>
+</body>
+</html>

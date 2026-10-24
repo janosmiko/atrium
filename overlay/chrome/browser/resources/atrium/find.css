@@ -1,0 +1,48 @@
+/* Copyright 2026 The Atrium Authors
+   Use of this source code is governed by the Apache License, Version 2.0
+   found in the LICENSE file. */
+
+/* Layout only. Every color, radius, font and shadow comes from overlay.css
+   through the ov-* classes the bar also wears. */
+
+html, body {
+  background: transparent;
+  margin: 0;
+}
+
+/* The widget is already sized exactly to the bar (FindBarWidget), so this
+   just centres the card inside it, inset by the ring's outset. Scoped to the
+   find root: atrium.html loads this sheet on every route, and on body it
+   shrank the settings grid to its content and centred it in a white window. */
+#atrium-root.findroot {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  margin: 6px;
+}
+
+.fb-input {
+  flex: 1 1 auto;
+  min-width: 160px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.fb-count {
+  flex: none;
+  white-space: nowrap;
+  color: var(--ov-mute);
+  font-size: 12px;
+}

@@ -1,0 +1,253 @@
+{
+  "name": "inputs-pane-resets-a-shortcut",
+  "description": "A row put back on the chord Atrium ships: the shipped chord acts again and the rebound one stops, in the same run, and the file stops naming the action.\n\nThe Inputs pane could rebind a shortcut and clear it, but nothing put the default back. A user who had moved toggleSidebar off cmd+s had no way to say 'never mind' short of hand-editing hotkeys.json, and hand-editing it wrote the default in as a user value - which is the thing that must not happen. An action the file names is pinned: a change to what Atrium ships never reaches that profile again. So the reset REMOVES the entry rather than writing cmd+s into it, and that is what the actions:{} assertion below measures.\n\ntoggleSidebar is the action under test for the same reason inputs-pane-rebinds-a-shortcut picked it: collapsing the sidebar is the only effect readable from one window, and that scenario already measured the pixel deltas this one reuses. The fixture stages cmd+shift+j, so the row starts AWAY from its shipped chord - which is also what makes the reset control appear at all.\n\nTHE CONTROL'S ABSENCE IS HALF THE PROOF. openCommandBar is not in the fixture, so it arrives at its shipped cmd+t and must carry no reset button. A pane that offered one on every row would pass the positive leg on its own.\n\nTHE LIVE-RELOAD LEG IS THE SAME SHAPE inputs-pane-rebinds-a-shortcut uses, run the other way: cmd+shift+j must stop acting and cmd+s must start, both without a relaunch, which is only true if OnHotkeysSaved re-seeded NativeHotkeyMap from what the reset wrote. Note that cmd+s does NOT reach Save Page here - the reset re-bound it to toggleSidebar, so Atrium claims it before the stock command sees it.",
+  "fixture": "hotkey-rebind.spaces.json",
+  "hotkeys": "sidebar-rebind.hotkeys.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "timeout_ms": 20000,
+      "note": "gate on a committed navigation - past this point the sidebar has real rows"
+    },
+    {"type": "settle", "ms": 3000, "note": "let the docked sidebar finish rendering at the fixture's 280pt width"},
+    {"type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot"},
+    {"type": "settle", "ms": 800},
+    {"type": "move", "x": 700, "y": 600, "note": "park the pointer in page content, outside the sidebar column"},
+    {"type": "settle", "ms": 400},
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "sidebar docked, before the reset"
+    },
+    {"type": "key", "combo": "cmd+comma", "note": "open the settings window"},
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings surface ready",
+      "timeout_ms": 15000
+    },
+    {"type": "settle", "ms": 2000, "note": "let PushSettings' thread-pool reads land"},
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: hotkeys pushed",
+      "timeout_ms": 8000,
+      "note": "the pane has both maps now - what is bound, and what the build ships"
+    },
+    {
+      "type": "eval",
+      "id": "open-inputs-pane",
+      "target": "/settings",
+      "expression": "(() => { const item = document.querySelector('.settings-rail-item[data-pane=\"inputs\"]'); if (!item) { return 'no inputs rail item'; } item.click(); return 'clicked'; })()"
+    },
+    {"type": "settle", "ms": 500},
+    {
+      "type": "eval",
+      "id": "row-before-reset",
+      "target": "/settings",
+      "expression": "document.querySelector('.settings-row[data-action=\"toggleSidebar\"] .settings-row-value').textContent",
+      "note": "the row shows the staged rebind, not the shipped chord"
+    },
+    {
+      "type": "eval",
+      "id": "reset-offered-on-the-rebound-row",
+      "target": "/settings",
+      "expression": "document.querySelector('.settings-row[data-action=\"toggleSidebar\"] .hotkey-reset') ? 'offered' : 'missing'",
+      "note": "POSITIVE: a row away from its default carries the control"
+    },
+    {
+      "type": "eval",
+      "id": "reset-withheld-on-the-shipped-row",
+      "target": "/settings",
+      "expression": "document.querySelector('.settings-row[data-action=\"openCommandBar\"] .hotkey-reset') ? 'offered' : 'withheld'",
+      "note": "NEGATIVE: a row the fixture never touched has nothing to put back"
+    },
+    {
+      "type": "eval",
+      "id": "click-reset",
+      "target": "/settings",
+      "expression": "(() => { const btn = document.querySelector('.settings-row[data-action=\"toggleSidebar\"] .hotkey-reset'); if (!btn) { return 'no reset button'; } btn.click(); return 'clicked'; })()",
+      "note": "Sends the map plus the action to forget - the core drops the entry"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: hotkeys written",
+      "timeout_ms": 5000,
+      "note": "the reset write landed and NativeHotkeyMap::SetFromJSON ran"
+    },
+    {"type": "settle", "ms": 500},
+    {
+      "type": "eval",
+      "id": "row-after-reset",
+      "target": "/settings",
+      "expression": "document.querySelector('.settings-row[data-action=\"toggleSidebar\"] .settings-row-value').textContent",
+      "note": "The row reads the shipped chord again"
+    },
+    {
+      "type": "eval",
+      "id": "reset-gone-after-reset",
+      "target": "/settings",
+      "expression": "document.querySelector('.settings-row[data-action=\"toggleSidebar\"] .hotkey-reset') ? 'offered' : 'withheld'",
+      "note": "The row is back at its default, so the control goes with it"
+    },
+    {
+      "type": "eval",
+      "id": "arm-reset-all",
+      "target": "/settings",
+      "expression": "(() => { const btn = document.querySelector('.hotkey-reset-all'); if (!btn) { return 'no reset all button'; } btn.click(); return document.querySelector('.hotkey-reset-question') ? 'asked' : 'sent without asking'; })()",
+      "note": "The pane control asks first - the assertion below would pass either way, so the question is checked here"
+    },
+    {"type": "settle", "ms": 300},
+    {
+      "type": "eval",
+      "id": "confirm-reset-all",
+      "target": "/settings",
+      "expression": "(() => { const btn = document.querySelector('.hotkey-reset-all-confirm'); if (!btn) { return 'no confirm button'; } btn.click(); return 'clicked'; })()",
+      "note": "Only this second, deliberate click writes"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: hotkeys written",
+      "timeout_ms": 5000,
+      "note": "the pane-reset write landed - a second such line, so the file assertion below is what tells them apart"
+    },
+    {"type": "settle", "ms": 500},
+    {
+      "type": "key",
+      "combo": "cmd+w",
+      "note": "closes the key Settings window - the chords below must reach the browser window"
+    },
+    {"type": "settle", "ms": 1000, "note": "let the close finish and key status pass to the browser window"},
+    {"type": "move", "x": 700, "y": 600, "note": "re-park the pointer in the browser window's page content"},
+    {"type": "settle", "ms": 400},
+    {
+      "type": "key",
+      "combo": "cmd+shift+j",
+      "note": "THE NEGATIVE: the chord the reset released. Nothing binds it now, and no stock Chromium command does either, so nothing must move"
+    },
+    {"type": "settle", "ms": 1500},
+    {
+      "type": "capture",
+      "id": "after-old-combo",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "after cmd+shift+j: the sidebar must still be docked"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "THE POSITIVE: the shipped chord, live again. It reaches toggleSidebar rather than Save Page precisely because the reset re-bound it"
+    },
+    {"type": "settle", "ms": 1500, "note": "let the collapse settle - same margin inputs-pane-rebinds-a-shortcut uses"},
+    {
+      "type": "capture",
+      "id": "after-shipped-combo",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "after cmd+s: the sidebar column must have gone"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "row-before-reset",
+      "expected": "\"cmd+shift+j\"",
+      "desc": "the row read the staged rebind before the reset"
+    },
+    {
+      "type": "eval_equals",
+      "id": "reset-offered-on-the-rebound-row",
+      "expected": "\"offered\"",
+      "desc": "A row that differs from its shipped chord shows a reset control"
+    },
+    {
+      "type": "eval_equals",
+      "id": "reset-withheld-on-the-shipped-row",
+      "expected": "\"withheld\"",
+      "desc": "A row at its default does not"
+    },
+    {
+      "type": "eval_equals",
+      "id": "row-after-reset",
+      "expected": "\"cmd+s\"",
+      "desc": "The reset row shows the shipped chord"
+    },
+    {
+      "type": "eval_equals",
+      "id": "reset-gone-after-reset",
+      "expected": "\"withheld\"",
+      "desc": "The control goes once the row is back at its default"
+    },
+    {
+      "type": "vlog",
+      "label": "the-reset-write-landed",
+      "pattern": "Atrium: hotkeys written"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-unusable-argument-refusal",
+      "pattern": "Atrium: the hotkeys surface sent an object the core"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-write-failure",
+      "pattern": "Atrium: the hotkeys write failed"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-schema-decline",
+      "pattern": "Atrium: hotkeys\\.json is at a schema this build cannot"
+    },
+    {
+      "type": "eval_equals",
+      "id": "arm-reset-all",
+      "expected": "\"asked\"",
+      "desc": "The pane reset asks before it writes"
+    },
+    {
+      "type": "eval_equals",
+      "id": "confirm-reset-all",
+      "expected": "\"clicked\"",
+      "desc": "The confirm button is what the question offers"
+    },
+    {
+      "type": "file_contains",
+      "label": "the-pane-reset-left-no-user-actions",
+      "file": "hotkeys",
+      "path": "actions",
+      "value": {},
+      "desc": "Every entry was REMOVED, not rewritten with the shipped chords - the staged file named toggleSidebar and the written one names nothing"
+    },
+    {
+      "type": "region_stable",
+      "before": "before",
+      "after": "after-old-combo",
+      "region": [40, 200, 150, 300],
+      "max_delta": 10.0,
+      "desc": "NEGATIVE: cmd+shift+j no longer toggles the sidebar - the reset reached NativeHotkeyMap in this same run, no relaunch"
+    },
+    {
+      "type": "pixels_changed",
+      "before": "after-old-combo",
+      "after": "after-shipped-combo",
+      "region": [40, 200, 150, 300],
+      "min_changed_pct": 40.0,
+      "desc": "POSITIVE: cmd+s collapses the sidebar again in this same run"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "liveness, and a check that no save panel was left standing"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits"
+    }
+  ]
+}

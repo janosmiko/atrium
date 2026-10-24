@@ -1,0 +1,214 @@
+{
+  "name": "the-frost-hides-with-the-panel",
+  "description": "The frost read as a layer of its own, separate from the panel above it. Same fixture, reveal and region as a sibling scenario: 64px black type under the panel's position, plus the window's own top-left corner pixels the panel's rounded mask excludes. Two things are measured: the frost must not paint past the panel's own rounded corner (mutation-confirmed: a plain square frost lights that corner up to 217-227 against a 99-141 baseline), and once the panel is gone the type must read dark again rather than staying hidden behind a frost nothing is telling to leave. No first-reveal opacity gate: first-reveal-probe.json found every reachable frame already fully settled, even chained directly off the triggering move with no wait_vlog or settle - a reveal has no debounce ahead of its 240ms animation the way a dismiss does, so that fix rests on code review, not a measurement this harness can make.",
+  "fixture": "panel-legibility.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "tab-opened",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.row'); if (!r) return 'no-row'; r.click(); return 'clicked'; })()",
+      "note": "The space's own tab is cold at launch, so the row has to be pressed for the pattern to paint in the MAIN window."
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "collapse-pressed",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbtoggle'); if (!b) return 'no-button'; b.click(); return 'clicked'; })()",
+      "note": "The row's own Hide button, not Cmd+S -."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar toggle requested from the chrome row",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the collapse animation finishes before anything is read"
+    },
+    {
+      "type": "capture",
+      "id": "page-alone",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the type with no panel over it - the dark baseline the hidden panel must read back to, and the corner's own unfrosted color"
+    },
+    {
+      "type": "move",
+      "x": 300,
+      "y": 400,
+      "note": "park inside the page first"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "move",
+      "x": 20,
+      "y": 400,
+      "note": "cross into the 32pt arming strip from outside it"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "timeout_ms": 20000,
+      "note": "the gate: the panel is genuinely up before anything is read off it"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "the slide finishes, so this reads a settled panel, not a moving one"
+    },
+    {
+      "type": "capture",
+      "id": "panel-over-page",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the control: the panel (and its frost) really do cover the type while shown, and this is where the corner is read too"
+    },
+    {
+      "type": "resize",
+      "w": 800,
+      "h": 560,
+      "note": "shrink while the panel is shown - a grow past the VM's 768-tall screen clamps silently (frost-survives-tab-switch-shadow-resize). OnWidgetBoundsChanged fires ApplyBounds/SetFrame on the parent's resize (atrium_sidebar_overlay_widget.mm)"
+    },
+    {
+      "type": "settle",
+      "ms": 1000,
+      "note": "the resize commit and its ApplyBounds/SetFrame calls land"
+    },
+    {
+      "type": "capture",
+      "id": "panel-after-resize",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the panel is still shown, now at a resized width - the frost must still be there"
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 400,
+      "note": "leave, so the panel dismisses through its own debounced Close()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay closing",
+      "timeout_ms": 8000,
+      "note": "fires at the top of Close(), before the slide-out starts"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "generous margin past the 240ms slide and the debounce that led into it - a steady-state read, not a race against FinishHide's own completion timing (the harness's own per-action SSH dispatch latency runs several times the slide's own duration, which a scenario this coarse-grained cannot resolve below - see the report's not-verified list)"
+    },
+    {
+      "type": "capture",
+      "id": "post-hide",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "once everything has settled, is the frost actually gone"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "region_mean",
+      "capture": "page-alone",
+      "x": 40,
+      "y": 300,
+      "w": 200,
+      "h": 200,
+      "max_mean": 200,
+      "label": "the-type-is-under-the-panel",
+      "desc": "the control, unchanged from a sibling scenario: with nothing over it, this region reads dark"
+    },
+    {
+      "type": "region_mean",
+      "capture": "panel-over-page",
+      "x": 40,
+      "y": 300,
+      "w": 200,
+      "h": 200,
+      "min_mean": 80,
+      "max_mean": 155,
+      "label": "the-panel-hides-the-type",
+      "desc": "the control: the panel (with its frost) genuinely covers the type while showing. MEASURED 2026-09-11: 98.3/114.0/128.3 var 110 against var 10709 for the bare type. The band is a sibling scenario's: the panel now paints the window's own oceanBlue backdrop natively under the page, where the old page-drawn wash read the untinted literal (207/211/216) and never followed the space.",
+      "max_r": 130
+    },
+    {
+      "type": "variance_collapsed",
+      "before": "page-alone",
+      "after": "panel-over-page",
+      "x": 40,
+      "y": 300,
+      "w": 200,
+      "h": 200,
+      "max_ratio": 0.1,
+      "label": "the-frost-is-still-there-1-2s-after-the-reveal",
+      "desc": "THE PRESENCE MEASUREMENT, sampled by panel-over-page's own 2000ms settle after the reveal vlog. The wash alone (no blur) reduces variance only by its own alpha squared - at the panel's live ~.55 Glass opacity that is about 20% of the page-alone baseline, not under 10%. A frost that fades in and then vanishes once its reveal animation completes reads in that 20% band, not this one."
+    },
+    {
+      "type": "variance_collapsed",
+      "before": "page-alone",
+      "after": "panel-after-resize",
+      "x": 40,
+      "y": 300,
+      "w": 200,
+      "h": 200,
+      "max_ratio": 0.1,
+      "label": "the-frost-survives-a-live-resize-while-shown",
+      "desc": "SetFrame runs on every ApplyBounds call the width drag triggers. A fade held only by an animation SetFrame removes drops to model 0 here even though the panel never dismissed."
+    },
+    {
+      "type": "region_mean",
+      "capture": "panel-over-page",
+      "x": 8,
+      "y": 38,
+      "w": 6,
+      "h": 6,
+      "max_mean": 160,
+      "label": "the-frost-does-not-bleed-past-the-panels-corner",
+      "desc": "THE SHAPE MEASUREMENT. This 6x6 patch sits outside the panel's own OverlayCornerRadius() curve (18px, at the window's top-left), which the panel's content.layer already masks away - the page's own dark chrome (99,127,141) should show straight through. Mutation-confirmed: a frost given no corner mask of its own lights this same patch to (217,224,227), a plain rectangle showing behind the panel's rounded corner exactly as reported."
+    },
+    {
+      "type": "region_mean",
+      "capture": "post-hide",
+      "x": 40,
+      "y": 300,
+      "w": 200,
+      "h": 200,
+      "max_mean": 200,
+      "label": "the-frost-is-gone-once-the-panel-is",
+      "desc": "steady-state: once the panel has dismissed, the frost is not left behind covering the type on its own"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

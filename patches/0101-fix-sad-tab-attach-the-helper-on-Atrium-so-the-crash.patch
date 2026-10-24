@@ -1,0 +1,80 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 31 Aug 2026 01:30:06 +0200
+Subject: [PATCH 101/154] fix(sad tab): attach the helper on Atrium, so the
+ crashed-tab pane can install
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+A crashed renderer showed a blank card. The pane fallback for it landed in
+August and was never reachable: a gate added in July excluded Atrium from
+attaching SadTabHelper at all, so the observer that answers a dead renderer was
+never on an Atrium tab. The fix and the gate never met, and the fix's own
+browsertest had never passed.
+
+Attaching the helper exposes an upstream test that dereferences a BrowserView
+Atrium does not have. Atrium's split view is a separate implementation that the
+test cannot drive either way, so it skips on Atrium the way the other
+window-shape tests already do.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/tab_helpers.cc                       | 10 ++++------
+ .../browser/ui/views/sad_tab_split_view_browsertest.cc |  7 +++++++
+ 2 files changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/chrome/browser/ui/tab_helpers.cc b/chrome/browser/ui/tab_helpers.cc
+index 1a69d4bc34dda..774a37116deca 100644
+--- a/chrome/browser/ui/tab_helpers.cc
++++ b/chrome/browser/ui/tab_helpers.cc
+@@ -85,7 +85,6 @@
+ #include "chrome/browser/task_manager/web_contents_tags.h"
+ #include "chrome/browser/translate/chrome_translate_client.h"
+ #include "chrome/browser/trusted_vault/trusted_vault_encryption_keys_tab_helper.h"
+-#include "chrome/browser/ui/atrium/atrium_feature_check.h"
+ #include "chrome/browser/ui/autofill/autofill_client_provider.h"
+ #include "chrome/browser/ui/autofill/autofill_client_provider_factory.h"
+ #include "chrome/browser/ui/find_bar/find_bar_state.h"
+@@ -710,11 +709,10 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
+     SearchEngineChoiceTabHelper::CreateForWebContents(web_contents);
+   }
+ 
+-  // atrium::IsAtriumBrowserWindowEnabled() is per-process (connected()),
+-  // not per-window, but at M2a scope a connected dylib implies every window
+-  // is an Atrium window, so the check is equivalent here.
+-  if (!webui_browser::IsWebUIBrowserEnabled() &&
+-      !atrium::IsAtriumBrowserWindowEnabled()) {
++  // Atrium used to opt out here because its pane had nowhere to parent a
++  // SadTabView. atrium_sad_tab_hook.cc now gives SadTabController an Atrium
++  // pane to use, so excluding Atrium leaves that hook permanently unreached.
++  if (!webui_browser::IsWebUIBrowserEnabled()) {
+     SadTabHelper::CreateForWebContents(web_contents);
+   }
+   SearchTabHelper::CreateForWebContents(web_contents);
+diff --git a/chrome/browser/ui/views/sad_tab_split_view_browsertest.cc b/chrome/browser/ui/views/sad_tab_split_view_browsertest.cc
+index 13e650695202f..2f0ce9eb38a0f 100644
+--- a/chrome/browser/ui/views/sad_tab_split_view_browsertest.cc
++++ b/chrome/browser/ui/views/sad_tab_split_view_browsertest.cc
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
+ 
++#include "chrome/browser/ui/atrium/atrium_feature_check.h"
+ #include "chrome/browser/ui/browser.h"
+ #include "chrome/browser/ui/browser_commands.h"
+ #include "chrome/browser/ui/sad_tab.h"
+@@ -29,6 +30,12 @@ using SadTabSplitViewBrowserTest = InProcessBrowserTest;
+ 
+ IN_PROC_BROWSER_TEST_F(SadTabSplitViewBrowserTest,
+                        SadTabMovedToSecondarySplitView) {
++  // Atrium's split view is AtriumPaneContainerView, not BrowserView's
++  // multi_contents_view - GetBrowserViewForBrowser is null here and
++  // AddToNewSplit's TabCollection path doesn't apply.
++  if (atrium::IsAtriumBrowserWindowEnabled()) {
++    GTEST_SKIP() << "stock split view; Atrium has its own implementation";
++  }
+   content::ScopedAllowRendererCrashes scoped_allow_renderer_crashes;
+ 
+   // Add a second tab. Tab 0 is NTP, Tab 1 is about:blank.

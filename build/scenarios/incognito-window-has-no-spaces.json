@@ -1,0 +1,128 @@
+{
+  "name": "incognito-window-has-no-spaces",
+  "description": "Incognito is a profile property, not a window type, so an incognito window used to get the same sidebar as any other: the space rail, the dots, the active space's name, and its tabs written into that space. It must get none of them. Cmd+Shift+N opens the window, and the second sidebar document is read directly - both carry the same chrome://atrium/sidebar URL, so the incognito one names itself with a #incognito fragment or no probe could tell the two apart. Both targets are written as an exact path+fragment, which cdp-eval matches before it falls back to a substring - a bare '/sidebar' would otherwise match either document. The regular window is read first, while it is still the only sidebar, and its rail/dots/name are the control: without it 'no rail' passes on a sidebar that never drew. The fixture's two rows are named in the leak check, because 'the window shows some rows' does not say they are its own.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "regular-shape",
+      "target": "/sidebar",
+      "expression": "(() => { const has = (s) => document.querySelector(s) ? 'yes' : 'no'; return 'rail=' + has('.rail') + ' dots=' + has('.spacedots') + ' name=' + has('.wsname'); })()",
+      "note": "The control, read while this is still the only sidebar document. An incognito window drawing none of these means nothing unless an ordinary one draws all three."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+n",
+      "note": "THE VARIABLE"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "eval_until",
+      "id": "incognito-drawn",
+      "target": "/sidebar#incognito",
+      "expression": "document.querySelector('.sbroot.drawn') ? 'drawn' : 'waiting'",
+      "expected": "drawn",
+      "timeout_ms": 20000,
+      "note": "The class apply() sets after a push, so this waits for a rendered sidebar rather than a loaded document."
+    },
+    {
+      "type": "eval",
+      "id": "new-tab",
+      "target": "/sidebar#incognito",
+      "expression": "(() => { const b = document.querySelector('.newtab'); if (!b) { return 'no button'; } b.click(); return 'clicked'; })()",
+      "note": "An incognito window opens with no tabs, so it needs one of its own before 'only its own tabs' can be read at all."
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "eval",
+      "id": "incognito-shape",
+      "target": "/sidebar#incognito",
+      "expression": "(() => { const has = (s) => document.querySelector(s) ? 'yes' : 'no'; const titles = [...document.querySelectorAll('.tabrow .tl')].map((n) => n.textContent); const leaked = titles.some((t) => t === 'Crimson Left' || t === 'Blue Left'); const zone = document.querySelector('.rows'); const drag = zone && (zone.dataset.dropzone || [...document.querySelectorAll('.tabrow')].some((r) => r.draggable)); return 'rail=' + has('.rail') + ' dots=' + has('.spacedots') + ' name=' + has('.wsname') + ' rows=' + (titles.length ? 'some' : 'none') + ' leaked=' + (leaked ? 'yes' : 'no') + ' drag=' + (drag ? 'yes' : 'no'); })()"
+    },
+    {
+      "type": "eval",
+      "id": "forced-write",
+      "target": "/sidebar#incognito",
+      "expression": "(() => { chrome.send('sidebarTabReordered', [0, 1]); return 'sent'; })()",
+      "note": "The page-side guards only decide what is DRAWN. A renderer sends any name it likes, so the refusal has to be measured on the browser side - this fires the message the hidden drag would have sent."
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "regular-shape",
+      "expected": "\"rail=yes dots=yes name=yes\"",
+      "desc": "the control: an ordinary window still draws its rail, its dots and its space name"
+    },
+    {
+      "type": "eval_equals",
+      "id": "incognito-drawn",
+      "expected": "drawn",
+      "desc": "the second window really built and rendered a sidebar of its own"
+    },
+    {
+      "type": "eval_equals",
+      "id": "new-tab",
+      "expected": "\"clicked\"",
+      "desc": "the incognito sidebar is live, so the row count below is a real reading"
+    },
+    {
+      "type": "eval_equals",
+      "id": "incognito-shape",
+      "expected": "\"rail=no dots=no name=no rows=some leaked=no drag=no\"",
+      "desc": "THE MEASUREMENT: no rail, no dots, no space name, its own tab drawn, neither of the fixture space's rows in sight, and no row a drag could file into a space"
+    },
+    {
+      "type": "eval_equals",
+      "id": "forced-write",
+      "expected": "\"sent\"",
+      "desc": "the write message really left the renderer, so the drop below is the browser refusing it rather than nothing having happened"
+    },
+    {
+      "type": "vlog",
+      "label": "route-gate-fired",
+      "pattern": "Atrium: surface message dropped, window is off the record: [s]idebarTabReordered",
+      "desc": "THE OTHER HALF: a hand-sent write message reached the dispatcher and was refused there, which is the only guard a renderer cannot walk past. The [s] is a one-character class, not a typo - the message name is interpolated into that log line, so the pre-run source check needs a wildcard to stop the literal at."
+    },
+    {
+      "type": "vlog",
+      "label": "write-guard-fired",
+      "pattern": "Atrium: tab [0-9]+ not persisted, window is off the record",
+      "desc": "the tab reached the write path and was refused there, rather than never being opened"
+    },
+    {
+      "type": "vlog",
+      "label": "flat-model-served",
+      "pattern": "Atrium: sidebar model is the FLAT TAB LIST - off the record",
+      "desc": "the core never answered for this window, so no space's rows were ever built for it"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly with the incognito window open"
+    }
+  ]
+}

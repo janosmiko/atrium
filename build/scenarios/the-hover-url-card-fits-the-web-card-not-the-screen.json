@@ -1,0 +1,179 @@
+{
+  "name": "the-hover-url-card-fits-the-web-card-not-the-screen",
+  "description": "The hovered URL card elides against the width of the web card it describes, which ToastOverlayWidget pushes into the toast document as atriumSetPaneWidth. The card's own document cannot measure that: its viewport is the size of the stack. Before this the fit used screen.availWidth times 0.4 clamped to 240..640, so the same screen produced the same elide point at every window width.\n\nThe run hovers one very long link and never re-hovers it. It reads the card back at a narrow window, at a wide one, and again after the sidebar collapses under the standing card. Widths are compared against values stashed in the toast document rather than against literals, since the exact cut point depends on real font metrics.",
+  "fixture": "long-page.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "resize",
+      "w": 900,
+      "h": 700,
+      "note": "the narrow half. With a 280px sidebar the pane is about 590 wide, so a share of it lands well under the 640 the old screen proxy always returned."
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "arm-long-link",
+      "target": "long-page",
+      "expression": "(() => { const a = document.createElement('a'); a.href = 'https://telex.hu/g7/vallalat/2026/09/01/nemet-autogyartok-kozos-fejlesztese-uj-akkumulator-technologiajarol-europai-piac-versenyehez-hosszan'; a.textContent = 'long link'; a.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;z-index:99;background:rgba(0,0,0,.02)'; document.body.appendChild(a); return 'armed'; })()",
+      "note": "covers the whole page so the pointer stays on the link across both resizes and the collapse"
+    },
+    {
+      "type": "move",
+      "x": 600,
+      "y": 300,
+      "note": "REAL pointer move onto the link, inside the web card at 900 wide"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "past the hover show debounce"
+    },
+    {
+      "type": "eval_until",
+      "id": "narrow-card-elided",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? String(t.textContent.includes('\\u2026')) : 'no card'; })()",
+      "expected": "true",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "narrow-card-width",
+      "target": "/toast",
+      "expression": "(() => { const c = document.querySelector('.toasts .toast'); if (!c) { return 'no card'; } window.__narrowWidth = Math.round(c.getBoundingClientRect().width); window.__narrowLen = c.querySelector('.ctl').textContent.length; return String(window.__narrowWidth) + '/' + String(window.__narrowLen); })()",
+      "note": "diagnostic and the stash the two later comparisons read"
+    },
+    {
+      "type": "resize",
+      "w": 1500,
+      "h": 700,
+      "note": "the wide half. The pointer does not move, so nothing re-hovers the link."
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval_until",
+      "id": "wide-card-grew",
+      "target": "/toast",
+      "expression": "(() => { const c = document.querySelector('.toasts .toast'); if (!c) { return 'no card'; } return String(Math.round(c.getBoundingClientRect().width) > window.__narrowWidth); })()",
+      "expected": "true",
+      "timeout_ms": 8000,
+      "note": "The same URL on the same screen elides later once the web card is wider"
+    },
+    {
+      "type": "eval",
+      "id": "wide-card-shows-more-of-the-url",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); if (!t) { return 'no card'; } return String(t.textContent.length > window.__narrowLen); })()",
+      "note": "The extra width is spent on the URL, not on padding"
+    },
+    {
+      "type": "eval",
+      "id": "wide-card-keeps-real-prefix-and-suffix",
+      "target": "/toast",
+      "expression": "(() => { const full = 'https://telex.hu/g7/vallalat/2026/09/01/nemet-autogyartok-kozos-fejlesztese-uj-akkumulator-technologiajarol-europai-piac-versenyehez-hosszan'; const t = document.querySelector('.toasts .toast .ctl'); if (!t) { return 'no card'; } const parts = t.textContent.split('\\u2026'); if (parts.length !== 2) { return 'not one ellipsis: ' + t.textContent; } const [pre, suf] = parts; return String(pre.length > 0 && suf.length > 0 && full.startsWith(pre) && full.endsWith(suf)); })()",
+      "note": "the wider fit is still a real middle elide, not a stretched box"
+    },
+    {
+      "type": "eval",
+      "id": "stash-wide-width",
+      "target": "/toast",
+      "expression": "(() => { const c = document.querySelector('.toasts .toast'); if (!c) { return 'no card'; } window.__wideWidth = Math.round(c.getBoundingClientRect().width); return String(window.__wideWidth); })()"
+    },
+    {
+      "type": "capture",
+      "id": "hover-card-at-the-wide-window",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "collapse_sidebar",
+      "note": "The sidebar's own toggle, so the OS pointer never leaves the link"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval_until",
+      "id": "collapse-refits-without-a-rehover",
+      "target": "/toast",
+      "expression": "(() => { const c = document.querySelector('.toasts .toast'); if (!c) { return 'no card'; } return String(Math.round(c.getBoundingClientRect().width) > window.__wideWidth); })()",
+      "expected": "true",
+      "timeout_ms": 8000,
+      "note": "The pane widened under a standing card and the card followed it"
+    },
+    {
+      "type": "capture",
+      "id": "hover-card-after-the-sidebar-collapsed",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "narrow-card-elided",
+      "expected": "true",
+      "desc": "the long URL does not fit the narrow web card, so it elides"
+    },
+    {
+      "type": "eval_equals",
+      "id": "wide-card-grew",
+      "expected": "true",
+      "desc": "The elide point follows the web card width across two window widths"
+    },
+    {
+      "type": "eval_equals",
+      "id": "wide-card-shows-more-of-the-url",
+      "expected": "\"true\"",
+      "desc": "The wider card shows more of the URL, not just a wider box"
+    },
+    {
+      "type": "eval_equals",
+      "id": "wide-card-keeps-real-prefix-and-suffix",
+      "expected": "\"true\"",
+      "desc": "the wider fit is still a genuine middle elide"
+    },
+    {
+      "type": "eval_equals",
+      "id": "collapse-refits-without-a-rehover",
+      "expected": "true",
+      "desc": "A sidebar width change re-fits the standing card with no re-hover"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

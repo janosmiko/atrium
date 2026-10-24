@@ -1,0 +1,95 @@
+{
+  "name": "ambilight-off-leaves-the-space-alone",
+  "description": "with the Page tint switch off, the chrome stays on the space's own theme and nothing reads the page at all. Same split fixture its partner ambilight-reads-both-edges measures a varied tint on, so the only difference between the two runs is the setting.\n\nWithout that pair this scenario would pass for a build where the whole feature was broken.",
+  "fixture": "ambilight.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000,
+      "note": "gate: the sidebar drew. A settle caught an empty sidebar at 9.5s on a slow VM run."
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "ambilight-split.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/ambilight-split.html",
+      "timeout_ms": 8000,
+      "note": "the split page committed, read from the page itself"
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "longer than the whole cadence ladder takes to walk down, had one been running. Before the first capture rather than between the two: this window is glass over the desktop whenever the sidebar has not painted, and that surface drifts about 0.7 a second on its own. Measuring across six seconds of it graded the VM, not the setting."
+    },
+    {
+      "type": "capture",
+      "id": "settled",
+      "duration_ms": 500,
+      "fps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "the same window page-tint-off measures 0.07 across, so this assertion is comparable to its siblings rather than carrying a threshold of its own"
+    },
+    {
+      "type": "capture",
+      "id": "later",
+      "duration_ms": 500,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "startup-page",
+      "expected": "http://127.0.0.1:8000/ambilight-split.html",
+      "label": "the-page-really-loaded",
+      "desc": "THE CONTROL: the split page committed, so a sampler that ignored the setting would have had something to read."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "Atrium: ambilight edges",
+      "label": "nothing-was-sampled",
+      "desc": "The readback never ran. The partner scenario logs this line on the same fixture within half a second of the page painting."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "Atrium: ambilight cadence",
+      "label": "no-loop-was-running",
+      "desc": "Together: no ladder walked down, because no timer was ticking to walk it. An 'off' that merely skipped the paint would still log this."
+    },
+    {
+      "type": "region_stable",
+      "before": "settled",
+      "after": "later",
+      "region": [
+        206,
+        460,
+        16,
+        100
+      ],
+      "max_delta": 3,
+      "desc": "THE MEASUREMENT: the sidebar never moved across five seconds of a page the partner scenario reads two different colours off.",
+      "note": "The band the glow paints: 32 DIP out from the card's left edge at about x=225 in the VM frame, at 55 percent of the glass alpha. Re-measured 2026-08-27 when the glow was narrowed and dimmed."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

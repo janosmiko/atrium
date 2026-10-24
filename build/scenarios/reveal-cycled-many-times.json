@@ -1,0 +1,178 @@
+{
+  "name": "reveal-cycled-many-times",
+  "description": "The floating panel crashed twice, and the second one was intermittent: the edge-reveal control passed 5 of 5, then crashed on a later run of the same build. A single hide and a single reveal is not enough to see it.\n\nEach reveal moves the sidebar's WebContents into the panel's widget and each dismissal moves it back, so every cycle reparents a compositing surface twice. The crash was a DCHECK deep in cc's tile manager during BeginMainFrame, with no atrium frames in the stack at all - the shape of a reparent landing inside a frame. That is a race, and a race needs repetition.\n\nSo this cycles the pointer on and off the edge several times and asks only whether the app is still there. It is a soak, not a behaviour test: edge-reveal-control owns what the reveal looks like, and hide-with-the-pointer-already-at-the-edge owns the ordering.\n\nThe floating panel is NOT on the branch as of 2026-08-22 - it was reverted after four crashes. This scenario stays because it is the only thing that exercised the reveal repeatedly, and it caught a crash on its first run when three single-cycle scenarios had passed. It soaks whatever the reveal currently does.",
+  "fixture": "lab-compare.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "hide, so the edge is armed"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 300,
+      "note": "cycle 1 in"
+    },
+    {
+      "type": "settle",
+      "ms": 900,
+      "note": "the slide runs 240ms; this lets it finish and the handover land"
+    },
+    {
+      "type": "move",
+      "x": 500,
+      "y": 300,
+      "note": "cycle 1 out"
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 320,
+      "note": "cycle 2 in"
+    },
+    {
+      "type": "settle",
+      "ms": 700,
+      "note": "shorter each time, so a later cycle interrupts the previous slide"
+    },
+    {
+      "type": "move",
+      "x": 500,
+      "y": 320,
+      "note": "cycle 2 out"
+    },
+    {
+      "type": "settle",
+      "ms": 700
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 340,
+      "note": "cycle 3 in"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "move",
+      "x": 500,
+      "y": 340,
+      "note": "cycle 3 out"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 360,
+      "note": "cycle 4 in, now inside the slide's own duration"
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "move",
+      "x": 500,
+      "y": 360,
+      "note": "cycle 4 out"
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 380,
+      "note": "cycle 5 in"
+    },
+    {
+      "type": "settle",
+      "ms": 200
+    },
+    {
+      "type": "move",
+      "x": 500,
+      "y": 380,
+      "note": "cycle 5 out"
+    },
+    {
+      "type": "settle",
+      "ms": 200
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 400,
+      "note": "cycle 6 in, and left revealed"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "long enough for anything in flight to finish, or to crash"
+    },
+    {
+      "type": "capture",
+      "id": "after-cycles",
+      "duration_ms": 400,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "label": "the-app-survived-six-cycles",
+      "desc": "THE assertion. A crashed app has no window, and the second crash killed the app before the harness could send Cmd+Q."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "DCHECK failed",
+      "label": "no-dcheck-fired",
+      "desc": "Names the failure instead of inferring it from a missing window, and catches a DCHECK that did not happen to be fatal to the window."
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: sidebar edge reveal opening",
+      "min": 3,
+      "label": "the-panel-really-cycled",
+      "desc": "The floor, with a ceiling because vlog_count requires one. A run where the pointer missed the strip crashes nothing and proves nothing, and a soak is worthless without the repetition actually happening. Keyed on the EDGE reveal rather than the panel's own line, so it holds whether or not the floating panel is on the branch. Three at least; forty is a runaway guard rather than a count, since a move within the strip can re-arm and the later cycles interrupt each other.",
+      "max": 40
+    },
+    {
+      "type": "quit",
+      "desc": "and it is still alive to take Cmd+Q"
+    }
+  ]
+}

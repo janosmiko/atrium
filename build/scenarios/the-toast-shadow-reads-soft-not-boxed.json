@@ -1,0 +1,143 @@
+{
+  "name": "the-toast-shadow-reads-soft-not-boxed",
+  "description": "Light appearance. The reported defect: a hard grey rectangle, wider than the card and offset down and right, sits behind every stacked confirmation.\n\nThe question is which of two causes it is: atrium_toast_overlay_widget.mm already sets shadow_type=kNone on both toast widgets, so a native window shadow is not on the table. The remaining cause moved twice. First read as .toast's own --ov-shadow (14px/36px, sized for a full-height sidebar card) - fixed by switching to --ov-shadow-tight (5px/14px). The box survived anyway: the toast widget is sized to the stack with no room outside it for ANY box-shadow to fall into, so even the tight shadow was clipped into a rectangle at the window edge. The real fix moves the shadow off .toast entirely: AtriumOverlayShadowLayer paints it in the parent window, over the page, from a rect and spec toast-surface.js pushes. .toast keeps only its 1px accent ring.\n\nThis reads --ov-shadow-tight's resolved offset, blur and colour off .shadow-probe - the hidden element toast-surface.js itself measures from, and so the same value that gets pushed - rather than off .toast, which no longer carries a shadow at all.\n\nSTACKING FOUR IS THE POINT, not an arbitrary repro size. toast-surface.js measures each card's own screen rect synchronously, in the same tick it asks the browser to resize the widget - a single toast never asks for more than one resize, so it never races. Four in one JS loop iteration do: the renderer's layout can still be answering an earlier resize when a later card is measured, and a stale viewport width once sent a shadow rect to the sidebar instead of the widget (region_stable assertion below). Trimming this back to one card for speed would retire that regression guard without anyone noticing.",
+  "fixture": "long-page.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "sidebar-before-any-toast",
+      "duration_ms": 100,
+      "fps": 10,
+      "note": "baseline for the region_stable guard below - nothing has asked the toast widget to resize yet"
+    },
+    {
+      "type": "eval",
+      "id": "stack-four-confirmations",
+      "target": "/toast",
+      "expression": "(() => { for (let i = 0; i < 4; i++) { window.atriumConfirmToast('Link copied', '', true); } return String(document.querySelectorAll('.toasts .toast').length); })()",
+      "note": "reproduces the reported repro exactly: four stacked Link copied cards"
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "eval",
+      "id": "toast-carries-no-drop-shadow",
+      "target": "/toast",
+      "expression": "(() => { const c = document.querySelector('.toasts .toast'); if (!c) { return 'no card'; } const layers = getComputedStyle(c).boxShadow.split(/,(?![^(]*\\))/); return String(layers.length === 1); })()",
+      "note": ".toast itself must carry only its accent ring now - a second layer would mean the drop shadow is back and clipped into a box at the widget's edge again"
+    },
+    {
+      "type": "eval",
+      "id": "shadow-probe-exists",
+      "target": "/toast",
+      "expression": "String(!!document.querySelector('.shadow-probe'))",
+      "note": "control: toast-surface.js creates this the first time a card's shadow is pushed - without it the reading below proves nothing"
+    },
+    {
+      "type": "eval",
+      "id": "card-drop-shadow-offset-and-blur",
+      "target": "/toast",
+      "expression": "(() => { const p = document.querySelector('.shadow-probe'); if (!p) { return 'no probe'; } const nums = getComputedStyle(p).boxShadow.match(/-?\\d+(\\.\\d+)?px/g) || []; return nums.join(' '); })()",
+      "note": "--ov-shadow-tight's own length values (x-offset y-offset blur spread), off the element toast-surface.js measures from before pushing"
+    },
+    {
+      "type": "eval",
+      "id": "shadow-is-tight-not-heavy",
+      "target": "/toast",
+      "expression": "(() => { const p = document.querySelector('.shadow-probe'); if (!p) { return 'no probe'; } const nums = (getComputedStyle(p).boxShadow.match(/-?\\d+(\\.\\d+)?px/g) || []).map(parseFloat); const yOffset = nums[1]; const blur = nums[2]; return String(yOffset <= 6 && blur <= 16); })()",
+      "note": "--ov-shadow-tight is 5px/14px; --ov-shadow (the bug) is 14px/36px. A run against the unfixed CSS reads false here - see the report for that comparison."
+    },
+    {
+      "type": "eval",
+      "id": "ring-color-needs-scaling-to-read",
+      "target": "/toast",
+      "expression": "(() => { const c = document.querySelector('.toasts .toast'); if (!c) { return 'no card'; } const shadow = getComputedStyle(c).boxShadow; const m = shadow.match(/color\\(srgb ([\\d.]+) ([\\d.]+) ([\\d.]+)\\s*\\/\\s*([\\d.]+)\\)/); if (!m) { return 'no color() ring layer: ' + shadow; } const r = parseFloat(m[1]), g = parseFloat(m[2]), b = parseFloat(m[3]); const unscaledEverAbove1 = (r > 1 || g > 1 || b > 1); const scaled = [r, g, b].map((v) => Math.round(v * 255)); const scaledEverAbove1 = scaled.some((v) => v > 1); return String(unscaledEverAbove1 === false && scaledEverAbove1 === true); })()",
+      "note": "the second box-shadow layer (the per-toast accent ring) is a color-mix() value, which getComputedStyle serialises as color(srgb r g b / a) with r/g/b as 0..1 floats. unscaledEverAbove1 proves a raw 0..255 threshold on that float can never fail - it is always <=1; scaledEverAbove1 proves multiplying by 255 recovers a real channel magnitude. Both must hold for this to read true."
+    },
+    {
+      "type": "eval",
+      "id": "widget-and-card-bounds",
+      "target": "/toast",
+      "expression": "(() => { const box = document.querySelector('.toasts'); const c = document.querySelector('.toast'); if (!box || !c) { return 'no card'; } const br = box.getBoundingClientRect(); const cr = c.getBoundingClientRect(); return 'widget=' + Math.round(br.width) + 'x' + Math.round(br.height) + ' card=' + Math.round(cr.width) + 'x' + Math.round(cr.height); })()",
+      "note": "diagnostic for the report: the widget (sized to the whole stack) versus a single card, to describe what the screenshot shows relative to each. Read before the capture below, since a confirmation's CONFIRM_MS=1400ms can elapse across the SSH round trips a capture costs."
+    },
+    {
+      "type": "capture",
+      "id": "four-stacked-confirmations-light",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "The stack with the shadow issue visible or fixed, depending on which build this run is against"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "stack-four-confirmations",
+      "expected": "\"4\"",
+      "desc": "reproduces the reported repro: four stacked confirmations"
+    },
+    {
+      "type": "eval_equals",
+      "id": "toast-carries-no-drop-shadow",
+      "expected": "\"true\"",
+      "desc": "The drop shadow moved off .toast entirely, so no box can clip at the widget's edge"
+    },
+    {
+      "type": "eval_equals",
+      "id": "shadow-probe-exists",
+      "expected": "\"true\"",
+      "desc": "control: the probe toast-surface.js reads from is there to be measured"
+    },
+    {
+      "type": "eval_equals",
+      "id": "shadow-is-tight-not-heavy",
+      "expected": "\"true\"",
+      "desc": "The fixed CSS uses --ov-shadow-tight (5px/14px), not the 14px/36px --ov-shadow the bug report showed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "ring-color-needs-scaling-to-read",
+      "expected": "\"true\"",
+      "desc": "the color-mix ring is only readable as a real color once its 0..1 floats are scaled by 255 - a raw threshold on it can never fail"
+    },
+    {
+      "type": "region_stable",
+      "before": "sidebar-before-any-toast",
+      "after": "four-stacked-confirmations-light",
+      "region": [60, 470, 160, 50],
+      "max_delta": 6.0,
+      "desc": "Regression guard: this is sidebar, not page - the shadow layer must never paint here. A stale viewport mid-burst once sent a card's shadow rect to roughly x=75 against a widget at x=240, landing squarely in this region; every eval-only assertion above passed 9/9 while that ghost was on screen, since none of them can see the parent window it painted in."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

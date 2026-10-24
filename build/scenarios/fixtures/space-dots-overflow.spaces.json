@@ -1,0 +1,235 @@
+{
+  "spaces": [
+    {
+      "id": "10000000-0000-4000-8000-000000000001",
+      "name": "Dots One",
+      "emoji": "1",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?d1",
+          "title": "Dots Page"
+        }
+      ],
+      "groups": []
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000002",
+      "name": "Space 2",
+      "emoji": "*",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 1,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000003",
+      "name": "Space 3",
+      "emoji": "*",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 2,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000004",
+      "name": "Space 4",
+      "emoji": "*",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 3,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000005",
+      "name": "Space 5",
+      "emoji": "*",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 4,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000006",
+      "name": "Space 6",
+      "emoji": "*",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 5,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000007",
+      "name": "Space 7",
+      "emoji": "*",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 6,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000008",
+      "name": "Space 8",
+      "emoji": "*",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 7,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000009",
+      "name": "Space 9",
+      "emoji": "*",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 8,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000010",
+      "name": "Space 10",
+      "emoji": "*",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 9,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000011",
+      "name": "Space 11",
+      "emoji": "*",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 10,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000012",
+      "name": "Space 12",
+      "emoji": "*",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 11,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000013",
+      "name": "Space 13",
+      "emoji": "*",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 12,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000014",
+      "name": "Space 14",
+      "emoji": "*",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 13,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000015",
+      "name": "Space 15",
+      "emoji": "*",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 14,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000016",
+      "name": "Space 16",
+      "emoji": "*",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 15,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000017",
+      "name": "Space 17",
+      "emoji": "*",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 16,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000018",
+      "name": "Space 18",
+      "emoji": "*",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 17,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000019",
+      "name": "Space 19",
+      "emoji": "*",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 18,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000020",
+      "name": "Space 20",
+      "emoji": "*",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 19,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    }
+  ],
+  "favorites": [],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "10000000-0000-4000-8000-000000000001"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "spaces": [
+    {
+      "id": "30000000-0000-4000-8000-000000000001",
+      "name": "Narrow Test",
+      "emoji": "N",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?n1",
+          "title": "Narrow Page"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "favorites": [],
+  "appState": {
+    "sidebarWidth": 160,
+    "schemaVersion": 1,
+    "activeSpaceID": "30000000-0000-4000-8000-000000000001"
+  }
+}

@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 13 Sep 2026 06:59:23 +0200
+Subject: [PATCH 135/154] atrium: land the pending overlay and BUILD.gn changes
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 07471e411349b..c3bbb8d886865 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3584,7 +3584,7 @@ static_library("ui") {
+       "atrium/atrium_browser_controller.cc",
+       "atrium/atrium_browser_for_profile.h",
+       "atrium/atrium_browser_for_profile.cc",
+-      "atrium/atrium_window_platform.h",
++      "atrium/atrium_window_platform_mac.h",
+       "atrium/atrium_window_platform_mac.mm",
+       "atrium/atrium_native_widget_mac.h",
+       "atrium/atrium_native_widget_mac.mm",
+@@ -3599,6 +3599,8 @@ static_library("ui") {
+       "atrium/atrium_browser_window.h",
+       "atrium/atrium_browser_window.cc",
+       "atrium/atrium_capture.h",
++      "atrium/atrium_web_surface_widget.h",
++      "atrium/atrium_web_surface_widget.cc",
+       "atrium/atrium_command_bar_widget.h",
+       "atrium/atrium_command_bar_widget.mm",
+       "atrium/atrium_find_bar_widget.h",

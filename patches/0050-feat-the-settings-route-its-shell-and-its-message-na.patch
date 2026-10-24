@@ -1,0 +1,46 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 20:04:40 +0200
+Subject: [PATCH 050/154] feat: the /settings route, its shell and its message
+ names
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+A module, a ROUTES entry, two names in kSurfaceMessages and two .grd entries.
+The panes themselves come next; this is the shape they hang on.
+
+A selection carries the pane's own id, never its position in the rail, so a
+rail reordered later cannot change what a stored or in-flight selection means.
+An unknown id falls back to the first pane rather than rendering an empty
+frame.
+
+Built against DOM APIs rather than markup strings - the WebUI CSP forbids
+innerHTML, and a surface that will grow fields holding user data should not
+start with the wrong habit.
+
+The .grd allocation had to widen from 20 includes to 30. Two more entries
+overflowed it and grit fails the build rather than silently reassigning ids.
+
+Verified by six DOM tests, and by the suite as a whole: 478 tests, up from
+472, and webui-verify reports 32 chrome.send names all registered, up from 30.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ tools/gritsettings/resource_ids.spec | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/gritsettings/resource_ids.spec b/tools/gritsettings/resource_ids.spec
+index b0f961a49004b..3d2d5aefb2b9b 100644
+--- a/tools/gritsettings/resource_ids.spec
++++ b/tools/gritsettings/resource_ids.spec
+@@ -1810,7 +1810,7 @@
+   # Atrium chrome layer. Placed at the end of this section so the
+   # real IDs land after the placeholder block and nothing downstream realigns.
+   "chrome/browser/resources/atrium/atrium_resources.grd": {
+-    "META": {"sizes": {"includes": [20]}},
++    "META": {"sizes": {"includes": [30]}},
+     "includes": [12020],
+   },
+ 

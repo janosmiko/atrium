@@ -1,0 +1,657 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 05:54:24 +0200
+Subject: [PATCH 034/154] feat: delete the content_shell Atrium arm and the
+ third frozen bridge copy
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+content/shell/browser/atrium_bridge.h was the third copy of
+the frozen vtable, kept byte-identical with the Swift one. Its only consumer
+was atrium_tab_host, which dlopen'd the dylib to host a SwiftUI sidebar in the
+M1 content_shell fallback.
+
+With the dylib gone, TabHost::connected() is permanently false, so all five
+guards took their else path. Removed rather than stubbed: the shared-window tab
+model, the Cmd+W tab-close override, the DestroyShell keep-open path, the
+sidebar hosting and the frame inset, plus Shell::atrium_active_shell and
+ShellPlatformDelegate::AtriumShowShell.
+
+content_shell builds with no errors and no new warnings. content/shell now
+contains no reference to Atrium at all.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ content/shell/BUILD.gn                        |   3 -
+ content/shell/browser/atrium_bridge.h         |  34 ----
+ content/shell/browser/atrium_tab_host.h       |  63 -------
+ content/shell/browser/atrium_tab_host.mm      | 147 ---------------
+ content/shell/browser/shell.cc                |  16 --
+ content/shell/browser/shell.h                 |   4 -
+ .../shell/browser/shell_platform_delegate.h   |   2 -
+ .../browser/shell_platform_delegate_mac.mm    | 176 ------------------
+ 8 files changed, 445 deletions(-)
+ delete mode 100644 content/shell/browser/atrium_bridge.h
+ delete mode 100644 content/shell/browser/atrium_tab_host.h
+ delete mode 100644 content/shell/browser/atrium_tab_host.mm
+
+diff --git a/content/shell/BUILD.gn b/content/shell/BUILD.gn
+index fc2f962b96635..05ec8ec8bcaea 100644
+--- a/content/shell/BUILD.gn
++++ b/content/shell/BUILD.gn
+@@ -252,9 +252,6 @@ static_library("content_shell_lib") {
+ 
+   if (is_mac) {
+     sources += [
+-      "browser/atrium_bridge.h",
+-      "browser/atrium_tab_host.h",
+-      "browser/atrium_tab_host.mm",
+       "browser/renderer_host/shell_render_widget_host_view_mac_delegate.h",
+       "browser/renderer_host/shell_render_widget_host_view_mac_delegate.mm",
+       "browser/shell_application_mac.h",
+diff --git a/content/shell/browser/atrium_bridge.h b/content/shell/browser/atrium_bridge.h
+deleted file mode 100644
+index 1cf61ca706c7a..0000000000000
+--- a/content/shell/browser/atrium_bridge.h
++++ /dev/null
+@@ -1,34 +0,0 @@
+-// swift/AtriumUI/Sources/AtriumBridgeC/include/atrium_bridge.h
+-// C ABI between the AtriumUI dylib (Swift) and the Chromium-side patch.
+-// MUST stay byte-identical with content/shell/browser/atrium_bridge.h
+-// in the Chromium tree (see Global Constraints).
+-#ifndef ATRIUM_BRIDGE_H_
+-#define ATRIUM_BRIDGE_H_
+-
+-#include <stdint.h>
+-
+-#ifdef __cplusplus
+-extern "C" {
+-#endif
+-
+-// Opaque handle owned by the Chromium side.
+-typedef struct AtriumHost AtriumHost;
+-
+-// Operations the Swift UI invokes on the browser. All functions are
+-// called on the main thread. tab_id identifies a tab previously
+-// announced via AtriumOnTabAdded.
+-typedef struct AtriumHostOps {
+-  void (*navigate)(AtriumHost* host, uint64_t tab_id, const char* url);
+-  void (*new_tab)(AtriumHost* host);
+-  void (*close_tab)(AtriumHost* host, uint64_t tab_id);
+-  void (*activate_tab)(AtriumHost* host, uint64_t tab_id);
+-  void (*go_back)(AtriumHost* host, uint64_t tab_id);
+-  void (*go_forward)(AtriumHost* host, uint64_t tab_id);
+-  void (*reload)(AtriumHost* host, uint64_t tab_id);
+-} AtriumHostOps;
+-
+-#ifdef __cplusplus
+-}  // extern "C"
+-#endif
+-
+-#endif  // ATRIUM_BRIDGE_H_
+diff --git a/content/shell/browser/atrium_tab_host.h b/content/shell/browser/atrium_tab_host.h
+deleted file mode 100644
+index 90efbf74dd0b4..0000000000000
+--- a/content/shell/browser/atrium_tab_host.h
++++ /dev/null
+@@ -1,63 +0,0 @@
+-// content/shell/browser/atrium_tab_host.h
+-#ifndef CONTENT_SHELL_BROWSER_ATRIUM_TAB_HOST_H_
+-#define CONTENT_SHELL_BROWSER_ATRIUM_TAB_HOST_H_
+-
+-// This header is included from both Objective-C++ (.mm) and plain C++ (.cc)
+-// translation units. NSView is only usable as a pointer type in the latter.
+-#if defined(__OBJC__)
+-#import <Cocoa/Cocoa.h>
+-#else
+-class NSView;
+-#endif
+-
+-#include <cstdint>
+-#include <string>
+-
+-#include "content/shell/browser/atrium_bridge.h"
+-#include "url/gurl.h"
+-
+-namespace content {
+-class Shell;
+-}
+-
+-namespace atrium {
+-
+-// Bridges content_shell Shells (= tabs) to the AtriumUI dylib. One
+-// process-wide instance; all calls on the UI thread. If the dylib is
+-// missing every method degrades to a no-op and content_shell behaves
+-// as upstream.
+-class TabHost {
+- public:
+-  static TabHost* Get();
+-
+-  bool connected() const { return connected_; }
+-  NSView* CreateSidebar();
+-
+-  void OnShellCreated(content::Shell* shell);
+-  void OnShellClosed(content::Shell* shell);
+-  void OnShellActivated(content::Shell* shell);
+-  void OnURLChanged(content::Shell* shell, const GURL& url);
+-  void OnTitleChanged(content::Shell* shell, const std::u16string& title);
+-
+-  static uint64_t IdFor(content::Shell* shell) {
+-    return reinterpret_cast<uint64_t>(shell);
+-  }
+-
+- private:
+-  TabHost();
+-  bool connected_ = false;
+-
+-  // Swift-side entry points resolved via dlsym.
+-  void (*on_added_)(uint64_t) = nullptr;
+-  void (*on_closed_)(uint64_t) = nullptr;
+-  void (*on_activated_)(uint64_t) = nullptr;
+-  void (*on_url_)(uint64_t, const char*) = nullptr;
+-  void (*on_title_)(uint64_t, const char*) = nullptr;
+-  // Returns a retained NSView* (+1); CreateSidebar() balances it with
+-  // __bridge_transfer.
+-  void* (*create_sidebar_)(AtriumHost*, const AtriumHostOps*) = nullptr;
+-};
+-
+-}  // namespace atrium
+-
+-#endif  // CONTENT_SHELL_BROWSER_ATRIUM_TAB_HOST_H_
+diff --git a/content/shell/browser/atrium_tab_host.mm b/content/shell/browser/atrium_tab_host.mm
+deleted file mode 100644
+index adcbeec773030..0000000000000
+--- a/content/shell/browser/atrium_tab_host.mm
++++ /dev/null
+@@ -1,147 +0,0 @@
+-// content/shell/browser/atrium_tab_host.mm
+-#include "content/shell/browser/atrium_tab_host.h"
+-
+-#include <dlfcn.h>
+-
+-#include "base/strings/sys_string_conversions.h"
+-#include "base/strings/utf_string_conversions.h"
+-#include "content/public/browser/web_contents.h"
+-#include "content/shell/browser/shell.h"
+-#include "ui/gfx/geometry/size.h"
+-
+-namespace atrium {
+-namespace {
+-
+-content::Shell* ShellFromId(uint64_t tab_id) {
+-  // Validate against the live shell list instead of trusting the pointer.
+-  for (content::Shell* shell : content::Shell::windows()) {
+-    if (TabHost::IdFor(shell) == tab_id) {
+-      return shell;
+-    }
+-  }
+-  return nullptr;
+-}
+-
+-// --- AtriumHostOps implementation (Swift -> browser) ---
+-
+-void HostNavigate(AtriumHost* host, uint64_t tab_id, const char* url) {
+-  if (content::Shell* shell = ShellFromId(tab_id)) {
+-    shell->LoadURL(GURL(url));
+-  }
+-}
+-
+-void HostNewTab(AtriumHost* host) {
+-  if (content::Shell::windows().empty()) {
+-    return;
+-  }
+-  content::Shell* seed = content::Shell::windows()[0];
+-  content::Shell::CreateNewWindow(
+-      seed->web_contents()->GetBrowserContext(), GURL("about:blank"),
+-      nullptr, gfx::Size());
+-}
+-
+-void HostCloseTab(AtriumHost* host, uint64_t tab_id) {
+-  if (content::Shell* shell = ShellFromId(tab_id)) {
+-    shell->Close();
+-  }
+-}
+-
+-void HostActivateTab(AtriumHost* host, uint64_t tab_id) {
+-  if (content::Shell* shell = ShellFromId(tab_id)) {
+-    content::Shell::SetAtriumActiveShell(shell);
+-  }
+-}
+-
+-void HostGoBack(AtriumHost* host, uint64_t tab_id) {
+-  if (content::Shell* shell = ShellFromId(tab_id)) {
+-    shell->GoBackOrForward(-1);
+-  }
+-}
+-
+-void HostGoForward(AtriumHost* host, uint64_t tab_id) {
+-  if (content::Shell* shell = ShellFromId(tab_id)) {
+-    shell->GoBackOrForward(1);
+-  }
+-}
+-
+-void HostReload(AtriumHost* host, uint64_t tab_id) {
+-  if (content::Shell* shell = ShellFromId(tab_id)) {
+-    shell->Reload();
+-  }
+-}
+-
+-constexpr AtriumHostOps kHostOps = {
+-    &HostNavigate,  &HostNewTab,    &HostCloseTab, &HostActivateTab,
+-    &HostGoBack,    &HostGoForward, &HostReload,
+-};
+-
+-}  // namespace
+-
+-// static
+-TabHost* TabHost::Get() {
+-  static TabHost* instance = new TabHost();
+-  return instance;
+-}
+-
+-TabHost::TabHost() {
+-  const char* dylib_path = getenv("ATRIUM_UI_DYLIB");
+-  if (!dylib_path) {
+-    return;
+-  }
+-  void* handle = dlopen(dylib_path, RTLD_NOW);
+-  if (!handle) {
+-    return;
+-  }
+-  create_sidebar_ = reinterpret_cast<void* (*)(AtriumHost*, const AtriumHostOps*)>(
+-      dlsym(handle, "AtriumCreateSidebarConnected"));
+-  on_added_ = reinterpret_cast<void (*)(uint64_t)>(dlsym(handle, "AtriumOnTabAdded"));
+-  on_closed_ = reinterpret_cast<void (*)(uint64_t)>(dlsym(handle, "AtriumOnTabClosed"));
+-  on_activated_ =
+-      reinterpret_cast<void (*)(uint64_t)>(dlsym(handle, "AtriumOnTabActivated"));
+-  on_url_ = reinterpret_cast<void (*)(uint64_t, const char*)>(
+-      dlsym(handle, "AtriumOnTabURLChanged"));
+-  on_title_ = reinterpret_cast<void (*)(uint64_t, const char*)>(
+-      dlsym(handle, "AtriumOnTabTitleChanged"));
+-  connected_ = create_sidebar_ && on_added_ && on_closed_ && on_activated_ &&
+-               on_url_ && on_title_;
+-}
+-
+-NSView* TabHost::CreateSidebar() {
+-  if (!connected_) {
+-    return nil;
+-  }
+-  // The Swift side returns the view retained (+1); take ownership.
+-  return (__bridge_transfer NSView*)create_sidebar_(nullptr, &kHostOps);
+-}
+-
+-void TabHost::OnShellCreated(content::Shell* shell) {
+-  if (connected_) {
+-    on_added_(IdFor(shell));
+-  }
+-}
+-
+-void TabHost::OnShellClosed(content::Shell* shell) {
+-  if (connected_) {
+-    on_closed_(IdFor(shell));
+-  }
+-}
+-
+-void TabHost::OnShellActivated(content::Shell* shell) {
+-  if (connected_) {
+-    on_activated_(IdFor(shell));
+-  }
+-}
+-
+-void TabHost::OnURLChanged(content::Shell* shell, const GURL& url) {
+-  if (connected_) {
+-    on_url_(IdFor(shell), url.spec().c_str());
+-  }
+-}
+-
+-void TabHost::OnTitleChanged(content::Shell* shell, const std::u16string& title) {
+-  if (connected_) {
+-    on_title_(IdFor(shell), base::UTF16ToUTF8(title).c_str());
+-  }
+-}
+-
+-}  // namespace atrium
+diff --git a/content/shell/browser/shell.cc b/content/shell/browser/shell.cc
+index edb9699bda0a7..dd4ec807ed55d 100644
+--- a/content/shell/browser/shell.cc
++++ b/content/shell/browser/shell.cc
+@@ -46,7 +46,6 @@
+ #include "content/shell/browser/shell_javascript_dialog_manager.h"
+ #include "content/shell/common/shell_switches.h"
+ #if BUILDFLAG(IS_MAC)
+-#include "content/shell/browser/atrium_tab_host.h"
+ #endif
+ #include "media/media_buildflags.h"
+ #include "third_party/blink/public/common/peerconnection/webrtc_ip_handling_policy.h"
+@@ -76,7 +75,6 @@ ShellPlatformDelegate* g_platform;
+ std::vector<Shell*> Shell::windows_;
+ base::OnceCallback<void(Shell*)> Shell::shell_created_callback_;
+ #if BUILDFLAG(IS_MAC)
+-Shell* Shell::atrium_active_shell_ = nullptr;
+ #endif
+ 
+ Shell::Shell(std::unique_ptr<WebContents> web_contents,
+@@ -108,9 +106,6 @@ Shell::~Shell() {
+   }
+ 
+ #if BUILDFLAG(IS_MAC)
+-  atrium::TabHost::Get()->OnShellClosed(this);
+-  if (atrium_active_shell_ == this)
+-    atrium_active_shell_ = nullptr;
+ #endif
+ 
+   web_contents_->SetDelegate(nullptr);
+@@ -153,8 +148,6 @@ Shell* Shell::CreateShell(std::unique_ptr<WebContents> web_contents,
+                                  raw_web_contents->GetPrimaryMainFrame());
+ 
+ #if BUILDFLAG(IS_MAC)
+-  atrium::TabHost::Get()->OnShellCreated(shell);
+-  Shell::SetAtriumActiveShell(shell);
+ #endif
+ 
+   return shell;
+@@ -439,13 +432,6 @@ void Shell::URLEntered(const std::string& url_string) {
+ }
+ 
+ // static
+-void Shell::SetAtriumActiveShell(Shell* shell) {
+-  atrium_active_shell_ = shell;
+-  if (shell && atrium::TabHost::Get()->connected()) {
+-    g_platform->AtriumShowShell(shell);
+-    atrium::TabHost::Get()->OnShellActivated(shell);
+-  }
+-}
+ #endif
+ 
+ WebContents* Shell::OpenURLFromTab(
+@@ -666,7 +652,6 @@ void Shell::NavigationStateChanged(WebContents* source,
+   if (changed_flags & INVALIDATE_TYPE_URL) {
+     g_platform->SetAddressBarURL(this, source->GetVisibleURL());
+ #if BUILDFLAG(IS_MAC)
+-    atrium::TabHost::Get()->OnURLChanged(this, source->GetVisibleURL());
+ #endif
+   }
+ }
+@@ -845,7 +830,6 @@ void Shell::TitleWasSet(NavigationEntry* entry) {
+   if (entry) {
+     g_platform->SetTitle(this, entry->GetTitle());
+ #if BUILDFLAG(IS_MAC)
+-    atrium::TabHost::Get()->OnTitleChanged(this, entry->GetTitle());
+ #endif
+   }
+ }
+diff --git a/content/shell/browser/shell.h b/content/shell/browser/shell.h
+index 59bd6905782c7..b09d9b49ffe86 100644
+--- a/content/shell/browser/shell.h
++++ b/content/shell/browser/shell.h
+@@ -108,9 +108,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
+   void ActionPerformed(int control);
+   void URLEntered(const std::string& url_string);
+ 
+-  // Atrium: marks |shell| as the tab whose view is visible. Null clears.
+-  static void SetAtriumActiveShell(Shell* shell);
+-  static Shell* atrium_active_shell() { return atrium_active_shell_; }
+ #endif
+ 
+   // WebContentsDelegate
+@@ -266,7 +263,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
+   static base::OnceCallback<void(Shell*)> shell_created_callback_;
+ 
+ #if BUILDFLAG(IS_MAC)
+-  static Shell* atrium_active_shell_;
+ #endif
+ };
+ 
+diff --git a/content/shell/browser/shell_platform_delegate.h b/content/shell/browser/shell_platform_delegate.h
+index 6c4ba65ff7748..08d90499a45cc 100644
+--- a/content/shell/browser/shell_platform_delegate.h
++++ b/content/shell/browser/shell_platform_delegate.h
+@@ -143,8 +143,6 @@ class ShellPlatformDelegate {
+                                    WebContents* source,
+                                    const input::NativeWebKeyboardEvent& event);
+ 
+-  // Shows |shell|'s web view and hides all others sharing the Atrium window.
+-  virtual void AtriumShowShell(Shell* shell);
+ #endif
+ 
+ #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+diff --git a/content/shell/browser/shell_platform_delegate_mac.mm b/content/shell/browser/shell_platform_delegate_mac.mm
+index f9bbbfecb370d..7748ca73c792b 100644
+--- a/content/shell/browser/shell_platform_delegate_mac.mm
++++ b/content/shell/browser/shell_platform_delegate_mac.mm
+@@ -19,46 +19,10 @@
+ #include "content/public/browser/render_widget_host_view.h"
+ #include "content/public/browser/web_contents.h"
+ #include "content/shell/app/resource.h"
+-#include "content/shell/browser/atrium_tab_host.h"
+ #include "content/shell/browser/shell.h"
+ #include "ui/gfx/native_ui_types.h"
+ #include "url/gurl.h"
+ 
+-// --- Atrium M0: SwiftUI sidebar loaded from an external dylib ---
+-#include <dlfcn.h>
+-
+-namespace {
+-
+-constexpr CGFloat kAtriumSidebarWidth = 220;
+-
+-// Window shared by all Atrium tabs (M1: single-window model).
+-static NSWindow* g_atrium_window = nil;
+-
+-// Declared in ShellPlatformDelegate (header addition below).
+-
+-// Loads the AtriumUI dylib (path via ATRIUM_UI_DYLIB) and creates the
+-// SwiftUI sidebar NSView. Returns nil if the dylib is absent, in which
+-// case content_shell behaves exactly as upstream.
+-NSView* AtriumLoadSidebarView() {
+-  const char* dylib_path = getenv("ATRIUM_UI_DYLIB");
+-  if (!dylib_path) {
+-    return nil;
+-  }
+-  static void* handle = dlopen(dylib_path, RTLD_NOW);
+-  if (!handle) {
+-    return nil;
+-  }
+-  using Factory = void* (*)(void);
+-  auto factory =
+-      reinterpret_cast<Factory>(dlsym(handle, "AtriumCreateSidebarView"));
+-  if (!factory) {
+-    return nil;
+-  }
+-  return (__bridge_transfer NSView*)factory();
+-}
+-
+-}  // namespace
+-// --- end Atrium M0 ---
+ 
+ // Receives notification that the window is closing so that it can start the
+ // tear-down process.
+@@ -93,42 +57,6 @@ NSView* AtriumLoadSidebarView() {
+ // removed from the screen.
+ - (BOOL)windowShouldClose:(id)sender {
+   CHECK_EQ(base::apple::ObjCCastStrict<NSWindow>(sender), _window);
+-  if (atrium::TabHost::Get()->connected() && _window == g_atrium_window) {
+-    // Closing tabs below can synchronously erase the map entry holding the
+-    // only strong reference to |self|; keep it alive for the whole method.
+-    __attribute__((objc_precise_lifetime)) ContentShellWindowDelegate*
+-        protect_self = self;
+-    // Cmd+W reaches here as a key event (directly or via Chromium's
+-    // re-dispatch of unhandled keys to the main menu); the red titlebar
+-    // button as a mouse event. No current event also closes the window.
+-    NSEventType event_type = NSApp.currentEvent.type;
+-    bool key_initiated = event_type == NSEventTypeKeyDown ||
+-                         event_type == NSEventTypeKeyUp ||
+-                         event_type == NSEventTypeFlagsChanged;
+-    if (key_initiated && content::Shell::windows().size() > 1) {
+-      // Atrium: Cmd+W closes the active tab; the shared window stays.
+-      content::Shell* target = content::Shell::atrium_active_shell();
+-      if (!target) {
+-        target = content::Shell::windows().back();
+-      }
+-      target->Close();
+-      return NO;
+-    }
+-    if (!key_initiated) {
+-      // Red titlebar button: the whole window closes. Tear down all other
+-      // tabs first, over a copy since Close() mutates windows(). None of
+-      // them holds the window delegate (|self| does), so each takes the
+-      // keep-window-open DestroyShell path.
+-      std::vector<content::Shell*> tabs = content::Shell::windows();
+-      for (content::Shell* tab : tabs) {
+-        if (tab != _shell.get()) {
+-          tab->Close();
+-        }
+-      }
+-    }
+-    // Only |_shell| remains: the shared window goes away with it.
+-    g_atrium_window = nil;
+-  }
+   // Don't leave a dangling pointer if the window lives beyond
+   // this method. See crbug.com/719830.
+   _window.delegate = nil;
+@@ -208,14 +136,6 @@ void ShellPlatformDelegate::CreatePlatformWindow(
+   DCHECK(!shell_data_map_.contains(shell));
+   ShellData& shell_data = shell_data_map_[shell];
+ 
+-  if (atrium::TabHost::Get()->connected() && g_atrium_window) {
+-    // Reuse the first window; this shell becomes a background tab.
+-    shell_data.delegate = [[ContentShellWindowDelegate alloc]
+-        initWithShell:shell
+-               window:g_atrium_window];
+-    return;
+-  }
+-
+   int width = initial_size.width();
+   int height = initial_size.height();
+ 
+@@ -285,19 +205,6 @@ void ShellPlatformDelegate::CreatePlatformWindow(
+   // Show the new window.
+   [window makeKeyAndOrderFront:nil];
+ 
+-  if (atrium::TabHost::Get()->connected() && !g_atrium_window) {
+-    g_atrium_window = window;
+-    NSView* sidebar = atrium::TabHost::Get()->CreateSidebar();
+-    if (sidebar) {
+-      NSRect side = window.contentView.bounds;
+-      if (!Shell::ShouldHideToolbar()) side.size.height -= kURLBarHeight;
+-      side.size.width = kAtriumSidebarWidth;
+-      sidebar.frame = side;
+-      sidebar.autoresizingMask = NSViewHeightSizable | NSViewMaxXMargin;
+-      [window.contentView addSubview:sidebar];
+-    }
+-  }
+-
+   shell_data.delegate = delegate;
+ }
+ 
+@@ -326,42 +233,11 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
+   if (!Shell::ShouldHideToolbar()) {
+     frame.size.height -= kURLBarHeight;
+   }
+-  if (atrium::TabHost::Get()->connected()) {
+-    frame.origin.x += kAtriumSidebarWidth;
+-    frame.size.width -= kAtriumSidebarWidth;
+-    web_view.hidden = (shell != Shell::atrium_active_shell());
+-  } else if (NSView* sidebar = AtriumLoadSidebarView()) {
+-    // M0 fallback: dylib present but not Atrium-tab-connected.
+-    NSRect sidebar_frame = frame;
+-    sidebar_frame.size.width = kAtriumSidebarWidth;
+-    sidebar.frame = sidebar_frame;
+-    sidebar.autoresizingMask = NSViewHeightSizable | NSViewMaxXMargin;
+-    [window.contentView addSubview:sidebar];
+-    frame.origin.x += kAtriumSidebarWidth;
+-    frame.size.width -= kAtriumSidebarWidth;
+-  }
+   [window.contentView addSubview:web_view];
+   web_view.frame = frame;
+   web_view.needsDisplay = YES;
+ }
+ 
+-void ShellPlatformDelegate::AtriumShowShell(Shell* shell) {
+-  if (!shell_data_map_.contains(shell)) {
+-    return;
+-  }
+-  for (auto& [other_shell, data] : shell_data_map_) {
+-    if (data.delegate.window != g_atrium_window) {
+-      continue;  // Not a tab (e.g. DevTools front-end); leave it alone.
+-    }
+-    NSView* view =
+-        other_shell->web_contents()->GetNativeView().GetNativeNSView();
+-    view.hidden = (other_shell != shell);
+-  }
+-  NSView* active_view =
+-      shell->web_contents()->GetNativeView().GetNativeNSView();
+-  [g_atrium_window makeFirstResponder:active_view];
+-}
+-
+ void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
+                                              const gfx::Size& content_size) {
+   DCHECK(shell_data_map_.contains(shell));
+@@ -426,36 +302,6 @@ bool ShellPlatformDelegate::DestroyShell(Shell* shell) {
+   DCHECK(shell_data_map_.contains(shell));
+   ShellData& shell_data = shell_data_map_[shell];
+ 
+-  if (atrium::TabHost::Get()->connected() &&
+-      shell_data.delegate.window == g_atrium_window &&
+-      Shell::windows().size() > 1) {
+-    // Atrium tab close: other tabs still share this window, so keep it
+-    // open and only tear down this shell's view.
+-    [shell->web_contents()->GetNativeView().GetNativeNSView()
+-        removeFromSuperview];
+-    Shell* next = nullptr;
+-    for (Shell* other : Shell::windows()) {
+-      if (other != shell)
+-        next = other;
+-    }
+-    // CleanUp() will deallocate this shell's delegate; don't leave the
+-    // shared window's delegate pointer dangling on it.
+-    if (g_atrium_window.delegate == shell_data.delegate) {
+-      auto next_it = shell_data_map_.find(next);
+-      CHECK(next_it != shell_data_map_.end());
+-      g_atrium_window.delegate = next_it->second.delegate;
+-    }
+-    if (Shell::atrium_active_shell() == shell)
+-      Shell::SetAtriumActiveShell(next);
+-    return false;  // Shell deletes itself; the window stays open.
+-  }
+-
+-  if (shell_data.delegate.window == g_atrium_window) {
+-    // Last Atrium tab: the shared window goes away with it. Reset the
+-    // static so nothing dangles.
+-    g_atrium_window = nil;
+-  }
+-
+   [shell_data.delegate.window performClose:nil];
+   return true;  // The performClose() will do the destruction of Shell.
+ }
+@@ -503,28 +349,6 @@ bool ShellPlatformDelegate::HandleKeyboardEvent(
+       return true;
+     }
+ 
+-    if ((ns_event.modifierFlags & NSEventModifierFlagCommand) &&
+-        [ns_event.characters isEqual:@"w"] &&
+-        atrium::TabHost::Get()->connected() &&
+-        shell_data.delegate.window == g_atrium_window) {
+-      // Atrium: close the active tab here instead of via the Close menu
+-      // item. This call runs after an async renderer round-trip, so
+-      // NSApp.currentEvent may no longer be the key event and
+-      // windowShouldClose: could misread Cmd+W as a window close.
+-      if (Shell::windows().size() > 1) {
+-        Shell* target = Shell::atrium_active_shell();
+-        if (!target) {
+-          target = Shell::windows().back();
+-        }
+-        // Close() may erase |shell|'s map entry; don't touch |shell| or
+-        // |shell_data| after it.
+-        target->Close();
+-      } else {
+-        [shell_data.delegate.window performClose:nil];
+-      }
+-      return true;
+-    }
+-
+     [NSApp.mainMenu performKeyEquivalent:ns_event];
+     return true;
+   }

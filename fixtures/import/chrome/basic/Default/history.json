@@ -1,0 +1,10 @@
+[
+  {"url": "https://quokka.example.test/field-notes", "title": "Quokka field notes", "typed_count": 4, "hidden": 0,
+   "visits": [{"days_ago": 1, "transition": 1}, {"days_ago": 2, "transition": 1}, {"days_ago": 3, "transition": 1}, {"days_ago": 4, "transition": 1}]},
+  {"url": "javascript:void(0)", "title": "Bookmarklet", "typed_count": 0, "hidden": 0,
+   "visits": [{"days_ago": 1, "transition": 0}]},
+  {"url": "https://old.example.test/archive", "title": "Old archive", "typed_count": 0, "hidden": 0,
+   "visits": [{"days_ago": 200, "transition": 0}]},
+  {"url": "https://frame.example.test/embed", "title": "Embedded frame", "typed_count": 0, "hidden": 0,
+   "visits": [{"days_ago": 1, "transition": 3}]}
+]

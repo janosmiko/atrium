@@ -1,0 +1,586 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 20 Sep 2026 08:39:54 +0200
+Subject: [PATCH 138/154] feat(atrium): split panes, media player and
+ cross-window claim fix
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/picture_in_picture/BUILD.gn    |  2 +
+ .../auto_picture_in_picture_tab_helper.cc     | 18 +++-
+ ...cture_in_picture_tab_helper_browsertest.cc | 52 ++++++++++
+ chrome/browser/ui/BUILD.gn                    | 11 ++-
+ .../simple_overlay_window_image_button.cc     |  5 +
+ .../simple_overlay_window_image_button.h      |  6 +-
+ .../overlay/video_overlay_window_views.cc     | 97 ++++++++++++++++++-
+ .../overlay/video_overlay_window_views.h      | 13 +++
+ .../video_overlay_window_views_unittest.cc    | 60 ++++++++++++
+ .../render_widget_host_view_mac.mm            |  2 +-
+ 10 files changed, 257 insertions(+), 9 deletions(-)
+
+diff --git a/chrome/browser/picture_in_picture/BUILD.gn b/chrome/browser/picture_in_picture/BUILD.gn
+index ac20c501de41b..005e1de6a800e 100644
+--- a/chrome/browser/picture_in_picture/BUILD.gn
++++ b/chrome/browser/picture_in_picture/BUILD.gn
+@@ -103,6 +103,7 @@ source_set("impl") {
+     "//chrome/browser/permissions",
+     "//chrome/browser/profiles:profile",
+     "//chrome/browser/safe_browsing",
++    "//chrome/browser/ui/atrium:auto_mini_player",
+     "//chrome/browser/ui:recently_audible_helper",
+     "//chrome/browser/ui/navigator",
+     "//components/content_settings/browser",
+@@ -267,6 +268,7 @@ if (!is_android) {
+       "//chrome/browser/preloading:test_support",
+       "//chrome/browser/profiles:profile",
+       "//chrome/browser/ui",
++      "//chrome/browser/ui/atrium:auto_mini_player",
+       "//chrome/browser/ui:recently_audible_helper",
+       "//chrome/browser/ui:ui_features",
+       "//chrome/browser/ui/hats:test_support",
+diff --git a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
+index d826c9798d9eb..70bbd7c1efbde 100644
+--- a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
++++ b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
+@@ -19,6 +19,7 @@
+ #include "chrome/browser/picture_in_picture/auto_pip_setting_helper.h"
+ #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/ui/atrium/atrium_auto_mini_player.h"
+ #include "chrome/browser/ui/recently_audible_helper.h"
+ #include "components/content_settings/browser/page_specific_content_settings.h"
+ #include "components/content_settings/core/browser/host_content_settings_map.h"
+@@ -630,7 +631,11 @@ void AutoPictureInPictureTabHelper::MaybeExitAutoPictureInPicture() {
+ }
+ 
+ void AutoPictureInPictureTabHelper::MaybeStartOrStopObservers() {
+-  if (is_enter_auto_picture_in_picture_available_ ||
++  // Without the gate here an unregistered video never gets a tab-switch
++  // notification at all, so the eligibility check below would never run.
++  if (atrium::AutoMiniPlayerAllows(
++          atrium::AutoPipCondition::kSiteRegistered,
++          is_enter_auto_picture_in_picture_available_) ||
+       is_in_auto_picture_in_picture_) {
+     tab_observer_helper_->StartObserving();
+ 
+@@ -665,8 +670,11 @@ bool AutoPictureInPictureTabHelper::IsEligibleForAutoPictureInPicture(
+     return false;
+   }
+ 
+-  // The website must have registered for autopip.
+-  if (!is_enter_auto_picture_in_picture_available_) {
++  // The website must have registered for autopip, unless Atrium's
++  // autoMiniPlayer setting takes an unregistered video too.
++  if (!atrium::AutoMiniPlayerAllows(
++          atrium::AutoPipCondition::kSiteRegistered,
++          is_enter_auto_picture_in_picture_available_)) {
+     return false;
+   }
+ 
+@@ -713,7 +721,9 @@ bool AutoPictureInPictureTabHelper::IsEligibleForAutoPictureInPicture(
+ }
+ 
+ bool AutoPictureInPictureTabHelper::MeetsVideoPlaybackConditions() const {
+-  return has_audio_focus_ && is_playing_ && WasRecentlyAudible() &&
++  return has_audio_focus_ && is_playing_ &&
++         atrium::AutoMiniPlayerAllows(atrium::AutoPipCondition::kAudible,
++                                      WasRecentlyAudible()) &&
+          has_safe_url_ && MeetsMediaEngagementConditions();
+ }
+ 
+diff --git a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper_browsertest.cc b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper_browsertest.cc
+index d264beccb7b98..419a91e5ed232 100644
+--- a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper_browsertest.cc
++++ b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper_browsertest.cc
+@@ -31,6 +31,7 @@
+ #include "chrome/browser/ui/hats/hats_service_factory.h"
+ #include "chrome/browser/ui/hats/mock_hats_service.h"
+ #include "chrome/browser/ui/hats/survey_config.h"
++#include "chrome/browser/ui/atrium/atrium_auto_mini_player.h"
+ #include "chrome/browser/ui/recently_audible_helper.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+@@ -1292,6 +1293,57 @@ IN_PROC_BROWSER_TEST_F(AutoPictureInPictureWithVideoPlaybackBrowserTest,
+   SwitchToNewTabAndDontExpectAutopip();
+ }
+ 
++// Atrium's `autoMiniPlayer` setting, one test per acceptance criterion. The
++// page these three use never registers the enterpictureinpicture action, which
++// is what separates `audible` from Chromium's own `siteAsks` rule.
++IN_PROC_BROWSER_TEST_F(AutoPictureInPictureWithVideoPlaybackBrowserTest,
++                       AtriumAudibleTakesAnUnregisteredVideo) {
++  atrium::SetAutoMiniPlayer(atrium::AutoMiniPlayer::kAudible);
++  LoadNotRegisteredPage(browser());
++  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
++  PlayVideo(web_contents);
++  WaitForAudioFocusGained();
++  WaitForMediaSessionPlaying(web_contents);
++  WaitForWasRecentlyAudible(web_contents);
++  SetExpectedHasHighEngagement(true);
++
++  SwitchToNewTabAndBackAndExpectAutopip(/*should_video_pip=*/true,
++                                        /*should_document_pip=*/false);
++}
++
++IN_PROC_BROWSER_TEST_F(AutoPictureInPictureWithVideoPlaybackBrowserTest,
++                       AtriumAudibleLeavesAMutedVideoInItsTab) {
++  atrium::SetAutoMiniPlayer(atrium::AutoMiniPlayer::kAudible);
++  LoadNotRegisteredPage(browser());
++  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
++  PlayVideo(web_contents);
++  WaitForAudioFocusGained();
++  WaitForMediaSessionPlaying(web_contents);
++  SetExpectedHasHighEngagement(true);
++
++  WaitForWasRecentlyAudible(web_contents, /*expected_recently_audible=*/true);
++  MuteVideo(web_contents);
++  WaitForWasRecentlyAudible(web_contents, /*expected_recently_audible=*/false);
++
++  SwitchToNewTabAndDontExpectAutopip();
++}
++
++// The registered, audible page Chromium itself would take, so a pass here is
++// the setting refusing rather than the page failing some other condition.
++IN_PROC_BROWSER_TEST_F(AutoPictureInPictureWithVideoPlaybackBrowserTest,
++                       AtriumOffOpensNothingAutomatically) {
++  atrium::SetAutoMiniPlayer(atrium::AutoMiniPlayer::kOff);
++  LoadAutoVideoPipPage(browser());
++  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
++  PlayVideo(web_contents);
++  WaitForAudioFocusGained();
++  WaitForMediaSessionPlaying(web_contents);
++  WaitForWasRecentlyAudible(web_contents);
++  SetExpectedHasHighEngagement(true);
++
++  SwitchToNewTabAndDontExpectAutopip();
++}
++
+ IN_PROC_BROWSER_TEST_F(AutoPictureInPictureWithVideoPlaybackBrowserTest,
+                        DoesNotVideoAutopip_DangerousURL) {
+   // Load a page that registers for autopip and start video playback.
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index b0f05360e8a11..d4718fe96e91c 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -621,15 +621,16 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:cdp_response",
+     "//chrome/browser/ui/atrium:claim_ledger_decision",
+     "//chrome/browser/ui/atrium:confirm_quit_panel_style",
++    "//chrome/browser/ui/atrium:auto_mini_player",
+     "//chrome/browser/ui/atrium:confirm_to_quit",
+     "//chrome/browser/ui/atrium:overlay_themes",
+     "//chrome/browser/ui/atrium:corner_radius",
+     "//chrome/browser/ui/atrium:custom_endpoint_request_guard",
+     "//chrome/browser/ui/atrium:devtools_card_corners",
+-    "//chrome/browser/ui/atrium:devtools_pane_selection",
+     "//chrome/browser/ui/atrium:quick_menu_anchor",
+     "//chrome/browser/ui/atrium:downloads_overview",
+     "//chrome/browser/ui/atrium:drop_target_decision",
++    "//chrome/browser/ui/atrium:own_window_drop",
+     "//chrome/browser/ui/atrium:extension_actions_json",
+     "//chrome/browser/ui/atrium:icon_backfill",
+     "//chrome/browser/ui/atrium:row_icon_lookup",
+@@ -3559,11 +3560,15 @@ static_library("ui") {
+       "atrium/atrium_ambilight_cadence.cc",
+       "atrium/atrium_startup_hold.cc",
+       "atrium/atrium_devbar_scroll.cc",
++      "atrium/atrium_devbar_layout.cc",
++      "atrium/atrium_devbar.cc",
+       "atrium/atrium_browser_window_surface_routes.cc",
+       "atrium/atrium_surface_message_router.cc",
+       "atrium/atrium_edge_tint.cc",
+       "atrium/atrium_page_color.cc",
+       "atrium/atrium_settings_source.cc",
++      "atrium/atrium_pip_always_on_top.h",
++      "atrium/atrium_pip_always_on_top.cc",
+       "atrium/atrium_routing_navigation_throttle.cc",
+       "atrium/atrium_routing_navigation_throttle.h",
+       "atrium/atrium_traffic_routing.cc",
+@@ -3600,6 +3605,8 @@ static_library("ui") {
+       "atrium/atrium_window_metrics.h",
+       "atrium/atrium_browser_window.h",
+       "atrium/atrium_browser_window.cc",
++      "atrium/atrium_media_hub.h",
++      "atrium/atrium_media_hub.cc",
+       "atrium/atrium_capture.h",
+       "atrium/atrium_web_surface_widget.h",
+       "atrium/atrium_web_surface_widget.cc",
+@@ -3642,6 +3649,8 @@ static_library("ui") {
+       "atrium/atrium_ambilight_cadence.h",
+       "atrium/atrium_startup_hold.h",
+       "atrium/atrium_devbar_scroll.h",
++      "atrium/atrium_devbar_layout.h",
++      "atrium/atrium_devbar.h",
+       "atrium/atrium_surface_message_router.h",
+       "atrium/atrium_edge_tint.h",
+       "atrium/atrium_page_color.h",
+diff --git a/chrome/browser/ui/views/overlay/simple_overlay_window_image_button.cc b/chrome/browser/ui/views/overlay/simple_overlay_window_image_button.cc
+index fa3646025e959..38fb419cb3d2b 100644
+--- a/chrome/browser/ui/views/overlay/simple_overlay_window_image_button.cc
++++ b/chrome/browser/ui/views/overlay/simple_overlay_window_image_button.cc
+@@ -23,6 +23,11 @@ SimpleOverlayWindowImageButton::SimpleOverlayWindowImageButton(
+   SetTooltipText(label);
+ }
+ 
++void SimpleOverlayWindowImageButton::SetIcon(const gfx::VectorIcon& icon) {
++  icon_ = icon;
++  UpdateImage();
++}
++
+ void SimpleOverlayWindowImageButton::SetVisible(bool visible) {
+   // We need to do more than the usual visibility change because otherwise the
+   // overlay window cannot be dragged when grabbing within the button area.
+diff --git a/chrome/browser/ui/views/overlay/simple_overlay_window_image_button.h b/chrome/browser/ui/views/overlay/simple_overlay_window_image_button.h
+index f6797e51e67d0..63353d83f7361 100644
+--- a/chrome/browser/ui/views/overlay/simple_overlay_window_image_button.h
++++ b/chrome/browser/ui/views/overlay/simple_overlay_window_image_button.h
+@@ -30,6 +30,10 @@ class SimpleOverlayWindowImageButton : public OverlayWindowImageButton {
+   // Overridden from views::View.
+   void SetVisible(bool is_visible) override;
+ 
++  // Swaps the icon in place, e.g. a toggle button reflecting its new state
++  // without being torn down and recreated.
++  void SetIcon(const gfx::VectorIcon& icon);
++
+  protected:
+   // Overridden from views::View.
+   void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
+@@ -37,7 +41,7 @@ class SimpleOverlayWindowImageButton : public OverlayWindowImageButton {
+  private:
+   void UpdateImage();
+ 
+-  const raw_ref<const gfx::VectorIcon> icon_;
++  raw_ref<const gfx::VectorIcon> icon_;
+ 
+   // Last visible size of the image button.
+   gfx::Size last_visible_size_;
+diff --git a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
+index 9260d89e25ec6..331f081d44642 100644
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
+@@ -18,11 +18,13 @@
+ #include "base/time/time.h"
+ #include "base/timer/timer.h"
+ #include "build/build_config.h"
++#include "chrome/app/vector_icons/vector_icons.h"
+ #include "chrome/browser/media/media_engagement_service.h"
+ #include "chrome/browser/picture_in_picture/picture_in_picture_occlusion_tracker.h"
+ #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ui/atrium/atrium_feature_check.h"
++#include "chrome/browser/ui/atrium/atrium_pip_always_on_top.h"
+ #include "chrome/browser/ui/browser.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+@@ -115,6 +117,11 @@ constexpr gfx::Size kOverlayViewPadding(64, 46);
+ // Size for action buttons.
+ constexpr gfx::Size kActionButtonSize(28, 28);
+ 
++// The two Atrium buttons in the top row, sized to match the
++// minimize/close buttons rather than the bottom row's kActionButtonSize.
++constexpr int kAtriumTopRowButtonSize = 24;
++constexpr int kAtriumTopRowButtonSpacing = 4;
++
+ // The amount of time the seek buttons next to the play button seek.
+ constexpr base::TimeDelta kSeekTime = base::Seconds(10);
+ 
+@@ -337,7 +344,8 @@ std::unique_ptr<VideoOverlayWindowViews> VideoOverlayWindowViews::Create(
+   // Just to have any non-empty bounds as required by Init(). The window is
+   // resized to fit the video that is embedded right afterwards, anyway.
+   params.bounds = gfx::Rect(overlay_window->GetMinimumSize());
+-  params.z_order = ui::ZOrderLevel::kFloatingWindow;
++  params.z_order = atrium::PipAlwaysOnTop() ? ui::ZOrderLevel::kFloatingWindow
++                                            : ui::ZOrderLevel::kNormal;
+   params.visible_on_all_workspaces = true;
+   params.remove_standard_frame = true;
+   params.name = "PictureInPictureWindow";
+@@ -1030,6 +1038,8 @@ bool VideoOverlayWindowViews::ControlsHitTestContainsPoint(
+       GetSkipAdControlsBounds().Contains(point) ||
+       GetCloseControlsBounds().Contains(point) ||
+       GetMinimizeControlsBounds().Contains(point) ||
++      GetAlwaysOnTopControlsBounds().Contains(point) ||
++      GetJumpToStartControlsBounds().Contains(point) ||
+       GetPlayPauseControlsBounds().Contains(point) ||
+       GetReplay10SecondsButtonBounds().Contains(point) ||
+       GetForward10SecondsButtonBounds().Contains(point) ||
+@@ -1145,6 +1155,30 @@ void VideoOverlayWindowViews::SetUpViews() {
+           },
+           base::Unretained(this)));
+ 
++  auto always_on_top_button = std::make_unique<SimpleOverlayWindowImageButton>(
++      base::BindRepeating(
++          [](VideoOverlayWindowViews* overlay) {
++            overlay->ToggleAlwaysOnTop();
++          },
++          base::Unretained(this)),
++      atrium::PipAlwaysOnTop()
++          ? (features::IsRoundedIconsEnabled() ? kKeepIcon : kKeepOldIcon)
++          : (features::IsRoundedIconsEnabled() ? kKeepOffIcon
++                                               : kKeepOffOldIcon),
++      u"Always on top");
++  always_on_top_button->SetSize(
++      gfx::Size(kAtriumTopRowButtonSize, kAtriumTopRowButtonSize));
++
++  auto jump_to_start_button = std::make_unique<SimpleOverlayWindowImageButton>(
++      base::BindRepeating(
++          [](VideoOverlayWindowViews* overlay) { overlay->JumpToStart(); },
++          base::Unretained(this)),
++      features::IsRoundedIconsEnabled() ? vector_icons::kReplayIcon
++                                        : vector_icons::kReplayOldIcon,
++      u"Jump to start");
++  jump_to_start_button->SetSize(
++      gfx::Size(kAtriumTopRowButtonSize, kAtriumTopRowButtonSize));
++
+   auto replay_10_seconds_button =
+       std::make_unique<SimpleOverlayWindowImageButton>(
+           base::BindRepeating(
+@@ -1362,6 +1396,10 @@ void VideoOverlayWindowViews::SetUpViews() {
+ 
+   origin_ = title_view_->AddChildView(std::move(origin));
+ 
++  always_on_top_button_ = controls_container_view_->AddChildView(
++      std::move(always_on_top_button));
++  jump_to_start_button_ = controls_container_view_->AddChildView(
++      std::move(jump_to_start_button));
+   minimize_button_ =
+       controls_container_view_->AddChildView(std::move(minimize_button));
+   back_to_tab_button_ =
+@@ -1516,7 +1554,10 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
+   constexpr int kFaviconRightMargin = 4;
+   constexpr int kOriginTopMargin = 5;
+   constexpr int kOriginHeight = 24;
+-  constexpr int kOriginRightMargin = 80;
++  // 80 clears the original minimize/back_to_tab/close row. The two Atrium
++  // buttons and their spacing extend that row further left.
++  constexpr int kOriginRightMargin =
++      80 + 2 * (kAtriumTopRowButtonSize + kAtriumTopRowButtonSpacing);
+   constexpr int kProgressBarHeight = 26;
+   constexpr int kCenterControlMargin = 16;
+   constexpr int kBottomControlsHorizontalMargin = 12;
+@@ -1586,6 +1627,20 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
+   minimize_button_->SetPosition(GetBounds().size());
+   back_to_tab_button_->SetPosition(GetBounds().size());
+ 
++  // Anchored off minimize_button_'s own bounds, not a duplicated margin
++  // constant, so this tracks minimize_button.cc if its margin ever changes.
++  const gfx::Rect minimize_button_bounds = minimize_button_->bounds();
++  jump_to_start_button_->SetPosition(
++      gfx::Point(minimize_button_bounds.x() - kAtriumTopRowButtonSpacing -
++                     kAtriumTopRowButtonSize,
++                 minimize_button_bounds.y()));
++  const gfx::Rect jump_to_start_button_bounds =
++      jump_to_start_button_->bounds();
++  always_on_top_button_->SetPosition(
++      gfx::Point(jump_to_start_button_bounds.x() - kAtriumTopRowButtonSpacing -
++                     kAtriumTopRowButtonSize,
++                 jump_to_start_button_bounds.y()));
++
+   const bool showing_vc_controls = show_toggle_camera_button_ ||
+                                    show_toggle_microphone_button_ ||
+                                    show_hang_up_button_;
+@@ -1713,6 +1768,8 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
+   replay_10_seconds_button_->SetVisible(!is_dragging_progress_bar && !is_live_);
+   forward_10_seconds_button_->SetVisible(!is_dragging_progress_bar &&
+                                          !is_live_);
++  // A seek target of 0 has no meaning once there is no fixed start to seek to.
++  jump_to_start_button_->SetVisible(!is_live_);
+ }
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+@@ -2082,6 +2139,14 @@ gfx::Rect VideoOverlayWindowViews::GetMinimizeControlsBounds() {
+   return minimize_button_->GetMirroredBounds();
+ }
+ 
++gfx::Rect VideoOverlayWindowViews::GetAlwaysOnTopControlsBounds() {
++  return always_on_top_button_->GetMirroredBounds();
++}
++
++gfx::Rect VideoOverlayWindowViews::GetJumpToStartControlsBounds() {
++  return jump_to_start_button_->GetMirroredBounds();
++}
++
+ #if BUILDFLAG(IS_CHROMEOS)
+ gfx::Rect VideoOverlayWindowViews::GetResizeHandleControlsBounds() {
+   return resize_handle_view_->GetMirroredBounds();
+@@ -2207,6 +2272,22 @@ void VideoOverlayWindowViews::Forward10Seconds() {
+       std::min(position_.GetPosition() + kSeekTime, position_.duration()));
+ }
+ 
++void VideoOverlayWindowViews::JumpToStart() {
++  controller_->SeekTo(base::Seconds(0));
++}
++
++void VideoOverlayWindowViews::ToggleAlwaysOnTop() {
++  const bool enabled = !atrium::PipAlwaysOnTop();
++  atrium::PipAlwaysOnTop() = enabled;
++  SetZOrderLevel(enabled ? ui::ZOrderLevel::kFloatingWindow
++                         : ui::ZOrderLevel::kNormal);
++  atrium::SavePipAlwaysOnTop(enabled);
++  always_on_top_button_->SetIcon(
++      enabled ? (features::IsRoundedIconsEnabled() ? kKeepIcon : kKeepOldIcon)
++              : (features::IsRoundedIconsEnabled() ? kKeepOffIcon
++                                                   : kKeepOffOldIcon));
++}
++
+ void VideoOverlayWindowViews::CloseAndPauseIfAvailable() {
+   // Only pause the video if play/pause is available.
+   const bool should_pause_video = !!show_play_pause_button_;
+@@ -2221,6 +2302,16 @@ VideoOverlayWindowViews::play_pause_controls_view_for_testing() const {
+   return play_pause_controls_view_;
+ }
+ 
++SimpleOverlayWindowImageButton*
++VideoOverlayWindowViews::always_on_top_button_for_testing() const {
++  return always_on_top_button_;
++}
++
++SimpleOverlayWindowImageButton*
++VideoOverlayWindowViews::jump_to_start_button_for_testing() const {
++  return jump_to_start_button_;
++}
++
+ SimpleOverlayWindowImageButton*
+ VideoOverlayWindowViews::replay_10_seconds_button_for_testing() const {
+   return replay_10_seconds_button_;
+@@ -2433,6 +2524,8 @@ void VideoOverlayWindowViews::SetLiveCaptionDialogVisibility(
+       minimize_button_.get(),
+       back_to_tab_button_.get(),
+       close_controls_view_.get(),
++      always_on_top_button_.get(),
++      jump_to_start_button_.get(),
+       replay_10_seconds_button_.get(),
+       play_pause_controls_view_.get(),
+       forward_10_seconds_button_.get(),
+diff --git a/chrome/browser/ui/views/overlay/video_overlay_window_views.h b/chrome/browser/ui/views/overlay/video_overlay_window_views.h
+index 222a5167b5e71..3954d3e1f32ea 100644
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views.h
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.h
+@@ -194,6 +194,8 @@ class VideoOverlayWindowViews : public content::VideoOverlayWindow,
+   gfx::Rect GetSkipAdControlsBounds();
+   gfx::Rect GetCloseControlsBounds();
+   gfx::Rect GetMinimizeControlsBounds();
++  gfx::Rect GetAlwaysOnTopControlsBounds();
++  gfx::Rect GetJumpToStartControlsBounds();
+   gfx::Rect GetPlayPauseControlsBounds();
+   gfx::Rect GetReplay10SecondsButtonBounds();
+   gfx::Rect GetForward10SecondsButtonBounds();
+@@ -228,6 +230,8 @@ class VideoOverlayWindowViews : public content::VideoOverlayWindow,
+   CloseImageButton* close_button_for_testing() const;
+   OverlayWindowMinimizeButton* minimize_button_for_testing() const;
+   OverlayWindowBackToTabButton* back_to_tab_button_for_testing() const;
++  SimpleOverlayWindowImageButton* always_on_top_button_for_testing() const;
++  SimpleOverlayWindowImageButton* jump_to_start_button_for_testing() const;
+   gfx::Point close_image_position_for_testing() const;
+   gfx::Point resize_handle_position_for_testing() const;
+   PlaybackState playback_state_for_testing() const;
+@@ -317,6 +321,13 @@ class VideoOverlayWindowViews : public content::VideoOverlayWindow,
+ 
+   void Forward10Seconds();
+ 
++  // Seeks the media session back to the start.
++  void JumpToStart();
++
++  // Flips the widget between kFloatingWindow and kNormal and
++  // persists the choice through atrium::SavePipAlwaysOnTop.
++  void ToggleAlwaysOnTop();
++
+   // Closes this window and also pauses the underlying video if pausing is
+   // available.
+   void CloseAndPauseIfAvailable();
+@@ -482,6 +493,8 @@ class VideoOverlayWindowViews : public content::VideoOverlayWindow,
+   raw_ptr<CloseImageButton> close_controls_view_ = nullptr;
+   raw_ptr<OverlayWindowMinimizeButton> minimize_button_ = nullptr;
+   raw_ptr<OverlayWindowBackToTabButton> back_to_tab_button_ = nullptr;
++  raw_ptr<SimpleOverlayWindowImageButton> always_on_top_button_ = nullptr;
++  raw_ptr<SimpleOverlayWindowImageButton> jump_to_start_button_ = nullptr;
+   raw_ptr<BackToTabLabelButton> back_to_tab_label_button_ = nullptr;
+   raw_ptr<SimpleOverlayWindowImageButton> previous_track_controls_view_ =
+       nullptr;
+diff --git a/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc b/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
+index 464c7a8616bdd..9ba8433e43d9a 100644
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
+@@ -955,6 +955,66 @@ TEST_F(VideoOverlayWindowViewsTest, ReplayAndForward10SecondsSeekVideo) {
+   testing::Mock::VerifyAndClearExpectations(&pip_window_controller());
+ }
+ 
++TEST_F(VideoOverlayWindowViewsTest, AlwaysOnTopButtonTogglesZOrder) {
++  overlay_window().ForceControlsVisibleForTesting(true);
++  SimpleOverlayWindowImageButton* always_on_top_button =
++      overlay_window().always_on_top_button_for_testing();
++  ASSERT_NE(nullptr, always_on_top_button);
++  EXPECT_TRUE(always_on_top_button->IsDrawn());
++
++  views::test::ButtonTestApi always_on_top_button_clicker(
++      always_on_top_button);
++  ui::MouseEvent dummy_event(ui::EventType::kMousePressed, gfx::Point(0, 0),
++                             gfx::Point(0, 0), ui::EventTimeForNow(), 0, 0);
++  const ui::ZOrderLevel initial_z_order = overlay_window().GetZOrderLevel();
++
++  // Clicking the always-on-top button flips the widget's z-order.
++  always_on_top_button_clicker.NotifyClick(dummy_event);
++  EXPECT_NE(initial_z_order, overlay_window().GetZOrderLevel());
++
++  // Clicking it again restores the original z-order.
++  always_on_top_button_clicker.NotifyClick(dummy_event);
++  EXPECT_EQ(initial_z_order, overlay_window().GetZOrderLevel());
++}
++
++TEST_F(VideoOverlayWindowViewsTest, JumpToStartButtonSeeksToZero) {
++  overlay_window().ForceControlsVisibleForTesting(true);
++  media_session::MediaPosition media_position(/*playback_rate=*/0,
++                                              /*duration=*/base::Seconds(100),
++                                              /*position=*/base::Seconds(42),
++                                              /*end_of_media=*/false);
++  overlay_window().SetMediaPosition(media_position);
++  SimpleOverlayWindowImageButton* jump_to_start_button =
++      overlay_window().jump_to_start_button_for_testing();
++  ASSERT_NE(nullptr, jump_to_start_button);
++  EXPECT_TRUE(jump_to_start_button->IsDrawn());
++
++  views::test::ButtonTestApi jump_to_start_button_clicker(jump_to_start_button);
++  ui::MouseEvent dummy_event(ui::EventType::kMousePressed, gfx::Point(0, 0),
++                             gfx::Point(0, 0), ui::EventTimeForNow(), 0, 0);
++
++  PictureInPictureWindowManager::GetInstance()
++      ->set_window_controller_for_testing(&pip_window_controller());
++  EXPECT_CALL(pip_window_controller(), SeekTo(base::Seconds(0)));
++  jump_to_start_button_clicker.NotifyClick(dummy_event);
++  testing::Mock::VerifyAndClearExpectations(&pip_window_controller());
++}
++
++TEST_F(VideoOverlayWindowViewsTest,
++       TitleDoesNotOverlapAtriumButtonsAtMinimumWidth) {
++  // 284 is production's real minimum window width
++  // (video_overlay_window_views.cc's kMinWindowSize), where the origin label
++  // and the two Atrium top-row buttons sit closest together.
++  overlay_window().SetBounds({0, 0, 284, 160});
++
++  views::Label* origin = overlay_window().origin_for_testing();
++  SimpleOverlayWindowImageButton* always_on_top_button =
++      overlay_window().always_on_top_button_for_testing();
++  ASSERT_NE(nullptr, origin);
++  ASSERT_NE(nullptr, always_on_top_button);
++  EXPECT_LE(origin->bounds().right(), always_on_top_button->bounds().x());
++}
++
+ // Gesture events are not supported on Mac.
+ #if !BUILDFLAG(IS_MAC)
+ TEST_F(VideoOverlayWindowViewsTest,
+diff --git a/content/browser/renderer_host/render_widget_host_view_mac.mm b/content/browser/renderer_host/render_widget_host_view_mac.mm
+index 7574c96fcfa23..b109c846df14a 100644
+--- a/content/browser/renderer_host/render_widget_host_view_mac.mm
++++ b/content/browser/renderer_host/render_widget_host_view_mac.mm
+@@ -108,7 +108,7 @@ BASE_FEATURE(kDelayUpdateWindowsAfterTextInputStateChanged,
+ 
+ // If enabled, throttles resize IPCs on Mac to prevent jank during window
+ // resize.
+-BASE_FEATURE(kThrottleResizeIpc, base::FEATURE_DISABLED_BY_DEFAULT);
++BASE_FEATURE(kThrottleResizeIpc, base::FEATURE_ENABLED_BY_DEFAULT);
+ 
+ }  // namespace
+ 

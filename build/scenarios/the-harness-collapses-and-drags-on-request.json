@@ -1,0 +1,102 @@
+{
+  "name": "the-harness-collapses-and-drags-on-request",
+  "description": "Graded on the harness itself. A drag asks for a width and is graded on the width the window printed, correcting itself when the synthetic gesture lands short. A collapse lands after that drag - the case the chord drops - through the chrome row's own toggle rather than the keyboard. And an eval polls until the page's animation-only width clears instead of sampling it mid-motion.\n\nThe two waits at the end are the same assertion made two ways: the collapse is graded on the window's own request line and on the pixels the rows stood in.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "capture",
+      "id": "docked",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "drag",
+      "x1": 282,
+      "y1": 400,
+      "x2": 362,
+      "y2": 400,
+      "expect_width": 360,
+      "tolerance": 12,
+      "note": "The grip sits at the sidebar's right edge, 280 wide in this fixture. Asked for 360, and graded on what the window printed."
+    },
+    {
+      "type": "eval_until",
+      "id": "page-width-cleared",
+      "target": "/sidebar",
+      "expression": "getComputedStyle(document.documentElement).getPropertyValue('--atrium-docked-width').trim() === '' ? 'cleared' : 'held'",
+      "expected": "cleared",
+      "timeout_ms": 8000,
+      "note": "Polled, not sampled. The page holds a width only while the pane animates, and a sample taken during the drag's own animation reads 'held' - which is the reading that used to look like a finding."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "collapse_sidebar",
+      "note": "After a drag, which is the case the chord drops"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "collapsed",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "page-width-cleared",
+      "expected": "cleared",
+      "desc": "The polled eval settled once the animation ended."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: sidebar toggle requested from the chrome row",
+      "label": "the-collapse-landed",
+      "desc": "The toggle ran after a drag, where the chord used to go nowhere."
+    },
+    {
+      "type": "theme_changed",
+      "before": "docked",
+      "after": "collapsed",
+      "region": [
+        40,
+        300,
+        180,
+        200
+      ],
+      "min_delta": 15,
+      "desc": "In pixels: the rows' column now shows the page card."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

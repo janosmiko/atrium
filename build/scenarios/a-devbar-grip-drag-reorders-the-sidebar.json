@@ -1,0 +1,201 @@
+{
+  "name": "a-devbar-grip-drag-reorders-the-sidebar",
+  "description": "A real cgevent drag from the devbar grip onto the sidebar, above row 0. The bar is its own document, so this is the check that the sidebar takes a drag it did not start: it moves the tab's row to the drop slot while the pointer is over it, and its drop sends one sidebarTabReordered that moves the bar's tab to the top.\n\nBoth rows are clicked live first, and the second click leaves row 1 active, so the bar shows row 1's tab. The grip point comes from the bar's own screen origin. The drop point is the top edge of row 0, read from the sidebar.",
+  "fixture": "frost-two-tabs.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "wake-first",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 2) { return 'rows ' + rows.length; } rows[0].click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "wake-second",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 2) { return 'rows ' + rows.length; } rows[1].click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d"
+    },
+    {
+      "type": "eval_until",
+      "id": "bar-ready",
+      "target": "/devbar",
+      "expression": "window.atriumDevBarScreenOrigin && document.querySelector('.dvgrip') ? 'ready' : 'none'",
+      "expected": "ready",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval_until",
+      "id": "layout",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 2) { return 'rows ' + rows.length; } return rows.slice(0, 2).map((r) => r.dataset.tabId ? 'live' : 'cold').join(','); })()",
+      "expected": "live,live",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "spy",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 2) { return 'rows ' + rows.length; } window.__dragId = rows[1].dataset.tabId; window.__cs = []; window.__lines = 0; document.addEventListener('dragover', () => { const first = document.querySelector('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow'); if (first && first.dataset.tabId === window.__dragId) { window.__lines += 1; } }, true); const orig = chrome.send.bind(chrome); chrome.send = (name, args) => { if (name.startsWith('sidebarTab')) { window.__cs.push(name + ':' + args.join(',')); } return orig(name, args); }; return window.__dragId ? 'spying' : 'cold'; })()"
+    },
+    {
+      "type": "eval",
+      "id": "grip-point",
+      "target": "/devbar",
+      "expression": "(() => { const o = window.atriumDevBarScreenOrigin; const g = document.querySelector('.dvgrip'); if (!o || !g) { return 'none'; } const b = g.getBoundingClientRect(); return Math.round(o[0] + b.left + b.width / 2) + ',' + Math.round(o[1] + b.top + b.height / 2); })()"
+    },
+    {
+      "type": "eval",
+      "id": "drop-point",
+      "target": "/sidebar",
+      "expression": "(() => { const r = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')][0]; if (!r) { return 'none'; } const b = r.getBoundingClientRect(); return Math.round(b.left + b.width / 2) + ',' + Math.round(30 + b.top + 3); })()",
+      "note": "The top edge of row 0, so the row moves above it. The window sits 30 below the screen top."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "drag",
+      "from_eval": "grip-point",
+      "steps": 40,
+      "to_eval": "drop-point"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "eval",
+      "id": "preview-shown",
+      "target": "/sidebar",
+      "expression": "window.__lines > 0 ? 'shown' : 'never'"
+    },
+    {
+      "type": "eval",
+      "id": "sends",
+      "target": "/sidebar",
+      "expression": "window.__cs.join(';')"
+    },
+    {
+      "type": "eval_until",
+      "id": "order",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; return rows[0] && rows[0].dataset.tabId === window.__dragId ? 'dragged-first' : 'unchanged'; })()",
+      "expected": "dragged-first",
+      "timeout_ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "preview-cleared",
+      "target": "/sidebar",
+      "expression": "(() => { const line = document.querySelector('.dropline'); return (!line || line.hidden) && !document.querySelector('.rowghost') ? 'cleared' : 'still shown'; })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "one window, so the release did not tear the tab off"
+    },
+    {
+      "type": "eval_equals",
+      "id": "wake-first",
+      "expected": "\"clicked\"",
+      "desc": "the first row went live"
+    },
+    {
+      "type": "eval_equals",
+      "id": "wake-second",
+      "expected": "\"clicked\"",
+      "desc": "and the second, which the bar now shows"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bar-ready",
+      "expected": "ready",
+      "desc": "the bar is up with its grip"
+    },
+    {
+      "type": "eval_equals",
+      "id": "layout",
+      "expected": "live,live",
+      "desc": "both rows are live, so each carries a tab id"
+    },
+    {
+      "type": "eval_equals",
+      "id": "spy",
+      "expected": "\"spying\"",
+      "desc": "the spies installed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "preview-shown",
+      "expected": "\"shown\"",
+      "desc": "the sidebar moved the row to the drop slot for a drag from another document"
+    },
+    {
+      "type": "eval_equals",
+      "id": "sends",
+      "expected": "\"sidebarTabReordered:1,0\"",
+      "desc": "THE MEASUREMENT: exactly one reorder, row 1 to the top, and no split"
+    },
+    {
+      "type": "eval_equals",
+      "id": "order",
+      "expected": "dragged-first",
+      "desc": "the bar's tab now leads the list"
+    },
+    {
+      "type": "eval_equals",
+      "id": "preview-cleared",
+      "expected": "\"cleared\"",
+      "desc": "the preview did not outlive the gesture"
+    },
+    {
+      "type": "vlog",
+      "label": "the-drag-started-from-the-bar",
+      "pattern": "Atrium: devbar drag started for tab [0-9]+"
+    },
+    {
+      "type": "vlog",
+      "label": "the-window-kept-the-drop",
+      "pattern": "Atrium: own-window drop of tab [0-9]+ on the sidebar"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-tear-off",
+      "pattern": "devbar drag released tab [0-9]+ outside its window"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

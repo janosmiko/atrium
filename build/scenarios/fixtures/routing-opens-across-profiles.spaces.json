@@ -1,0 +1,10 @@
+{
+  "spaces": [
+    { "id": "437b0001-0000-4000-8000-00000000ad01", "name": "Personal", "emoji": "P", "tint": "oceanBlue", "profileID": "Default", "order": 0, "pinnedTabs": [],
+      "tabs": [ { "lastActiveAt": 805135200.0, "url": "http://dl.localhost:8000/example-domain.html?personal", "title": "Personal" } ],
+      "groups": [] },
+    { "id": "437b0002-0000-4000-8000-00000000ad02", "name": "Work", "emoji": "W", "tint": "sunsetOrange", "profileID": "Second", "order": 1, "pinnedTabs": [], "tabs": [], "groups": [] }
+  ],
+  "favorites": [],
+  "appState": { "sidebarWidth": 260, "schemaVersion": 1, "activeSpaceID": "437b0001-0000-4000-8000-00000000ad01" }
+}

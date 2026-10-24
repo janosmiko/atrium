@@ -1,0 +1,75 @@
+{
+  "name": "savepage-control",
+  "description": "CONTROL. little-window-tab presses Cmd+S on a LITTLE window and no 'save page' line appears, but that run cannot say whether the little window swallowed the chord or the harness never delivered a Cmd+S at all - the two readings differ in where the fault is, and every step after depends on which one holds. This scenario removes the little window and changes nothing else: same fixture, same startup space, same activate, same cgevent Cmd+S, same log pattern. It presses Cmd+S on the ORDINARY startup window, whose own tab is id 1. A match proves the harness delivers the chord and SavePage() is reachable in this build, which makes the little window's silence a real swallow. A miss proves the injection never lands and clears the little window entirely.",
+  "cannot_pass": "The gate this scenario waits for does not exist and cannot. It greps for 'Atrium: tab N save page', and grepping all of chrome/browser/ui/atrium for 'save page' returns nothing - no VLOG on any Save Page path was ever added. The premise under it has also gone: Cmd+S is pointed at the sidebar collapse path, and atrium_command_decision_abi_unittest.cc pins that on purpose - SavePageIsClaimedForTheSidebarToggle and SavePageTogglesTheSidebarOnTheKeyPathOnly. Cmd+S does not reach Save Page by design, so this scenario's control reading, 'a match proves SavePage() is reachable in this build', can never hold. Its other five assertions still measure something real and are left running. Verified red at 5 passed, 2 failed on 2026-08-18; if it ever passes, the runner says so and this field should go.",
+  "fixture": "two-tabs.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab 1 url https?://[^ ]+",
+      "timeout_ms": 15000,
+      "note": "a real http(s) scheme rather than a named host. The url is kLittleWindowDefaultURL, a constexpr in atrium_browser_controller.cc, so no fixture edit could repoint it - and naming example.com tied this gate to a host the probe VM is not meant to reach without adding anything to what it proves."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "THE CONTROL CHORD. Identical injection to little-window-tab's, aimed at an ordinary window instead of a little one."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab 1 save page",
+      "timeout_ms": 10000,
+      "note": "THE MEASUREMENT: Cmd+S reached SavePage() on the ordinary window's own tab. Same line, same build, same harness as the little-window run that saw nothing."
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "dismiss the save sheet so the quit assertion is not blocked by a modal"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "desc": "the startup window and nothing else - proof no little window is involved in this reading, and liveness, since a crashed app leaves none"
+    },
+    {
+      "type": "vlog",
+      "label": "control-tab-committed",
+      "pattern": "Atrium: tab 1 url https?://[^ ]+",
+      "note": "a real http(s) scheme rather than a named host. The url is kLittleWindowDefaultURL, a constexpr in atrium_browser_controller.cc, so no fixture edit could repoint it - and naming example.com tied this gate to a host the probe VM is not meant to reach without adding anything to what it proves."
+    },
+    {
+      "type": "vlog",
+      "label": "control-save-page",
+      "pattern": "Atrium: tab 1 save page",
+      "note": "THE ASSERTION THIS SCENARIO EXISTS FOR: PASS puts the fault in the little window's dispatch path, FAIL puts it in the harness key injection and clears the little window"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits after the save sheet was dismissed"
+    }
+  ]
+}

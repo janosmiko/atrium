@@ -1,0 +1,223 @@
+{
+ "spaces": [
+  {
+   "id": "4ab00001-0000-4000-8000-000000000001",
+   "name": "Tall",
+   "emoji": "T",
+   "tint": "oceanBlue",
+   "profileID": "Default",
+   "order": 0,
+   "pinnedTabs": [],
+   "tabs": [
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 01"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 02"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 03"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 04"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 05"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 06"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 07"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 08"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 09"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 10"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 11"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 12"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 13"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 14"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 15"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 16"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 17"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 18"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 19"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 20"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 21"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 22"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 23"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 24"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 25"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 26"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 27"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 28"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 29"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 30"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 31"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 32"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 33"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 34"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 35"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 36"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 37"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 38"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 39"
+    },
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Row 40"
+    }
+   ],
+   "groups": []
+  }
+ ],
+ "favorites": [],
+ "archived": [],
+ "appState": {
+  "sidebarWidth": 280,
+  "schemaVersion": 1,
+  "activeSpaceID": "4ab00001-0000-4000-8000-000000000001"
+ }
+}

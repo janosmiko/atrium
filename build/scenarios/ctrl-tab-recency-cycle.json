@@ -1,0 +1,253 @@
+{
+  "name": "ctrl-tab-recency-cycle",
+  "description": "Ctrl-Tab and Ctrl-Shift-Tab walk tabs in most-recently-visited order, repeated presses walk deeper instead of toggling between two tabs, and a closed tab leaves the list instead of being walked to. Opens FOUR tabs in order (A, B, C, D - D ends up active), so the candidate list for a forward walk from D is exactly [C, B, A] - three real, distinct entries, matching the shape of the Rust unit test three_presses_reach_the_third_most_recent_tab_without_oscillating (which needs 3 candidates for its 3rd press to mean anything). The harness has a `key_hold_taps` action that presses Control ONCE, taps Tab three times under it, then releases Control ONCE - the held cycle Ctrl-Tab recency cycling actually depends on, which chaining three separate `key` actions (each releasing its own modifier) cannot express. The three held taps are graded by `recency_walk_distinct`, which reads the three 'target' ids straight out of the run log and checks they are pairwise distinct - not merely that three lines exist in order (vlog_after's limit, since grep has no cross-line backreference to compare captured VALUES). Phase 2 then closes the tab the walk committed to and checks a fresh single Ctrl-Tab still fires.",
+  "fixture": "space-cycle.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "a276b002-0000-0000-0000-000000000002",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the sidebar render and the startup space's tab commit - this is tab A, already active"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "cmd+t is permanently bound to openCommandBar, not new-tab. Accepting a palette match still opens a brand-new foreground tab through AtriumBrowserWindow::OpenCommandBarMatch (chrome::AddTabAt, unconditional) - this is the working method, copied from edit-focus-gate.json's proven cmd+l/type/return navigation, the only neighbour in this tree confirmed (VM-verified 2026-08-10) to land a wait_vlog on a tab it opened through the command bar."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 10000,
+      "note": "gate: the palette actually opened before typing into it"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/edit-focus-field.html",
+      "note": "a distinct fixture page from tab A's favicon-page.html, so tab B is distinguishable in the log by URL, not just by id"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let autocomplete resolve a row for the typed URL, same timing edit-focus-gate.json measured as sufficient"
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "commits the top match, which opens tab B as a new foreground tab and closes the palette - recency order is now B, A"
+    },
+    {
+      "type": "eval_until",
+      "id": "b-page",
+      "target": "edit-focus-field.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/edit-focus-field.html",
+      "timeout_ms": 10000,
+      "note": "PRECONDITION: proves tab B actually committed before anything below assumes a second tab exists. This is the check the previous fixture never had - four straight failed gate runs blamed the code for a setup that silently never happened."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "same method for tab C"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/peek-target.html",
+      "note": "a third distinct fixture page, so tab C is distinguishable from both A and B in the log"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "commits the top match, which opens tab C as a new foreground tab and closes the palette - recency order is now C, B, A"
+    },
+    {
+      "type": "eval_until",
+      "id": "c-page",
+      "target": "peek-target.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-target.html",
+      "timeout_ms": 10000,
+      "note": "PRECONDITION: proves tab C actually committed"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "same method for a FOURTH tab, D. Three tabs (A, B, C) only ever give a forward walk two real candidates (B, A) - not enough to tell 'walked deeper' apart from 'toggled', which is exactly the property that must be measured. D active makes the candidate list [C, B, A]: three real entries for three real presses."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/perm-page.html",
+      "note": "a fourth distinct fixture page, so tab D is distinguishable from A, B and C"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "commits the top match, opening tab D as a new foreground tab - recency order is now D (active), C, B, A"
+    },
+    {
+      "type": "eval_until",
+      "id": "d-page",
+      "target": "perm-page.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/perm-page.html",
+      "timeout_ms": 10000,
+      "note": "PRECONDITION: proves tab D actually committed, giving four real tabs and a genuine 3-entry candidate list before the held cycle runs"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "activate",
+      "note": "the run that first shipped this scenario found Finder frontmost by this point (WARNING: about to send ctrl+tab x3 (held) but 'Finder' is frontmost) - opening a tab via the command bar closes a palette, which can hand focus back to Finder rather than Atrium. `activate` is idempotent and safe to repeat before every input burst, same as the one at the top of this scenario."
+    },
+    {
+      "type": "key_hold_taps",
+      "modifier": "ctrl",
+      "key": "tab",
+      "taps": 3,
+      "tap_delay_ms": 800,
+      "vlog": "Atrium: recency cycle step direction 1 target [0-9]+",
+      "note": "THE MEASURED PATH: Control pressed once, Tab tapped three times under it, Control released once - one cgevent process, so the modifier is never released between taps the way three separate `key` actions would release it. First tap must land on C, the previously-active tab (not D, the currently-active one). The SAME held walk must reach three DIFFERENT tabs (C, then B, then A) rather than oscillating between two - graded below by recency_walk_distinct reading the three target ids out of the log, not by ordering alone."
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "release commits the landed tab (A) to the front of the recency list and makes it active"
+    },
+    {
+      "type": "activate",
+      "note": "re-assert focus before the next input burst, same reasoning as above"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w",
+      "note": "PHASE 2 SETUP: closes the tab the held walk just committed to (A) - cmd+w is not one of the rebound combos, so it is still stock IDC_CLOSE_TAB. Expects atrium::RecordTabRecencyClosed to remove A from the list the moment it observes the close."
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "activate",
+      "note": "re-assert focus before the next input burst, same reasoning as above"
+    },
+    {
+      "type": "key",
+      "combo": "ctrl+tab",
+      "note": "PHASE 2, THE CHECK: a fresh, single-press cycle after A's close still fires - proves the closed tab did not empty the candidate list (there are still two tabs left)."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "final-state",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "tab A gone from the strip and sidebar"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "b-page",
+      "expected": "http://127.0.0.1:8000/edit-focus-field.html",
+      "label": "tab-b-actually-created",
+      "desc": "PRECONDITION: tab B committed."
+    },
+    {
+      "type": "eval_equals",
+      "id": "c-page",
+      "expected": "http://127.0.0.1:8000/peek-target.html",
+      "label": "tab-c-actually-created",
+      "desc": "PRECONDITION: tab C committed."
+    },
+    {
+      "type": "eval_equals",
+      "id": "d-page",
+      "expected": "http://127.0.0.1:8000/perm-page.html",
+      "label": "tab-d-actually-created",
+      "desc": "PRECONDITION: tab D committed, giving the held cycle a genuine 3-entry candidate list ([C, B, A]) to walk."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: recency cycle step direction 1 target [0-9]+",
+      "label": "first-press-lands-on-previously-active-tab",
+      "desc": "The held Ctrl-Tab sequence produced at least one recency-cycle step, proving the chord reached atrium::StepTabRecencyCycle rather than falling through to stock strip cycling. The ordering this used to check via after_pattern (a step after tab D committed) is now guaranteed by construction: d-page's eval_until action, earlier in this same action list, already blocks until D's own commit resolves, and key_hold_taps runs strictly after it."
+    },
+    {
+      "type": "recency_walk_distinct",
+      "pattern": "Atrium: recency cycle step direction 1 target ([0-9]+)",
+      "count": 3,
+      "label": "three-held-taps-reach-three-distinct-tabs",
+      "desc": "THE REAL END-TO-END EVIDENCE: reads the three 'target' ids the held key_hold_taps sequence produced and checks they are pairwise distinct. Unlike the old vlog_after-only check this replaces, this reads the CAPTURED VALUES, not just that three lines exist in order - a walk that toggled back to the same tab id on its third press would fail this even though three matching lines still exist. This is the scenario-level equivalent of the Rust unit test three_presses_reach_the_third_most_recent_tab_without_oscillating, now measured against a real held Control key sequence instead of resting on the Rust test alone. No after_pattern bound is needed: recency_walk_distinct only reads the FIRST `count` matches, and nothing before key_hold_taps ever emits this pattern, so the window is already exactly Phase 1's three steps."
+    },
+    {
+      "type": "vlog_after",
+      "after_pattern": "Atrium: tab [0-9]+ closed",
+      "pattern": "Atrium: recency cycle step direction 1 target [0-9]+",
+      "label": "phase2-fresh-cycle-fires",
+      "desc": "A step that lands AFTER the cmd+w close, not merely somewhere in the log. As a bare vlog this passed off Phase 1's held taps and said nothing about Phase 2 - anchoring it on BrowserController::RemoveTab's 'tab N closed' is what makes it evidence that the post-close candidate list is still walkable."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "Exactly one window throughout - recency cycling is a same-window navigation, never a new surface."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q actually quits (process gone)"
+    }
+  ]
+}

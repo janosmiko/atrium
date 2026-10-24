@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 30 Aug 2026 09:45:59 +0200
+Subject: [PATCH 092/154] fix(window): read settings.json off the UI thread
+ when a window opens
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The constructor read the file inline. Only the first profile's window is built
+before BrowserMainLoop disallows blocking, so every later one aborted. The
+read moves to a thread-pool runner behind a process-wide cache, and the reply
+fills the cache and mirrors this profile's engines as before.
+
+The cache holds one copy for the process and serves every window from it, so a
+second window pays for no second read.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 91ea480f28974..06b72718a0504 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -652,6 +652,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:pinch_gesture_decision",
+     "//chrome/browser/ui/atrium:restore_plan",
+     "//chrome/browser/ui/atrium:search_engine_mirror",
++    "//chrome/browser/ui/atrium:settings_json_cache",
+     "//chrome/browser/ui/atrium:sidebar_drop_decision",
+     "//chrome/browser/ui/atrium:sidebar_grip_bounds",
+     "//chrome/browser/ui/atrium:sidebar_move_execution_decision",

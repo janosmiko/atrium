@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 10 Sep 2026 08:08:46 +0200
+Subject: [PATCH 127/154] fix(peek): Cmd+Shift+click on a link opens a focused
+ tab, not a peek
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+A Cmd+Shift+click and a noopener link both reach Browser::OpenURLFromTab
+as NEW_FOREGROUND_TAB with nothing in the params to tell them apart, so
+the off-site rule for a favourite's tab turned the click into a peek.
+The click's modifiers are still held when its IPC lands, so the branch
+now reads them and lets the accelerator through to a foreground tab.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/browser.cc | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/chrome/browser/ui/browser.cc b/chrome/browser/ui/browser.cc
+index 29df7e61e460b..484a364276a53 100644
+--- a/chrome/browser/ui/browser.cc
++++ b/chrome/browser/ui/browser.cc
+@@ -293,6 +293,7 @@
+ 
+ #if BUILDFLAG(IS_MAC)
+ #include "chrome/browser/ui/atrium/atrium_feature_check.h"
++#include "chrome/browser/ui/atrium/atrium_new_tab_modifiers.h"
+ #include "chrome/browser/ui/atrium/atrium_peek_intercept.h"
+ #include "chrome/browser/ui/atrium/atrium_status_bubble_hook.h"
+ #include "ui/display/display.h"
+@@ -1551,10 +1552,11 @@ WebContents* Browser::OpenURLFromTab(
+   }
+   // Auto-peek for a plain click lives in AtriumPeekNavigationThrottle, since
+   // a plain click emits no OpenURL IPC. A window.open with noopener does,
+-  // as NEW_FOREGROUND_TAB, so the same off-site rule applies here.
++  // as NEW_FOREGROUND_TAB, so the same off-site rule applies here. So does a
++  // Cmd+Shift+click, which asked for a focused tab.
+   if (params.disposition == WindowOpenDisposition::NEW_FOREGROUND_TAB &&
+       params.is_renderer_initiated && params.user_gesture &&
+-      !params.started_from_context_menu &&
++      !params.started_from_context_menu && !atrium::NewTabModifiersHeld() &&
+       atrium::ShouldAutoPeek(this, source, params.url) &&
+       atrium::MaybeOpenPeek(this, source, params.url, params.referrer)) {
+     return source;

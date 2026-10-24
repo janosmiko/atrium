@@ -1,0 +1,309 @@
+{
+  "name": "a-toast-card-keeps-its-ring-and-leaves-nothing-behind",
+  "description": "Reported 2026-09-02 with a screenshot of three Link copied cards: the rounded corners end in a flat vertical line, the accent ring is missing on the left and right, and a card-shaped grey block sits under the stack with no card in it.\n\nTHE GESTURE IS THE REPORTED ONE. Three copies in a row, driven through the floating bar's own copy control, so the cards land in the CONFIRMATION widget at the top trailing corner - the one the report photographed. An eval that calls atriumConfirmToast itself cannot choose: both toast widgets serve /toast and the picked document has been the hover corner's.\n\nWHERE THE PIXELS ARE. Window 1024x680 at 0,30, sidebar left, so the stack hangs off the window's right edge at the 14px inset with its first card 44px below the window top. The page is flat white right of x=420, and the cards sit at x>840, so every reading below is card, ring or white.\n\nWHAT THE RING IS. toast-stack.css gives .toast a 1px accent ring through box-shadow, which paints OUTSIDE the border box. The widget was sized to the border box, and a window clips at its frame, so both ring columns fell outside it.",
+  "fixture": "devbar-light-page.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "capture",
+      "id": "no-toast",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "THE BASELINE: the corner before any card exists."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "The notification timeout is pushed into the confirmation toast's own document, so a card's real life is the Settings row rather than a fixed CONFIRM_MS. Pin it to threeSeconds explicitly, the way the notification-timeout scenario does, rather than leaning on whatever the current default happens to be - every settle below is tuned to this exact value."
+    },
+    {
+      "type": "settle",
+      "ms": 7000,
+      "note": "the window builds, the route loads, and the core's values land a beat after the labels"
+    },
+    {
+      "type": "eval",
+      "id": "set-three-seconds",
+      "target": "/settings",
+      "expression": "(() => { const sel = document.querySelector('.settings-row[data-key=\"notificationTimeout\"] .settings-row-choice'); if (!sel) { return 'no-select'; } sel.value = 'threeSeconds'; sel.dispatchEvent(new Event('change', {bubbles: true})); return sel.value; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings written",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w",
+      "note": "closes the key Settings window - the devbar chord below needs the browser window holding key"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the close finish and key status pass to the browser window"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d"
+    },
+    {
+      "type": "eval_until",
+      "id": "bar-carries-a-url",
+      "target": "/devbar",
+      "expression": "String(document.querySelector('.dvurl').textContent.length > 0)",
+      "expected": "true",
+      "timeout_ms": 8000,
+      "note": "THE CONTROL: the copy control sends nothing on an empty url, so three clicks would be three no-ops."
+    },
+    {
+      "type": "eval",
+      "id": "warm-the-toast-widget",
+      "target": "/devbar",
+      "expression": "(() => { document.querySelector('.dvcopy').click(); return 'clicked'; })()",
+      "note": "ShowConfirmation holds ONE pending text until its renderer answers, so a burst against a cold widget collapses to a single card. This copy builds the widget."
+    },
+    {
+      "type": "settle",
+      "ms": 3800,
+      "note": "past that first card's pushed 3000ms life and its 250ms fade, so the stack starts empty with a warm renderer."
+    },
+    {
+      "type": "eval",
+      "id": "copied-three-times",
+      "target": "/devbar",
+      "expression": "(() => { const b = document.querySelector('.dvcopy'); for (let i = 0; i < 3; i++) { b.click(); } return 'clicked'; })()",
+      "note": "the reported repro: copy the same link three times in a row. Each click is a devBarCopyUrl, and the window answers each with its own Link copied confirmation."
+    },
+    {
+      "type": "eval_until",
+      "id": "the-stack-fits-what-it-paints",
+      "target": "/toast",
+      "expression": "(() => { const box = document.querySelector('.toasts'); if (!box) { return 'no stack'; } const cards = [...box.children]; if (!cards.length) { return 'no cards'; } const nums = (getComputedStyle(cards[0]).boxShadow.match(/-?\\d+(\\.\\d+)?px/g) || []).map(parseFloat); const spread = nums[3] || 0; const w = document.documentElement.clientWidth; const h = document.documentElement.clientHeight; const rs = cards.map((c) => c.getBoundingClientRect()); const left = Math.min(...rs.map((r) => r.left)) - spread; const right = Math.max(...rs.map((r) => r.right)) + spread; const top = Math.min(...rs.map((r) => r.top)) - spread; const bottom = Math.max(...rs.map((r) => r.bottom)) + spread; return cards.length + ' ' + spread + ' ' + (left >= -0.01 && right <= w + 0.01 && top >= -0.01 && bottom <= h + 0.01); })()",
+      "expected": "3 1 true",
+      "timeout_ms": 8000,
+      "note": "In the layout engine rather than off a screenshot: the ring's spread is read from the card's OWN computed box-shadow, not from the property this fix adds, so the reading is the same measurement before and after. Sized to the border box, the stack's paint box runs a spread past the viewport on both sides and this reads false."
+    },
+    {
+      "type": "eval",
+      "id": "the-stack-box-against-its-viewport",
+      "target": "/toast",
+      "expression": "(() => { const box = document.querySelector('.toasts'); if (!box) { return 'no stack'; } const cards = [...box.children]; if (!cards.length) { return 'no cards'; } const rs = cards.map((c) => c.getBoundingClientRect()); const r2 = (n) => Math.round(n * 100) / 100; return 'view ' + r2(document.documentElement.clientWidth) + 'x' + r2(document.documentElement.clientHeight) + ' box ' + r2(box.getBoundingClientRect().left) + '..' + r2(box.getBoundingClientRect().right) + ' card ' + r2(Math.min(...rs.map((r) => r.left))) + '..' + r2(Math.max(...rs.map((r) => r.right))) + ' rows ' + r2(Math.min(...rs.map((r) => r.top))) + '..' + r2(Math.max(...rs.map((r) => r.bottom))); })()",
+      "note": "EVIDENCE, ungraded: the numbers behind the fit above, so a future reader can see which edge had room and which did not rather than re-deriving it."
+    },
+    {
+      "type": "settle",
+      "ms": 4100,
+      "note": "past the pushed 3000ms a confirmation stays up and the 250ms .bye fade after it."
+    },
+    {
+      "type": "capture",
+      "id": "cards-gone",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "eval",
+      "id": "copied-three-more-times",
+      "target": "/devbar",
+      "expression": "(() => { const b = document.querySelector('.dvcopy'); for (let i = 0; i < 3; i++) { b.click(); } return 'clicked'; })()",
+      "note": "A SECOND burst, for the pixels alone. The readings above take a CDP round trip each, and a card lives the pushed 3000ms - the frame has to be shot right after the clicks, with nothing in between."
+    },
+    {
+      "type": "settle",
+      "ms": 300,
+      "note": "past the 220ms entry animation, well inside the pushed 3000ms the cards stay up."
+    },
+    {
+      "type": "capture",
+      "id": "three-cards",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 2450,
+      "note": "the capture above ends about 600ms after the burst, so this lands the next copy about 3050ms in - inside the 250ms fade that follows the pushed 3000ms life, the same 50ms-into-the-fade margin the original 1400ms tuning used."
+    },
+    {
+      "type": "eval",
+      "id": "copied-once-more-mid-fade",
+      "target": "/devbar",
+      "expression": "(() => { document.querySelector('.dvcopy').click(); return 'clicked'; })()",
+      "note": "a fourth confirmation while the others fade. Every slot is cleared and re-registered on that push, so a fading card's shadow is the one thing that could come back at full strength."
+    },
+    {
+      "type": "capture",
+      "id": "fourth-while-fading",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "EVIDENCE, ungraded: the frame a shadow that restarted at full strength would show up in. Graded one-sidedly by the corner reading below, which a stranded slot cannot pass."
+    },
+    {
+      "type": "settle",
+      "ms": 4100,
+      "note": "clears the mid-fade card's own pushed 3000ms life plus its 250ms fade, the same margin the first-burst settle above uses."
+    },
+    {
+      "type": "capture",
+      "id": "corner-after-the-stress",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bar-carries-a-url",
+      "expected": "true",
+      "desc": "THE CONTROL: the bar had a url to copy, so the three clicks were real."
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: copied the url",
+      "min": 8,
+      "max": 8,
+      "label": "the-copies-reached-the-window",
+      "desc": "THE CONTROL: one copy to build the widget, two bursts of three, and one more fired mid-fade. The layout reading takes the first burst, the frame takes the second. Without this a burst that never left the bar would leave every reading below measuring an empty corner."
+    },
+    {
+      "type": "eval_equals",
+      "id": "the-stack-fits-what-it-paints",
+      "expected": "3 1 true",
+      "desc": "Three cards, a 1px ring, and every edge of what they paint inside the widget's own viewport."
+    },
+    {
+      "type": "region_mean",
+      "capture": "three-cards",
+      "x": 660,
+      "y": 100,
+      "w": 120,
+      "h": 24,
+      "min_mean": 250,
+      "max_mean": 256,
+      "label": "nothing-else-is-sitting-in-this-corner",
+      "desc": "Flat page immediately left of the stack, at the height of the first two cards and inside the footprint a macOS notification banner takes. MEASURED 254.8 at variance 0.3. A banner over this corner reads far darker, and would otherwise move the ring readings below without saying why."
+    },
+    {
+      "type": "region_mean",
+      "capture": "three-cards",
+      "x": 900,
+      "y": 134,
+      "w": 60,
+      "h": 4,
+      "min_mean": 238,
+      "max_mean": 250,
+      "label": "there-are-cards-to-read",
+      "desc": "THE CONTROL for the four ring readings: a clear band of the second card's own paper, --ov-paper at 249,240,241. Without it a run that drew no cards at all would satisfy every miss below."
+    },
+    {
+      "type": "region_mean",
+      "capture": "three-cards",
+      "x": 842,
+      "y": 96,
+      "w": 3,
+      "h": 6,
+      "min_mean": 190,
+      "max_mean": 224,
+      "max_g": 216,
+      "label": "the-ring-survives-on-the-left",
+      "desc": "left. Three columns, not one: this is the only edge of the card at a fractional coordinate, because the card's width is fractional while its right edge is a whole 14px in from the window. Which single column holds the ring therefore moves with the text metrics, and a one-column probe read G 163 on one build and 183 on another for the same intact ring. The window is wide enough to hold the ring wherever it lands - MEASURED 221.4,199.6,202.6 - while a clipped ring leaves only shadow and paper here, near 236 with G about 231, which both ceilings refuse."
+    },
+    {
+      "type": "region_mean",
+      "capture": "three-cards",
+      "x": 1009,
+      "y": 96,
+      "w": 3,
+      "h": 6,
+      "min_mean": 190,
+      "max_mean": 224,
+      "max_g": 216,
+      "label": "the-ring-survives-on-the-right",
+      "desc": "Right, and the required inset with it: the card's right edge is a whole 14px in from the window, so its ring lands in this window and a card whose box moved would not. MEASURED across three runs at 221.6..223.6 with G 196.6..201.9, against a clipped reading of shadow and paper near 236 with G about 230."
+    },
+    {
+      "type": "region_mean",
+      "capture": "three-cards",
+      "x": 900,
+      "y": 72,
+      "w": 60,
+      "h": 3,
+      "min_mean": 196,
+      "max_mean": 230,
+      "max_g": 222,
+      "label": "the-ring-survives-on-top",
+      "desc": "Top, and the required 44px: the first card's box starts 44px under the window top, so its ring row falls inside this window. MEASURED across three runs at 225.8..227.6 with G 203.4..206.1, against a no-ring reading of page, edge and paper near 247 with G about 240."
+    },
+    {
+      "type": "region_mean",
+      "capture": "three-cards",
+      "x": 900,
+      "y": 234,
+      "w": 60,
+      "h": 1,
+      "min_mean": 174,
+      "max_mean": 200,
+      "max_g": 185,
+      "label": "the-outline-row-carries-the-ring-and-nothing-darker",
+      "desc": "Bottom, and the guard on the erase. This row is the last card's own outline, where the shadow is densest, and it stays one row because widening it averages the residual away. Erasing the shadow with the SAME path that drew it scales each boundary pixel by one minus its own coverage and leaves up to a quarter of opaque black on the outline: the row read 195,151,156 that way. Erased with a path one device pixel wider it reads 179.3 to 185.7 across runs, so the floor sits under both and over the residual. The green ceiling still refuses paper and page."
+    },
+    {
+      "type": "region_mean",
+      "capture": "three-cards",
+      "x": 900,
+      "y": 124,
+      "w": 60,
+      "h": 4,
+      "min_mean": 195,
+      "max_mean": 232,
+      "label": "the-cards-keep-their-gap",
+      "desc": "Between the first card's ring at y=122 and the second's at y=129 the page shows through, 8px box to box. MEASURED 213.2,210.0,211.5 - grey, page under two shadows, against the 243 of the paper band above."
+    },
+    {
+      "type": "region_stable",
+      "before": "no-toast",
+      "after": "cards-gone",
+      "region": [900, 60, 120, 220],
+      "max_delta": 6.0,
+      "label": "the-corner-is-the-page-again",
+      "desc": "Once the cards have gone the corner is the page it was, with no shadow slot left over it. Right of x=900 so the floating bar, which is up in one frame and not the other, stays out of the reading."
+    },
+    {
+      "type": "region_stable",
+      "before": "no-toast",
+      "after": "corner-after-the-stress",
+      "region": [900, 60, 120, 220],
+      "max_delta": 6.0,
+      "label": "the-corner-returns-after-a-mid-fade-push",
+      "desc": "Under the harder gesture: a card arrived while three others were fading, so every shadow slot was cleared and re-registered mid-animation. The corner still has to come back to the page it was."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

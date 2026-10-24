@@ -1,0 +1,33 @@
+{
+  "spaces": [
+    {
+      "id": "73500001-0000-4000-8000-000000000001",
+      "name": "Dark",
+      "emoji": "\ud83c\udf11",
+      "tint": "#12282E",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135200.0,
+          "url": "http://127.0.0.1:8000/example-domain.html?ring",
+          "title": "Example"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "favorites": [
+    {
+      "url": "http://127.0.0.1:8000/four-colour-favicon.html?fav",
+      "title": "Four Colours",
+      "profileID": "Default"
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "73500001-0000-4000-8000-000000000001"
+  }
+}

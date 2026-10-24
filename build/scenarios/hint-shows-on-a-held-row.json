@@ -1,0 +1,187 @@
+{
+  "name": "hint-shows-on-a-held-row",
+  "description": "Hint bubble spec, hold trigger: a tab row held past HOLD_THRESHOLD_MS (500ms) with the pointer still on it shows 'Hold to open in a peek', and pointerup hides it. The runner has no separate down/up scenario action, so the gesture is dispatched the same way chrome-row-controls.json presses a button: a PointerEvent from an eval, read straight off the row's own getBoundingClientRect() rather than a hardcoded pixel pair, because row heights move pixel clicks (memory note) but not a DOM-targeted dispatch. The hold trigger is element-anchored, so hint.js's native branch sends it to HintOverlayWidget instead of rendering it in the sidebar document - the bubble reads land on the /hint route, not /sidebar.",
+  "fixture": "hotkey-rebind.spaces.json",
+  "hotkeys": "sidebar-rebind.hotkeys.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "arm-gesture-hints",
+      "target": "/sidebar",
+      "expression": "(() => { document.documentElement.dataset.gestureHints = 'live'; return 'armed'; })()",
+      "note": "the hold hint is gated off by default, this dataset flag turns it on lazily at show time"
+    },
+    {
+      "type": "eval",
+      "id": "press",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.row.tabrow'); if (!row) { return 'no-row'; } const r = row.getBoundingClientRect(); const cx = r.left + r.width / 2; const cy = r.top + r.height / 2; row.dispatchEvent(new PointerEvent('pointerdown', {clientX: cx, clientY: cy, bubbles: true})); return 'pressed'; })()",
+      "note": "down at the row's own center, read from its live rect"
+    },
+    {
+      "type": "settle",
+      "ms": 700,
+      "note": "past HOLD_THRESHOLD_MS (500ms) on the real clock"
+    },
+    {
+      "type": "eval_until",
+      "id": "hint-text",
+      "target": "/hint",
+      "expression": "String((document.querySelector('.hint .hint-text') || {}).textContent || 'no hint')",
+      "expected": "Hold to open in a peek",
+      "timeout_ms": 6000,
+      "note": "element-anchored, so hint.js's native branch routes it through chrome.send to HintOverlayWidget's own /hint document rather than rendering in the sidebar - the widget is lazily built on first show, hence the poll"
+    },
+    {
+      "type": "eval_until",
+      "id": "hint-has-width",
+      "target": "/hint",
+      "expression": "String(document.querySelector('.hint').getBoundingClientRect().width > 0)",
+      "expected": "true",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "eval_until",
+      "id": "hint-has-background",
+      "target": "/hint",
+      "expression": "String(getComputedStyle(document.querySelector('.hint')).backgroundColor !== 'rgba(0, 0, 0, 0)')",
+      "expected": "true",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "capture",
+      "id": "hold-hint",
+      "duration_ms": 300,
+      "fps": 20
+    },
+    {
+      "type": "eval",
+      "id": "release",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.row.tabrow'); if (!row) { return 'no-row'; } const r = row.getBoundingClientRect(); const cx = r.left + r.width / 2; const cy = r.top + r.height / 2; row.dispatchEvent(new PointerEvent('pointerup', {clientX: cx, clientY: cy, bubbles: true})); return 'released'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "eval_until",
+      "id": "hint-gone",
+      "target": "/hint",
+      "expression": "String(document.querySelectorAll('.hint').length)",
+      "expected": "0",
+      "timeout_ms": 4000
+    },
+    {
+      "type": "eval",
+      "id": "show-corner-probe",
+      "target": "/hint",
+      "expression": "(() => { window.atriumShowHint({text: 'corner probe', keys: '', anchor: {left: 300, top: 300, width: 60, height: 20}, ttlMs: 8000}); return 'shown'; })()",
+      "note": "a fixed, already-resolved anchor (the /hint route's own showHint() takes {left,top,width,height} directly, the same shape HintOverlayWidget::PushPending sends - see hint.js place()) instead of another row hold, so the bubble's top-left corner lands at a KNOWN pixel (left=300, top=300+20+8=328, GAP_PX=8) rather than wherever this fixture's row happens to sit. The widget is already built from the gesture above; a second Show() just repositions it."
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "capture",
+      "id": "corner-probe",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "press",
+      "expected": "\"pressed\"",
+      "desc": "the pointerdown reached the row"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint-text",
+      "expected": "Hold to open in a peek",
+      "desc": "AC: the hold trigger's bubble text, past HOLD_THRESHOLD_MS with the pointer still on the row"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint-has-width",
+      "expected": "true",
+      "desc": "AC: the bubble renders at a real width, not clipped to nothing"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint-has-background",
+      "expected": "true",
+      "desc": "AC: the bubble paints a surface, not a transparent box"
+    },
+    {
+      "type": "eval_equals",
+      "id": "release",
+      "expected": "\"released\"",
+      "desc": "the pointerup reached the row"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint-gone",
+      "expected": "0",
+      "desc": "AC: pointerup hides the bubble"
+    },
+    {
+      "type": "eval_equals",
+      "id": "show-corner-probe",
+      "expected": "\"shown\"",
+      "desc": "the fixed-anchor bubble rendered so the corner probe below reads a real frame"
+    },
+    {
+      "type": "region_mean",
+      "capture": "corner-probe",
+      "x": 330,
+      "y": 339,
+      "w": 4,
+      "h": 4,
+      "min_mean": 150,
+      "max_mean": 256,
+      "label": "the-card-is-painted",
+      "desc": "THE CONTROL: 30px right, 11px down from the bubble's top-left corner (left=300,top=328) - inside the card, past the pill's rounded end on any bubble wider than a couple words. --ov-paper is near-white, so this reads light and confirms the capture caught the bubble."
+    },
+    {
+      "type": "region_mean",
+      "capture": "corner-probe",
+      "x": 250,
+      "y": 278,
+      "w": 3,
+      "h": 3,
+      "min_mean": 0,
+      "max_mean": 225,
+      "label": "the-corner-shows-the-page",
+      "desc": "50px outside the bubble's top-left corner (left=300,top=328) - past --ov-shadow's 36px blur, so this is clear of the card's own drop shadow and reads only the canvas. A body that stays opaque paints white there regardless of what is underneath; devbar's equivalent widget-painted-a-square regression read near 233 (the-devbar-corners-show-the-dark-page.json)."
+    }
+  ]
+}

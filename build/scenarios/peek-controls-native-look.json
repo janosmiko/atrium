@@ -1,0 +1,128 @@
+{
+  "name": "peek-controls-native-look",
+  "description": "Peek controls, both looks: with opaqueSurround on, the /peekctl document picks up the atrium-native-chrome class the same way /commandbar does (command-bar-native-look.json is this scenario's model). overlay.css's .ov-btn rule (border-radius: 9px) is not one of the tokens html.atrium-native-chrome redefines, so the buttons keep the same 9px corner in both looks - this scenario checks that the class landed AND that the radius did not silently change under it, rather than assuming a native variant means a different radius. Same fixture, gate and link coordinates as peek-controls-close-the-card.json, plus the settings fixture command-bar-native-look.json already uses for opaqueSurround.",
+  "fixture": "peek-scrim.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "settings": "task-overlay-opaque-surround.settings.json",
+  "startup_space": "27027027-2702-4702-8702-270270270270",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the startup tab commit before navigating, same wait peek-dismiss-escape uses"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "peek-scrim-red.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-scrim-red.html",
+      "timeout_ms": 15000,
+      "note": "GATE: the red page really committed as the STARTUP tab, same fixture and gate as peek-dismiss-escape"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "move",
+      "x": 338,
+      "y": 96,
+      "note": "hover the link before pressing it, same coordinates peek-dismiss-escape reads off a captured frame on this fixture"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "click",
+      "x": 338,
+      "y": 96,
+      "note": "the link, opening the peek"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: peek widget showing for parent",
+      "timeout_ms": 15000,
+      "note": "GATE: a peek really opened, PeekWidget::Show's own line"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the open animation finish and the controls cluster settle into place"
+    },
+    {
+      "type": "capture",
+      "id": "native-look",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "visual record of the cluster in native-chrome mode"
+    },
+    {
+      "type": "eval",
+      "id": "native-class",
+      "target": "/peekctl",
+      "expression": "String(document.documentElement.classList.contains('atrium-native-chrome'))",
+      "note": "AC: opaqueSurround pushes the native-chrome class into this document too"
+    },
+    {
+      "type": "eval",
+      "id": "btn-radius",
+      "target": "/peekctl",
+      "expression": "getComputedStyle(document.querySelector('.ov-btn')).borderRadius",
+      "note": "AC: overlay.css's .ov-btn radius is not one of the tokens native mode redefines"
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "dismiss the card before quitting, same accelerator peek-dismiss-escape uses"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the dismiss animation finish"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "back to one real window once Escape dismisses the card, same floor command-bar-native-look.json uses"
+    },
+    {
+      "type": "eval_equals",
+      "id": "native-class",
+      "expected": "\"true\"",
+      "desc": "opaqueSurround reaches the peek controls document as the native-chrome class"
+    },
+    {
+      "type": "eval_equals",
+      "id": "btn-radius",
+      "expected": "\"9px\"",
+      "desc": "the fixed overlay.css radius, unchanged by native mode"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

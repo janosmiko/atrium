@@ -1,0 +1,205 @@
+{
+  "name": "sametint-settle-timing",
+  "wip": true,
+  "description": "isolates workspace-swipe slide-settle from the theme cross-fade, which a whole-region colour-mean measurement cannot distinguish (both run on similar timescales). Uses space-cycle.spaces.json's own finding that Elsewhere (order 1, tint atriumSolarized) and Third (order 2, tint atriumSolarized) share an IDENTICAL tint - so a crossfade between them is a no-op by construction, and any pixel change during that transition is attributable to geometry (the sidebar's slide offset) alone, not colour. Editing (order 0, tint oceanBlue) is kept as a DIFFERENT-tint control: the SAME gentle-drag shape (dx=90 phase_ms=900 momentum_ms=0) is captured once against Editing (crossfade present) and once against Third (crossfade impossible), so the isolation is demonstrated by comparison rather than asserted. Both the gentle drag and the hard flick are then re-measured same-tint (Elsewhere<->Third) so the earlier ordering question can be answered without the crossfade confound. Follow-up: gentle-drag capture window raised from 2200ms to 3500ms (same gesture shape, phase_ms unchanged) so its commit (which lands near phase_ms=900ms into the capture) sits well clear of the frame-cadence degradation seen in the tail of a long capture, instead of right at the edge of it. wip: true (diagnostic/measurement helper, not a regression gate, same convention as its its forebears); run by explicit name, not swept by `all`. TEMPORARY: paired with a one-line NSLog in SidebarView.commitScrub (marked TEMPORARY) that reports the exact d0/v0/damping each commit's settle spring starts from, read back from the pulled run log - removed once the timing is understood.",
+  "fixture": "space-cycle.spaces.json",
+  "startup_space": "a276b002-0000-0000-0000-000000000002",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the sidebar render and the startup space's (Elsewhere) tab commit"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "scroll",
+      "x": 100,
+      "y": 200,
+      "dx": 90,
+      "phase_ms": 900,
+      "momentum_ms": 0,
+      "note": "WARM-UP (uncaptured, cold-launch confound): Elsewhere -> Third via .next, absorbs the cold-VM-runloop-lag window before any capture opens."
+    },
+    {
+      "type": "eval_until",
+      "id": "third-page",
+      "target": "peek-target.html",
+      "expression": "location.href",
+      "expected": "file:///Users/admin/atrium-probe/vm-fixtures/peek-target.html",
+      "timeout_ms": 300000,
+      "note": "gates on the warm-up actually landing on Third (cold at launch, unique URL)."
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "scroll",
+      "x": 100,
+      "y": 200,
+      "dx": -90,
+      "phase_ms": 900,
+      "momentum_ms": 0,
+      "note": "WARM-UP return (uncaptured): Third -> Elsewhere via .previous, back to the fixture's start space."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ activated on host",
+      "timeout_ms": 300000,
+      "note": "gates on the warm-up's return leg completing (generic activation line, same convention a sibling scenario's bridge hops use)."
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 100,
+      "y": 200,
+      "dx": -90,
+      "phase_ms": 900,
+      "momentum_ms": 0,
+      "capture_id": "control-difftint-gentle",
+      "duration_ms": 3500,
+      "fps": 30,
+      "note": "CONTROL (different tint): Elsewhere (atriumSolarized) -> Editing (oceanBlue) via .previous, SAME gentle-drag shape as the same-tint measurement below. Crossfade IS present here. Editing's tab is cold, so its commit gets an objective URL proof."
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval_until",
+      "id": "editing-page",
+      "target": "edit-focus-field.html",
+      "expression": "location.href",
+      "expected": "file:///Users/admin/atrium-probe/vm-fixtures/edit-focus-field.html",
+      "timeout_ms": 8000,
+      "note": "OBJECTIVE PROOF the control gesture actually committed a workspace change (Editing's tab, cold at launch)."
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "scroll",
+      "x": 100,
+      "y": 200,
+      "dx": 90,
+      "phase_ms": 900,
+      "momentum_ms": 0,
+      "note": "BRIDGE (uncaptured): Editing -> Elsewhere via .next, back to the start space for the same-tint measurements."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ activated on host",
+      "timeout_ms": 300000,
+      "note": "gates on the bridge landing before the same-tint gentle-drag capture opens."
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 100,
+      "y": 200,
+      "dx": 90,
+      "phase_ms": 900,
+      "momentum_ms": 0,
+      "capture_id": "gentle-drag-sametint",
+      "duration_ms": 3500,
+      "fps": 30,
+      "note": "GENTLE DRAG, same tint: Elsewhere -> Third via .next (both atriumSolarized). Crossfade is a no-op here by construction. Third is revisited (not cold from the warm-up), so its commit is gated on the generic host-activation line, not a URL."
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ activated on host",
+      "timeout_ms": 300000,
+      "note": "gates on the same-tint gentle drag's own commit before the bridge back."
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "scroll",
+      "x": 100,
+      "y": 200,
+      "dx": -90,
+      "phase_ms": 900,
+      "momentum_ms": 0,
+      "note": "BRIDGE (uncaptured): Third -> Elsewhere via .previous, back to the start space for the hard-flick measurement."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ activated on host",
+      "timeout_ms": 300000,
+      "note": "gates on the bridge landing before the hard-flick capture opens."
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 100,
+      "y": 200,
+      "dx": 450,
+      "phase_ms": 350,
+      "momentum_ms": 300,
+      "capture_id": "hard-flick-sametint",
+      "duration_ms": 2000,
+      "fps": 30,
+      "note": "HARD FLICK, same tint: Elsewhere -> Third via .next (both atriumSolarized). The earlier finding: A sibling scenario's own dx=-450/phase_ms=120/momentum_ms=300 shape commits so fast that rapidcap's own SCStream startup latency (empirically ~270-300ms before its first frame) exceeds the whole gesture's commit+settle duration, so every captured frame already showed the RESTED sidebar. Raising to 220ms still left an implausibly long flat pre-decay plateau (frame-cadence gaps elsewhere in this same run made that inconclusive rather than disproving it). phase_ms raised again to 350 (dx/momentum_ms unchanged, still far faster than the gentle drag's 900ms, and dx=450/350ms is still close to the commitSettleDampingAnchorVelocity anchor) to give the capture pipeline's startup lag more margin against the gesture's own real-phase duration."
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ activated on host",
+      "timeout_ms": 8000,
+      "note": "gates on the hard flick's own commit before teardown."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "editing-page",
+      "expected": "file:///Users/admin/atrium-probe/vm-fixtures/edit-focus-field.html",
+      "label": "control-gesture-committed",
+      "desc": "the different-tint control gesture drove a real workspace change end to end"
+    },
+    {
+      "type": "eval_equals",
+      "id": "third-page",
+      "expected": "file:///Users/admin/atrium-probe/vm-fixtures/peek-target.html",
+      "label": "warm-up-committed",
+      "desc": "the warm-up hop drove a real workspace change end to end (also proves Third is reachable before the same-tint measurements reuse it)"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window throughout every hop"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q actually quits (process gone)"
+    }
+  ]
+}

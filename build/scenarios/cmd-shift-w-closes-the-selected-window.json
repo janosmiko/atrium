@@ -1,0 +1,144 @@
+{
+  "name": "cmd-shift-w-closes-the-selected-window",
+  "description": "Two windows on the SAME space, both showing its tabs. Cmd+Shift+W must close the one the user selected and leave the other alone. close-window-tabless.json covers the single tabless window; this covers the half that decides WHICH window goes, which a one-window scenario cannot say anything about. Cmd+N seeds the new slot from the invoking window's space (CreateWindowSlot's seed_from_slot), so both sidebars render the same two tabs and the surviving one can be read back without knowing which window it is.",
+  "fixture": "two-tabs.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the startup space's live tab commit and the sidebar draw its rows"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "rows-before",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.row.tabrow').length)",
+      "note": "VACUITY GUARD. Both windows show the same space, so this reads 2 whichever sidebar target CDP picks - and a 0 here would mean the row assertion after the close proves nothing about tabs surviving."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+n",
+      "note": "SECOND WINDOW on the same space. It takes key focus, so it is the SELECTED window for the chord below."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: Cmd\\+N opened window-slot .* for host",
+      "timeout_ms": 8000,
+      "note": "GATES THE WHOLE SCENARIO AS TWO-WINDOW. A Cmd+N that silently failed would leave one window here and the close below would be the tabless case again, reported as two-window coverage. Pattern carries no single quote - wait_vlog interpolates it into a single-quoted remote shell string."
+    },
+    {
+      "type": "settle",
+      "ms": 8000,
+      "note": "the new window auto-opens its command palette (CreateWindowSlot's open_command_bar), and an Escape sent before that palette has KEY does nothing - measured at 14s from Cmd+N to 'command bar gained key' on this VM. Same 8s wait close-window-tabless.json needs for the startup palette."
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "first dismiss attempt. Undismissed, the palette owns the keyboard and the chord below never reaches a browser window."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "click",
+      "x": 900,
+      "y": 660,
+      "note": "second dismiss attempt: a press on the palette's scrim, the same path the Escape takes. Escape alone is unreliable here, which is why every sibling scenario backs it with this click."
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget closing",
+      "timeout_ms": 10000,
+      "note": "GATE: the palette really went. The startup window has a restored tab and opens no palette of its own, so this line can only be the second window's."
+    },
+    {
+      "type": "click",
+      "x": 900,
+      "y": 660,
+      "note": "names the selected window rather than trusting where key focus landed after the palette closed. Both windows are centred on the same spot, so this hits the frontmost - the new one."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+w",
+      "note": "THE MEASUREMENT"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the close commit and the survivor settle"
+    },
+    {
+      "type": "eval",
+      "id": "rows-after",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.row.tabrow').length)",
+      "note": "one window is left, so exactly one sidebar target remains for CDP to pick"
+    },
+    {
+      "type": "capture",
+      "id": "survivor",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence that what is left is a real window with its sidebar, not a husk"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "chord-reached-a-window",
+      "pattern": "Atrium: user-initiated window close requested",
+      "note": "separates 'a window is still standing' from 'the chord never arrived', which is the ambiguity that let this task's AC be checked against a scenario that had never run its own assertions"
+    },
+    {
+      "type": "vlog_count",
+      "label": "only-one-window-was-asked-to-close",
+      "pattern": "Atrium: user-initiated window close requested",
+      "max": 1,
+      "note": "THE MEASUREMENT, the half a window count cannot make: the chord closed ONE window. Two lines would mean it walked the space's windows."
+    },
+    {
+      "type": "eval_equals",
+      "id": "rows-before",
+      "expected": "\"2\"",
+      "note": "the guard's own reading, kept as an assertion so a fixture change that empties the space fails here rather than making rows-after meaningless"
+    },
+    {
+      "type": "eval_equals",
+      "id": "rows-after",
+      "expected": "\"2\"",
+      "note": "the surviving window still shows the space's two tabs. A window close is not a space delete, so the cold rows stay in the model."
+    },
+    {
+      "type": "vlog_absent",
+      "label": "the-survivors-tab-was-not-closed",
+      "pattern": "Atrium: tab [0-9]+ closed",
+      "note": "the second window has no tab of its own, so closing it must close no tab at all. A line here would mean the chord reached across to the other window's live tab."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "LIVENESS: one window really gone, one really still on screen. min_area 200000 skips the phantom AXUnknown entry quit-two-windows.json recorded."
+    }
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "name": "relaunch-file-readback",
+  "description": "proves the two pieces this harness was missing - an assertion that reads a FILE, and a relaunch that does not restage. Persistence was untestable without both. Every other assertion here is satisfied by a repaint: a surface can draw the new value, write nothing, and still pass the window count, the pixel compare and the log gate. What this scenario writes is the spaces document, because that is what the build in the VM can already do - a space cycle goes through BrowserController::SelectSpace, which calls atrium_core_set_active_space_index and then ApplySidebarGesture(true), and that posts atrium_core_save(). The settings write path is newer than the deployed bundle, so it is deliberately not the subject here. The fixture has exactly two spaces with a different URL each, and only the ACTIVE space's tab is materialized at launch (the landing semantics), so which space is active is observable rather than inferred: example.org means Foreign, example.com means Themed. Launch 1 starts on Foreign, cycles to Themed, and the file must then hold Themed's id - that is the write. Launch 2 gets the SAME file with nothing restaged and must come up showing example.com with no key pressed - that is the read back. The read-back gate is a vlog_after against the relaunch marker rather than a plain vlog, and that is not decoration: launch 1 also committed example.com the moment it cycled, so presence alone is true of a run where the second launch read nothing at all. Its own fixture on the harness's example-domain-tall.html, which carries the <title> the gates wait for and enough banded content that a captured region has variance. It used to wait on a remote page the VM cannot reach.",
+  "fixture": "hotkey-rebind.spaces.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "launch 1 boots and restores the active space's tab"
+    },
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "example-domain-tall.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/example-domain-tall.html",
+      "timeout_ms": 20000,
+      "note": "THE BEFORE MEASUREMENT, and the run is worthless without it. example.org is Foreign's tab and Foreign is the staged startup space. If this never lands, the later example.com proves nothing - it could have been the space the app was on all along."
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot; without this the chord below lands in Finder and the space never switches"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "THE WRITE: the shipped space-cycle default. SelectSpace moves the document and calls ApplySidebarGesture(true), which posts atrium_core_save()."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 0 -> 1",
+      "timeout_ms": 8000,
+      "note": "gate the setup: the cycle really moved the document, from Foreign's slot to Themed's. No single quote in the pattern - _vlog_present refuses one, since it cannot survive the remote shell."
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the save is posted to the thread pool and fsyncs, so it is not on disk the instant the chord returns"
+    },
+    {
+      "type": "relaunch",
+      "note": "THE PIECE THAT DID NOT EXIST: Cmd+Q and start again against the same staged file. Cmd+Q rather than a kill, because the shutdown save in PostMainMessageLoopRun is part of the write path a persistence question is about."
+    },
+    {
+      "type": "eval_until",
+      "id": "readback-page",
+      "target": "example-domain-tall.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/example-domain-tall.html",
+      "timeout_ms": 25000,
+      "note": "THE READ BACK: launch 2 materializes Themed's tab with no key pressed, which it can only do if it read Themed out of the file. This runs strictly after the relaunch action above, so cdp-eval is necessarily talking to launch 2's own renderer, not a stale connection to launch 1's."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "pattern": "Atrium: active space 0 -> 1",
+      "label": "cycle-landed",
+      "note": "the setup gate again, as a graded assertion rather than a wait"
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "a sidebar gesture could not be written",
+      "label": "no-failed-write",
+      "note": "the save path logs this when the write fails and the gesture is memory-only. Its absence is what makes the file assertion below a statement about a successful write rather than a lucky one."
+    },
+    {
+      "type": "file_contains",
+      "file": "spaces",
+      "path": "appState.activeSpaceID",
+      "value": "22222222-2222-2222-2222-222222222222",
+      "label": "active-space-written",
+      "note": "THE ASSERTION NOTHING COULD EXPRESS BEFORE. The staged fixture holds Foreign's id at this path, so this cannot pass on a build that wrote nothing - and the grader fails the scenario outright if the fixture ever does already hold the answer."
+    },
+    {
+      "type": "eval_equals",
+      "id": "readback-page",
+      "expected": "http://127.0.0.1:8000/example-domain-tall.html",
+      "label": "read-back-after-relaunch",
+      "note": "ORDERING, not presence. Launch 1 committed example.com too, the moment it cycled, so a plain log-presence check here would be green for a second launch that read nothing. The ordering now comes from the action list itself: readback-page's eval_until is a live CDP read that only runs, and only resolves, once launch 2's own renderer exists - it cannot be satisfied by anything launch 1 did."
+    }
+  ],
+  "serve_fixtures": true
+}

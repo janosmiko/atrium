@@ -1,0 +1,69 @@
+{
+  "name": "close-active-tab-with-sibling",
+  "description": "Guard: closing a space's only LIVE tab while another row is still listed must bring that row back to life, not leave the window blank. An Atrium window's Chromium tab strip holds ONE live tab - the other sidebar rows are cold until clicked - so this fixture's two rows produce a single 'Atrium: tab 1 added' at startup, and closing it empties the strip whatever the sidebar shows. The fix promotes the first remaining row a run-loop turn later. Was red before that (no tab-added line after the close at all) and green after.",
+  "fixture": "two-tabs.spaces.json",
+  "themes": "empty-window-quit.themes.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 8000,
+      "note": "let the space render; both rows show in the sidebar but only the active one becomes a live tab"
+    },
+    {
+      "type": "activate",
+      "note": "make Atrium frontmost before any synthetic chord"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the window come forward"
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "two sidebar rows, the first highlighted, its page rendering"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w",
+      "note": "close the active tab - a sibling row remains listed"
+    },
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "long enough for the close, the deferred promotion, and the reopened page to attach"
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the survivor should be live and rendering, not a blank pane"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "tab-closed",
+      "pattern": "Atrium: tab 1 closed",
+      "note": "proves Cmd+W took. Pinned to id 1 - the startup tab - so it cannot accidentally match the promoted one"
+    },
+    {
+      "type": "vlog",
+      "label": "promotion-ran",
+      "pattern": "Atrium: promoting surviving sidebar row",
+      "note": "the MECHANISM: PromoteSurvivingSidebarRow found a row and acted. Asserted separately from the effect below so a pass cannot come from some unrelated path happening to open a tab"
+    },
+    {
+      "type": "vlog",
+      "label": "survivor-live",
+      "pattern": "Atrium: tab 2 added",
+      "note": "the EFFECT: a second tab now exists. The id is deliberate rather than [0-9]+ - this fixture warms exactly one tab at startup (id 1), so id 2 can only be the promoted row. A generic pattern would match the startup tab and pass vacuously, which is how a guard like that hides a live bug through two closes"
+    }
+  ]
+}

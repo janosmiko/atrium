@@ -1,0 +1,125 @@
+{
+  "name": "overview-hotkeys-open-the-rail-pane",
+  "description": "The user's report on 2026-09-13 was 'cmd+shift+a does something really weird. it opens the overview, but in a web card'. Cmd+Shift+A is openArchive, not the Overview toggle, but both ran the same code and both showed Overview in a widget sized to the web-content pane. Both are driven here in one run: Cmd+Shift+A is the reported key, and Cmd+Shift+O is the one a fix aimed only at the archive path would quietly leave broken.",
+  "fixture": "lab-compare.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the window finish first paint and the sidebar announce itself"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "capture",
+      "id": "rest",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the first workspace at rest, before either hotkey"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+a",
+      "note": "openArchive - the key the user actually pressed"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "the rail glides to the Overview pane and the section asks for its data"
+    },
+    {
+      "type": "capture",
+      "id": "archive",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+o",
+      "note": "toggleOverview pages the rail back to the active space"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+o",
+      "note": "and forward again, so the toggle is proven in both directions"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "capture",
+      "id": "toggled",
+      "duration_ms": 400,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "Neither hotkey may open a second window. This read 2 for both of them before the fix.",
+      "label": "no-hotkey-opens-a-second-window"
+    },
+    {
+      "type": "region_mean",
+      "capture": "archive",
+      "x": 500,
+      "y": 400,
+      "w": 300,
+      "h": 60,
+      "min_mean": 200,
+      "max_mean": 255,
+      "label": "cmd-shift-a-leaves-the-page-visible",
+      "desc": "THE assertion for the user's report. The page under this region is white, so the widget that used to cover it pulls the mean down - it measured 222.5 there. Paired with the sidebar check below, which fails if Overview simply never opened and left the page white by default."
+    },
+    {
+      "type": "region_mean",
+      "capture": "archive",
+      "x": 90,
+      "y": 600,
+      "w": 260,
+      "h": 60,
+      "min_mean": 5,
+      "max_mean": 160,
+      "label": "cmd-shift-a-really-opened-overview-in-the-sidebar",
+      "desc": "The foot of the widened sidebar: 122.7 with the Overview pane parked there against 185.6 at rest, so the band excludes rest. The floor of 5 stops a black frame from passing."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: overview section selected archived",
+      "label": "cmd-shift-a-selected-the-archived-section",
+      "desc": "Opening Overview is not what Cmd+Shift+A asks for - it asks for the Archived section. Without this the scenario passes on a run that landed on Downloads, the default section, which looks equally correct from the outside. The section NAME is the assertion: every pane render pushes all six lists, so a push line would match whatever section is showing."
+    },
+    {
+      "type": "region_mean",
+      "capture": "toggled",
+      "x": 90,
+      "y": 600,
+      "w": 260,
+      "h": 60,
+      "min_mean": 5,
+      "max_mean": 160,
+      "label": "cmd-shift-o-still-reaches-overview-after-a-round-trip",
+      "desc": "Two presses of Cmd+Shift+O: away from Overview, then back. A fix that pointed only openArchive at the rail pane would leave the toggle on the retired widget, and this is where that shows."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly with the Overview pane on screen"
+    }
+  ]
+}

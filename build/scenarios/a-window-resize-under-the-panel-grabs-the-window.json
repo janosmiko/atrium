@@ -1,0 +1,106 @@
+{
+  "name": "a-window-resize-under-the-panel-grabs-the-window",
+  "description": "The floating panel is a child window and takes every event over its own frame, so the only thing that keeps the window's resize border reachable while the panel is up is the band ApplyBounds leaves uncovered: kOverlayHorizontalInset points of the window along the docked edge. That band used to be 8 points wide and is now 5, which is thin enough that a hit-test question becomes a real one.\n\nThe reading is the panel's own screenX. The panel tracks the parent through ApplyBounds, so a drag that grabbed the WINDOW moves it, and a drag the panel swallowed leaves it exactly where it was. A press inside the band cannot resize the panel either way - .ovresize sits at the panel's trailing edge, not its leading one - so a number that did not move names the dead zone rather than some other outcome.\n\nThe pointer is already at the edge when the press lands, which is the state OnStripEntered refuses to reveal into. That is the point: the panel is up from the move before it, and the press must reach past it.",
+  "fixture": "two-tabs.spaces.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    { "type": "activate" },
+    { "type": "settle", "ms": 1500 },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "collapse, so the edge zone arms"
+    },
+    { "type": "settle", "ms": 2000 },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 400,
+      "note": "the left window edge, where the reveal is armed"
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 415,
+      "note": "a wiggle inside the strip - a move that lands without crossing the boundary fires no mouseEntered"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar edge reveal opening at",
+      "timeout_ms": 20000,
+      "note": "the gate: the panel is up, which is what puts a child window over the resize border"
+    },
+    { "type": "settle", "ms": 1500 },
+    {
+      "type": "eval",
+      "id": "panel-floats",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.classList.contains('atrium-sidebar-floating'))",
+      "note": "THE CONTROL. A docked sidebar leaves the border clear on its own, so the drag below would prove nothing"
+    },
+    {
+      "type": "eval",
+      "id": "window-x-before",
+      "target": "/sidebar",
+      "expression": "String(window.screenX)",
+      "note": "the panel sits kOverlayHorizontalInset points right of the window's own left edge, so this tracks the window"
+    },
+    {
+      "type": "drag",
+      "x1": 2,
+      "y1": 400,
+      "x2": 80,
+      "y2": 400,
+      "note": "inside the uncovered band, which is 0 to 5 with the window at screen x=0. Pulling the left border right narrows the window and carries its left edge - and the panel - with it"
+    },
+    { "type": "settle", "ms": 2000 },
+    {
+      "type": "eval",
+      "id": "window-x-after",
+      "target": "/sidebar",
+      "expression": "String(window.screenX)",
+      "note": "unchanged means the panel swallowed the press and the window never saw it"
+    },
+    {
+      "type": "eval",
+      "id": "panel-still-up",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.classList.contains('atrium-sidebar-floating'))",
+      "note": "the resize must not cost the panel - a dismissal would also move nothing"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "panel-floats",
+      "expected": "\"true\"",
+      "label": "the-panel-is-over-the-border",
+      "desc": "THE SETUP, and it is the half that makes the rest a test at all."
+    },
+    {
+      "type": "eval_changed",
+      "before": "window-x-before",
+      "after": "window-x-after",
+      "label": "the-border-under-the-panel-still-resizes-the-window"
+    },
+    {
+      "type": "eval_equals",
+      "id": "panel-still-up",
+      "expected": "\"true\"",
+      "label": "the-panel-survived-the-resize"
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "DCHECK failed",
+      "label": "no-dcheck-fired"
+    },
+    { "type": "quit" }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "name": "quit-sidebar-focus",
+  "description": "Cmd+Q with key focus in the HTML sidebar (a views::WebView on the system-profile chrome context) rather than the content pane. Written to test the hypothesis that the sidebar surface swallowed the quit keystroke; that hypothesis was WRONG. It failed because its Escape was the only one in the matrix that actually dismissed the command palette, exposing the real cause - a tabless window's IDC_EXIT being claimed and dropped. Kept as coverage of the sidebar-focus state, which nothing else exercises. It has a dismissal and gates proving the palette is out of the way, so a pass means the sidebar-focused quit really was tested.",
+  "fixture": "empty-window-quit.spaces.json",
+  "themes": "empty-window-quit.themes.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "33333333-3333-3333-3333-333333333333",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 8000,
+      "note": "let the empty space render and the palette auto-open - it appears 3.9-5.0s after launch on this VM, so the old 3000ms was racing it"
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "first dismiss attempt; unreliable on its own, hence the scrim click below"
+    },
+    {
+      "type": "settle",
+      "ms": 1000,
+      "note": "give the Escape time to land"
+    },
+    {
+      "type": "click",
+      "x": 900,
+      "y": 660,
+      "note": "second dismiss attempt - a press on the palette's scrim, outside the panel and clear of the 280px sidebar. Same pair quit-empty-no-palette.json needed"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the palette close and key focus return to the browser window"
+    },
+    {
+      "type": "click",
+      "x": 140,
+      "y": 430,
+      "note": "THE VARIABLE: click the sidebar body (sidebarWidth 280, so x=140 is its horizontal centre; y=430 is below the space rail, in the empty tab-list region of a space with no tabs) to move key focus into the HTML chrome surface"
+    },
+    {
+      "type": "settle",
+      "ms": 1000,
+      "note": "let focus settle in the sidebar WebContents"
+    },
+    {
+      "type": "capture",
+      "id": "state",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence of where the click landed and what holds focus"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "palette-dismissed",
+      "pattern": "Atrium: command bar widget closing",
+      "note": "Proves the palette really closed before the sidebar click, so the click landed on the sidebar rather than on the palette's scrim."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q quits with key focus in the HTML sidebar (system-profile chrome WebContents)"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "not-the-palette-route",
+      "pattern": "Atrium: palette passing key-equivalent to main menu",
+      "note": "Listed AFTER the quit assertion on purpose: the run log is pulled before assertions run, so a line Cmd+Q itself emits is only in the log that assert_quit re-pulls. Placed before it, this gate could never match - and a vlog_absent one would pass trivially, which is exactly the vacuous shape to avoid."
+    }
+  ]
+}

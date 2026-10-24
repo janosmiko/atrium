@@ -1,0 +1,103 @@
+{
+  "spaces": [
+    {
+      "id": "1ab00001-0000-4000-8000-000000000001",
+      "name": "Reading",
+      "emoji": "R",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [
+        {
+          "lastActiveAt": 805135200.0,
+          "url": "http://127.0.0.1:8000/favicon-page.html",
+          "title": "Pinned With Icon",
+          "pinnedURL": "http://127.0.0.1:8000/favicon-page.html"
+        },
+        {
+          "lastActiveAt": 805135100.0,
+          "url": "http://127.0.0.1:8000/edit-focus-field.html",
+          "title": "Pinned Cold"
+        }
+      ],
+      "tabs": [
+        {
+          "lastActiveAt": 805135200.0,
+          "url": "http://127.0.0.1:8000/swipe-lab.html",
+          "title": "The Lab"
+        },
+        {
+          "lastActiveAt": 805135000.0,
+          "url": "http://127.0.0.1:8000/favicon-page.html",
+          "title": "A Loaded Row"
+        },
+        {
+          "lastActiveAt": 805134000.0,
+          "url": "http://127.0.0.1:8000/edit-focus-field.html",
+          "title": "A Cold Row",
+          "customTitle": "Renamed By Hand"
+        },
+        {
+          "lastActiveAt": 805133000.0,
+          "url": "http://127.0.0.1:8000/peek-target-field.html",
+          "title": "In A Folder",
+          "groupID": "1ab00001-0000-4000-8000-0000000000g1"
+        }
+      ],
+      "groups": [
+        {
+          "id": "1ab00001-0000-4000-8000-0000000000g1",
+          "name": "A Folder",
+          "icon": "F",
+          "collapsed": false
+        }
+      ]
+    },
+    {
+      "id": "1ab00002-0000-4000-8000-000000000002",
+      "name": "Writing",
+      "emoji": "W",
+      "tint": "sunsetCoral",
+      "profileID": "Default",
+      "order": 1,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805132000.0,
+          "url": "http://127.0.0.1:8000/edit-focus-field.html",
+          "title": "Second Space Row"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "favorites": [
+    {
+      "url": "http://127.0.0.1:8000/favicon-page.html",
+      "title": "Blue Favicon Site",
+      "profileID": "Default"
+    },
+    {
+      "url": "http://127.0.0.1:8000/edit-focus-field.html",
+      "title": "Edit Focus",
+      "profileID": "Default"
+    }
+  ],
+  "archived": [
+    {
+      "id": "archived-1ab0",
+      "url": "http://127.0.0.1:8000/peek-scrim-red.html",
+      "title": "An Archived Tab",
+      "spaceID": "1ab00001-0000-4000-8000-000000000001",
+      "archivedAt": 805130000.0,
+      "lastActiveAt": 805129000.0,
+      "closeReason": "archived"
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "1ab00001-0000-4000-8000-000000000001",
+    "sidebarWidthMigrated": true
+  }
+}

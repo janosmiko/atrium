@@ -1,0 +1,63 @@
+{
+  "name": "quit-with-tab",
+  "description": "Prediction test, the PASS half. A space with a restored tab never auto-opens the command palette, so this reaches Cmd+Q with no palette in the way and without depending on an Escape landing. Predicts PASS: browser_->tab_strip_model()->active_index() != kNoTab, so BrowserCommandController::ExecuteCommandWithDisposition (browser_command_controller.cc:629) does NOT take its no-selected-tab early return and IDC_EXIT actually reaches Exit(). Paired with quit-empty-no-palette, which holds everything else fixed and removes the tab.\n\ntwo of the three assertions were in the vlog_absent family with nothing positive in front of them, and an absence assertion passes hardest when nothing happened at all. A launch that never restored its tab would satisfy both - no tab means no palette either - and would then be testing the no-selected-tab branch this scenario exists to stay OFF. The gate is now first in the list and reads the pre-quit log, so the tab is proven loaded before anything is asserted absent.\n\nThe pattern is the TITLE line, not the added or url line. 'tab N added' is written when the tab object appears, before any navigation; the url line was absent on three of the twenty-four stored runs. The title is reported by the renderer once a navigation has committed, it carries the loaded document's own text, and it is present on twenty-three of the twenty-four - the exception being the very first run, from 2026-08-07, which reached no assertions but quit. On the measured run it lands at 040229.081, two seconds into the 8s settle and eleven seconds before the quit. Its own fixture, pointing at the harness's example-domain.html, which carries the same <title> the gate waits for. It used to share presenter-startup's fixture and wait on https://example.org/ - a page the VM cannot reach, so the gate never opened and every assertion after it ran against unestablished state.",
+  "fixture": "cmdf-swallowed.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "timeout_ms": 20000,
+      "note": "gate: measure nothing until the restored tab has actually loaded. The settle below used to be the only thing standing between launch and Cmd+Q, and a settle cannot tell a loaded tab from a slow one. Served by the harness rather than fetched: the probe VM has no outbound access, so a gate on a remote page can only time out."
+    },
+    {
+      "type": "settle",
+      "ms": 8000,
+      "note": "let the space and its restored tab render; no palette is expected at all"
+    },
+    {
+      "type": "activate",
+      "note": "make Atrium frontmost before the synthetic Cmd+Q"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the window come forward"
+    },
+    {
+      "type": "capture",
+      "id": "state",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence that no palette is up when Cmd+Q is pressed"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-tab-loaded-first",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "note": "THE POSITIVE GATE, first on purpose. Assertions listed before the quit read the log as it was pulled BEFORE Cmd+Q, so a match here is proof the tab had committed a navigation while the app was still up - which is the premise both absences below depend on. Without it, an app that restored nothing satisfies 'no palette' and 'not the palette route' by having done nothing at all, and the scenario reports PASS for a run that never entered the branch it predicts."
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-palette",
+      "pattern": "Atrium: command bar widget showing",
+      "note": "The premise is that a restored tab means no palette auto-opens. If one ever did, the quit could go through its pass-to-main-menu route and this would pass without touching the browser window's own path. Pre-quit line."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q quits a window that HAS a selected tab (the browser window's own IDC_EXIT path)"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "not-the-palette-route",
+      "pattern": "Atrium: palette passing key-equivalent to main menu",
+      "note": "Listed AFTER the quit assertion on purpose: the run log is pulled before assertions run, so a line Cmd+Q itself emits is only in the log that assert_quit re-pulls. Placed before it, this gate could never match - and a vlog_absent one would pass trivially, which is exactly the vacuous shape to avoid."
+    }
+  ],
+  "serve_fixtures": true
+}

@@ -1,0 +1,74 @@
+{
+  "name": "bracket-chord-switches-tab",
+  "description": "The hotkeys store binds nextTab to cmd+shift+] and pressing it moved no tab, while cmd+k on the same action worked. Cause: AppKit's charactersIgnoringModifiers ignores command and option but NOT shift, so the event arrives carrying '}' while the stored combo spells ']', and the matcher compared the two directly. Letters were never affected because the match lowercases first.\n\nBoth rows are LOCAL urls. A scenario must not gate on a page the VM cannot load - it has DNS but no outbound HTTPS - and the row this chord reaches is proven by the line the cold-row path logs rather than by a navigation committing.",
+  "fixture": "two-tabs.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the window finish first paint and the sidebar announce itself"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+]",
+      "note": "nextTab. The keycode for ] is 30, already in keycombo.sh."
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "the row opens and the page starts loading"
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "eval_until",
+      "id": "next-row-page",
+      "target": "edit-focus-field.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/edit-focus-field.html",
+      "timeout_ms": 15000,
+      "note": "the second row's own page, read from the page itself rather than the run log"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "next-row-page",
+      "expected": "http://127.0.0.1:8000/edit-focus-field.html",
+      "label": "the-chord-reached-the-next-row",
+      "desc": "THE assertion. The second row's page loads only if the chord moved the tab - its control scenario asserts the same page never opens with the chord removed, which is what makes this evidence about the key rather than about startup opening both rows."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "label": "still-one-window",
+      "desc": "Liveness, and a guard against the chord reaching something that opens a window."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

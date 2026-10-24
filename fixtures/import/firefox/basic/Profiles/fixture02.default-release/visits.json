@@ -1,0 +1,5 @@
+[
+  {"url": "https://gazette.example.test/", "title": "Gazette front page",
+   "hidden": 0,
+   "visits": [{"days_ago": 1, "visit_type": 2}, {"days_ago": 2, "visit_type": 1}]}
+]

@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 11 Aug 2026 10:54:57 +0200
+Subject: [PATCH 058/154] feat: build a window's sidebar the first time it
+ presents, not at birth
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+A hidden-pool profile (show=false) built and navigated its sidebar WebContents
+in the constructor whether or not it would ever be shown - real renderer work
+for a surface nobody was looking at, paid at boot, competing with every other
+profile's construction. Its tab/title/favicon churn then rebuilt that model on
+every event, still off screen.
+
+PushSidebarSnapshot now asks SlotPresentationTable who is presenting and skips
+the rebuild when this window is not. The construction-time BuildHtmlSidebar
+call is gone; CatchUpSidebarForNewPresenter is the one funnel every "this
+window just became its slot's presenter" site calls instead - the self-creating
+ctor's show block, ActivateWindow's first-activation branch, and
+NotifyShownIfAdopted. It builds (idempotently) and pushes once, coalescing
+whatever the window missed while it was hidden.
+
+ActivateWindow's in-window swap needed an explicit push too: the presenter does
+not change there, so the is_presenter gate never re-fires, but `visible_` moved
+and the on-screen sidebar was left showing the outgoing tab strip.
+
+The gate itself is a free function in its own target so it is a fast unit test
+with no views:: or content:: dependency - a bool in, an enum out.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index e1d238b23256b..7c058ea15d0d8 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -630,6 +630,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:tab_cycle",
+     "//chrome/browser/ui/atrium:peek_decision",
+     "//chrome/browser/ui/atrium:restore_plan",
++    "//chrome/browser/ui/atrium:sidebar_snapshot_gate",
+     "//chrome/browser/ui/atrium:slot_presentation_table",
+     "//chrome/browser/ui/atrium:status_bubble_color_math",
+     "//chrome/browser/ui/atrium:surface_key_route",

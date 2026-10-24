@@ -1,0 +1,201 @@
+{
+  "name": "a-favourite-dragged-to-the-tab-list-shows-a-tab-row",
+  "description": "A real cgevent drag of the first favourite down into the empty pane under the only tab row. Over the list the drawn drag image must be a tab row, not the tile, and a faded tab row, close button and all, must stand where the drop lands, in the font of the real rows. The drop there must reach the tab list, which used to end at its last row.\n\nThe fixture draws two tiles centred at client 31x114 and 86x114 and one row centred at 113x260. Screen coordinates are those plus the 30px the window sits below the screen top. The drop at client 113x400 is 140px below the row.",
+  "fixture": "row-drags-into-the-grid.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "layout",
+      "target": "/sidebar",
+      "expression": "(() => { const grid = document.querySelector('[data-dropzone=\"favorites\"]'); const row = document.querySelector('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow'); if (!grid || !row) { return 'missing'; } const c = (el) => { const b = el.getBoundingClientRect(); return Math.round((b.left + b.right) / 2) + 'x' + Math.round((b.top + b.bottom) / 2); }; return [...grid.querySelectorAll('.fav')].map(c).join(' ') + ' | row ' + c(row); })()",
+      "expected": "31x114 86x114 | row 113x260",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "below-is-the-list",
+      "target": "/sidebar",
+      "expression": "(() => { const zone = document.elementFromPoint(113, 400)?.closest('[data-dropzone]'); return zone ? zone.dataset.dropzone : 'none'; })()"
+    },
+    {
+      "type": "eval",
+      "id": "spy",
+      "target": "/sidebar",
+      "expression": "(() => { window.__ev = []; window.__look = []; window.__cs = []; for (const t of ['dragstart','dragover','drop','dragend']) { document.addEventListener(t, () => { if (window.__ev[window.__ev.length-1] !== t) { window.__ev.push(t); } }, true); } document.addEventListener('dragover', () => requestAnimationFrame(() => { if (window.__ev.includes('drop')) { return; } const zone = document.querySelector('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"]'); const kids = zone ? [...zone.children] : []; const at = kids.findIndex((el) => el.classList.contains('rowghost')); const follow = document.querySelector('.dragfollow:not([hidden])'); const v = (follow ? follow.dataset.look : 'nofollow') + '/' + (at < 0 ? 'noghost' : 'ghost' + at + (kids[at].matches('.tablook') && kids[at].querySelector('.x') ? 'tab' : 'other')); const ftl = follow && follow.querySelector('.tl'); const rtl = document.querySelector('.railpane:not(.ovrailpane) .tabrow .tl'); if (ftl && rtl && !window.__font) { const a = getComputedStyle(ftl).fontFamily; window.__font = a === getComputedStyle(rtl).fontFamily ? 'same' : a; } if (follow && follow.dataset.look === 'row' && zone && window.__fit === undefined) { window.__fit = Math.round(follow.firstChild.getBoundingClientRect().right - zone.getBoundingClientRect().right); } if (window.__look[window.__look.length-1] !== v) { window.__look.push(v); } }), true); const orig = chrome.send.bind(chrome); chrome.send = (name, args) => { if (name === 'sidebarFavoriteMovedOut') { window.__cs.push(name + ':' + args.map((a) => String(a).split('/').pop()).join(',')); } return orig(name, args); }; return 'spying'; })()"
+    },
+    {
+      "type": "drag",
+      "x1": 31,
+      "y1": 144,
+      "x2": 113,
+      "y2": 430,
+      "steps": 40
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "events",
+      "target": "/sidebar",
+      "expression": "window.__ev.join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "first-look",
+      "target": "/sidebar",
+      "expression": "window.__look[0] || 'none'"
+    },
+    {
+      "type": "eval",
+      "id": "last-look",
+      "target": "/sidebar",
+      "expression": "window.__look[window.__look.length - 1] || 'none'"
+    },
+    {
+      "type": "eval",
+      "id": "all-looks",
+      "target": "/sidebar",
+      "expression": "window.__look.join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "font",
+      "target": "/sidebar",
+      "expression": "window.__font || 'none'"
+    },
+    {
+      "type": "eval",
+      "id": "fit",
+      "target": "/sidebar",
+      "expression": "String(window.__fit)"
+    },
+    {
+      "type": "eval",
+      "id": "sends",
+      "target": "/sidebar",
+      "expression": "window.__cs.join(';')"
+    },
+    {
+      "type": "eval",
+      "id": "cleared",
+      "target": "/sidebar",
+      "expression": "document.querySelector('.dragfollow, .rowghost, .dragblank') ? 'left behind' : 'cleared'"
+    },
+    {
+      "type": "eval_until",
+      "id": "tab-count",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow').length)",
+      "expected": "2",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval_until",
+      "id": "order",
+      "target": "/sidebar",
+      "expression": "[...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow .tl')].map((t) => t.textContent).join(' | ')",
+      "expected": "Edit Focus Field | Blue Favicon Site",
+      "timeout_ms": 8000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "layout",
+      "expected": "31x114 86x114 | row 113x260",
+      "desc": "gates the drag: the tiles and the row sit where the screen coordinates below assume"
+    },
+    {
+      "type": "eval_equals",
+      "id": "below-is-the-list",
+      "expected": "\"tabs\"",
+      "desc": "the empty pane under the last row is part of the tab list"
+    },
+    {
+      "type": "eval_equals",
+      "id": "spy",
+      "expected": "\"spying\"",
+      "desc": "the spies installed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "events",
+      "expected": "\"dragstart,dragover,drop,dragend\"",
+      "desc": "the drag reached drop"
+    },
+    {
+      "type": "eval_equals",
+      "id": "first-look",
+      "expected": "\"tile/noghost\"",
+      "desc": "over the grid the drawn drag image is the tile"
+    },
+    {
+      "type": "eval_equals",
+      "id": "last-look",
+      "expected": "\"row/ghost1tab\"",
+      "desc": "THE MEASUREMENT: over the list the drag image is a tab row, and a faded tab row with its close button stands after the last row"
+    },
+    {
+      "type": "eval_equals",
+      "id": "font",
+      "expected": "\"same\"",
+      "desc": "the drawn row uses the font of the real rows"
+    },
+    {
+      "type": "eval_equals",
+      "id": "fit",
+      "expected": "\"0\"",
+      "desc": "the drawn row ends where the list ends, so its close button is not cut off"
+    },
+    {
+      "type": "eval_equals",
+      "id": "sends",
+      "expected": "\"sidebarFavoriteMovedOut:favicon-page.html,tabs,1\"",
+      "desc": "one move out of the grid, to the end of the tab list"
+    },
+    {
+      "type": "eval_equals",
+      "id": "cleared",
+      "expected": "\"cleared\"",
+      "desc": "neither the drag image nor the ghost row outlived the gesture"
+    },
+    {
+      "type": "eval_equals",
+      "id": "tab-count",
+      "expected": "2",
+      "desc": "the favourite is a tab now"
+    },
+    {
+      "type": "eval_equals",
+      "id": "order",
+      "expected": "Edit Focus Field | Blue Favicon Site",
+      "desc": "the new row landed below the old one, where the drop was"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

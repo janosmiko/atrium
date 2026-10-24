@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Peek Target</title></head>
+<body style="margin:0;padding:40px;font-family:sans-serif;font-size:24px;background:#fdf0d5;">
+<p>This is the PEEK TARGET page.</p>
+<!-- Promote-smoke gate: a live, incrementing counter (also mirrored
+     into document.title) proves a promote continues the SAME WebContents
+     with no reload - a reload would reset this counter to 0. -->
+<p id="counter">counter: 0</p>
+<script>
+  let n = 0;
+  setInterval(() => {
+    n += 1;
+    document.getElementById('counter').textContent = 'counter: ' + n;
+    document.title = 'Peek Target ' + n;
+  }, 1000);
+</script>
+</body>
+</html>

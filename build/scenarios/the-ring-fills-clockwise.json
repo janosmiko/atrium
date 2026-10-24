@@ -1,0 +1,109 @@
+{
+  "name": "the-ring-fills-clockwise",
+  "description": "The comet ring keeps its first phase and gains a second. Once bytes arrive the sweep stops and the ring fills clockwise from twelve o clock, with --fillang carrying the fraction as an angle. The read is taken from the cascade rather than from the sheet, because --fillang is set inline per element by loading-mark.js and only the computed value proves the push reached the row. A capture is kept beside it because the ring band's y moves with every sidebar size change, so no region assertion can be keyed to it.",
+  "fixture": "staged-load.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+r"
+    },
+    {
+      "type": "eval_until",
+      "id": "ring-reached-receiving",
+      "target": "/sidebar",
+      "expression": "String(!!document.querySelector('.row.receiving, .fav.receiving'))",
+      "expected": "true",
+      "timeout_ms": 8000,
+      "note": "the second phase is entered on the first LoadProgressChanged, which lands after the commit and before the fixture's hold ends."
+    },
+    {
+      "type": "eval",
+      "id": "ring-fills-clockwise",
+      "target": "/sidebar",
+      "expression": "(() => { const el = document.querySelector('.row.receiving, .fav.receiving'); if (!el) { return 'no receiving ring'; } const raw = getComputedStyle(el).getPropertyValue('--fillang').trim(); const deg = parseFloat(raw); if (!Number.isFinite(deg)) { return 'unreadable ' + raw; } return deg > 0 && deg <= 360 ? 'filling clockwise' : 'off ' + raw; })()"
+    },
+    {
+      "type": "eval",
+      "id": "ring-angle-seen",
+      "target": "/sidebar",
+      "expression": "(() => { const el = document.querySelector('.row.receiving, .fav.receiving'); return el ? getComputedStyle(el).getPropertyValue('--fillang').trim() : 'none'; })()",
+      "note": "RECORDED, NOT ASSERTED: the angle the run actually reached. The fraction is whatever Chromium reported at that instant, so pinning a number here would be a flake."
+    },
+    {
+      "type": "eval",
+      "id": "comet-stopped",
+      "target": "/sidebar",
+      "expression": "(() => { const el = document.querySelector('.receiving > .brdr'); if (!el) { return 'no ring'; } const name = getComputedStyle(el, '::before').animationName; return name === 'none' || name === '' ? 'stopped' : 'still spinning ' + name; })()"
+    },
+    {
+      "type": "capture",
+      "id": "ring-mid-load"
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "ring-released-after-load",
+      "target": "/sidebar",
+      "expression": "String(!document.querySelector('.row.receiving, .fav.receiving'))",
+      "note": "the fill phase ends with the load, so the ring goes back to the solid selected state."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "ring-reached-receiving",
+      "expected": "true",
+      "desc": "the reload put a row or a tile into the second phase, so the state under test was reached"
+    },
+    {
+      "type": "eval_equals",
+      "id": "ring-fills-clockwise",
+      "expected": "\"filling clockwise\"",
+      "desc": "THE MEASUREMENT: --fillang resolves to an angle inside the circle, so the conic fill has a real arc to draw."
+    },
+    {
+      "type": "eval_equals",
+      "id": "comet-stopped",
+      "expected": "\"stopped\"",
+      "desc": "the two phases do not run at once. A spinning comet under a static fill is the failure this catches."
+    },
+    {
+      "type": "eval_equals",
+      "id": "ring-released-after-load",
+      "expected": "\"true\"",
+      "desc": "the fill phase ends with the load rather than leaving a frozen arc on the row."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

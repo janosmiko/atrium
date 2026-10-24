@@ -1,0 +1,86 @@
+{
+  "spaces": [
+    {
+      "id": "12640001-0000-4000-8000-000000000001",
+      "name": "Personal",
+      "emoji": "A",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "12640002-0000-4000-8000-000000000002",
+      "name": "New Space",
+      "emoji": "B",
+      "tint": "sunsetCoral",
+      "profileID": "Default",
+      "order": 1,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "12640003-0000-4000-8000-000000000003",
+      "name": "BPX",
+      "emoji": "C",
+      "tint": "meadowGreen",
+      "profileID": "Second",
+      "order": 2,
+      "pinnedTabs": [
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?bpx1",
+          "title": "BPX One",
+          "groupID": "12640a01-0000-4000-8000-000000000001"
+        },
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?bpx2",
+          "title": "BPX Two",
+          "groupID": "12640a01-0000-4000-8000-000000000001"
+        },
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?bpx3",
+          "title": "BPX Three",
+          "groupID": "12640a02-0000-4000-8000-000000000002"
+        },
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?bpx4",
+          "title": "BPX Loose"
+        }
+      ],
+      "tabs": [],
+      "groups": [
+        {
+          "id": "12640a01-0000-4000-8000-000000000001",
+          "name": "BPX",
+          "collapsed": true
+        },
+        {
+          "id": "12640a02-0000-4000-8000-000000000002",
+          "name": "Reward",
+          "collapsed": true
+        }
+      ]
+    }
+  ],
+  "favorites": [
+    {
+      "url": "http://127.0.0.1:8000/long-page.html?reddit",
+      "title": "Reddit Stand-in",
+      "profileID": "Default"
+    },
+    {
+      "url": "http://127.0.0.1:8000/example-domain-tall.html?bpxfav",
+      "title": "BPX Fav",
+      "profileID": "Second"
+    }
+  ],
+  "archived": [],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "12640001-0000-4000-8000-000000000001"
+  }
+}

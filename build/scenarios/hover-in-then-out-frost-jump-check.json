@@ -1,0 +1,54 @@
+{
+  "name": "hover-in-then-out-frost-jump-check",
+  "description": "follow-up: a quick hover in then immediately out can dismiss the panel while the frost's reveal fade is still running. AnimateHide now reads the frost's live presentationLayer opacity as its fromValue instead of hardcoding 1, so an interrupting dismiss should continue the fade smoothly rather than snapping brightness up before fading back down. This scenario is a raw frame capture for visual inspection, not a pass/fail gate - the same posture as peek-open-close-animation-frames.json.",
+  "fixture": "panel-legibility.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "settle", "ms": 5000 },
+    { "type": "activate" },
+    { "type": "settle", "ms": 1500 },
+    {
+      "type": "eval",
+      "id": "tab-opened",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.row'); if (!r) return 'no-row'; r.click(); return 'clicked'; })()"
+    },
+    { "type": "settle", "ms": 5000 },
+    {
+      "type": "eval",
+      "id": "collapse-pressed",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbtoggle'); if (!b) return 'no-button'; b.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar toggle requested from the chrome row",
+      "timeout_ms": 8000
+    },
+    { "type": "settle", "ms": 3000 },
+    { "type": "move", "x": 300, "y": 400, "note": "park inside the page" },
+    { "type": "settle", "ms": 600 },
+    { "type": "move", "x": 20, "y": 400, "note": "cross into the arming strip - starts the reveal and its frost fade-in" },
+    { "type": "move", "x": 700, "y": 400, "note": "immediately back out, no settle - the hover-in-then-out gesture, meant to land while the 240ms reveal fade is still running" },
+    {
+      "type": "capture",
+      "id": "hover-in-out-transition",
+      "duration_ms": 900,
+      "fps": 30,
+      "note": "no settle before this - spans the debounce, the dismiss slide/fade and margin, for visual inspection of the frost's corner patch (8,38,6,6) for any brightness jump"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

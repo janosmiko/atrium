@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 7 Sep 2026 01:50:55 +0200
+Subject: [PATCH 118/154] feat(theme): paint the active space's theme on the
+ window
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 32ea831d0e063..b44c41579f291 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -673,6 +673,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:surface_key_route",
+     "//chrome/browser/ui/atrium:url_submit_decision",
+     "//chrome/browser/ui/atrium:window_appearance",
++    "//chrome/browser/ui/atrium:theme_animator",
+     "//chrome/browser/ui/atrium:window_close_decision",
+     "//chrome/browser/ui/autofill",
+     "//chrome/browser/ui/autofill:impl",

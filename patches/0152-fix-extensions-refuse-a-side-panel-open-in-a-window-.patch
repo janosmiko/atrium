@@ -1,0 +1,92 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 13 Oct 2026 09:24:20 +0200
+Subject: [PATCH 152/154] fix(extensions): refuse a side panel open in a window
+ with no host
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../api/side_panel/side_panel_service.cc          | 15 +++++++++++----
+ .../extensions/extension_side_panel_utils.cc      |  4 ++++
+ 2 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/chrome/browser/extensions/api/side_panel/side_panel_service.cc b/chrome/browser/extensions/api/side_panel/side_panel_service.cc
+index 5474809d1dcd7..38042f0ebcf1e 100644
+--- a/chrome/browser/extensions/api/side_panel/side_panel_service.cc
++++ b/chrome/browser/extensions/api/side_panel/side_panel_service.cc
+@@ -13,6 +13,7 @@
+ #include "base/strings/to_string.h"
+ #include "chrome/browser/extensions/extension_tab_util.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/extensions/extension_side_panel_utils.h"
+ #include "chrome/common/extensions/api/side_panel.h"
+@@ -45,6 +46,12 @@ api::side_panel::PanelOptions GetPanelOptionsFromManifest(
+   return options;
+ }
+ 
++// Atrium windows have no side panel UI, and every open and close path below
++// dereferences it.
++bool HasSidePanelUI(BrowserWindowInterface* browser_window) {
++  return browser_window && browser_window->GetFeatures().side_panel_ui();
++}
++
+ }  // namespace
+ 
+ SidePanelService::~SidePanelService() = default;
+@@ -258,7 +265,7 @@ base::expected<bool, std::string> SidePanelService::OpenSidePanelForWindow(
+ 
+   BrowserWindowInterface* browser_window =
+       window_controller->GetBrowserWindowInterface();
+-  if (!browser_window) {
++  if (!HasSidePanelUI(browser_window)) {
+     return base::unexpected(
+         base::StringPrintf("No browser window for windowId: %d", window_id));
+   }
+@@ -286,7 +293,7 @@ base::expected<bool, std::string> SidePanelService::OpenSidePanelForTab(
+   }
+ 
+   BrowserWindowInterface* browser_window = window->GetBrowserWindowInterface();
+-  if (!browser_window) {
++  if (!HasSidePanelUI(browser_window)) {
+     return base::unexpected(
+         base::StringPrintf("No browser window for tabId: %d", tab_id));
+   }
+@@ -372,7 +379,7 @@ base::expected<bool, std::string> SidePanelService::CloseSidePanelForTab(
+   // Retrieve the corresponding browser window, since the active side panel for
+   // the tab might be a global one.
+   BrowserWindowInterface* browser_window = window->GetBrowserWindowInterface();
+-  if (!browser_window) {
++  if (!HasSidePanelUI(browser_window)) {
+     return base::unexpected(
+         base::StringPrintf("No browser window for tabId: %d", tab_id));
+   }
+@@ -418,7 +425,7 @@ base::expected<bool, std::string> SidePanelService::CloseSidePanelForWindow(
+ 
+   BrowserWindowInterface* browser_window =
+       window_controller->GetBrowserWindowInterface();
+-  if (!browser_window) {
++  if (!HasSidePanelUI(browser_window)) {
+     return base::unexpected(
+         base::StringPrintf("No browser window for windowId: %d", window_id));
+   }
+diff --git a/chrome/browser/ui/views/side_panel/extensions/extension_side_panel_utils.cc b/chrome/browser/ui/views/side_panel/extensions/extension_side_panel_utils.cc
+index 51d332fec4a33..fb95020efb26c 100644
+--- a/chrome/browser/ui/views/side_panel/extensions/extension_side_panel_utils.cc
++++ b/chrome/browser/ui/views/side_panel/extensions/extension_side_panel_utils.cc
+@@ -38,6 +38,10 @@ bool IsKeyActiveInRegistry(SidePanelRegistry* registry,
+ void ToggleExtensionSidePanel(BrowserWindowInterface* browser_window,
+                               const ExtensionId& extension_id) {
+   SidePanelUI* side_panel_ui = browser_window->GetFeatures().side_panel_ui();
++  // Atrium windows have no side panel UI.
++  if (!side_panel_ui) {
++    return;
++  }
+ 
+   SidePanelEntry::Key extension_key =
+       SidePanelEntry::Key(SidePanelEntry::Id::kExtension, extension_id);

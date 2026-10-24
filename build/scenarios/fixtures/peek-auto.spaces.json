@@ -1,0 +1,25 @@
+{
+  "spaces": [
+    {
+      "id": "55555555-5555-5555-5555-555555555555",
+      "name": "Pinned",
+      "emoji": "H",
+      "tint": "#4A6FA5",
+      "profileID": "Default",
+      "pinnedTabs": [
+        {"url": "http://127.0.0.1:8000/peek-auto-pinned.html", "title": "Pinned Page"}
+      ],
+      "tabs": [
+        {"url": "http://127.0.0.1:8000/peek-auto-pinned.html", "title": "Pinned Page"}
+      ],
+      "order": 0,
+      "groups": []
+    }
+  ],
+  "appState": {
+    "activeSpaceID": "55555555-5555-5555-5555-555555555555",
+    "sidebarWidth": 280,
+    "schemaVersion": 1
+  },
+  "favorites": []
+}

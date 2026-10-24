@@ -1,0 +1,97 @@
+{
+  "name": "cmdw-foreign-profile",
+  "description": "The Cmd+W leg of the TARGET decision (command_acts_on_visible_tab, rust/atrium-core/src/commands.rs). CLOSE_TAB is in that set so Cmd+W dispatches on the browser the user SEES rather than the invoking window's own - the single-window presenter model can show a FOREIGN profile's tab in place of the invoking controller's own (the cross-profile in-window swap). Arming that swap needs a working space cycle. presenter-startup.json's 'space-switched' gate shows it works, because it passes for real (VLOG 'Atrium: tab 2 url https://example.com/', not the old vacuous startup-tab match) - the space cycle works now, which is what makes this scenario possible at all.\n\nHow the fixture gets there: presenter-startup.spaces.json boots two profiles, 'Profile 1' (space 1, tab id 1, example.org) shown first and 'Default' (space 2, tab id 2, example.com) lazily loaded once its space is switched to. Tab ids are a single process-global counter (BrowserController::TabId's next_id, chrome/browser/ui/atrium/atrium_browser_controller.cc) - not per-window - so 'tab 2' can only ever be the Default-profile tab and 'tab 1' can only ever be the Profile-1 one, anywhere in the log, which is what makes them usable as an identity rather than a count. Cmd+Shift+Right switches the invoking window (still Profile 1 underneath) to present space 2's tab in place - RECON-CONFIRMED (tmp-cmdw-foreign-profile-recon, not kept): pressing Cmd+W right after that switch logs 'Atrium: tab 2 closed' immediately, and 'Atrium: tab 1 closed' does not appear until the final Cmd+Q teardown closes what's left of the window - five seconds later in that run, nothing to do with the chord under test. Its own fixture on pages the harness serves - the Default space on 127.0.0.1 and the foreign one on dl.localhost, so the two stay distinguishable. It used to wait on remote pages the VM cannot reach.",
+  "fixture": "cmdw-foreign-profile.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "timeout_ms": 20000,
+      "note": "gate the run on the startup tab (id 1, Profile 1, example.org) actually committing"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the startup space finish rendering"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "SETUP: switch the slot to space 2 (Default profile) - this is what puts a FOREIGN profile's tab in the invoking window's slot"
+    },
+    {
+      "type": "eval_until",
+      "id": "foreign-tab-page",
+      "target": "example-domain-tall.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/example-domain-tall.html",
+      "timeout_ms": 6000,
+      "note": "gate the switch as REAL: this is tab id 2, the Default-profile tab, lazily navigating now that its space is active. Without this a switch that silently failed would leave Cmd+W below acting on the ordinary same-profile case and the scenario would still read green."
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the swapped-in tab settle before the chord"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w",
+      "note": "THE MEASUREMENT: IDC_CLOSE_TAB, which command_acts_on_visible_tab routes to the VISIBLE browser rather than the invoking one"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "let the close and any presenter fallback settle"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "startup-tab-committed",
+      "pattern": "Atrium: tab 1 title Example Domain",
+      "note": "THE FIRST POSITIVE GATE: tab 1 (Profile 1, the invoking window's own) was real before anything else happened. Id pinned to 1 rather than [0-9]+ - assert_vlog greps the LAST match in the log (tail -1), and by the time assertions run tab 2's OWN 'title Example Domain' line has also landed, so a generic pattern here would silently grade tab 2's commit instead of tab 1's, same trap close-then-restore-tab.json's own doc names for a generic tab-id pattern."
+    },
+    {
+      "type": "eval_equals",
+      "id": "foreign-tab-page",
+      "expected": "http://127.0.0.1:8000/example-domain-tall.html",
+      "label": "foreign-tab-was-showing",
+      "note": "THE SECOND POSITIVE GATE: tab 2 (Default profile, foreign to the invoking Profile-1 window) genuinely loaded into the slot before Cmd+W ran"
+    },
+    {
+      "type": "vlog",
+      "label": "visible-tab-closed",
+      "pattern": "Atrium: tab 2 closed",
+      "note": "THE MEASUREMENT, positive half: the VISIBLE tab - the foreign Default-profile one the user was looking at - is the one that closed. Tab ids are process-global (see description), so this line can only mean tab 2 specifically, never tab 1 under a different count."
+    },
+    {
+      "type": "vlog_absent",
+      "label": "invoking-tab-not-closed",
+      "pattern": "Atrium: tab 1 closed",
+      "note": "THE MEASUREMENT, negative half and the actual regression this guards: the INVOKING window's own hidden tab (Profile 1, id 1) must survive the chord. LISTED BEFORE quit deliberately (the ordering rule, see build/scripts/vm-scenario.sh's header doc) - tab 1 legitimately closes later as part of the Cmd+Q teardown that ends this run, and an assertion placed after quit would see that closure and fail a correct implementation for the wrong reason. RECON-MEASURED: in the un-kept recon run this scenario is built from, 'tab 1 closed' appeared 5.2s after 'tab 2 closed', during the quit sequence - this assertion runs before this file's own quit action ever fires, so it never sees that line."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "liveness: still one real window after the close (no crash, no stray second window from the presenter fallback)"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits after the close"
+    }
+  ],
+  "serve_fixtures": true
+}

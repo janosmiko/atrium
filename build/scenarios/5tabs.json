@@ -1,0 +1,224 @@
+{
+  "name": "5tabs",
+  "description": "reproduction probe. Opens FIVE tabs through the command bar (A through E - same method and first four fixture pages as ctrl-tab-recency-cycle.json, plus a fifth distinct page) and then just settles and quits, with no held-modifier input at all. Used to find out whether the browser process dying after tab-open is a function of tab COUNT (does it die at 4 again, or only at 5, or not at all), isolated from the key_hold_taps mechanism.",
+  "fixture": "space-cycle.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "a276b002-0000-0000-0000-000000000002",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the sidebar render and the startup space's tab commit - this is tab A, already active"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/edit-focus-field.html"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "tab B"
+    },
+    {
+      "type": "eval_until",
+      "id": "b-page",
+      "target": "edit-focus-field.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/edit-focus-field.html",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/peek-target.html"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "tab C"
+    },
+    {
+      "type": "eval_until",
+      "id": "c-page",
+      "target": "peek-target.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-target.html",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/perm-page.html"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "tab D"
+    },
+    {
+      "type": "eval_until",
+      "id": "d-page",
+      "target": "perm-page.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/perm-page.html",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "give any post-commit process death 3s to show up, matching the ~0.77s gap seen after tab D, plus margin"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/routing3-hub.html"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "tab E - a fifth tab, one more than the fixture that crashed"
+    },
+    {
+      "type": "eval_until",
+      "id": "e-page",
+      "target": "routing3-hub.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/routing3-hub.html",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "give any post-commit process death 3s to show up"
+    },
+    {
+      "type": "capture",
+      "id": "final-state",
+      "duration_ms": 400,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "b-page",
+      "expected": "http://127.0.0.1:8000/edit-focus-field.html",
+      "label": "tab-b-actually-created",
+      "desc": "PRECONDITION: tab B committed."
+    },
+    {
+      "type": "eval_equals",
+      "id": "c-page",
+      "expected": "http://127.0.0.1:8000/peek-target.html",
+      "label": "tab-c-actually-created",
+      "desc": "PRECONDITION: tab C committed."
+    },
+    {
+      "type": "eval_equals",
+      "id": "d-page",
+      "expected": "http://127.0.0.1:8000/perm-page.html",
+      "label": "tab-d-actually-created",
+      "desc": "PRECONDITION: tab D committed."
+    },
+    {
+      "type": "eval_equals",
+      "id": "e-page",
+      "expected": "http://127.0.0.1:8000/routing3-hub.html",
+      "label": "tab-e-actually-created",
+      "desc": "PRECONDITION: tab E committed - a fifth tab."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "process still alive and showing exactly one window after 5 tabs"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q actually quits (process gone) - proves the process was alive to quit"
+    }
+  ]
+}

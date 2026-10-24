@@ -1,0 +1,62 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Fri, 21 Aug 2026 09:57:02 +0200
+Subject: [PATCH 076/154] fix(sidebar): one owner for the resize seam, and
+ guard the message surface
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The seam had two handles with a gap between them: the native grip owned the
+six pixels outside the sidebar, the page handle owned a ten-pixel strip inset
+six pixels in, and nobody owned the sidebar's own last six. The cursor fell
+back to the default there, which is what a user sees as a flicker. The grip now
+reaches over the sidebar and the page handle is gone, along with its messages.
+Two defects it was masking: the grip never followed the slot on a re-dock, and
+the drag had no direction mirror, so dragging left on a right-docked sidebar
+ran the width to its minimum instead of widening it.
+
+Deleting the page handler orphaned SetSidebarWidthLive, which stops the resize
+animation timer. The grip's live path did not, and the timer can fire mid-drag:
+the edge-reveal zone ends exactly where the widened grab band begins, so
+reaching the outer half of the band is itself the zone exit. The grip routes
+through it now rather than the function being deleted.
+
+Message-surface guards: the cross-profile mirror accepted any URL scheme while
+its three siblings validated, so a renderer could load file:// or chrome:// into
+another profile's pane; one settings handler read an argument with no type
+guard, which aborts a release build; four settings pushes interpolated raw JSON
+into JS source instead of parsing it; and the capture verbs ran on a message
+alone, with no user-activation gate. The custom endpoint now refuses a local
+address at connect time, so a rebinding host cannot receive the bearer key.
+
+Comments naming atrium_browser_controller.mm and atrium_browser_window.mm are
+retargeted - the Views port renamed both, and one file's own header line named
+its .mm twin.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 2d272af79b6b3..f374052d3246b 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -629,6 +629,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:drop_target_decision",
+     "//chrome/browser/ui/atrium:extension_actions_json",
+     "//chrome/browser/ui/atrium:bounded_icon_store",
++    "//chrome/browser/ui/atrium:visit_thumbnail_store",
+     "//chrome/browser/ui/atrium:edit_focus_gate",
+     "//chrome/browser/ui/atrium:external_link",
+     "//chrome/browser/ui/atrium:extension_popup_watchdog_policy",
+@@ -645,6 +646,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:pinch_gesture_decision",
+     "//chrome/browser/ui/atrium:restore_plan",
+     "//chrome/browser/ui/atrium:sidebar_drop_decision",
++    "//chrome/browser/ui/atrium:sidebar_grip_bounds",
+     "//chrome/browser/ui/atrium:sidebar_move_execution_decision",
+     "//chrome/browser/ui/atrium:sidebar_snapshot_gate",
+     "//chrome/browser/ui/atrium:slot_presentation_table",

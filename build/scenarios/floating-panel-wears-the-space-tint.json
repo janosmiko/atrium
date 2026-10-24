@@ -1,0 +1,269 @@
+{
+  "name": "floating-panel-wears-the-space-tint",
+  "description": "The floating panel must wear the space theme and follow the glass setting the way the docked sidebar does. Both now come from one native painter: the docked root paints backdrop_tint_ at backdrop_glass_alpha_ and the theme picture over it, and AtriumSidebarOverlayWidget paints that same stack under the page while the panel floats. sidebar.css paints no wash of its own any more, so the panel can never drift from the docked pane's colour.\n\nWHY sunsetOrange AND A WHITE PAGE. The space carries sunsetOrange (#5A2E0D, triplet 90 46 13): R well above G above B, which region_mean's channel bounds can actually fail on, unlike a dark blue where only the absent min_b would separate it from grey. The page under the panel is flat white so nothing but the wash can make the region warm. chromePageTint is off in the settings fixture on purpose: left on, the core drifts the chrome toward the page's colour and a white page would wash the tint out.\n\nThe settings phase then moves the glass slider through the real settings window and reads the alpha the window pushed to the sidebar document, which is the value the native painter folds into backdrop_tint_.",
+  "fixture": "floating-panel-tint.spaces.json",
+  "settings": "floating-panel-tint.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "tab-opened",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.row'); if (!r) return 'no-row'; r.click(); return 'clicked'; })()",
+      "note": "the space's tab is cold at launch, so the row has to be pressed for the white page to paint in the MAIN window"
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "collapse-pressed",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbtoggle'); if (!b) return 'no-button'; b.click(); return 'clicked'; })()",
+      "note": "the row's own Hide button, not Cmd+S - the chord dies whenever an HTML surface holds first responder (a sibling scenario's note)"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar toggle requested from the chrome row",
+      "timeout_ms": 8000,
+      "note": "a collapse that never ran leaves the pane docked, and a panel read over a docked pane says nothing"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "capture",
+      "id": "page-alone",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the white page with no panel over it - the control that says the region really is page, not chrome"
+    },
+    {
+      "type": "move",
+      "x": 300,
+      "y": 400,
+      "note": "park well inside the page first: the arming strip fires on the CROSSING, so two points already inside it fire nothing"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "move",
+      "x": 20,
+      "y": 400
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "timeout_ms": 20000,
+      "note": "the gate: the panel is genuinely up before anything is read off it. The one reveal of the run - everything below happens while it stays up."
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "the slide finishes, so the capture is of a settled panel"
+    },
+    {
+      "type": "capture",
+      "id": "panel-default-glass",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "still-floating-at-the-end-of-the-sweep",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.classList.contains('atrium-sidebar-floating'))",
+      "note": "the guard the earlier version lacked: every capture above is worthless if the panel dropped back to docked partway through, and a docked sidebar's own background is transparent rather than obviously wrong"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "the slider phase. DOM reads only from here on - no window is moved and no reveal is needed, so nothing here can disturb the measurements above."
+    },
+    {
+      "type": "settle",
+      "ms": 7000,
+      "note": "the window builds, the route loads, and the core's values land a beat after the labels"
+    },
+    {
+      "type": "activate",
+      "note": "re-assert Atrium frontmost before the rail click, a sibling scenario's fix"
+    },
+    {
+      "type": "eval",
+      "id": "appearance-pane",
+      "target": "settings",
+      "expression": "(() => { const b = document.querySelector('.settings-rail-item[data-pane=\"appearance\"]'); if (!b) return 'no-pane'; b.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "set-glass-low",
+      "target": "settings",
+      "expression": "(() => { const n = document.querySelector('.settings-row[data-key=\"glassOpacity\"] .settings-slider-num'); if (!n) return 'no-slider'; n.value = '0.25'; n.dispatchEvent(new Event('change', {bubbles: true})); return 'set:' + n.value; })()",
+      "note": "the slider's sibling number field is the committing control - settings.js delegates a 'change' listener from the settings root, so dispatching one there is the same path a drag takes"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings written",
+      "timeout_ms": 8000,
+      "note": "fail loudly here, not at the assertion, if the eval missed the field"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "eval",
+      "id": "pushed-alpha-low",
+      "target": "/sidebar",
+      "expression": "String((getComputedStyle(document.documentElement).getPropertyValue('--atrium-glass-alpha') || '').trim())",
+      "note": "the push overwrites the sweep's inline value on the same element, so reading .25 back here is the setting arriving rather than the sweep's leftover"
+    },
+    {
+      "type": "eval",
+      "id": "set-glass-high",
+      "target": "settings",
+      "expression": "(() => { const n = document.querySelector('.settings-row[data-key=\"glassOpacity\"] .settings-slider-num'); if (!n) return 'no-slider'; n.value = '0.95'; n.dispatchEvent(new Event('change', {bubbles: true})); return 'set:' + n.value; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "the 'settings written' pattern already matched, so a wait_vlog would return on the first write - vlog_count below checks the tally instead"
+    },
+    {
+      "type": "eval",
+      "id": "pushed-alpha-high",
+      "target": "/sidebar",
+      "expression": "String((getComputedStyle(document.documentElement).getPropertyValue('--atrium-glass-alpha') || '').trim())"
+    },
+    {
+      "type": "eval",
+      "id": "pushed-ink-high",
+      "target": "/sidebar",
+      "expression": "String((getComputedStyle(document.documentElement).getPropertyValue('--atrium-glass-ink') || '').trim())",
+      "note": "the same backdrop decision the frost is handed, read as the value the rows draw with"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "collapse-pressed",
+      "expected": "\"clicked\"",
+      "desc": "the Hide button was found - without the collapse there is no floating panel to read"
+    },
+    {
+      "type": "eval_equals",
+      "id": "still-floating-at-the-end-of-the-sweep",
+      "expected": "\"true\"",
+      "desc": "the panel stayed up across all three captures - without this every region below could be of a docked sidebar and still look plausible"
+    },
+    {
+      "type": "eval_equals",
+      "id": "set-glass-low",
+      "expected": "\"set:0.25\"",
+      "desc": "the eval found the slider's number field and the value stuck"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pushed-alpha-low",
+      "expected": "\"0.25\"",
+      "desc": "AC: the real setting, not a stylesheet override, reaches the sidebar document"
+    },
+    {
+      "type": "eval_equals",
+      "id": "set-glass-high",
+      "expected": "\"set:0.95\"",
+      "desc": "the second eval found the same field"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pushed-alpha-high",
+      "expected": "\"0.95\"",
+      "desc": "AC: and so does the other end of the slider"
+    },
+    {
+      "type": "eval_changed",
+      "before": "pushed-alpha-low",
+      "after": "pushed-alpha-high",
+      "desc": "the two edits really did produce two different pushes, independent of what either one equals"
+    },
+    {
+      "type": "region_mean",
+      "capture": "page-alone",
+      "x": 40,
+      "y": 300,
+      "w": 200,
+      "h": 200,
+      "min_mean": 200,
+      "max_mean": 255,
+      "label": "the-page-under-the-panel-is-white",
+      "desc": "THE CONTROL: with the panel away this region is the flat white page, measured 255/255/255 var 0. A region that reads dark here is chrome, not page, and every measurement below would be of the wrong rectangle."
+    },
+    {
+      "type": "region_mean",
+      "capture": "panel-default-glass",
+      "x": 40,
+      "y": 300,
+      "w": 200,
+      "h": 200,
+      "min_mean": 100,
+      "max_mean": 170,
+      "min_r": 120,
+      "max_g": 150,
+      "max_b": 135,
+      "label": "the-panel-is-warm-not-grey",
+      "desc": "MEASURED 2026-09-07: 149.5/125.4/108.2, mean 127.7. R sits 41 above B, which is the tint and nothing else - the page under it is flat white. The old literal grey over the same page computes near 219/221/225 and fails min_r's companion bounds max_g and max_b; a panel that failed to paint reads the page's own 255 and fails them too."
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "min": 1,
+      "max": 4,
+      "label": "the-panel-came-up-once-and-stayed",
+      "desc": "one reveal is the design of this run, not an accident - the sweep replaces the re-arming the first version needed and failed at"
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: settings written",
+      "min": 2,
+      "max": 15,
+      "label": "both-glass-edits-reached-disk",
+      "desc": "rules out a silent no-op on the second edit, whose own wait_vlog would have re-matched the first"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: glass ink white",
+      "label": "the-frost-was-told-to-go-dark",
+      "desc": "the frost's NSVisualEffectView appearance is not readable from any document, so this is its proxy: PushSidebarFrostAppearance is handed the same InkForBackdrop answer this line reports. At the staged .55 sunsetOrange composites light and the line reads black, so a white-ink line can only come from the .95 slider edit - and never from the CSS sweep, which does not reach C++."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly after a reveal, a sweep and two settings edits"
+    }
+  ]
+}

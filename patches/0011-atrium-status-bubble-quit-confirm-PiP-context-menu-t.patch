@@ -1,0 +1,444 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 23 Jul 2026 13:18:37 +0200
+Subject: [PATCH 011/154] atrium: status bubble, quit confirm, PiP, context
+ menu, toasts, settings
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../new_tab_page_feature_promo_helper.cc      | 11 +++-
+ chrome/browser/renderer_context_menu/BUILD.gn |  1 +
+ .../render_view_context_menu.cc               | 13 ++++-
+ chrome/browser/ui/cocoa/confirm_quit.cc       | 11 ++++
+ .../ui/cocoa/confirm_quit_panel_controller.mm | 23 ++++++++
+ .../ui/lens/lens_overlay_controller.cc        | 10 +++-
+ .../ui/lens/overlay_base_controller.cc        | 54 ++++++++++++++-----
+ .../browser/ui/lens/overlay_base_controller.h |  6 ++-
+ chrome/browser/ui/read_anything/BUILD.gn      |  1 +
+ .../read_anything_side_panel_controller.cc    |  6 ++-
+ chrome/browser/ui/toasts/BUILD.gn             |  1 +
+ chrome/browser/ui/toasts/toast_controller.cc  |  4 +-
+ .../overlay/video_overlay_window_views.cc     | 16 ++++++
+ .../new_tab_page/new_tab_page_handler.cc      | 11 +++-
+ 14 files changed, 146 insertions(+), 22 deletions(-)
+
+diff --git a/chrome/browser/new_tab_page/feature_promo_helper/new_tab_page_feature_promo_helper.cc b/chrome/browser/new_tab_page/feature_promo_helper/new_tab_page_feature_promo_helper.cc
+index 9c8bf3dc085b8..2ba8e507cad70 100644
+--- a/chrome/browser/new_tab_page/feature_promo_helper/new_tab_page_feature_promo_helper.cc
++++ b/chrome/browser/new_tab_page/feature_promo_helper/new_tab_page_feature_promo_helper.cc
+@@ -198,8 +198,15 @@ bool NewTabPageFeaturePromoHelper::IsSigninModalDialogOpen(
+ void NewTabPageFeaturePromoHelper::MaybeTriggerAutomaticCustomizeChromePromo(
+     content::WebContents* web_contents) {
+   auto* browser_interface = webui::GetBrowserWindowInterface(web_contents);
+-  if (!browser_interface ||
+-      browser_interface->GetFeatures().side_panel_ui()->IsSidePanelEntryShowing(
++  if (!browser_interface) {
++    return;
++  }
++  // TODO(atrium): side_panel_ui() is null for AtriumBrowserWindow (no
++  // BrowserView and no WebUIBrowserSidePanelUI equivalent), so guard the
++  // dereference. Null means no side panel, so no promo either.
++  auto* side_panel_ui = browser_interface->GetFeatures().side_panel_ui();
++  if (!side_panel_ui ||
++      side_panel_ui->IsSidePanelEntryShowing(
+           SidePanelEntry::Key(SidePanelEntry::Id::kCustomizeChrome))) {
+     return;
+   }
+diff --git a/chrome/browser/renderer_context_menu/BUILD.gn b/chrome/browser/renderer_context_menu/BUILD.gn
+index c6c059d6a1352..bd5e9eb0dbd41 100644
+--- a/chrome/browser/renderer_context_menu/BUILD.gn
++++ b/chrome/browser/renderer_context_menu/BUILD.gn
+@@ -151,6 +151,7 @@ source_set("impl") {
+       "//chrome/browser/translate",
+       "//chrome/browser/ui",
+       "//chrome/browser/ui:ui_features",
++      "//chrome/browser/ui/atrium:headers",
+       "//chrome/browser/ui/autofill",
+       "//chrome/browser/ui/lens",
+       "//chrome/browser/ui/profiles",
+diff --git a/chrome/browser/renderer_context_menu/render_view_context_menu.cc b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+index 400fd3134f4fc..5e4a460ef85c8 100644
+--- a/chrome/browser/renderer_context_menu/render_view_context_menu.cc
++++ b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+@@ -102,6 +102,7 @@
+ #include "chrome/browser/sync/send_tab_to_self_sync_service_factory.h"
+ #include "chrome/browser/translate/chrome_translate_client.h"
+ #include "chrome/browser/translate/translate_service.h"
++#include "chrome/browser/ui/atrium/atrium_feature_check.h"
+ #include "chrome/browser/ui/browser.h"
+ #include "chrome/browser/ui/browser_commands.h"
+ #include "chrome/browser/ui/browser_window.h"
+@@ -1919,7 +1920,17 @@ void RenderViewContextMenu::AppendLinkItems() {
+       // Opening a link in split view should also go through the same
+       // constraints as opening a link in a new tab since a split view tab is a
+       // new tab that is then joined with the current active tab.
+-      if (IsNormalBrowser()) {
++      // Atrium windows have no BrowserView-backed TabCollection (crash-guard
++      // posture: split view is architecturally incompatible with Atrium's
++      // single-tab-per-window sidebar model) - AddToNewSplit NOTREACHEDs at
++      // components/tabs/impl/tab_collection.cc:221 if this item is invoked
++      // on an Atrium window (found via routing Task 7's VM probing).
++      // Suppress the item outright rather than patch stock split-tab code.
++      // atrium::IsAtriumBrowserWindowEnabled() is per-process (connected()),
++      // not per-window, but a connected dylib implies every window is an
++      // Atrium window, so the check is equivalent here (mirrors
++      // tab_helpers.cc's identical SadTabHelper gate).
++      if (IsNormalBrowser() && !atrium::IsAtriumBrowserWindowEnabled()) {
+         tabs::TabInterface* tab =
+             tabs::TabInterface::MaybeGetFromContents(GetWebContents());
+         auto [string_id, icon] = GetOpenLinkInSplitStringAndIcon(
+diff --git a/chrome/browser/ui/cocoa/confirm_quit.cc b/chrome/browser/ui/cocoa/confirm_quit.cc
+index e28f7554e2783..c0c47804f79ec 100644
+--- a/chrome/browser/ui/cocoa/confirm_quit.cc
++++ b/chrome/browser/ui/cocoa/confirm_quit.cc
+@@ -15,6 +15,17 @@ void RecordHistogram(ConfirmQuitMetric sample) {
+ }
+ 
+ void RegisterLocalState(PrefRegistrySimple* registry) {
++  // Atrium: registers the stock default (true - ask before
++  // quitting). A prior milestone shipped this default as
++  // false, because a plain Cmd+Q tap never satisfies the hold-to-quit loop
++  // and so silently no-ops in the empty/NTP and web-focused states. This
++  // supersedes that workaround: users demonstrably do hit this prompt
++  // (one report was of it rendering behind windows) and asked for an
++  // explicit way to turn it off, so the Settings > General "Ask before
++  // quitting" toggle (AtriumHostOps.set_confirm_to_quit) is now the
++  // supported opt-out, and the default reverts to matching stock Chrome. The
++  // app-menu toggle (toggleConfirmToQuit:) and the new Settings toggle both
++  // read/write this SAME pref, so they always agree.
+   registry->RegisterBooleanPref(prefs::kConfirmToQuitEnabled, true);
+ }
+ 
+diff --git a/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm b/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
+index a3d287019fe4a..39d8c13c4adc5 100644
+--- a/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
++++ b/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
+@@ -219,6 +219,29 @@ BOOL isKeyDownForKeyCode(unsigned short keyCode) {
+     window.opaque = NO;
+     window.hasShadow = NO;
+     window.releasedWhenClosed = NO;
++    // Atrium: at the default kCGNormalWindowLevel (same level as every
++    // browser window, chromeless or not), staying on top depends entirely on
++    // order-front timing - fine for stock Chrome's single-window case, but
++    // Atrium's chromeless window can win that race, landing this panel
++    // behind it. Float above kCGNormalWindowLevel outright (the same level
++    // Chromium's own floating widgets use, see CGWindowLevelForZOrderLevel's
++    // kFloatingWindow case in native_widget_mac.mm) so visibility no longer
++    // depends on ordering.
++    window.level = NSFloatingWindowLevel;
++    // Atrium: the level fix above still leaves this panel behind
++    // the browser window whenever that window is in native (Space-owning)
++    // full screen - AtriumBrowserWindow supports fullscreen, and
++    // NativeWidgetNSWindowBridge marks such windows
++    // NSWindowCollectionBehaviorFullScreenPrimary, so they get their own
++    // Space. A window without FullScreenAuxiliary/CanJoinAllSpaces cannot
++    // render over that Space, so this panel either loses the race during the
++    // forced Space-switch or simply doesn't surface on top - the "randomly
++    // appears behind the window" report. Mark it as a utility overlay that
++    // joins whichever Space (fullscreen or not) is currently active, the
++    // same incantation macOS system HUDs (volume, Spotlight) use to stay
++    // visible over full-screen apps.
++    window.collectionBehavior = NSWindowCollectionBehaviorCanJoinAllSpaces |
++                                 NSWindowCollectionBehaviorFullScreenAuxiliary;
+ 
+     // Create the content view. Take the frame from the existing content view.
+     NSRect frame = window.contentView.frame;
+diff --git a/chrome/browser/ui/lens/lens_overlay_controller.cc b/chrome/browser/ui/lens/lens_overlay_controller.cc
+index 41c35f987e4f4..c08b320d5d70a 100644
+--- a/chrome/browser/ui/lens/lens_overlay_controller.cc
++++ b/chrome/browser/ui/lens/lens_overlay_controller.cc
+@@ -2226,7 +2226,15 @@ void LensOverlayController::OnScreenshotTaken(
+   // The following two methods happen async to parallelize the two bottlenecks
+   // in our invocation flow.
+   CreateInitializationData(bitmap, all_bounds, pdf_current_page);
+-  ShowOverlay();
++  // On Atrium chromeless windows the overlay cannot be hosted. Abort cleanly
++  // instead of wedging at kStartingWebUI with no overlay views (the base
++  // InitializeScreenshot may already have torn down; CloseLensSync is a no-op
++  // once closed).
++  if (!ShowOverlay()) {
++    lens_search_controller_->CloseLensSync(
++        lens::LensOverlayDismissalSource::kErrorScreenshotCreationFailed);
++    return;
++  }
+ 
+   state_ = State::kStartingWebUI;
+ }
+diff --git a/chrome/browser/ui/lens/overlay_base_controller.cc b/chrome/browser/ui/lens/overlay_base_controller.cc
+index cc9dd7b84d98d..863ffe12cd31c 100644
+--- a/chrome/browser/ui/lens/overlay_base_controller.cc
++++ b/chrome/browser/ui/lens/overlay_base_controller.cc
+@@ -324,7 +324,13 @@ void OverlayBaseController::InitializeScreenshot(
+   base::ThreadPool::PostTaskAndReplyWithResult(
+       FROM_HERE, {base::TaskPriority::USER_BLOCKING},
+       base::BindOnce(&CreateRgbBitmap, bitmap), std::move(callback));
+-  ShowOverlay();
++  // On Atrium chromeless windows the overlay cannot be hosted. Abort cleanly to
++  // kOff instead of wedging at kStartingWebUI with no overlay views, which would
++  // later trip an unguarded CHECK from a side-panel/immersive observer.
++  if (!ShowOverlay()) {
++    RequestSyncClose(DismissalSource::kErrorScreenshotCreationFailed);
++    return;
++  }
+ 
+   state_ = State::kStartingWebUI;
+ }
+@@ -373,7 +379,11 @@ void OverlayBaseController::ReshowScreenshotReady(
+   // a DCHECK that exists in `aura::Window` that might otherwise be tripped when
+   // setting opacity to 0.f.
+   SetOverlayWebViewOpacity(std::nextafter(0.f, 1.f));
+-  ShowOverlay();
++  // Abort cleanly if the overlay can no longer be hosted (chromeless window)
++  // rather than leaving the controller stuck mid-reshow.
++  if (!ShowOverlay()) {
++    RequestSyncClose(DismissalSource::kErrorScreenshotCreationFailed);
++  }
+ }
+ 
+ void OverlayBaseController::FinishReshowOverlayImpl() {
+@@ -506,7 +516,12 @@ void OverlayBaseController::TabForegrounded(tabs::TabInterface* tab) {
+ 
+   // If the overlay was backgrounded, restore the previous state.
+   if (backgrounded_state_ != State::kHidden) {
+-    ShowOverlay();
++    // Abort cleanly if the overlay can no longer be hosted (chromeless window)
++    // rather than restoring to a "showing" state with no overlay views.
++    if (!ShowOverlay()) {
++      RequestSyncClose(DismissalSource::kErrorScreenshotCreationFailed);
++      return;
++    }
+   }
+   if (!IsResultsSidePanelShowing() && backgrounded_state_ != State::kHidden) {
+     ShowPreselectionBubble();
+@@ -647,11 +662,17 @@ void OverlayBaseController::FinishedWaitingForReflow(
+   }
+ }
+ 
+-void OverlayBaseController::ShowOverlay() {
++bool OverlayBaseController::ShowOverlay() {
+   auto* contents_web_view =
+       BrowserElementsViews::From(tab_->GetBrowserWindowInterface())
+           ->RetrieveView(kActiveContentsWebViewRetrievalId);
+-  CHECK(contents_web_view);
++  // Fail closed on Atrium chromeless windows: kActiveContentsWebViewRetrievalId
++  // is never registered there, so there is nothing to reparent the overlay onto.
++  // Don't crash; signal failure so callers abort instead of advancing the state
++  // machine to a "showing" state with no overlay views.
++  if (!contents_web_view) {
++    return false;
++  }
+ 
+   NotifyIsOverlayShowing(true);
+   // If the view already exists, we just need to reshow it.
+@@ -675,7 +696,7 @@ void OverlayBaseController::ShowOverlay() {
+     // the contents web view to another Chrome UI element before the overlay can
+     // take focus.
+     contents_web_view->SetEnabled(false);
+-    return;
++    return true;
+   }
+ 
+   // Create the views that will house our UI.
+@@ -710,6 +731,7 @@ void OverlayBaseController::ShowOverlay() {
+   // the contents web view to another Chrome UI element before the overlay can
+   // take focus.
+   contents_web_view->SetEnabled(false);
++  return true;
+ }
+ 
+ void OverlayBaseController::HideOverlay() {
+@@ -720,10 +742,14 @@ void OverlayBaseController::HideOverlay() {
+   auto* contents_web_view =
+       BrowserElementsViews::From(tab_->GetBrowserWindowInterface())
+           ->RetrieveView(kActiveContentsWebViewRetrievalId);
+-  CHECK(contents_web_view);
+-  contents_web_view->SetEnabled(true);
+-  if (tab_->IsActivated()) {
+-    contents_web_view->RequestFocus();
++  // Fail closed on Atrium chromeless windows: the contents web view is never
++  // registered there. Skip re-enabling the absent view but
++  // still hide the overlay and reset state below.
++  if (contents_web_view) {
++    contents_web_view->SetEnabled(true);
++    if (tab_->IsActivated()) {
++      contents_web_view->RequestFocus();
++    }
+   }
+ 
+   // Hide the overlay view, but keep the web view attached to the overlay view
+@@ -789,8 +815,12 @@ void OverlayBaseController::CloseUI() {
+   auto* contents_web_view =
+       BrowserElementsViews::From(tab_->GetBrowserWindowInterface())
+           ->RetrieveView(kActiveContentsWebViewRetrievalId);
+-  CHECK(contents_web_view);
+-  contents_web_view->SetEnabled(true);
++  // Fail closed on Atrium chromeless windows: the contents web view is never
++  // registered there. Skip re-enabling the absent view but
++  // still tear down the overlay and reset state below.
++  if (contents_web_view) {
++    contents_web_view->SetEnabled(true);
++  }
+ 
+   if (overlay_web_view_) {
+     // Remove render frame observer.
+diff --git a/chrome/browser/ui/lens/overlay_base_controller.h b/chrome/browser/ui/lens/overlay_base_controller.h
+index 6bde5c0ff116f..2c02dd68662df 100644
+--- a/chrome/browser/ui/lens/overlay_base_controller.h
++++ b/chrome/browser/ui/lens/overlay_base_controller.h
+@@ -331,8 +331,10 @@ class OverlayBaseController : public content::WebContentsDelegate,
+   void ShowModalUI();
+ 
+   // Called when the UI needs to show the overlay via a view that is a child of
+-  // the tab contents view.
+-  void ShowOverlay();
++  // the tab contents view. Returns true if the overlay was shown; returns false
++  // when there is no tab contents web view to host it (Atrium chromeless
++  // windows), so callers can abort instead of advancing the state machine.
++  bool ShowOverlay();
+ 
+   // Hides the overlay view and restores input to the tab contents web view.
+   // This does not change any overlay state.
+diff --git a/chrome/browser/ui/read_anything/BUILD.gn b/chrome/browser/ui/read_anything/BUILD.gn
+index d53814e63c527..c2d42f46d8fd8 100644
+--- a/chrome/browser/ui/read_anything/BUILD.gn
++++ b/chrome/browser/ui/read_anything/BUILD.gn
+@@ -63,6 +63,7 @@ source_set("read_anything") {
+     "//chrome/browser:primitives",
+     "//chrome/browser/dom_distiller",
+     "//chrome/browser/profiles:profile",
++    "//chrome/browser/ui/atrium:headers",
+     "//chrome/browser/ui/webui_browser:headers",
+     "//chrome/common",
+     "//content/public/browser",
+diff --git a/chrome/browser/ui/read_anything/read_anything_side_panel_controller.cc b/chrome/browser/ui/read_anything/read_anything_side_panel_controller.cc
+index ed6b56bcfc1d4..b1ce840040ae6 100644
+--- a/chrome/browser/ui/read_anything/read_anything_side_panel_controller.cc
++++ b/chrome/browser/ui/read_anything/read_anything_side_panel_controller.cc
+@@ -17,6 +17,7 @@
+ #include "chrome/browser/language/language_model_manager_factory.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ui/actions/chrome_action_id.h"
++#include "chrome/browser/ui/atrium/atrium_feature_check.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+ #include "chrome/browser/ui/page_action/page_action_observer.h"
+ #include "chrome/browser/ui/read_anything/read_anything_controller.h"
+@@ -347,7 +348,10 @@ void ReadAnythingSidePanelController::TabWillDetach(
+   if (!side_panel_ui) {
+     // TODO(webium): create a SidePanelCoordinator for WebUIBrowser.
+     // This is a temporary solution to avoid a crash.
+-    if (!webui_browser::IsWebUIBrowserEnabled()) {
++    // TODO(atrium): AtriumBrowserWindow has the same gap (no
++    // SidePanelCoordinator or WebUIBrowserSidePanelUI-equivalent yet).
++    if (!webui_browser::IsWebUIBrowserEnabled() &&
++        !atrium::IsAtriumBrowserWindowEnabled()) {
+       CHECK_IS_TEST();
+     }
+     return;  // IN-TEST
+diff --git a/chrome/browser/ui/toasts/BUILD.gn b/chrome/browser/ui/toasts/BUILD.gn
+index ce97e1c92a4de..c6afdd8a9495b 100644
+--- a/chrome/browser/ui/toasts/BUILD.gn
++++ b/chrome/browser/ui/toasts/BUILD.gn
+@@ -60,6 +60,7 @@ source_set("impl") {
+     "//chrome/browser/skills:public",
+     "//chrome/browser/translate",
+     "//chrome/browser/ui:browser_element_identifiers",
++    "//chrome/browser/ui/atrium:headers",
+     "//chrome/browser/ui/fullscreen",
+     "//chrome/browser/ui/send_tab_to_self",
+     "//chrome/browser/ui/side_panel",
+diff --git a/chrome/browser/ui/toasts/toast_controller.cc b/chrome/browser/ui/toasts/toast_controller.cc
+index bde46cf5ce841..19c8bf4160d4b 100644
+--- a/chrome/browser/ui/toasts/toast_controller.cc
++++ b/chrome/browser/ui/toasts/toast_controller.cc
+@@ -20,6 +20,7 @@
+ #include "base/timer/timer.h"
+ #include "base/types/to_address.h"
+ #include "chrome/browser/browser_process.h"
++#include "chrome/browser/ui/atrium/atrium_feature_check.h"
+ #include "chrome/browser/ui/browser_element_identifiers.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+@@ -319,7 +320,8 @@ void ToastController::CreateToast(ToastParams params,
+   if (!anchor_view) {
+     // Don't actually create the toast in unit tests
+     // TODO(webium): show toast in webui browser.
+-    if (!webui_browser::IsWebUIBrowserEnabled()) {
++    if (!webui_browser::IsWebUIBrowserEnabled() &&
++        !atrium::IsAtriumBrowserWindowEnabled()) {
+       CHECK_IS_TEST();
+     }
+     return;
+diff --git a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
+index 7859a17de7624..9260d89e25ec6 100644
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
+@@ -22,6 +22,7 @@
+ #include "chrome/browser/picture_in_picture/picture_in_picture_occlusion_tracker.h"
+ #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/ui/atrium/atrium_feature_check.h"
+ #include "chrome/browser/ui/browser.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+@@ -356,6 +357,21 @@ std::unique_ptr<VideoOverlayWindowViews> VideoOverlayWindowViews::Create(
+   // though we're using `views::Widget::InitParams::remove_standard_frame`.
+   params.native_widget =
+       new VideoOverlayWindowNativeWidgetMac(overlay_window.get());
++
++  // Match the PiP popup's corner radius to Atrium's content-card
++  // rounding (kContentCardCornerRadius, atrium_browser_window.mm) instead of
++  // the system default above, so the popup reads as one of Atrium's cards.
++  // Same InitParams field ChromeOS sets below; NativeWidgetMac plumbs it to
++  // the remote_cocoa content view's CALayer (cornerRadius/masksToBounds),
++  // which clips the video sublayer too and stays correct across resize/drag
++  // without extra bounds-change handling - the layer is bounds-relative.
++  // No-op (stock system corner) when Atrium isn't this process's
++  // BrowserWindow.
++  if (atrium::IsAtriumBrowserWindowEnabled()) {
++    constexpr int kAtriumContentCardCornerRadius = 12;
++    params.rounded_corners =
++        gfx::RoundedCornersF(kAtriumContentCardCornerRadius);
++  }
+ #endif  // BUILDFLAG(IS_MAC)
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+diff --git a/chrome/browser/ui/webui/new_tab_page/new_tab_page_handler.cc b/chrome/browser/ui/webui/new_tab_page/new_tab_page_handler.cc
+index 851f381c89bf3..d8c6ce6c77b49 100644
+--- a/chrome/browser/ui/webui/new_tab_page/new_tab_page_handler.cc
++++ b/chrome/browser/ui/webui/new_tab_page/new_tab_page_handler.cc
+@@ -56,6 +56,7 @@
+ #include "chrome/browser/themes/custom_theme_supplier.h"
+ #include "chrome/browser/themes/theme_properties.h"
+ #include "chrome/browser/ui/actions/chrome_action_id.h"
++#include "chrome/browser/ui/atrium/atrium_feature_check.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/ui/hats/hats_service.h"
+@@ -988,7 +989,10 @@ void NewTabPageHandler::UpdateFooterVisibility() {
+ 
+   // TODO(webium): FooterController depends on BrowserView, but WebUIBrowser
+   // doesn't have a BrowserView.
+-  if (webui_browser::IsWebUIBrowserEnabled()) {
++  // TODO(atrium): same gap for AtriumBrowserWindow - see
++  // atrium_feature_check.h.
++  if (webui_browser::IsWebUIBrowserEnabled() ||
++      atrium::IsAtriumBrowserWindowEnabled()) {
+     return;
+   }
+ 
+@@ -1364,7 +1368,10 @@ void NewTabPageHandler::OnBrowserWindowInterfaceChanged() {
+ 
+   // TODO(webium): FooterController depends on BrowserView, but WebUIBrowser
+   // doesn't have a BrowserView.
+-  if (webui_browser::IsWebUIBrowserEnabled()) {
++  // TODO(atrium): same gap for AtriumBrowserWindow - see
++  // atrium_feature_check.h.
++  if (webui_browser::IsWebUIBrowserEnabled() ||
++      atrium::IsAtriumBrowserWindowEnabled()) {
+     return;
+   }
+ 

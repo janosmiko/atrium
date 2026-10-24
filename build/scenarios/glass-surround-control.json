@@ -1,0 +1,47 @@
+{
+  "name": "glass-surround-control",
+  "description": "CONTROL for opaque-surround. Identical in every respect except opaqueSurround=false. Exists because comparing the surround-on frame against an older run would confound the SETTING with the DYLIB VERSION - the first surround run used a dylib predating the Swift half and showed no surround for that reason alone. Same binary, same fixture, one flag apart.\n\nthis frame cannot be asserted either, and for a control the reason is sharper than for the subject. A control's whole content is a DIFFERENCE from its pair, and no assertion in this harness reaches outside its own run - theme_changed and region_stable resolve before/after through CAPTURE_LAST, which is cleared per scenario (vm-scenario.sh:1233). On its own this frame has nothing to be different from.\n\nThe difference is there to be found now. SetOpaqueSurround has a caller, so the flag this pair turns on reaches the window. Measured 2026-08-26, this frame against surround-on frame-004: the bottom gutter [400,700,200,2] reads 88.1,102.4,103.1 here and 208.0,208.0,208.0 there, and the sidebar column [20,60,180,630] reads mean 106.0,122.5,127.1 variance 171.2 here against mean 251.7 variance 293.3 there. What still stops an assertion is reason TWO in opaque-surround, not the absence of a difference: the comparison lives across two runs and no assertion in this harness reaches outside its own. See opaque-surround for the full derivation and for the measure this pair actually needs - a one-frame variance gate on the surround gutter, where glass reads 211.8 and an opaque fill would collapse toward zero. pixcmp computes that number today and no assertion can grade it.\n\nNo pixel assertion is added. The pair is worth keeping as the staged evidence for a difference the harness cannot yet grade.\n\nthe capture gates on 'Atrium: sidebar rows drawn', the line the page sends once it has rows in the DOM, rather than on a fixed settle. Six runs of the old shape caught an empty sidebar in five, so no frame from that shape is cited.",
+  "fixture": "space-cycle.spaces.json",
+  "startup_space": "a276b002-0000-0000-0000-000000000002",
+  "settings": "glass-surround.settings.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000,
+      "note": "the capture waits for the page to announce that it has drawn rows. A fixed 3000ms wait caught an empty sidebar five runs in six."
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "surround-off",
+      "ms": 1200,
+      "note": "the whole window with the opaque surround disabled. Kept as evidence, not as a measurement - nothing grades it, and the description says why"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "the window exists and is not degenerate"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "label": "the-rows-were-drawn",
+      "desc": "the frame was taken after the page reported rows in its DOM, so a capture of an empty sidebar cannot pass here."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

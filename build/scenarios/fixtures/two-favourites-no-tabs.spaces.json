@@ -1,0 +1,32 @@
+{
+ "spaces": [
+  {
+   "id": "7ab01274-0000-4000-8000-000000001274",
+   "name": "Empty",
+   "emoji": "E",
+   "tint": "oceanBlue",
+   "profileID": "Default",
+   "order": 0,
+   "pinnedTabs": [],
+   "tabs": [],
+   "groups": []
+  }
+ ],
+ "favorites": [
+  {
+   "url": "http://127.0.0.1:8000/favicon-page.html",
+   "title": "Fav One",
+   "profileID": "Default"
+  },
+  {
+   "url": "http://127.0.0.1:8000/example-domain.html",
+   "title": "Fav Two",
+   "profileID": "Default"
+  }
+ ],
+ "appState": {
+  "sidebarWidth": 280,
+  "schemaVersion": 1,
+  "activeSpaceID": "7ab01274-0000-4000-8000-000000001274"
+ }
+}

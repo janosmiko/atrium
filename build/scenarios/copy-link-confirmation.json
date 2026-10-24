@@ -1,0 +1,124 @@
+{
+  "name": "copy-link-confirmation",
+  "description": "The missing control for the confirmation bubble. Every claim about it rests on one instrumented run of the SCREENSHOT call site, and the copy-link call site - the other half of the shared ShowTransientConfirmation path - was never driven at all: a hand-rolled cgevent Cmd+Shift+C produced no confirmation line, which proves nothing about the widget because it does not distinguish a key that never arrived from a bubble that never painted.\n\nThis separates those two. CopyCurrentPageLink writes the clipboard, calls ShowTransientConfirmation, and only then logs 'Atrium: copied link (host=...)'. That line therefore cannot appear unless ShowTransientConfirmation was entered, so it is a pixel-free witness for the shared path and it is already in the shipped binary - no instrumentation build is needed to read it.\n\nThe capture is deliberately key_during_capture rather than a key/capture pair. kStatusBubbleConfirmationDuration is 1400ms and the fade is 150ms, so the bubble is gone about 1.55s after the chord - inside the two ssh round trips a sequential pair costs. Firing the key from inside the burst puts the mid frame in the middle of the bubble's life while the last frame lands after it has gone, which is what the pixels_changed pair below compares.\n\nThe region is the whole top-right strip of the content pane rather than the exact 262x36 the task quoted, for the earlier reason: that number came from a window this scenario does not reproduce, and a tight region guessed against the wrong geometry is a gate that cannot fail.",
+  "fixture": "cmdf-swallowed.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "timeout_ms": 20000,
+      "note": "gate on a committed navigation. CopyCurrentPageLink returns false with no contents and false again on an empty or invalid URL, so without a committed tab the chord would be a no-op and the run would measure nothing."
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the restored tab render"
+    },
+    {
+      "type": "activate",
+      "note": "cgevent posts to the frontmost app. An ssh-launched Atrium is not frontmost, and this is the most likely reason the task's hand-rolled Cmd+Shift+C produced no line at all."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "resize",
+      "w": 700,
+      "h": 600,
+      "note": "THE BANNER DODGE, and the reason this scenario is not simply a capture of the default window. The confirmation anchors to the top-right of the content pane, and at the default size that corner sits under the screen's top-right - which is exactly where macOS draws the '\u201ccom.apple.sshd-session\u201d Is Accessing Your Screen' reminder that replayd raises on SCStream start. The first run of this scenario measured a 41.9% pixel change in that strip and it was entirely that banner. Shrinking the window to 700 wide pulls the pane's right edge to about x=695 while the banner stays out at x>=705, so the two no longer overlap and the region below can only be reading the bubble."
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the resize settle and the page reflow"
+    },
+    {
+      "type": "move",
+      "x": 400,
+      "y": 500,
+      "note": "park the pointer in empty page content, far below the measured strip. A pointer resting on a link would raise the HOVER form of this same widget and the mid/last comparison could not tell the two apart."
+    },
+    {
+      "type": "settle",
+      "ms": 15000,
+      "note": "outlast any screen-recording banner the tool warm-up or the resize raised. The banner lives about five seconds; this leaves a wide margin so the measured burst starts on a quiet screen."
+    },
+    {
+      "type": "capture",
+      "id": "quiet",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the strip at rest, with no confirmation up. Reference for the sequential leg below."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+c",
+      "note": "SEQUENTIAL LEG, the shape of the probe that reported a blank. The key and the capture after it are two separate ssh round trips, which is how the original screencapture was driven."
+    },
+    {
+      "type": "eval_until",
+      "id": "copy-toast",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? t.textContent : ''; })()",
+      "expected": "Link copied",
+      "timeout_ms": 4000,
+      "note": "The card lives on the /toast widget now, not in the sidebar document. Hosted there its top/right resolved against the sidebar's narrow column, so it appeared in that column's upper right rather than the window's - reported twice."
+    },
+    {
+      "type": "capture",
+      "id": "seq",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "no assertion on purpose - this leg exists to be read, not graded. Whether it caught the bubble or missed it decides whether the original blank is explained by round-trip latency or by the banner, and asserting a guess either way would manufacture the answer."
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let this confirmation expire so the measured burst starts from a clean strip"
+    },
+    {
+      "type": "key_during_capture",
+      "combo": "cmd+shift+c",
+      "capture_id": "copy",
+      "duration_ms": 2600,
+      "fps": 25,
+      "key_delay_ms": 400,
+      "mid_at_ms": 900,
+      "note": "THE MEASUREMENT. Key at 400ms, so the bubble is up from about 400 to about 1950ms. mid_at 900ms sits squarely inside that; the burst runs to 2600ms so the last frame is several hundred ms after the fade completed."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-copy-link-path-actually-ran",
+      "pattern": "Atrium: copied link \\(host=",
+      "note": "THE CONTROL, first on purpose. This line sits immediately after the ShowTransientConfirmation call in CopyCurrentPageLink, so it cannot be written unless that function was entered with a real pane. A red here means the chord never reached the app and every pixel assertion below is unreadable rather than failing."
+    },
+    {
+      "type": "vlog_count",
+      "label": "the-confirmation-was-shown-without-reading-a-pixel",
+      "pattern": "Atrium: confirmation shown \\(text=Link copied",
+      "min": 2,
+      "max": 2,
+      "note": "The pixel-free assertion. ShowTransientConfirmation logs its own text and the on-screen bounds it placed the bubble at, so a scenario can prove a confirmation appeared - and prove WHICH one - without a capture. That matters here beyond convenience: the bubble anchors to the pane's top-right, the same corner macOS reserves for its screen-recording reminder, so on a full-size window the pixels at that anchor belong to the banner rather than to Atrium. Bounded at exactly 2 because this scenario presses the chord exactly twice, once per leg - a count gate also catches the confirmation firing more often than it was asked to."
+    },
+    {
+      "type": "eval_equals",
+      "id": "copy-toast",
+      "expected": "Link copied",
+      "label": "the-card-is-in-the-shared-stack",
+      "desc": "This confirmation lives on the shared toast stack, so it is a DOM card rather than a native widget with a rect. Asserted on the element instead of on pixels: the old region was derived from the bubble's logged bounds, and any region I picked for the new anchor would be a guess. eval_until polls, which is what catches a card that lives 1400ms."
+    },
+    {
+      "type": "quit",
+      "desc": "and the window was still alive afterwards, so the chord did not take the browser down",
+      "note": "Cmd+Shift+C is the stock IDC_DEV_TOOLS_INSPECT chord. This proves the Atrium intercept won it rather than the stock handler doing something to the process."
+    }
+  ],
+  "serve_fixtures": true
+}

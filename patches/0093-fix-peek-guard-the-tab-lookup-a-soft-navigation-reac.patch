@@ -1,0 +1,54 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 30 Aug 2026 18:58:58 +0200
+Subject: [PATCH 093/154] fix(peek): guard the tab lookup a soft navigation
+ reaches
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+TabInterface::GetFromContents dereferences the tab model without a null check, so it crashes on a WebContents that is not a tab. The peek card is exactly that: AdoptPopupAsPeek attaches tab helpers to a contents never inserted into a TabStripModel, and page load metrics then registers the Read Anything observer for it. Any page reporting a soft navigation took the browser process down. MaybeGetFromContents is the sanctioned call and makes the existing guard live. The record-replay binder had the same unguarded deref and is reached from any renderer.
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../browser/record_replay/chrome_record_replay_client.cc | 9 ++++++++-
+ .../read_anything_soft_navigation_observer.cc            | 6 +++++-
+ 2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/chrome/browser/record_replay/chrome_record_replay_client.cc b/chrome/browser/record_replay/chrome_record_replay_client.cc
+index f35050d86eacb..d26d2b1bacc5c 100644
+--- a/chrome/browser/record_replay/chrome_record_replay_client.cc
++++ b/chrome/browser/record_replay/chrome_record_replay_client.cc
+@@ -81,7 +81,14 @@ void ChromeRecordReplayClient::BindRecordReplayDriver(
+         pending_receiver) {
+   content::WebContents* web_contents =
+       content::WebContents::FromRenderFrameHost(rfh);
+-  tabs::TabInterface* tab = tabs::TabInterface::GetFromContents(web_contents);
++  // Any renderer frame can ask for this interface, including one in a
++  // WebContents that Atrium hosts outside Chromium's tab model, so the lookup
++  // has to be the may-fail one.
++  tabs::TabInterface* tab =
++      tabs::TabInterface::MaybeGetFromContents(web_contents);
++  if (!tab) {
++    return;
++  }
+   RecordReplayClient* client = tab->GetTabFeatures()->record_replay_client();
+   if (!client) {
+     return;
+diff --git a/chrome/browser/ui/read_anything/read_anything_soft_navigation_observer.cc b/chrome/browser/ui/read_anything/read_anything_soft_navigation_observer.cc
+index 3a57f6d13db4b..9d45edf5c9a8c 100644
+--- a/chrome/browser/ui/read_anything/read_anything_soft_navigation_observer.cc
++++ b/chrome/browser/ui/read_anything/read_anything_soft_navigation_observer.cc
+@@ -44,7 +44,11 @@ void ReadAnythingSoftNavigationObserver::OnSoftNavigation() {
+   if (!web_contents) {
+     return;
+   }
+-  tabs::TabInterface* tab = tabs::TabInterface::GetFromContents(web_contents);
++  // Atrium hosts page WebContents outside Chromium's tab model, so this
++  // WebContents is often not a TabInterface tab. GetFromContents() crashes on a
++  // non-tab, and page_load_metrics fires this for every page.
++  tabs::TabInterface* tab =
++      tabs::TabInterface::MaybeGetFromContents(web_contents);
+   if (!tab) {
+     return;
+   }

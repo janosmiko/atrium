@@ -1,0 +1,14 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="icon" type="image/png" href="/icon-tint-red.png">
+<title>Slow Load</title>
+<!-- The harness serves this directory with python3 -m http.server, which has no
+     delay route, so the hold has to happen in the page: a parse-blocking spin
+     keeps the document loading, which is what DidStopLoading waits for. -->
+<script>
+  const until = Date.now() + 3000;
+  while (Date.now() < until) {
+    // Spin.
+  }
+</script>
+<body style="margin:0;height:100vh;background:#202830"></body>

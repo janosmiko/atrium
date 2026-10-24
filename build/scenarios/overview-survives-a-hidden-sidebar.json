@@ -1,0 +1,99 @@
+{
+  "name": "overview-survives-a-hidden-sidebar",
+  "description": "Defect 4, reported by the user 2026-08-17: with the sidebar hidden, moving the mouse to the window edge does not bring Overview back. Written as a REPRO first - it records what the build actually does before anything is changed, because the fix depends on which of two things is happening. Either the edge reveal does not fire at all while the rail is parked on Overview, or it fires and reveals the space pane instead. The overlay reparents the sidebar's own NSView (atrium_sidebar_overlay_widget.mm), so a reveal ought to carry whichever pane the rail is on.",
+  "fixture": "lab-compare.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 140,
+      "y": 300,
+      "dx": 90,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "to-overview",
+      "duration_ms": 260,
+      "fps": 25,
+      "note": "Scrub to reach the pane before the first workspace. dx=+90 since the earlier sign choice was overturned by the user on 2026-08-17: the wheel listener negates deltaX again, so a rightward gesture goes BACK the way Safari and Arc do. Measured, not assumed - dx=-90 reached Overview before the flip and stopped reaching it after, which is how the flip was confirmed to have taken effect."
+    },
+    {
+      "type": "settle",
+      "ms": 1800
+    },
+    {
+      "type": "capture",
+      "id": "overview-open",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "Overview on screen, before the sidebar is hidden"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "collapse the sidebar. cmds-sidebar-collapse proves this chord reaches the app on this build."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "hidden",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "graded proof the collapse happened - without this a failed reveal cannot be told from a sidebar that never hid"
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 400,
+      "note": "the left window edge, where the reveal is armed. x=3 rather than 0: the true edge can land outside the window on a retina backing scale."
+    },
+    {
+      "type": "settle",
+      "ms": 1800,
+      "note": "the reveal animates in"
+    },
+    {
+      "type": "capture",
+      "id": "revealed",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "what the edge hover actually brought back"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "theme_changed",
+      "before": "hidden",
+      "after": "revealed",
+      "region": [
+        20,
+        90,
+        60,
+        250
+      ],
+      "min_delta": 8,
+      "label": "the-edge-hover-brought-overview-back",
+      "desc": "Asserts the strip CHANGED between hidden and revealed. Blocked on the edge reveal working at all - its control, edge-reveal-control, measured delta=0.00 on an ordinary space, so this cannot pass until that is fixed. Kept red rather than marked cannot_pass, because the moment the reveal works this scenario is the only thing checking that Overview comes back rather than the space behind it."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits with the sidebar hidden"
+    }
+  ]
+}

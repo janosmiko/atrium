@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 11 Aug 2026 10:56:16 +0200
+Subject: [PATCH 061/154] feat: walk tabs by recency under a held Ctrl-Tab
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Nothing on the C++ side has kept a recency list since the Swift cut deleted the
+Swift model, so Ctrl-Tab has fallen through to stock strip cycling. The list
+and the walk now live in Rust; this hook only asks for the next tab and shows
+it, falling through to super when there is no controller or nowhere to go.
+
+A cycle walks a SNAPSHOT taken at the first press and does not reorder until it
+commits, or two presses would land back where they started - the toggle the design
+forbids. It commits on Control's release: a timeout has no correct value, and a
+second key adds a mode the user can forget they are in. Release is watched with
+one process-wide flagsChanged monitor, refcounted down from the
+one-delegate-per-window fan-out an earlier fix was bitten by, plus the resignKey and
+resignActive endings the sidebar scrub needed - filtered to the
+window that owns the walk, since the activation itself makes other windows
+resign key.
+
+A second fix travels with it because it edits the same function: Cmd+, and
+Cmd+Opt+I stop being claimed here. They were claimed because both chords
+reached prePerform and never postPerform on an HTML surface; the preceding
+commit fixed the reason, so the claims - and ToggleDevToolsForVisibleTab, whose
+only caller they were - come out.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 7c058ea15d0d8..f3f0dcdfa5fc8 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -628,6 +628,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:native_hotkey_defaults",
+     "//chrome/browser/ui/atrium:command_bar_matches",
+     "//chrome/browser/ui/atrium:tab_cycle",
++    "//chrome/browser/ui/atrium:tab_recency_bridge",
+     "//chrome/browser/ui/atrium:peek_decision",
+     "//chrome/browser/ui/atrium:restore_plan",
+     "//chrome/browser/ui/atrium:sidebar_snapshot_gate",

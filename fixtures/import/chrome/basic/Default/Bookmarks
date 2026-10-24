@@ -1,0 +1,44 @@
+{
+  "checksum": "00000000000000000000000000000000",
+  "roots": {
+    "bookmark_bar": {
+      "children": [
+        {"date_added": "13411699200000000", "date_last_used": "13411699200000000", "id": "5", "name": "News", "type": "url", "url": "https://news.example.test/"},
+        {"date_added": "13411699200000000", "date_last_used": "0", "id": "6", "name": "Bookmarklet", "type": "url", "url": "javascript:void(0)"},
+        {
+          "children": [
+            {"date_added": "13411699200000000", "date_last_used": "0", "id": "8", "name": "Docs Home", "type": "url", "url": "https://docs.example.test/"},
+            {
+              "children": [
+                {"date_added": "13411699200000000", "date_last_used": "0", "id": "10", "name": "Specs", "type": "url", "url": "https://docs.example.test/specs"}
+              ],
+              "date_added": "13411699200000000", "id": "9", "name": "Specs folder", "type": "folder"
+            }
+          ],
+          "date_added": "13411699200000000", "id": "7", "name": "Docs", "type": "folder"
+        },
+        {"children": [], "date_added": "13411699200000000", "id": "11", "name": "Empty", "type": "folder"}
+      ],
+      "date_added": "13411699200000000", "id": "1", "name": "Bookmarks bar", "type": "folder"
+    },
+    "other": {
+      "children": [
+        {"date_added": "13411699200000000", "date_last_used": "0", "id": "12", "name": "Recipes", "type": "url", "url": "https://recipes.example.test/"},
+        {
+          "children": [
+            {"date_added": "13411699200000000", "date_last_used": "0", "id": "14", "name": "Old", "type": "url", "url": "https://old.example.test/"}
+          ],
+          "date_added": "13411699200000000", "id": "13", "name": "Archive", "type": "folder"
+        }
+      ],
+      "date_added": "13411699200000000", "id": "2", "name": "Other bookmarks", "type": "folder"
+    },
+    "synced": {
+      "children": [
+        {"date_added": "13411699200000000", "date_last_used": "0", "id": "15", "name": "Phone", "type": "url", "url": "https://phone.example.test/"}
+      ],
+      "date_added": "13411699200000000", "id": "3", "name": "Mobile bookmarks", "type": "folder"
+    }
+  },
+  "version": 1
+}

@@ -1,0 +1,132 @@
+{
+  "actions" : {
+    "clearTabs" : [
+      "cmd+shift+k"
+    ],
+    "closeSplitPane" : [
+      "shift+ctrl+-"
+    ],
+    "editCurrentURL" : [
+      "cmd+l"
+    ],
+    "goToSidebarItem1" : [
+      "cmd+opt+1"
+    ],
+    "goToSidebarItem2" : [
+      "cmd+opt+2"
+    ],
+    "goToSidebarItem3" : [
+      "cmd+opt+3"
+    ],
+    "goToSidebarItem4" : [
+      "cmd+opt+4"
+    ],
+    "goToSidebarItem5" : [
+      "cmd+opt+5"
+    ],
+    "goToSidebarItem6" : [
+      "cmd+opt+6"
+    ],
+    "goToSidebarItem7" : [
+      "cmd+opt+7"
+    ],
+    "goToSidebarItem8" : [
+      "cmd+opt+8"
+    ],
+    "goToSidebarItemLast" : [
+      "cmd+opt+9"
+    ],
+    "goToSpace1" : [
+      "cmd+1"
+    ],
+    "goToSpace2" : [
+      "cmd+2"
+    ],
+    "goToSpace3" : [
+      "cmd+3"
+    ],
+    "goToSpace4" : [
+      "cmd+4"
+    ],
+    "goToSpace5" : [
+      "cmd+5"
+    ],
+    "goToSpace6" : [
+      "cmd+6"
+    ],
+    "goToSpace7" : [
+      "cmd+7"
+    ],
+    "goToSpace8" : [
+      "cmd+8"
+    ],
+    "goToSpace9" : [
+      "cmd+9"
+    ],
+    "hardReload" : [
+      "cmd+shift+r"
+    ],
+    "littleWindow" : [
+      "cmd+opt+n"
+    ],
+    "nextSpace" : [
+      "opt+tab",
+      "cmd+opt+right",
+      "opt+ctrl+right",
+      "cmd+shift+right"
+    ],
+    "nextTab" : [
+      "cmd+opt+down",
+      "cmd+j",
+      "cmd+shift+]"
+    ],
+    "openArchive" : [
+      "cmd+shift+a"
+    ],
+    "openCommandBar" : [
+
+    ],
+    "pinToggleTab" : [
+      "cmd+d"
+    ],
+    "previousSpace" : [
+      "shift+opt+tab",
+      "cmd+opt+left",
+      "opt+ctrl+left",
+      "cmd+shift+left"
+    ],
+    "previousTab" : [
+      "cmd+opt+up",
+      "cmd+k",
+      "cmd+shift+["
+    ],
+    "reload" : [
+      "cmd+r"
+    ],
+    "reloadClearingCache" : [
+      "cmd+opt+r"
+    ],
+    "reloadClearingSiteData" : [
+      "cmd+shift+opt+r"
+    ],
+    "toggleAiPanel" : [
+      "cmd+shift+i"
+    ],
+    "toggleDevBar" : [
+      "cmd+shift+d"
+    ],
+    "toggleDeveloperMode" : [
+      "opt+ctrl+d"
+    ],
+    "toggleOverview" : [
+      "cmd+shift+o"
+    ],
+    "toggleSidebar" : [
+      "cmd+s"
+    ],
+    "toggleSplitOrientation" : [
+      "shift+ctrl+\\"
+    ]
+  },
+  "schemaVersion" : 2
+}

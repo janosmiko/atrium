@@ -1,0 +1,145 @@
+{
+  "name": "the-loading-ring-reads-at-a-glance",
+  "description": "The ring around a loading row was reported as too faint to find without zooming into a screenshot. It now carries the favicon's hue moved toward white on a dark row or toward black on a light one, far enough to clear 3:1, and its stroke went from 2px to 3px. Two phases on one fixture: space 'Dark' is tinted #12282E (the darkest surround preset) and space 'Light' #F0F4F8 (the lightest), each holding a page that spins for three seconds so the ring is reliably up when the reads happen. The contrast is computed in the sidebar from the CASCADED values - getComputedStyle's --ringb against the row AS PAINTED, which is the selected row's own background-color composited over --selbase. The wash is the whole point: a red icon graded against the bare tint reads 3.01:1 on #12282E and 1.12:1 on the row that tint actually paints, and only the focused row rings now, so the focused row's wash is always in the way. The mid-load frames are captured on both tints as well: the harness cannot key a region assertion to the ring band, because a row's y moves with every sidebar size change (row heights have already retargeted 38 coordinate scenarios once), so the frames are here for a measured read rather than a guessed rectangle.",
+  "fixture": "ring-contrast.spaces.json",
+  "settings": "page-tint-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "dark-page",
+      "target": "slow-load-3s.html?dark",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/slow-load-3s.html?dark",
+      "timeout_ms": 25000
+    },
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "the fixture page spins for 3s, so this outlasts the first load"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "capture",
+      "id": "dark-idle"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+r"
+    },
+    {
+      "type": "settle",
+      "ms": 700,
+      "note": "PHASE 1, mid-load: well inside the fixture's 3s spin"
+    },
+    {
+      "type": "eval",
+      "id": "dark-contrast",
+      "target": "/sidebar",
+      "expression": "(() => { const el = document.querySelector('.row.loading, .fav.loading'); if (!el) { return 'no ring'; } const cs = getComputedStyle(el); const rgba = (raw) => { const s = (raw || '').trim(); const h = /^#([0-9a-fA-F]{6})$/.exec(s); if (h) { return [0, 2, 4].map((i) => parseInt(h[1].substr(i, 2), 16)).concat(1); } const m = /^rgba?\\(([^)]*)\\)/.exec(s); const n = m && m[1].match(/[0-9.]+/g); if (!n || n.length < 3) { return null; } return [Number(n[0]), Number(n[1]), Number(n[2]), n.length > 3 ? Number(n[3]) : 1]; }; const lin = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }; const lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]); const ring = rgba(cs.getPropertyValue('--ringb')); const tint = rgba(cs.getPropertyValue('--selbase')); if (!ring || !tint) { return 'unreadable ring ' + cs.getPropertyValue('--ringb') + ' on ' + cs.getPropertyValue('--selbase'); } const wash = rgba(cs.backgroundColor); const ground = wash && wash[3] > 0 ? [0, 1, 2].map((i) => Math.round(tint[i] * (1 - wash[3]) + wash[i] * wash[3])) : tint.slice(0, 3); const a = lum(ring); const b = lum(ground); const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); return ratio >= 3 ? 'clears 3:1' : 'faint ' + ratio.toFixed(2) + ' on ' + ground.join(','); })()"
+    },
+    {
+      "type": "eval",
+      "id": "sweep-width",
+      "target": "/sidebar",
+      "expression": "(() => { const el = document.querySelector('.loading > .brdr'); if (!el) { return 'no ring'; } const w = parseFloat(getComputedStyle(el, '::before').paddingTop); return w >= 2 ? 'at least 2px' : 'thin ' + w; })()"
+    },
+    {
+      "type": "capture",
+      "id": "dark-mid-load"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the reload finish before the space switch"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "PHASE 2: nextSpace, onto the #F0F4F8 space"
+    },
+    {
+      "type": "eval_until",
+      "id": "light-page",
+      "target": "slow-load-3s.html?light",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/slow-load-3s.html?light",
+      "timeout_ms": 25000
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+r"
+    },
+    {
+      "type": "settle",
+      "ms": 700
+    },
+    {
+      "type": "eval",
+      "id": "light-contrast",
+      "target": "/sidebar",
+      "expression": "(() => { const el = document.querySelector('.row.loading, .fav.loading'); if (!el) { return 'no ring'; } const cs = getComputedStyle(el); const rgba = (raw) => { const s = (raw || '').trim(); const h = /^#([0-9a-fA-F]{6})$/.exec(s); if (h) { return [0, 2, 4].map((i) => parseInt(h[1].substr(i, 2), 16)).concat(1); } const m = /^rgba?\\(([^)]*)\\)/.exec(s); const n = m && m[1].match(/[0-9.]+/g); if (!n || n.length < 3) { return null; } return [Number(n[0]), Number(n[1]), Number(n[2]), n.length > 3 ? Number(n[3]) : 1]; }; const lin = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }; const lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]); const ring = rgba(cs.getPropertyValue('--ringb')); const tint = rgba(cs.getPropertyValue('--selbase')); if (!ring || !tint) { return 'unreadable ring ' + cs.getPropertyValue('--ringb') + ' on ' + cs.getPropertyValue('--selbase'); } const wash = rgba(cs.backgroundColor); const ground = wash && wash[3] > 0 ? [0, 1, 2].map((i) => Math.round(tint[i] * (1 - wash[3]) + wash[i] * wash[3])) : tint.slice(0, 3); const a = lum(ring); const b = lum(ground); const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); return ratio >= 3 ? 'clears 3:1' : 'faint ' + ratio.toFixed(2) + ' on ' + ground.join(','); })()"
+    },
+    {
+      "type": "eval",
+      "id": "light-tint-in-force",
+      "target": "/sidebar",
+      "expression": "(() => { const el = document.querySelector('.row.loading, .fav.loading'); if (!el) { return 'no ring'; } const s = getComputedStyle(el).getPropertyValue('--selbase').trim(); const h = /^#([0-9a-fA-F]{6})$/.exec(s); if (h) { return [0, 2, 4].map((i) => parseInt(h[1].substr(i, 2), 16)).join(','); } const m = /^rgba?\\(([^)]*)\\)/.exec(s); const n = m && m[1].match(/[0-9.]+/g); return n && n.length >= 3 ? n.slice(0, 3).map(Number).join(',') : 'unreadable ' + s; })()"
+    },
+    {
+      "type": "capture",
+      "id": "light-mid-load"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "dark-contrast",
+      "expected": "\"clears 3:1\"",
+      "desc": "THE MEASUREMENT, on the darkest tint: the ring the cascade resolves reads 3:1 or better against the row #12282E paints under the selected-row wash. 'no ring' means the reload never marked and nothing was measured; 'faint N' is the old build's answer."
+    },
+    {
+      "type": "eval_equals",
+      "id": "sweep-width",
+      "expected": "\"at least 2px\"",
+      "desc": "Read off ::before rather than off the sheet. sidebar.css's brdr::before now reads --selring (2px) rather than a hardcoded 3px, unifying the sweep with the solid ring's own width so a load no longer grows the row by a pixel (commit d4f1cf08ae719) - which also meets the 'at least 2px' minimum."
+    },
+    {
+      "type": "eval_equals",
+      "id": "light-tint-in-force",
+      "expected": "\"240,244,248\"",
+      "desc": "gates the phase: the second read really happened on the light space (#F0F4F8), not on the dark one it started in. Normalised to a triple so a hex the model reformats still compares."
+    },
+    {
+      "type": "eval_equals",
+      "id": "light-contrast",
+      "expected": "\"clears 3:1\"",
+      "desc": "THE MEASUREMENT, on the lightest tint: the same ring darkened instead of lightened, still 3:1 or better against the washed row"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

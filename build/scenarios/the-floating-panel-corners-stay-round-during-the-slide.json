@@ -1,0 +1,137 @@
+{
+  "name": "the-floating-panel-corners-stay-round-during-the-slide",
+  "description": "Capture both slide legs over a white page. Run build/scripts/floating-panel-corners.swift against page-alone and each burst: it detects the moving edge and compares pixels outside the rounded corners with the uncovered page. The script rejects a burst with no intermediate frames. Repeat with sidebar-position-right.settings.json and mirrored pointer coordinates for the right dock.",
+  "fixture": "lab-compare.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "move_window",
+      "x": 0,
+      "y": 40
+    },
+    {
+      "type": "resize",
+      "w": 560,
+      "h": 500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+l"
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/solid-white.html"
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "move",
+      "x": 300,
+      "y": 400
+    },
+    {
+      "type": "capture",
+      "id": "page-alone",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "move_during_capture",
+      "x": 12,
+      "y": 400,
+      "capture_id": "revealing",
+      "duration_ms": 3400,
+      "fps": 60,
+      "move_delay_ms": 1700,
+      "mid_after_move_ms": 90
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "move_during_capture",
+      "x": 400,
+      "y": 400,
+      "capture_id": "dismissing",
+      "duration_ms": 3400,
+      "fps": 60,
+      "move_delay_ms": 1700,
+      "mid_after_move_ms": 370
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay closing",
+      "timeout_ms": 8000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "label": "panel-revealed"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: sidebar overlay closing",
+      "label": "panel-dismissed"
+    },
+    {
+      "type": "region_stable",
+      "before": "page-alone",
+      "after": "revealing_mid",
+      "region": [
+        6,
+        50,
+        1,
+        1
+      ],
+      "max_delta": 35,
+      "label": "revealing-dock-corner-is-clear"
+    },
+    {
+      "type": "region_stable",
+      "before": "page-alone",
+      "after": "dismissing_mid",
+      "region": [
+        6,
+        50,
+        1,
+        1
+      ],
+      "max_delta": 35,
+      "label": "dismissing-dock-corner-is-clear"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

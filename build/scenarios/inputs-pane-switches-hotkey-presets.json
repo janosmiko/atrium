@@ -1,0 +1,233 @@
+{
+  "name": "inputs-pane-switches-hotkey-presets",
+  "description": "Picking the Arc preset in the Inputs pane: the picker leaves Custom, the file records the NAME rather than the chords, and Cmd+T stops opening the command bar in the same run.\n\nThe pane held one user map merged over one shipped table. A preset is a named table, and what the file records is the name - so a change to Arc's chords still reaches a profile that picked Arc, and the row reset puts a row back on the SELECTED preset's chord rather than always on Atrium's. Writing every chord out as a user value would freeze the profile on today's table, which is the thing the actions:{} assertion below measures.\n\nopenCommandBar is the action under test because the two presets disagree about it in the strongest way: Atrium ships Cmd+T and Arc leaves the row unassigned (Arc's own Cmd+T is New Tab). An unassigned row in a preset is an EMPTY list, not a missing one - the native map leaves an ABSENT action on its compiled-in chord, so a missing row would keep Cmd+T bound and this scenario would pass on a build that never released the key.\n\nTHE COUNT IS THE MEASUREMENT. Cmd+T is pressed twice, once before the switch and once after, and 'command bar widget showing' must appear EXACTLY ONCE. A presence check would pass on a build where the switch never reached NativeHotkeyMap, and an absence check would pass on a build where Cmd+T never worked at all.\n\nThe fixture stages a rebound toggleSidebar so the pane opens on Custom, which is also what makes the confirm step appear: leaving Custom throws the user's own rows away and nothing in the pane remembers them.",
+  "fixture": "hotkey-rebind.spaces.json",
+  "hotkeys": "sidebar-rebind.hotkeys.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "timeout_ms": 20000,
+      "note": "gate on a committed navigation - past this point the window is real"
+    },
+    {"type": "settle", "ms": 3000, "note": "let the docked sidebar finish rendering at the fixture's 280pt width"},
+    {"type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot"},
+    {"type": "settle", "ms": 800},
+    {"type": "move", "x": 700, "y": 600, "note": "park the pointer in page content, outside the sidebar column"},
+    {"type": "settle", "ms": 400},
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "THE BASELINE: Atrium's own preset binds the command bar here, and the count assertion needs this first opening to exist"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {"type": "settle", "ms": 800},
+    {"type": "key", "combo": "escape", "note": "put the command bar away before the settings window opens"},
+    {"type": "settle", "ms": 800},
+    {"type": "key", "combo": "cmd+comma", "note": "open the settings window"},
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings surface ready",
+      "timeout_ms": 15000
+    },
+    {"type": "settle", "ms": 2000, "note": "let PushSettings' thread-pool reads land"},
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: hotkeys pushed",
+      "timeout_ms": 8000,
+      "note": "the pane has the bound map, the shipped chords and the preset tables now"
+    },
+    {
+      "type": "eval",
+      "id": "open-inputs-pane",
+      "target": "/settings",
+      "expression": "(() => { const item = document.querySelector('.settings-rail-item[data-pane=\"inputs\"]'); if (!item) { return 'no inputs rail item'; } item.click(); return 'clicked'; })()"
+    },
+    {"type": "settle", "ms": 500},
+    {
+      "type": "eval",
+      "id": "preset-options",
+      "target": "/settings",
+      "expression": "[...document.querySelectorAll('.hotkey-preset')].map((b) => b.dataset.preset).join(',')",
+      "note": "The picker offers all three, in the pane's own order"
+    },
+    {
+      "type": "eval",
+      "id": "preset-on-arrival",
+      "target": "/settings",
+      "expression": "(document.querySelector('.hotkey-preset.on') || {dataset: {}}).dataset.preset || 'none'",
+      "note": "The fixture's rebound row makes the pane read Custom without anything being clicked"
+    },
+    {
+      "type": "eval",
+      "id": "command-bar-row-before",
+      "target": "/settings",
+      "expression": "document.querySelector('.settings-row[data-action=\"openCommandBar\"] .settings-row-value').textContent",
+      "note": "the row the switch is going to change, read before it changes"
+    },
+    {
+      "type": "eval",
+      "id": "pick-arc-asks",
+      "target": "/settings",
+      "expression": "(() => { const btn = document.querySelector('.hotkey-preset[data-preset=\"arc\"]'); if (!btn) { return 'no arc button'; } btn.click(); return document.querySelector('.hotkey-preset-question') ? 'asked' : 'sent without asking'; })()",
+      "note": "Leaving Custom discards the user's rows, so the pick asks first"
+    },
+    {"type": "settle", "ms": 300},
+    {
+      "type": "eval",
+      "id": "confirm-arc",
+      "target": "/settings",
+      "expression": "(() => { const btn = document.querySelector('.hotkey-preset-confirm'); if (!btn) { return 'no confirm button'; } btn.click(); return 'clicked'; })()",
+      "note": "Only this second, deliberate click writes"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: hotkeys written",
+      "timeout_ms": 5000,
+      "note": "the pick landed and NativeHotkeyMap::SetFromJSON ran on the merged view"
+    },
+    {"type": "settle", "ms": 500},
+    {
+      "type": "eval",
+      "id": "preset-after-switch",
+      "target": "/settings",
+      "expression": "(document.querySelector('.hotkey-preset.on') || {dataset: {}}).dataset.preset || 'none'",
+      "note": "The picker is on Arc, and no row differs from Arc any more"
+    },
+    {
+      "type": "eval",
+      "id": "command-bar-row-after",
+      "target": "/settings",
+      "expression": "document.querySelector('.settings-row[data-action=\"openCommandBar\"] .settings-row-value').textContent",
+      "note": "Arc leaves the command bar unassigned, and the row says so"
+    },
+    {
+      "type": "eval",
+      "id": "sidebar-row-after",
+      "target": "/settings",
+      "expression": "document.querySelector('.settings-row[data-action=\"toggleSidebar\"] .settings-row-value').textContent",
+      "note": "The user's staged cmd+shift+j went with the confirm, and Arc's own cmd+s took the row"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w",
+      "note": "closes the key Settings window - the chord below must reach the browser window"
+    },
+    {"type": "settle", "ms": 1000, "note": "let the close finish and key status pass to the browser window"},
+    {"type": "move", "x": 700, "y": 600, "note": "re-park the pointer in the browser window's page content"},
+    {"type": "settle", "ms": 400},
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "THE CHANGED CHORD: Arc does not bind it, so this must reach Chromium's own new tab and leave the command bar shut"
+    },
+    {"type": "settle", "ms": 2500, "note": "long enough that a command bar opening late would still be in the log"}
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "preset-options",
+      "expected": "\"arc,atrium,custom\"",
+      "desc": "The picker offers Arc, Atrium and Custom"
+    },
+    {
+      "type": "eval_equals",
+      "id": "preset-on-arrival",
+      "expected": "\"custom\"",
+      "desc": "A row away from the named preset reads as Custom with no click at all"
+    },
+    {
+      "type": "eval_equals",
+      "id": "command-bar-row-before",
+      "expected": "\"cmd+t\"",
+      "desc": "the row was on Atrium's chord before the switch"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pick-arc-asks",
+      "expected": "\"asked\"",
+      "desc": "Leaving Custom asks before it discards the user's rows"
+    },
+    {
+      "type": "eval_equals",
+      "id": "confirm-arc",
+      "expected": "\"clicked\"",
+      "desc": "The confirm button is what the question offers"
+    },
+    {
+      "type": "eval_equals",
+      "id": "preset-after-switch",
+      "expected": "\"arc\"",
+      "desc": "The picker followed the pick"
+    },
+    {
+      "type": "eval_equals",
+      "id": "command-bar-row-after",
+      "expected": "\"Unassigned\"",
+      "desc": "Arc's table reached every row, including the one it leaves unbound"
+    },
+    {
+      "type": "eval_equals",
+      "id": "sidebar-row-after",
+      "expected": "\"cmd+s\"",
+      "desc": "The confirmed switch discarded the staged rebind"
+    },
+    {
+      "type": "vlog_count",
+      "label": "the-command-bar-opened-before-the-switch-and-not-after",
+      "pattern": "Atrium: command bar widget showing",
+      "min": 1,
+      "max": 1,
+      "desc": "Cmd+T acted under Atrium and stopped acting under Arc, in one run - the switch reached NativeHotkeyMap with no relaunch"
+    },
+    {
+      "type": "file_contains",
+      "label": "the-file-records-the-preset-name",
+      "file": "hotkeys",
+      "path": "preset",
+      "value": "arc",
+      "desc": "The pick survives a restart, because the name is what was written"
+    },
+    {
+      "type": "file_contains",
+      "label": "the-pick-wrote-no-user-actions",
+      "file": "hotkeys",
+      "path": "actions",
+      "value": {},
+      "desc": "the chords were NOT written out as user values - a change to Arc's table still reaches this profile"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-unusable-argument-refusal",
+      "pattern": "Atrium: the hotkeys surface sent an object the core"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-write-failure",
+      "pattern": "Atrium: the hotkeys write failed"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-schema-decline",
+      "pattern": "Atrium: hotkeys\\.json is at a schema this build cannot"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "liveness, and a check that the settings window really closed"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits"
+    }
+  ]
+}

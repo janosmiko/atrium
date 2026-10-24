@@ -1,0 +1,111 @@
+{
+  "name": "a-cold-row-in-another-profile-opens-in-its-row",
+  "fixture": "a-cold-row-in-another-profile.spaces.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "description": "A cold row in a space of another profile opens its page in that row. The recorded bug: each click on the cold row opened the page again and added a new row, and the clicked row stayed cold. Alpha belongs to the Default profile and Bravo to the Second profile. The app starts on Alpha, moves to Bravo and clicks Bravo's cold row two times.",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-committed",
+      "target": "example-domain.html",
+      "expression": "location.search",
+      "expected": "?alpha",
+      "timeout_ms": 20000,
+      "note": "gate: the app is up on Alpha's own tab"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "into Bravo's space, which belongs to the Second profile"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 0 -> 1",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "rows-before",
+      "target": "/sidebar",
+      "expression": "(() => { const rs = [...document.querySelectorAll('.railpane[data-space-index=\"1\"] [data-dropzone=\"tabs\"] .tabrow')]; return rs.length + ' rows, cold ' + rs.filter((x) => (x.dataset.url || '').endsWith('?cold')).map((x) => x.dataset.tabId ? 'live' : 'cold').join('+'); })()"
+    },
+    {
+      "type": "eval",
+      "id": "cold-point",
+      "target": "/sidebar",
+      "expression": "(() => { const r = [...document.querySelectorAll('.railpane[data-space-index=\"1\"] [data-dropzone=\"tabs\"] .tabrow')].find((x) => (x.dataset.url || '').endsWith('?cold')); if (!r) { return 'no-cold-row'; } const b = r.getBoundingClientRect(); return Math.round(b.left + 60) + ',' + Math.round((b.top + b.bottom) / 2 + 30); })()",
+      "note": "the cold row's centre on screen, 30px below its client y"
+    },
+    {
+      "type": "click",
+      "from_eval": "cold-point"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "cold-point-2",
+      "target": "/sidebar",
+      "expression": "(() => { const r = [...document.querySelectorAll('.railpane[data-space-index=\"1\"] [data-dropzone=\"tabs\"] .tabrow')].find((x) => (x.dataset.url || '').endsWith('?cold')); if (!r) { return 'no-cold-row'; } const b = r.getBoundingClientRect(); return Math.round(b.left + 60) + ',' + Math.round((b.top + b.bottom) / 2 + 30); })()",
+      "note": "read again, because a new row can move it"
+    },
+    {
+      "type": "click",
+      "from_eval": "cold-point-2",
+      "note": "the recording shows one new row for each click"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "rows-after",
+      "target": "/sidebar",
+      "expression": "(() => { const rs = [...document.querySelectorAll('.railpane[data-space-index=\"1\"] [data-dropzone=\"tabs\"] .tabrow')]; return rs.length + ' rows, cold ' + rs.filter((x) => (x.dataset.url || '').endsWith('?cold')).map((x) => x.dataset.tabId ? 'live' : 'cold').join('+'); })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "rows-before",
+      "expected": "\"2 rows, cold cold\"",
+      "desc": "gate: Bravo shows its two rows and the second one is cold"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: cold sidebar row opening",
+      "label": "the-click-reached-the-host",
+      "desc": "the click reached the cold-row path"
+    },
+    {
+      "type": "eval_equals",
+      "id": "rows-after",
+      "expected": "\"2 rows, cold live\"",
+      "desc": "THE MEASUREMENT: the clicks woke the cold row and added no row"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

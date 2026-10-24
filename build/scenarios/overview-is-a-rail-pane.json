@@ -1,0 +1,97 @@
+{
+  "name": "overview-is-a-rail-pane",
+  "description": "Written BEFORE the implementation and expected to FAIL until Overview becomes a pane of the swipe rail. The user reported the same thing twice, on 2026-08-15 and again on 2026-08-17 with a screenshot: opening Overview covers the page area instead of appearing in the sidebar. The lab makes Overview SPACES[0] (docs/lab/swipe-lab.html:1235), a real pane reached by swiping left from the first workspace, so the page stays visible beside it. The shipped arm draws the leading Overview dot (sidebar.js buildSpaceDots, called withLeadingOverview) but buildRail never builds a pane for it, and the dot instead sends sidebarOverviewToggled to a separate widget in atrium_overview_widget.mm. This scenario asserts the PANE, not the dot: a hotkey opening something is what an existing scenario already checks, and it passes today while the surface still behaves wrongly.",
+  "fixture": "lab-compare.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the window finish first paint and the sidebar announce itself"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "capture",
+      "id": "rest",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the first workspace at rest, before any gesture"
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 140,
+      "y": 300,
+      "dx": 90,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "mid-swipe",
+      "duration_ms": 260,
+      "fps": 25,
+      "note": "Scrub to reach the pane before the first workspace. dx=+90 since the earlier sign choice was overturned by the user on 2026-08-17: the wheel listener negates deltaX again, so a rightward gesture goes BACK the way Safari and Arc do. Measured, not assumed - dx=-90 reached Overview before the flip and stopped reaching it after, which is how the flip was confirmed to have taken effect."
+    },
+    {
+      "type": "settle",
+      "ms": 1800,
+      "note": "the swipe machine settles the pane before anything is read"
+    },
+    {
+      "type": "capture",
+      "id": "settled",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "where the scrub landed - the Overview pane once this task is done"
+    },
+    {
+      "type": "click",
+      "x": 30,
+      "y": 140,
+      "note": "the Spaces button in the Overview rail. Measured from the settled frame, where the rail sits under the 34px traffic-light inset: Downloads ~y=90, Spaces ~y=140."
+    },
+    {
+      "type": "settle",
+      "ms": 1200,
+      "note": "the section unmounts the previous one and asks for its data"
+    },
+    {
+      "type": "capture",
+      "id": "spaces",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the Spaces section, which must list the fixture's two spaces"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "Liveness, and a guard against the pane being built as a second window after all. NOTE it already passes today, so it is not evidence on its own - the vlog below is. labcmp-impl asserts 2 here because Overview is currently a separate widget, and that must become 1 in the same commit that lands the pane.",
+      "label": "overview-is-not-a-second-window"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: overview pane rendered",
+      "label": "the-scrub-landed-on-the-overview-pane",
+      "desc": "THE assertion this scenario exists for. It requires the line to be sent from the swipe SETTLE, not from buildRail. The first green run was vacuous: buildRail sent it on every render, so it matched on a swipe that landed on the Writing space instead of Overview. It now comes from the controller's onLeadingPane callback, which only fires when the rail settles on a pane before the first space. Two weaker assertions were tried and rejected earlier - ax_window_count=1 passes before and after the change, and region_stable over the page area fails for any space change, so it measures the swipe rather than its destination."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: overview spaces push [1-9][0-9]{2,} bytes",
+      "label": "the-spaces-section-was-fed-real-data",
+      "desc": "Defect 3. The BYTE COUNT is the assertion, not the presence of a push: an empty list pushes '[]' and renders 'No spaces yet.', identical on screen to a push that never happened. Requiring three digits means the fixture's two spaces really crossed. Four separate faults each produced no push at all - the widget was the only push target, the section messages fell through OnSurfaceMessage, overview_widget_ was null since nothing opens it, and every push returned early on a null web_contents_ that only exists once the widget is SHOWN."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly with the Overview pane on screen"
+    }
+  ]
+}

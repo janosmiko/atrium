@@ -1,0 +1,61 @@
+{
+  "name": "external-link-space-window",
+  "description": "And the control for external-link-little-window: with externalLinksOpenInLittle false, a handed-over link reverts to today's behavior - the stock openUrlsReplacingNTP path, which puts it in the window already open. Same fixture, same handover, one changed key, so a count of two here would mean the count of two next door proved nothing about the setting.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "settings": "external-links-off.settings.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "chromium_flags": "--force-renderer-accessibility",
+  "chromium_flags_note": "--force-renderer-accessibility is a MEASUREMENT flag, not a behaviour one. Chromium builds a renderer accessibility tree only for an assistive technology, so without it every window's AX subtree stops at the native views and the chrome route cannot be read at all - measured on 2026-08-11: urls=[] for all three windows, then chrome://atrium.top-chrome/sidebar the moment the flag was on. It changes nothing about which window type opens, and the scenario and its control both carry it, so the comparison between them does not rest on it.",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "open_url",
+      "url": "http://dl.localhost:8000/example-domain.html?handed-over",
+      "note": "a loopback url is still EXTERNAL in Atrium's sense. ExternalLinkOpensLittleWindow takes three booleans - the setting, has_url, and is_http_or_https - and the core's decision never inspects the HOST (atrium_external_link.cc:56). 'External' here means handed over by another app through the openURLs Apple Event, which is what the open_url action sends, not 'on a remote server'. So this keeps testing external-link handling while reaching a page the probe VM can actually load. dl.localhost also hashes to the same row hue as example.com, so any tint assertion is undisturbed."
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "desc": "THE CONTROL: the startup window and nothing else. The link still opened - as a tab in that window, which is what the setting off means."
+    },
+    {
+      "type": "ax_window_kind",
+      "pattern": "/foyer",
+      "expected": 0,
+      "desc": "No window is built around the foyer strip - no little window exists, which is what the setting off means."
+    },
+    {
+      "type": "ax_window_kind",
+      "pattern": "/sidebar",
+      "expected": 1,
+      "desc": "AND the space window is there, holding its sidebar. Without this the zero above is satisfied by an app that never launched or crashed on the handover - 'no little window' and 'no window at all' are different findings, and the control has to say which."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "Atrium: external link opened a little window",
+      "desc": "The little path did not run. A count of one could also mean the handover never arrived; this says which."
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

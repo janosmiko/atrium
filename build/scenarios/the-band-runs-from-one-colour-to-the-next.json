@@ -1,0 +1,63 @@
+{
+  "name": "the-band-runs-from-one-colour-to-the-next",
+  "description": "A page whose left edge is blue on top and red below gives the sampler a run of two colours on that edge, and the window logs the run as varied. The sidebar's own column, away from the band, holds the space tint: its mean stays the same as with ambilight off, which the band's colour would move if it flooded the backdrop as it used to.",
+  "fixture": "ambilight-run.spaces.json",
+  "settings": "icon-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: ambilight edges .* left-run varied",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "run",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: ambilight edges .* left-run varied",
+      "label": "the-left-edge-carries-two-colours",
+      "desc": "The sampler read a run whose ends differ."
+    },
+    {
+      "type": "region_mean",
+      "capture": "run",
+      "x": 40,
+      "y": 420,
+      "w": 120,
+      "h": 120,
+      "min_mean": 150,
+      "max_mean": 200,
+      "label": "the-sidebar-column-keeps-the-space-tint",
+      "desc": "The rows' column, well away from the band, reads the same light space tint the ambilight-off runs read (about 169,178,185). A backdrop flooded with the page's blue or red reads far darker here."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

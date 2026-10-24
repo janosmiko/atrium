@@ -1,0 +1,165 @@
+{
+  "name": "a-reload-keeps-the-card",
+  "description": "the web card vanishes on a page reload. The space does not change, the sidebar stays drawn, and the tab is still in the strip.\n\nTHE RELOAD ROUTE ITSELF IS BARE. Atrium has no reload handler at all - no IDC_RELOAD case, no chrome::Reload call, no surface message; `UpdateReloadStopState` is a NOTIMPLEMENTED stub (atrium_browser_window.cc:9434). Cmd+R goes through Chromium's own command path and never reaches OpenRoutedURL or ShowTab(nullptr). The loading ring and the slow glow do not touch the pane either: OnActiveTabStoppedLoading calls only ApplyPageTint and StartAmbilightSampling (atrium_browser_window.cc:7569-7576), and neither writes visibility, bounds, layer or contents. So the first leg below is the CONTROL, and it is expected to pass on today's build.\n\nTHE SECOND LEG IS THE DEFECT. The reported reload killed the page's renderer on a Blink DCHECK. Chromium answers that with a sad tab, but the install is hard-wired to a ContentsWebView inside a BrowserView: SadTabController::ReinstallInWebView asks FindContentsWebView for one (sad_tab_controller.cc:63-103, :18-41), and Atrium's pane is a plain views::WebView in an AtriumBrowserWindow - the repo says so itself in atrium_status_bubble_hook.h:28-29. FindContentsWebView therefore answers nothing, the SadTabView is kept unparented at sad_tab_controller.cc:77-79, and nothing is ever shown. Meanwhile views::WebView::RenderFrameDeleted -> LostMainFrame -> UpdateCrashedOverlayView (webview.cc:510, :781, :618) finds no overlay to raise, so the pane keeps a live WebContents whose RenderWidgetHostView is gone and simply paints nothing. Blank card, drawn sidebar, tab still in the strip.\n\nWHY crash_renderer AND NOT A REAL DCHECK. The reported page was reddit.com and the DCHECK is not reproducible on a local fixture. `crash_renderer` with target `web` kills the http(s) page's own renderer (lib/pick_renderer.py: no --top-chrome-webui plus a committed http(s) page), which is the same signal SadTabHelper acts on - PrimaryMainFrameRenderProcessGone - so the browser-side path under test is identical.\n\nWHY THE PAGE IS SOLID RED. peek-scrim-red.html and the region below come from peek-scrim, which measured this exact strip as flat 255,0,0 with a variance of 0.0 - mean 85 across the three channels. Read rather than reasoned.\n\nWHAT THE AFTER-CRASH READ CAN AND CANNOT SAY. A blank card and a sad tab are both light, so a mean alone cannot tell them apart - the frames are the evidence for that, and a fixed build must show the sad tab in `after-crash`. The graded read is therefore a log line, not a colour: `Atrium: sad tab pane for tab N` is written by atrium_sad_tab_hook.cc at the moment it gives sad_tab_controller.cc a pane WebView to parent the SadTabView into, so it appears exactly when the overlay is installed and never on a build where FindContentsWebView still answers nothing. Beside it the sidebar row read still gates that the tab is in the strip, which is the reported symptom stated as two facts rather than one picture.",
+  "fixture": "one-red-page.json",
+  "startup_space": "77177177-7717-4717-8717-771771771781",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "peek-scrim-red.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-scrim-red.html",
+      "timeout_ms": 20000,
+      "note": "GATE: the red page really committed as the startup tab, so the strip holds the tab this scenario is about before anything reloads it"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "activate",
+      "note": "an ssh-launched Atrium is not frontmost on a clean snapshot, and the chord below would land in Finder"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the red page on screen, before any reload - the baseline every later read is graded against"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+r",
+      "note": "LEG 1, the reload burst: three chords with only a short settle between them, so a second reload lands while the first is still loading"
+    },
+    {
+      "type": "settle",
+      "ms": 700
+    },
+    {
+      "type": "key",
+      "combo": "cmd+r"
+    },
+    {
+      "type": "settle",
+      "ms": 700
+    },
+    {
+      "type": "key",
+      "combo": "cmd+r"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "past the load, the ring's one-turn minimum and the 1000ms slow glow fade, so the read below is of a settled card"
+    },
+    {
+      "type": "eval_until",
+      "id": "page-visible-after-reloads",
+      "target": "peek-scrim-red.html",
+      "expression": "document.visibilityState",
+      "expected": "visible",
+      "timeout_ms": 8000,
+      "note": "the renderer's own answer: a detach tells the page it went hidden, so this separates a card painted over from one taken off the pane"
+    },
+    {
+      "type": "capture",
+      "id": "after-reloads",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "LEG 1's verdict. Expected to still be the red page on today's build."
+    },
+    {
+      "type": "crash_renderer",
+      "target": "web",
+      "note": "LEG 2. Kills the page's own renderer - the same PrimaryMainFrameRenderProcessGone the reported Blink DCHECK produced. Target `web` is resolved by lib/pick_renderer.py from the absence of --top-chrome-webui plus a committed http(s) page, so the chrome-layer renderer behind the sidebar is never the one that dies."
+    },
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "the fatal-signal report and its stack trace are written by the dying process; measured at about 1.2s on the probe VM in crash-chrome-renderer"
+    },
+    {
+      "type": "eval",
+      "id": "row-after-crash",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.row').length)",
+      "note": "the sidebar renderer is untouched, so it can still be asked whether the tab's row is drawn. This is the 'the tab still exists' half of the report."
+    },
+    {
+      "type": "capture",
+      "id": "after-crash",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "THE CAPTURE THIS SCENARIO EXISTS FOR. On today's build this is the empty card. A build that installs a crashed overlay shows the sad tab here, and the two are told apart by eye - a mean cannot, both are light. The vlog assertion below is what grades the run."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window throughout, and a guard against the crash taking the window with it",
+      "label": "one-window-still"
+    },
+    {
+      "type": "region_mean",
+      "capture": "before",
+      "x": 240,
+      "y": 400,
+      "w": 60,
+      "h": 150,
+      "min_mean": 70,
+      "max_mean": 100,
+      "label": "the-strip-really-is-the-page",
+      "desc": "THE CONTROL. Solid #ff0000 means 85 across the three channels, measured on this strip by peek-scrim. Without it a run whose window never drew, or whose region missed the card, would let every read below pass on nothing."
+    },
+    {
+      "type": "eval_equals",
+      "id": "page-visible-after-reloads",
+      "expected": "visible",
+      "desc": "LEG 1: three reloads left the page attached and told it nothing about being hidden"
+    },
+    {
+      "type": "region_mean",
+      "capture": "after-reloads",
+      "x": 240,
+      "y": 400,
+      "w": 60,
+      "h": 150,
+      "min_mean": 70,
+      "max_mean": 100,
+      "label": "the-reload-burst-leaves-the-card-alone",
+      "desc": "LEG 1's verdict, and the claim that the ordinary reload route is clean. A failure here would mean the reload path itself loses the card, which the static read says it cannot - no reload handler, and the ring and glow write nothing to the pane."
+    },
+    {
+      "type": "vlog",
+      "label": "the-page-renderer-really-died",
+      "pattern": "Received signal ",
+      "note": "base/debug/stack_trace_posix.cc writes this from inside the process that took the signal, so it is present only if something really crashed. crash_renderer runs late in the action list, well after startup-page's eval_until already resolved, so a stray startup-time signal cannot satisfy this."
+    },
+    {
+      "type": "eval_equals",
+      "id": "row-after-crash",
+      "expected": "\"1\"",
+      "desc": "THE HALF THAT MAKES THIS THE REPORTED BUG: the tab is still in the strip and the sidebar still draws its row, while the card below shows no page. A card that vanished because the tab went away would fail here instead."
+    },
+    {
+      "type": "vlog",
+      "label": "the-crash-put-a-sad-tab-in-the-pane",
+      "pattern": "Atrium: sad tab pane for tab [0-9]+",
+      "note": "And it is EXPECTED TO FAIL on today's build - that failure is the reproduction. atrium_sad_tab_hook.cc writes this line only when it hands sad_tab_controller.cc a pane WebView to parent the SadTabView into, so the line IS the install: without the fix FindContentsWebView answers nothing, the SadTabView is kept unparented, and nothing is written. This line can only originate from crash_renderer, late in the action list, so startup noise cannot satisfy it. A mean cannot grade this - the empty card and a sad tab are both light - so the after-crash frames stay the record of WHICH light thing is on screen."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly after a dead page renderer"
+    }
+  ]
+}

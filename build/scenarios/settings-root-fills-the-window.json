@@ -1,0 +1,63 @@
+{
+  "name": "settings-root-fills-the-window",
+  "description": "The settings window opened with a white band down each side. find.css, loaded by atrium.html on every route, had set body to a fixed centred flex box for the find bar, so the settings grid shrank to its content and sat centred in the window's white body. The rule now lives on #atrium-root.findroot. This reads the settings root's width against the viewport, once at the window's initial size and once after a resize. The width is read against the document's client width: the VM shows scrollbars always, and after the shrink the page grows a 15px document scrollbar that innerWidth counts and the root cannot cover.\n\naxresize sizes the LARGEST window, so the browser window is shrunk to 700x500 before the chord: the 860x620 settings window is then the largest and the second resize lands on it.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so the app is up"
+    },
+    { "type": "settle", "ms": 4000 },
+    { "type": "activate", "note": "Atrium frontmost, so the chord reaches it" },
+    { "type": "settle", "ms": 1000 },
+    { "type": "resize", "w": 700, "h": 500, "note": "the browser window, so the settings window becomes the largest one" },
+    { "type": "settle", "ms": 1000 },
+    { "type": "key", "combo": "cmd+comma", "vlog": "Atrium: settings surface ready" },
+    { "type": "settle", "ms": 3000, "note": "let the route paint at the initial size" },
+    {
+      "type": "eval",
+      "id": "root-fills-initial",
+      "target": "/settings",
+      "expression": "(() => { const r = document.getElementById('atrium-root').getBoundingClientRect(); return r.left === 0 && Math.round(r.width) === document.documentElement.clientWidth; })()",
+      "note": "THE MEASUREMENT: the root starts at the left edge and is as wide as the viewport"
+    },
+    {
+      "type": "eval",
+      "id": "widths-initial",
+      "target": "/settings",
+      "expression": "(() => { const r = document.getElementById('atrium-root').getBoundingClientRect(); return 'root ' + Math.round(r.left) + '+' + Math.round(r.width) + ' viewport ' + innerWidth + ' client ' + document.documentElement.clientWidth + ' scroll ' + document.documentElement.scrollHeight + '/' + innerHeight; })()",
+      "note": "recorded: the numbers behind root-fills-initial"
+    },
+    { "type": "capture", "id": "initial", "duration_ms": 300, "fps": 20 },
+    { "type": "resize", "w": 760, "h": 560, "note": "the settings window, now the largest" },
+    { "type": "settle", "ms": 2000 },
+    {
+      "type": "eval",
+      "id": "root-fills-after-resize",
+      "target": "/settings",
+      "expression": "(() => { const r = document.getElementById('atrium-root').getBoundingClientRect(); return innerWidth === 760 && r.left === 0 && Math.round(r.width) === document.documentElement.clientWidth; })()",
+      "note": "THE MEASUREMENT: the viewport took the new width and the root follows it"
+    },
+    {
+      "type": "eval",
+      "id": "widths-after-resize",
+      "target": "/settings",
+      "expression": "(() => { const r = document.getElementById('atrium-root').getBoundingClientRect(); return 'root ' + Math.round(r.left) + '+' + Math.round(r.width) + ' viewport ' + innerWidth + ' client ' + document.documentElement.clientWidth + ' scroll ' + document.documentElement.scrollHeight + '/' + innerHeight; })()",
+      "note": "recorded: the numbers behind root-fills-after-resize"
+    },
+    { "type": "capture", "id": "after-resize", "duration_ms": 300, "fps": 20 }
+  ],
+  "assertions": [
+    { "type": "vlog", "label": "the-window-was-built", "pattern": "Atrium: settings window built" },
+    { "type": "ax_window_count", "expected": 2, "min_area": 200000, "note": "the browser window and the settings window" },
+    { "type": "eval_equals", "id": "root-fills-initial", "expected": "true", "desc": "the settings root fills the window at its initial size" },
+    { "type": "eval_equals", "id": "root-fills-after-resize", "expected": "true", "desc": "the settings root fills the window after a resize" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

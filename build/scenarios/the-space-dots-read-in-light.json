@@ -1,0 +1,29 @@
+{
+  "name": "the-space-dots-read-in-light",
+  "description": "The Arc-style space dots in light mode, with a non-default accent. The active space (sunsetOrange, not the default oceanBlue) shows its bare glyph in its own ink, with no chip behind it. A space at rest is a small dot in the bar's own ink at 30 percent, so it follows the backdrop rather than a fixed grey. The Overview and + marks are the widest slots. The sibling the-space-dots-read-in-dark runs the same checks in dark mode.",
+  "fixture": "space-dots-accent.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "20000000-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "system_appearance": "light",
+  "actions": [
+    {"type": "eval_until", "id": "startup-page", "target": "example-domain.html?accent", "expression": "location.href", "expected": "http://127.0.0.1:8000/example-domain.html?accent", "timeout_ms": 20000, "note": "GATE: the active space's own tab committed, so the sidebar and its dot bar exist"},
+    {"type": "settle", "ms": 3000},
+    {"type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot"},
+    {"type": "settle", "ms": 1000},
+    {"type": "eval", "id": "scheme", "target": "/sidebar", "expression": "String(window.matchMedia('(prefers-color-scheme: dark)').matches)", "note": "THE CONTROL: the run really is in light mode"},
+    {"type": "eval", "id": "slot-sizes", "target": "/sidebar", "expression": "(() => { const b = document.querySelector('.spacedots'); if (!b) return 'NOBAR'; const w = (s) => { const e = b.querySelector(s); return e ? Math.round(e.getBoundingClientRect().width) : 'none'; }; const rest = '.sdot:not(.active):not(.ovdot):not(.addws)'; return 'ov:' + w('.sdot.ovdot') + ' add:' + w('.sdot.addws') + ' active:' + w('.sdot.active') + ' rest:' + w(rest) + ' dot:' + w(rest + ' .d'); })()"},
+    {"type": "eval", "id": "active-glyph", "target": "/sidebar", "expression": "(() => { const a = document.querySelector('.spacedots .sdot.active'); if (!a) return 'NOACTIVE'; const d = a.querySelector('.d'); const cs = getComputedStyle(d); const n = (s) => (String(s).match(/[0-9.]+/g) || []).slice(0, 3).join(','); const second = document.querySelector('.spacedots .sdot[data-space-index=\"1\"]'); return [d.textContent, cs.backgroundColor, n(cs.color) === n(a.dataset.ink) ? 'inked' : 'color=' + cs.color + ' ink=' + a.dataset.ink, second && second.dataset.ink !== a.dataset.ink ? 'own-ink' : 'shared-ink'].join('|'); })()", "note": "own-ink: the accent space's ink differs from the oceanBlue neighbour's, so the ink really follows the space colour"},
+    {"type": "eval", "id": "rest-dot", "target": "/sidebar", "expression": "(() => { const d = document.querySelector('.spacedots .sdot:not(.active):not(.ovdot):not(.addws) .d'); if (!d) return 'NODOT'; const cs = getComputedStyle(d); const ink = cs.getPropertyValue('--atrium-ink').trim().split(/\\s+/).map(Number); const scale = /^color\\(/.test(cs.backgroundColor) ? 255 : 1; const bg = (cs.backgroundColor.match(/[0-9.]+/g) || []).map(Number).map((v, i) => i < 3 ? v * scale : v); const same = ink.length === 3 && ink.every((v, i) => Math.abs(v - bg[i]) <= 1); return (same ? 'follows-ink' : 'ink=' + ink.join(' ') + ' bg=' + cs.backgroundColor) + ' a=' + (bg[3] ?? 1).toFixed(2); })()", "note": "the base rule mixes currentColor (the ink at .85) at 35 percent, so the alpha is .2975, and a mix can come back as color(srgb) on a 0-1 scale"},
+    {"type": "eval", "id": "ink-value", "target": "/sidebar", "expression": "getComputedStyle(document.querySelector('.spacedots .sdot .d')).getPropertyValue('--atrium-ink').trim()", "note": "DIAGNOSTIC: the bar's ink in this mode, read beside the capture"},
+    {"type": "capture", "id": "dots-light", "duration_ms": 400, "fps": 10, "note": "the visual record of the bar in light mode"}
+  ],
+  "assertions": [
+    {"type": "ax_window_count", "expected": 1, "min_area": 200000, "desc": "sanity: one real window"},
+    {"type": "eval_equals", "id": "scheme", "expected": "\"false\"", "desc": "THE CONTROL: the sidebar renders in light mode"},
+    {"type": "eval_equals", "id": "slot-sizes", "expected": "\"ov:28 add:28 active:24 rest:12 dot:5\"", "desc": "The end marks are the widest, and a space at rest is a 5px dot"},
+    {"type": "eval_equals", "id": "active-glyph", "expected": "\"A|rgba(0, 0, 0, 0)|inked|own-ink\"", "desc": "The selected space shows its bare glyph in its own ink, with no chip"},
+    {"type": "eval_equals", "id": "rest-dot", "expected": "\"follows-ink a=0.30\"", "desc": "The grey is the bar's own ink at 30 percent"},
+    {"type": "quit", "desc": "Cmd+Q still quits cleanly"}
+  ]
+}

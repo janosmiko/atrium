@@ -1,0 +1,6 @@
+# Labels our self-hosted runner carries. chromium-checkout selects the machine
+# that holds the 121 GB Chromium tree, which tiers 2 and 3 cannot run without.
+self-hosted-runner:
+  labels:
+    - macOS
+    - chromium-checkout

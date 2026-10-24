@@ -1,0 +1,54 @@
+{
+  "name": "tmp-idle-wake-probe",
+  "description": "RETIRED DIAGNOSTIC, excluded from `all` via wip. A the earlier probe whose gate 1 is DESIGNED to fail - the failure is how it reports its answer - so it can never be green and does not belong in a pass/fail suite. Seven stored runs, 1 passed / 2 failed in every one, including 2026-07-27. Still runnable by name. The idle behaviour it was asking about is now guarded by idle-survival. ORIGINAL NOTE: The earlier confirmation probe: does the space-activation settle completion need an external runloop wake? Scroll, then go completely quiet and wait 60s for the activation. If it does not land, send a single no-op cursor move and wait again briefly. Gate 1 failing while gate 2 passes confirms the wake dependency and makes the bug deterministic.",
+  "wip": true,
+  "fixture": "space-cycle.spaces.json",
+  "startup_space": "a276b002-0000-0000-0000-000000000002",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "scroll",
+      "x": 100,
+      "y": 200,
+      "dx": 90,
+      "phase_ms": 900,
+      "momentum_ms": 0,
+      "step_ms": 20
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ activated on host",
+      "timeout_ms": 60000,
+      "note": "GATE 1: 60s of total quiet - no further input of any kind"
+    },
+    {
+      "type": "move",
+      "x": 400,
+      "y": 400,
+      "note": "the wake: a single cursor move, which mutates no app state"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ activated on host",
+      "timeout_ms": 15000,
+      "note": "GATE 2: if this passes after gate 1 failed, the activation was pending and the cursor move released it"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "quit",
+      "desc": "sanity: the run completes"
+    }
+  ]
+}

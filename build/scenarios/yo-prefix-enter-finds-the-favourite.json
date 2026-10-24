@@ -1,0 +1,153 @@
+{
+  "name": "yo-prefix-enter-finds-the-favourite",
+  "description": "'go' and 'gi' were fixed to open their engine on Enter, but a prefix that ALSO names a favourite regressed: Enter on the engine row opened a second tab instead of switching to the favourite's own. The fixture's favourite sits on youtube.com while the seeded engine's own template URL resolves to www.youtube.com - the exact host mismatch that bit, so a fix that only string-matched the two would still fail here. The favourite's title deliberately does not start with 'yo', so the typed prefix scores only the engine row, not a favourites-lead row - Tab's own scoping behaviour is unaffected and is not what this scenario measures.",
+  "fixture": "yo-favourite-and-a-tab.spaces.json",
+  "startup_space": "8ab00764-0000-4000-8000-000000000823",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "click",
+      "x": 40,
+      "y": 121,
+      "note": "the only favourite tile, at favourite-and-a-plain-row's own coordinates - one favourite and the same 280pt sidebar. This click OPENS and CLAIMS the tab everything below is about."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: favourite claimed tab",
+      "timeout_ms": 20000,
+      "note": "VACUITY GUARD: without a claimed tab there is nothing for the engine row's Enter to find"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "rows_before",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.tabrow').length)",
+      "expected": "1",
+      "timeout_ms": 15000,
+      "note": "the control row alone - the favourite's own claimed tab draws no row of its own"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the /commandbar document commit and take the field"
+    },
+    {
+      "type": "type",
+      "text": "yo"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the keyword pass has to finish before any row could carry an engine"
+    },
+    {
+      "type": "eval",
+      "id": "offered-keyword",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbrow[data-cb-keyword]') || {}).dataset?.cbKeyword || 'none')",
+      "note": "the prefix resolved to the seeded YouTube engine, and the favourite's title does not lead the list ahead of it"
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "the top row's Enter - the engine row, not a scoped search"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar engine accept found the site's favourite",
+      "timeout_ms": 20000,
+      "note": "THE ROUTING: a favourite claims this site, so the accept must not fall through to opening the engine's own home"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: favourite activated the tab it opened, by key",
+      "timeout_ms": 20000,
+      "note": "THE ACTIVATION: found by the marker the claim left, not by a URL string that a www.-prefixed home never equals"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "the snapshot re-pushes before the row count below"
+    },
+    {
+      "type": "eval_until",
+      "id": "rows_after",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.tabrow').length)",
+      "expected": "1",
+      "timeout_ms": 15000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "Liveness, and a guard against a click landing somewhere that spawned a window."
+    },
+    {
+      "type": "eval_equals",
+      "id": "offered-keyword",
+      "expected": "\"youtube.com\"",
+      "desc": "VACUITY GUARD: the row on screen really is the engine row Enter is about to act on"
+    },
+    {
+      "type": "eval_equals",
+      "id": "rows_before",
+      "expected": "1",
+      "desc": "VACUITY GUARD: the list starts at the control row, so the count after is a move rather than an absolute nobody checked"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: command bar engine accept found the site's favourite",
+      "desc": "THE ASSERTION: the accept found the favourite before it could open the engine beside it"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: favourite activated the tab it opened, by key",
+      "desc": "and activated it by its marker - the pre-fix exact-URL match never found this tab"
+    },
+    {
+      "type": "eval_equals",
+      "id": "rows_after",
+      "expected": "1",
+      "desc": "no second tab opened - before the fix this read 2, one row for the duplicate the engine path opened beside the hidden favourite"
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "Atrium: command bar engine accepted https",
+      "desc": "the plain open-engine branch never ran - the favourite branch returned first"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

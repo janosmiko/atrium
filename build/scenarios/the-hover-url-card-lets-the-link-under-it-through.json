@@ -1,0 +1,156 @@
+{
+  "name": "the-hover-url-card-lets-the-link-under-it-through",
+  "description": "A link in the bottom leading corner of the page sits exactly where the hover URL card appears. The card came up on the pointer, the page lost the hover, the browser reported an empty target URL, the card cleared, the pointer was back on the link, and the two alternated for as long as the pointer stayed there. A click aimed at the link could land on the card instead.\n\nThe hint bubble settled the same question with ignoresMouseEvents. ToastOverlayWidget serves both corners and could not take that escape wholesale, because the confirmation corner carries a close button. The hover card does not: toast-surface.js builds it closable:false.\n\nHOW IT IS MEASURED, and why it is controlled. The page records the last pointer position it saw. The pointer is first parked well inside the page to raise a card, which is the CONTROL - it proves the link, the card and the coordinate all work. It is then moved onto the card's own corner. If the overlay hit-tests, the page never sees that second move and its recorded position stays at the control point, so the reading separates a swallowed pointer from a missed coordinate. The card's presence is sampled every frame across that dwell, because a flicker is frames, not a final state. A real click at the same point closes it: a pointer that passes through but a click that does not would still be the reported bug.",
+  "fixture": "long-page.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "arm-the-page",
+      "target": "long-page",
+      "expression": "(() => { const a = document.createElement('a'); a.href = 'https://under.example/link'; a.textContent = 'under'; a.style.cssText = 'position:fixed;inset:0;z-index:99;background:rgba(0,0,0,.02)'; document.body.appendChild(a); window.__atriumSeen = ''; window.__atriumClicks = 0; document.addEventListener('mousemove', (e) => { window.__atriumSeen = Math.round(e.clientX) + ',' + Math.round(e.clientY); }, true); document.addEventListener('click', (e) => { e.preventDefault(); window.__atriumClicks++; }, true); return 'armed ' + window.innerWidth + 'x' + window.innerHeight; })()",
+      "note": "One link over the whole page, so the pointer never has to hit a small target. The move listener is capture phase and records screen-independent page coordinates, which is what makes the readings below comparable. preventDefault on the click keeps the scenario on this page."
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 300,
+      "note": "THE CONTROL: a REAL pointer well inside the web card, clear of both the sidebar and the card's own corner. A dispatched event does not update the target URL, which comes from the renderer's hit test under the actual cursor."
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "past the hover show debounce"
+    },
+    {
+      "type": "eval_until",
+      "id": "card-is-up",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? t.textContent : 'no card'; })()",
+      "expected": "https://under.example/link",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "page-saw-the-control-move",
+      "target": "long-page",
+      "expression": "window.__atriumSeen",
+      "note": "calibration as well as control: this prints the page coordinate the screen point 700,300 maps to, so a later re-aim needs no guesswork"
+    },
+    {
+      "type": "eval",
+      "id": "arm-the-flicker-sampler",
+      "target": "/toast",
+      "expression": "(() => { window.__gone = 0; window.__frames = 0; const tick = () => { window.__frames++; if (!document.querySelector('.toasts .toast')) { window.__gone++; } window.__raf = requestAnimationFrame(tick); }; tick(); return 'sampling'; })()",
+      "note": "every frame, because a flicker is frames. A reading taken only at the end would find the card back and call it steady."
+    },
+    {
+      "type": "move",
+      "x": 300,
+      "y": 663,
+      "note": "THE MEASUREMENT: onto the card itself. The card hangs 14px off the pane's bottom leading corner, the sidebar reserves 220px, and the window's bottom strip sits around y 690 - so this point is inside both the card and the link under it. If it misses, page-saw-the-measurement-move below says by how much."
+    },
+    {
+      "type": "settle",
+      "ms": 1200,
+      "note": "long enough for several clear/re-show cycles of the reported flicker"
+    },
+    {
+      "type": "eval",
+      "id": "page-saw-the-measurement-move",
+      "target": "long-page",
+      "expression": "window.__atriumSeen",
+      "note": "THE READING. A page coordinate different from the control's means the move reached the page through the card. The control's own value, unchanged, means the overlay ate it."
+    },
+    {
+      "type": "eval",
+      "id": "frames-without-a-card",
+      "target": "/toast",
+      "expression": "(() => { cancelAnimationFrame(window.__raf); return window.__frames > 10 ? String(window.__gone) : 'sampler only ran ' + window.__frames + ' frames'; })()",
+      "note": "the frame count is folded into the same reading on purpose: a sampler that never ran would otherwise report zero missing frames and pass on an empty measurement"
+    },
+    {
+      "type": "click",
+      "x": 300,
+      "y": 663,
+      "note": "the same point. A pointer that passes through but a click that does not is still the reported bug."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval",
+      "id": "clicks-that-reached-the-page",
+      "target": "long-page",
+      "expression": "String(window.__atriumClicks)"
+    },
+    {
+      "type": "eval",
+      "id": "card-was-still-up-after-the-click",
+      "target": "/toast",
+      "expression": "String(document.querySelectorAll('.toasts .toast').length)",
+      "note": "guards the measurement: a click that passed through a card which had already gone proves nothing about the card"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "card-is-up",
+      "expected": "https://under.example/link",
+      "desc": "THE CONTROL: the link, the hover path and the coordinate all work, so a failure below is about the card and nothing else"
+    },
+    {
+      "type": "eval_changed",
+      "before": "page-saw-the-control-move",
+      "after": "page-saw-the-measurement-move",
+      "desc": "THE QUESTION: the page saw the pointer arrive on the card's own corner. Unchanged means the overlay hit-tested it, the hover cleared, and the card flickered."
+    },
+    {
+      "type": "eval_equals",
+      "id": "frames-without-a-card",
+      "expected": "\"0\"",
+      "desc": "not one sampled frame was missing the card. A sampler that never ran reports its own frame count here instead, so an empty measurement cannot pass."
+    },
+    {
+      "type": "eval_equals",
+      "id": "card-was-still-up-after-the-click",
+      "expected": "\"1\"",
+      "desc": "the card was genuinely in front of the page when the click landed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "clicks-that-reached-the-page",
+      "expected": "\"1\"",
+      "desc": "the click reached the link under the card"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

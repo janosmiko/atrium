@@ -1,0 +1,118 @@
+{
+  "name": "sidebar-vertical-band",
+  "description": "And a vertical gesture on the tab list moves it, even though the list is far too short to scroll. The fixture has ONE tab, so native overflow does nothing at all and anything that moves is the rubber band. This is the first scenario of any kind to drive a vertical gesture: cgevent hard-coded the vertical axis to 0 until the vertical actions were added, so the whole class of behaviour was unreachable from here. It samples DURING the gesture rather than after, because the band springs back in about 0.3s and a sequential gesture-then-photograph pair catches the list already at rest - the mistake that makes a working band look like a dead one. The fixture is this scenario's own, with 24 rows: it used to share the peek-scrim one, which has a SINGLE tab, and a list of one row cannot scroll - the assertion was reading a flat band below it, measured at variance 2.0. Kept separate rather than adding rows to the shared fixture, which three peek scenarios capture against.\n\nthe two pixel assertions said the region did not move and could not say why. The evals around the pull answer it directly - whether the zone can scroll at all, and whether the wheel moved it. The fixture carries 24 tabs, so a list too short to scroll is already ruled out.\n\nA later measurement settled what the pixel band could not. The list DOES scroll under a tracked pull: scrollTop goes 0 to 325 against 402px of overflow, so the wheel arrives at x=110 and the zone honours it. The defect was the instrument.\n\nMeasured from the surface: the zone spans y=145 to 634 and the first row starts at y=251, so the band at y=240 to 280 sat ABOVE every row, in the flat strip between the zone's top and its first pill - before_var 29.4, where the calibration expected 708 with a pill in it. The band was aimed at a layout that has since moved.\n\nRe-aiming it does not rescue it, and that is why pixels_changed is gone rather than retuned. Every candidate band swaps one row for an identical one: y=293 reads 'Row 00' before and 'Row 10' after, y=400 reads 'Row 03+04' then 'Row 13+14'. The rows differ only in thin pale title text, and the selected row - the tinted pill the 40% bar was derived against - sits at y=1006, far below the visible zone in this fixture. So no band here can show a solid thing leaving and nothing similar arriving, which the assertion's own description names as the requirement. It read 19.8% against a 40% bar for a list that had plainly moved.\n\ntheme_changed stays: it passes at delta 15.33, and it is the tint canary that went red when the colour resolver was deleted. What replaced the movement half is a direct read of scrollTop, which is what the task asked for all along.",
+  "measurement_history": "A SECOND MEASUREMENT, 2026-08-10. pixels_changed joins theme_changed and reads 73.55% against a bar of 40.0 - VM-verified on the 08:14 run, same deployed bundle as the 06:06 one below (Atrium Framework sha256 9b763a43, unmoved before and after). It counts pixels rather than averaging them, so it is the assertion that stays red if the band stops moving even when the colour is fine, and stays green when the band moves but the colour is not. Its threshold is derived in its own desc from every stored run of this scenario; the short version is that a still band reads 0.00-16.73% here and a moving one reads 48.88-74.42%, and 40.0 sits in that gap. Shown red on stored frames before it was trusted: 0.00% on the 2026-08-08 15:10 pair whose capture outlived the gesture, and 0.00% on two at-rest frames from inside one burst.\n\nPASSES AGAIN as of 2026-08-10, and the `cannot_pass` field is deleted rather than reworded - the runner asks for that the first time a marked scenario goes green, so the day it goes red again nobody reads a stale excuse as an expected failure. The fix closed it.\n\nAFTER THE FIX, 5 runs on the 03:06 bundle (Chromium f9e8ca0da509d plus that lane's uncommitted working tree; SKIP_RESTORE=1 SKIP_DEPLOY=1 after one restore+deploy): delta 101.21, 125.23, 125.23, 125.23, 125.23 against min_delta 10.0. before_var 2558.4 in all five, after_var 8.3 in four. The odd run is the first, which graded a different frame pair (before frame-005, after frame-001) and read after_var 1218.7 - the pill had not fully left the strip in the frame the capture landed on, and it still cleared the threshold tenfold.\n\nWHAT THE NUMBERS SAY ABOUT THE FIX. before_mean is now 131.5,143.2,157.5 against the ~134,146,160 this region was originally tuned at, and before_var 2558.4 against the 708 of the tuning frames - so the strip at rest is the tinted pill again, not the 217,220,226 / var 383.5 desaturated one. The gesture itself never changed: after_var collapsed to 8.3 both before and after the fix, which is the same evidence that the band always moved the list. Only the colour under it did. The delta landing at 125 rather than the ~45 of the original tuning says the pill is if anything MORE saturated than the frames the region was cut against, which is expected - --selfill is color-mix(--selbase 68%, white) over a tint the core now resolves to real #RRGGBB, where the pre-fix build had --selfill unset and fell back to flat white.\n\nBEFORE THE FIX, kept because it is the negative control. VM-verified 2026-08-10 (Chromium f9e8ca0da509d): the setup gate matched, so the band was always measured against the right page; theme_changed failed on the measurement itself. Re-measured the same day 7 times on one deployed build - 5 in an 'all' batch plus 2 standalone - and ALL SEVEN read identically: delta=9.88, before_var=383.5, after_var=8.3, region 10,240,200,40. A real threshold miss by a consistent ~0.12, not a flake. A single earlier run on the same build read delta=9.39 (variance 360.1 -> 8.4); both sit under threshold without being identical, which points to window-state drift between launches on different dates. Baseline 2026-08-09 (Chromium e155a72b08382): 1 passed, 2 failed (3 assertions, incl. a setup gate since moved into actions). Post-sweep 2026-08-09 (Chromium 461398a6df1a4): 1 passed, 2 failed. min_delta was left at 10.0 throughout and is unchanged here - the fix moved the pixels, not the bar.",
+  "fixture": "sidebar-vertical-band.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "27027027-2702-4702-8702-270270270270",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the startup tab commit before navigating"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "peek-scrim-red.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-scrim-red.html#row0",
+      "timeout_ms": 15000,
+      "note": "GATE: the red page really committed as the STARTUP tab. Navigating to it through Cmd+L was tried first and does not work here: the command bar opens and gains key, then the run log shows a dismiss op rather than a commit, which matches the known flakiness of committing the command bar through synthetic input. Making the page the startup tab removes the navigation step entirely."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the undimmed parent"
+    },
+    {
+      "type": "eval",
+      "id": "zone-overflow",
+      "target": "/sidebar",
+      "expression": "(() => { const z = document.querySelector('.scrollzone'); return z ? (z.scrollHeight - z.clientHeight) + ' overflow, ' + getComputedStyle(z).overflowY : 'no scrollzone'; })()",
+      "note": "can it scroll at all? A zone whose content fits has nothing to move, and the pixel assertions look identical either way"
+    },
+    {
+      "type": "eval",
+      "id": "scrolltop-before",
+      "target": "/sidebar",
+      "expression": "String((document.querySelector('.scrollzone') || {}).scrollTop)",
+      "note": "the only reading that separates a wheel that never arrived from one that arrived and did nothing"
+    },
+    {
+      "type": "vscroll_during_capture",
+      "x": 110,
+      "y": 258,
+      "dy": -320,
+      "phase_ms": 500,
+      "momentum_ms": 0,
+      "step_ms": 20,
+      "capture_id": "pulled",
+      "duration_ms": 380,
+      "fps": 25,
+      "note": "A slow tracked pull with no momentum, over the tab list itself - x=110 is inside the 220px sidebar, y=258 below the rows. THE CAPTURE ENDS BEFORE THE GESTURE DOES, deliberately: 380ms of filming against a 500ms pull. theme_changed compares the LAST frame of each capture, and the band springs back within about 0.3s of the fingers stopping - so a capture that outlives the gesture ends on a list already back at rest and reports no change at all. That cost several rounds: the band was painting 50+ times per run and the assertion compared rest against rest."
+    },
+    {
+      "type": "eval",
+      "id": "scrolltop-after",
+      "target": "/sidebar",
+      "expression": "String((document.querySelector('.scrollzone') || {}).scrollTop)",
+      "note": "after the pull"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "theme_changed",
+      "before": "before",
+      "after": "pulled",
+      "region": [
+        16,
+        208,
+        180,
+        120
+      ],
+      "min_delta": 6,
+      "desc": "THE TINT, on the band a sibling scenario and a sibling scenario already use for the sidebar - region 16,250,180,120 at min_delta 6, borrowed rather than tuned here. It is 120px tall and spans the rows, where the old 40px strip at y=240 sat entirely ABOVE the first row (which starts at y=293) in flat space: before_var 29.4 against the 708 its calibration assumed, and a mean delta that came back 7.86, 9.06 and 15.33 on three runs of a build whose list demonstrably scrolled. This keeps the canary that went red when the colour resolver was deleted pointed at something tinted. The MOVEMENT claim is no longer this assertion's job - scrollTop reads it directly below."
+    },
+    {
+      "type": "eval_changed",
+      "before": "scrolltop-before",
+      "after": "scrolltop-after",
+      "note": "THE QUESTION. scrollTop moved, so the tracked pull reached the zone and the zone honoured it."
+    },
+    {
+      "type": "eval_equals",
+      "id": "zone-overflow",
+      "expected": "\"507 overflow, auto\"",
+      "note": "The vacuity guard for the reading below. A zone whose content fits has a scrollTop that cannot move, and 'it did not move' would then say nothing about the gesture. 507px of overflow with overflow-y auto is this fixture's 24 rows against the scroll zone. The empty favourites grid takes no room at rest, so the zone is 41px taller than when the gate read 548."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits"
+    }
+  ]
+}

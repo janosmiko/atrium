@@ -1,0 +1,69 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 31 Aug 2026 11:44:34 +0200
+Subject: [PATCH 103/154] Revert: the quit panel keeps the brand tint
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Threading the live space tint in took the colour OFF the panel, because a
+space tint is usually near neutral where the brand accent is saturated. The
+tinted paper was the wanted look, not the bug.
+
+The panel goes back to the brand accent. What the report actually asks for is
+the same tinted look on the command bar, which stays on a neutral plate - that
+is the direction to build, not this one.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/cocoa/confirm_quit.cc                  | 1 -
+ chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm | 7 +------
+ chrome/common/pref_names.h                               | 4 ----
+ 3 files changed, 1 insertion(+), 11 deletions(-)
+
+diff --git a/chrome/browser/ui/cocoa/confirm_quit.cc b/chrome/browser/ui/cocoa/confirm_quit.cc
+index 633c098197e7c..41547a093ae5c 100644
+--- a/chrome/browser/ui/cocoa/confirm_quit.cc
++++ b/chrome/browser/ui/cocoa/confirm_quit.cc
+@@ -36,7 +36,6 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
+   registry->RegisterBooleanPref(prefs::kAtriumConfirmQuitPanelNative, false);
+   registry->RegisterIntegerPref(prefs::kAtriumConfirmQuitPanelSurroundColor,
+                                 -1);
+-  registry->RegisterIntegerPref(prefs::kAtriumConfirmQuitPanelAccentColor, -1);
+ }
+ 
+ }  // namespace confirm_quit
+diff --git a/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm b/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
+index ee31955252291..44755f08808e6 100644
+--- a/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
++++ b/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
+@@ -62,12 +62,7 @@ atrium::ConfirmQuitPanelStyle CurrentPanelStyle() {
+       surround_argb >= 0
+           ? std::make_optional(static_cast<SkColor>(surround_argb))
+           : std::nullopt;
+-  const int accent_argb =
+-      local_state->GetInteger(prefs::kAtriumConfirmQuitPanelAccentColor);
+-  const std::optional<SkColor> accent =
+-      accent_argb >= 0 ? std::make_optional(static_cast<SkColor>(accent_argb))
+-                       : std::nullopt;
+-  return atrium::ComputeConfirmQuitPanelStyle(dark, native, surround, accent);
++  return atrium::ComputeConfirmQuitPanelStyle(dark, native, surround);
+ }
+ 
+ }  // namespace
+diff --git a/chrome/common/pref_names.h b/chrome/common/pref_names.h
+index e06fbd3e911a7..9870528b556e7 100644
+--- a/chrome/common/pref_names.h
++++ b/chrome/common/pref_names.h
+@@ -405,10 +405,6 @@ inline constexpr char kAtriumConfirmQuitPanelNative[] =
+     "browser.atrium_confirm_quit_panel_native";
+ inline constexpr char kAtriumConfirmQuitPanelSurroundColor[] =
+     "browser.atrium_confirm_quit_panel_surround_color";
+-// The live space tint, for the same reason: the panel wore the brand's own
+-// crimson fallback while every overlay beside it followed the space.
+-inline constexpr char kAtriumConfirmQuitPanelAccentColor[] =
+-    "browser.atrium_confirm_quit_panel_accent_color";
+ 
+ // Boolean that indicates whether the browser should show the toolbar when it's
+ // in fullscreen. Mac only.

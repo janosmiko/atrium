@@ -1,0 +1,80 @@
+{
+  "name": "can-the-devtools-frontend-be-driven",
+  "description": "The remaining DevTools checks need DevTools' OWN frontend driven - the dock-side buttons, the divider, detach. Harness key and click actions cannot reach those, so a human would have to verify them. The eval capability makes it worth one attempt.\n\nThis asks the narrow question first: can a scenario reach the DevTools frontend document at all? If /devtools appears as a target and its DOM reads back, the dock buttons are reachable and those criteria become automatable. If it does not, that is a definite answer rather than an assumption, and the human-verification recommendation stands on evidence.",
+  "fixture": "presenter-startup.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the space and its single tab render"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot; without this the keystroke lands in Finder (traffic-routing learned this the hard way)"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the window come forward"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+opt+i",
+      "note": "open DevTools on the active tab"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "DevTools frontend is a full WebContents load - generous on purpose, the dock VLOG only fires once UpdateDockedDevtoolsForPane runs with a non-null GetInTabWebContents"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the frontend finish attaching"
+    },
+    {
+      "type": "eval",
+      "id": "devtools-target-reachable",
+      "target": "devtools",
+      "expression": "String(document.readyState)",
+      "note": "the whole question: does a devtools:// target answer at all"
+    },
+    {
+      "type": "eval",
+      "id": "devtools-has-a-toolbar",
+      "target": "devtools",
+      "expression": "(() => { const seen = []; const walk = (root, depth) => { if (depth > 6) return; for (const el of root.querySelectorAll('*')) {   if (el.shadowRoot) walk(el.shadowRoot, depth + 1);   const t = el.getAttribute && el.getAttribute('aria-label');   if (t) seen.push(t); } }; walk(document, 0); return String(seen.length); })()",
+      "note": "counts labelled controls across the shadow trees. DevTools builds its UI in shadow roots, so a light-DOM query finds nothing even when the frontend is fully loaded - which is why the first attempt read 0."
+    },
+    {
+      "type": "eval",
+      "id": "dock-controls",
+      "target": "devtools",
+      "expression": "(() => { const hits = []; const walk = (root, depth) => { if (depth > 8) return; for (const el of root.querySelectorAll('*')) {   if (el.shadowRoot) walk(el.shadowRoot, depth + 1);   const l = (el.getAttribute && el.getAttribute('aria-label')) || '';   if (/dock|customize|control|more option/i.test(l)) hits.push(l); } }; walk(document, 0); return hits.join(' | ') || 'none'; })()",
+      "note": "Chrome puts Dock side behind the 'Customize and control DevTools' menu rather than on the toolbar, so this looks for the menu button too - that is the control a scenario would press first."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "devtools-docked",
+      "pattern": "Atrium: devtools pane 0x[0-9a-f]+ docked=1",
+      "note": "The pane resolved a docked DevTools WebContents - the sole writer of this state"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 100000,
+      "note": "still ONE standard window: a detached DevTools would add a second, so this is what proves 'docked' rather than merely 'opened'"
+    },
+    {
+      "type": "eval_equals",
+      "id": "devtools-target-reachable",
+      "expected": "\"complete\"",
+      "note": "a reachable, loaded frontend document. BLIND here means no devtools target is exposed, which answers the question the other way."
+    }
+  ]
+}

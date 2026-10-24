@@ -1,0 +1,88 @@
+{
+  "name": "the-panels-window-dots-take-clicks",
+  "description": "The reporter's window dots do nothing on the floating sidebar. The messages themselves reach the window and act on it - AtriumSidebarOverlayBrowserTest.TheWindowButtonMessagesActOnTheWindow proves that - so the question is whether a click on the dot ever leaves the page. The panel is a child window built Activatable::kNo, and the parent carves a hole in its own caption region for this row that the panel has no equivalent of.\n\nThe reading is a log line the handler prints. It appears only if the click reached the page, the page's own handler ran, and the message crossed the bridge.",
+  "fixture": "two-tabs.spaces.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "collapse, so the edge zone arms"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 400,
+      "note": "the left window edge, where the reveal is armed"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 415,
+      "note": "a wiggle inside the strip - a move that lands without crossing the boundary fires no mouseEntered"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar edge reveal opening at",
+      "timeout_ms": 20000,
+      "note": "the gate: the panel is up, so the click below has something to land on"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "the slide finishes and the page lays its chrome row out"
+    },
+    {
+      "type": "eval",
+      "id": "dot-rect",
+      "target": "/sidebar",
+      "expression": "(() => { const d = document.querySelector('.sbtd .td.close'); if (!d) return 'no dot'; const r = d.getBoundingClientRect(); const vis = getComputedStyle(d.parentElement).display; return 'x=' + Math.round(r.left + r.width / 2) + ' y=' + Math.round(r.top + r.height / 2) + ' group=' + vis + ' floating=' + document.documentElement.classList.contains('atrium-sidebar-floating'); })()",
+      "note": "where the dot is in the page, and whether the group is shown at all"
+    },
+    {
+      "type": "click",
+      "x": 23,
+      "y": 58,
+      "note": "the leftmost dot, on coordinates the page reported rather than derived: the eval above puts its centre at 15,20 in page space, and the panel sits 8 points in and 8 down from a window whose content starts at y=30 in this VM."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "pattern": "Atrium: sidebar window control sidebarWindowClose",
+      "label": "the-dot-sent-its-message",
+      "desc": "Red while the click never leaves the page. The handler is proven separately, so a miss here is the click, not the plumbing."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "DCHECK failed",
+      "label": "no-dcheck-fired"
+    }
+  ]
+}

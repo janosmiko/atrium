@@ -1,0 +1,100 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 13 Oct 2026 10:52:53 +0200
+Subject: [PATCH 154/154] feat(side-panel): host extension side panels in
+ Atrium windows
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn                    |  2 ++
+ .../internal/browser_window_features.cc       | 24 +++++++++++++++++++
+ .../public/browser_window_features.h          |  3 +++
+ 3 files changed, 29 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 013b673961137..871638fc8d83b 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3544,6 +3544,8 @@ static_library("ui") {
+       "atrium/atrium_extension_bridge.cc",
+       "atrium/atrium_extension_panel_view.cc",
+       "atrium/atrium_extension_panel_view.h",
++      "atrium/atrium_side_panel_ui.cc",
++      "atrium/atrium_side_panel_ui.h",
+       "atrium/atrium_extension_popup_host.cc",
+       "atrium/atrium_fedcm_anchor_hook.h",
+       "atrium/atrium_fedcm_anchor_hook.cc",
+diff --git a/chrome/browser/ui/browser_window/internal/browser_window_features.cc b/chrome/browser/ui/browser_window/internal/browser_window_features.cc
+index d12b1e32471cd..01a21a72d1b94 100644
+--- a/chrome/browser/ui/browser_window/internal/browser_window_features.cc
++++ b/chrome/browser/ui/browser_window/internal/browser_window_features.cc
+@@ -48,6 +48,9 @@
+ #include "chrome/browser/ui/ai_overlay_dialog/ai_overlay_dialog_controller.h"
+ #include "chrome/browser/ui/animation/browser_animation_controller.h"
+ #include "chrome/browser/ui/atrium/atrium_feature_check.h"
++#if BUILDFLAG(IS_MAC)
++#include "chrome/browser/ui/atrium/atrium_side_panel_ui.h"
++#endif
+ #include "chrome/browser/ui/bookmarks/bookmark_bar_controller.h"
+ #include "chrome/browser/ui/bookmarks/bookmarks_service_feature.h"
+ #include "chrome/browser/ui/breadcrumb_manager_browser_agent.h"
+@@ -792,6 +795,16 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
+         std::make_unique<extensions::ExtensionSidePanelManager>(
+             browser_view->browser(), side_panel_registry_.get());
+   }
++#if BUILDFLAG(IS_MAC)
++  // Atrium: window-level extension panels register here, the same gate as the
++  // side panel UI below.
++  else if (atrium::IsAtriumBrowserWindowEnabled() &&
++           browser->is_type_normal()) {
++    extension_side_panel_manager_ =
++        std::make_unique<extensions::ExtensionSidePanelManager>(
++            browser, side_panel_registry_.get());
++  }
++#endif
+ 
+   extension_window_controller_ =
+       std::make_unique<extensions::BrowserExtensionWindowController>(browser);
+@@ -851,6 +864,15 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
+     webui_browser_side_panel_ui_ =
+         std::make_unique<WebUIBrowserSidePanelUI>(browser);
+   }
++#if BUILDFLAG(IS_MAC)
++  // Atrium: AtriumBrowserWindow is not a BrowserView, so without this the
++  // side panel UI stays null and every chrome.sidePanel call fails.
++  else if (atrium::IsAtriumBrowserWindowEnabled() &&
++           browser->is_type_normal()) {
++    atrium_side_panel_ui_ =
++        std::make_unique<atrium::AtriumSidePanelUI>(browser);
++  }
++#endif
+ 
+   if (browser_view) {
+     skills_ui_window_controller_ =
+@@ -1186,6 +1208,8 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
+   fullscreen_control_host_.reset();
+   find_bar_owner_.reset();
+   extension_window_controller_.reset();
++  // Atrium: the panel's view must go while its extension entry still exists.
++  atrium_side_panel_ui_.reset();
+   extension_side_panel_manager_.reset();
+   extension_keybinding_registry_.reset();
+   // Must be before exclusive_access_manager_.
+diff --git a/chrome/browser/ui/browser_window/public/browser_window_features.h b/chrome/browser/ui/browser_window/public/browser_window_features.h
+index daa62a7361df8..24be2bcc300a0 100644
+--- a/chrome/browser/ui/browser_window/public/browser_window_features.h
++++ b/chrome/browser/ui/browser_window/public/browser_window_features.h
+@@ -728,6 +728,9 @@ class BrowserWindowFeatures {
+   std::unique_ptr<WebUIBrowserExclusiveAccessContext>
+       webui_browser_exclusive_access_context_;
+   std::unique_ptr<WebUIBrowserSidePanelUI> webui_browser_side_panel_ui_;
++  // Atrium: owned only when an AtriumBrowserWindow is used. Declared after
++  // side_panel_registry_, so it goes first.
++  std::unique_ptr<SidePanelUI> atrium_side_panel_ui_;
+ 
+   // Platform-specific members.
+ #if BUILDFLAG(IS_WIN)

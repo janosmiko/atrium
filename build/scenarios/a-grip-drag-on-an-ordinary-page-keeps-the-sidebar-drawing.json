@@ -1,0 +1,126 @@
+{
+  "name": "a-grip-drag-on-an-ordinary-page-keeps-the-sidebar-drawing",
+  "description": "The light-page half. The sibling rig runs the same drag with a 3000-paragraph page in the card, where the pane and the page share one layout pass and the pane can only move as often as that page can reflow. This one loads a short page instead, so the reading says how the sidebar tracks the pointer on the pages a user actually browses.\n\nEverything else matches the sibling exactly - same grip centre, same 40 steps over 80 points, same sampler - so the two numbers can be compared directly.\n\nThis run only collects numbers. It carries no timing assertion, because a threshold picked before the first measurement is a guess.",
+  "fixture": "right-marker-light-active.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://0y\\.localhost",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "arm-sampler",
+      "target": "/sidebar",
+      "expression": "(() => { window.__drag = {frames: [], rebuilds: 0, longtasks: []}; const root = document.getElementById('atrium-root'); window.__dragObs = new MutationObserver((records) => { for (const r of records) { if (r.target === root) { window.__drag.rebuilds++; } } }); window.__dragObs.observe(root, {childList: true}); try { window.__dragPerf = new PerformanceObserver((list) => { for (const e of list.getEntries()) { window.__drag.longtasks.push([Math.round(e.startTime), Math.round(e.duration), e.name]); } }); window.__dragPerf.observe({entryTypes: ['longtask']}); } catch (e) { window.__drag.longtasks.push([-1, -1, 'unsupported: ' + e.name]); } const tick = (t) => { window.__drag.frames.push([Math.round(t), document.documentElement.clientWidth]); window.__dragRaf = requestAnimationFrame(tick); }; window.__dragRaf = requestAnimationFrame(tick); return 'armed'; })()",
+      "note": "armed before the drag, so no frame of it is skipped"
+    },
+    {
+      "type": "drag",
+      "x1": 263,
+      "y1": 400,
+      "x2": 343,
+      "y2": 400,
+      "steps": 40
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "frames-sampled",
+      "target": "/sidebar",
+      "expression": "(() => { cancelAnimationFrame(window.__dragRaf); window.__dragObs.disconnect(); return String(window.__drag.frames.length); })()",
+      "note": "THE CONTROL for every reading below: a sampler that never ran reports no gaps at all"
+    },
+    {
+      "type": "eval",
+      "id": "widths-seen",
+      "target": "/sidebar",
+      "expression": "String(new Set(window.__drag.frames.map((f) => f[1])).size)",
+      "note": "THE PRESENCE CONTROL: one width means the drag never reached the pane, so the frame reading is of a still sidebar"
+    },
+    {
+      "type": "eval",
+      "id": "tracks-the-pointer",
+      "target": "/sidebar",
+      "expression": "(() => { const seen = new Set(window.__drag.frames.map((f) => f[1])).size; return seen >= 25 ? 'tracks' : 'stepped, only ' + seen + ' widths for 40 pointer steps'; })()",
+      "note": "Recorded not asserted. The sibling heavy-page rig reports 9-11 widths for 40 steps. A number well above that here means the stutter belongs to the page's layout cost, not to the grip."
+    },
+    {
+      "type": "eval",
+      "id": "worst-gap",
+      "target": "/sidebar",
+      "expression": "(() => { const f = window.__drag.frames; let worst = 0; for (let i = 1; i < f.length; i++) { worst = Math.max(worst, f[i][0] - f[i - 1][0]); } return String(worst); })()",
+      "note": "The longest the sidebar went without drawing, in ms"
+    },
+    {
+      "type": "eval",
+      "id": "slow-frames",
+      "target": "/sidebar",
+      "expression": "(() => { const f = window.__drag.frames; let slow = 0; for (let i = 1; i < f.length; i++) { if (f[i][0] - f[i - 1][0] > 20) { slow++; } } return String(slow); })()",
+      "note": "How many frames took longer than one 60Hz interval"
+    },
+    {
+      "type": "eval",
+      "id": "worst-gap-during",
+      "target": "/sidebar",
+      "expression": "(() => { const f = window.__drag.frames; let last = 0; for (let i = 1; i < f.length; i++) { if (f[i][1] !== f[i - 1][1]) { last = i; } } let worst = 0; for (let i = 1; i <= last; i++) { worst = Math.max(worst, f[i][0] - f[i - 1][0]); } return String(worst); })()",
+      "note": "The longest gap up to the last width change, which is the drag itself. A release that costs one reflow lands after this and cannot inflate it"
+    },
+    {
+      "type": "eval",
+      "id": "worst-gap-after",
+      "target": "/sidebar",
+      "expression": "(() => { const f = window.__drag.frames; let last = 0; for (let i = 1; i < f.length; i++) { if (f[i][1] !== f[i - 1][1]) { last = i; } } let worst = 0; for (let i = last + 1; i < f.length; i++) { worst = Math.max(worst, f[i][0] - f[i - 1][0]); } return String(worst); })()",
+      "note": "the release's own cost: fast resize defers the page's reflow to here, so one gap is expected and is the trade being made"
+    },
+    {
+      "type": "eval",
+      "id": "longtasks",
+      "target": "/sidebar",
+      "expression": "(() => { window.__dragPerf?.disconnect(); return JSON.stringify(window.__drag.longtasks); })()",
+      "note": "Attribution for the gaps above: what the renderer was busy with, and for how long"
+    },
+    {
+      "type": "eval",
+      "id": "rebuilds",
+      "target": "/sidebar",
+      "expression": "String(window.__drag.rebuilds)",
+      "note": "Whole-DOM rebuilds of #atrium-root paid for during the drag"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "arm-sampler",
+      "expected": "\"armed\"",
+      "desc": "the per-frame sampler was installed before the drag, not after it"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

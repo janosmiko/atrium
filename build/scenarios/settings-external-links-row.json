@@ -1,0 +1,130 @@
+{
+  "name": "settings-external-links-row",
+  "description": "The Settings > General row for externalLinksOpenInLittle, end to end. The row is turned OFF from the pane and then a link is handed over, and the handover takes the OTHER path - which is the whole claim the row makes. A row that persists a key nothing reads would pass a file_contains and fail this, because the value openURLs consults is seeded at startup and lives in the process; the save has to write it again for the running browser to change its mind.\n\nTHE FIXTURE OMITS THE KEY on purpose, so the run starts on the absent-key default (little windows on, the same answer the core gives). The toggle is therefore a real change of state rather than a re-assertion of what was staged, and the space window at the end cannot be the fixture's doing.\n\nTHE GESTURE IS A MEASURED CLICK, not keyboard. The first version of this scenario used Tab then Shift-Tab, reasoning from settings.js's own row order (PANE_ROWS.general: only 'Sidebar position', 'Warn before quitting' and this row are real controls - the rest are unwired spans) that this toggle button is the last tabbable element in the page. That reasoning was sound and the gesture still failed the gate: 's general-before and general-after captures are pixel-identical (row reads On in both) and neither wait_vlog fired, so focus never reached the button - the failure is at the OS/window-focus layer this harness cannot see into, not at the row's DOM order. Every prior settings scenario that tried a coordinate before it could be measured paid for the guess (settings-confirm-quit-toggle.json's (905,153) landed in System Settings, not Atrium); this one is not guessed. Coordinate measured 2026-08-11 by pixel-scanning general-before frame-006-t429.4.png from that same failed run with pixcmp stats: the row's value text ('On') spans x[894,915] y[538,552] -> center (904, 545), same technique settings-choice-and-number.json used.\n\nWHY THE WINDOW KINDS AND NOT A COUNT: a count of windows is equally true when the handover opens an ordinary space window, which is the exact thing the setting decides. assert_ax_window_kind reads the chrome route out of each window's AX subtree - /foyer for a little window, /sidebar for a space one - so the window states its kind. --force-renderer-accessibility is a MEASUREMENT flag: without it the AX subtree stops at the native views and no route can be read at all. The two arms this scenario is the sequel to (external-link-little-window and external-link-space-window) stage the key in the file; this one moves it from the product.\n\nGeneral's rows sit in titled cards and move with the layout, so a fixed coordinate breaks silently. Rewritten to select '.settings-row[data-key=\"externalLinksOpenInLittle\"] .settings-row-toggle' and call .click() on it directly, the same element-targeted pattern the-native-view-toggle-fades-in.json uses for its own toggle row - a row lookup by key survives a card reflow that a screen coordinate cannot.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "settings": "external-links-absent.settings.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "chromium_flags": "--force-renderer-accessibility",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the browser window finish first paint"
+    },
+    {
+      "type": "activate",
+      "note": "Atrium MUST be frontmost or cmd+comma opens the frontmost app's own settings - observed"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "open Settings on General; its menu item is not reachable from a scenario"
+    },
+    {
+      "type": "settle",
+      "ms": 7000,
+      "note": "the window builds, the route loads, and the core's values land a beat after the labels - a sibling scenario's own margin"
+    },
+    {
+      "type": "capture",
+      "id": "general-before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the row must read On here - the absent-key default"
+    },
+    {
+      "type": "eval",
+      "id": "toggle-external-links",
+      "target": "/settings",
+      "expression": "(() => { const t = document.querySelector('.settings-row[data-key=\"externalLinksOpenInLittle\"] .settings-row-toggle'); if (!t) return 'no-toggle'; t.click(); return 'clicked'; })()",
+      "note": "the Little window for external links VALUE - the toggle at the right of the row. The rows sit in titled cards and move with the layout, so a coordinate is exactly the thing that broke this scenario silently once before: 'A click on nothing raises no error in the app or the harness, so the sole symptom was a settings.json that never changed' (this file's own prior note). Selecting the control by '.settings-row[data-key] .settings-row-toggle' and calling .click() on it goes through the same delegated click listener settings.js wires on #root, without needing the window to hold OS-level key focus first - the re-activate this replaced existed only to protect an OS-level click, which this eval no longer sends."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings written",
+      "timeout_ms": 8000,
+      "note": "FAIL LOUDLY HERE: if the click missed the toggle, no save happens and the run stops at the gesture that was wrong rather than at a routing assertion much later"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: external links open in a space window",
+      "timeout_ms": 8000,
+      "note": "THE LIVE APPLY. The save reached SetExternalLinksOpenInLittle, so the value openURLs reads has changed in THIS process rather than only on disk. Absent at startup, because the fixture omits the key and an absent key leaves the default alone."
+    },
+    {
+      "type": "capture",
+      "id": "general-after",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the row reads Off"
+    },
+    {
+      "type": "open_url",
+      "url": "http://dl.localhost:8000/example-domain.html?handed-over",
+      "note": "a loopback url is still EXTERNAL in Atrium's sense. ExternalLinkOpensLittleWindow takes three booleans - the setting, has_url, and is_http_or_https - and the core's decision never inspects the HOST (atrium_external_link.cc:56). 'External' here means handed over by another app through the openURLs Apple Event, which is what the open_url action sends, not 'on a remote server'. So this keeps testing external-link handling while reaching a page the probe VM can actually load. dl.localhost also hashes to the same row hue as example.com, so any tint assertion is undisturbed."
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-settings-window-was-built",
+      "pattern": "Atrium: settings window built"
+    },
+    {
+      "type": "vlog",
+      "label": "the-route-answered",
+      "pattern": "Atrium: settings surface ready"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-unusable-argument-refusal",
+      "pattern": "Atrium: the settings surface sent an object the core",
+      "note": "the row sends the WHOLE object; a partial one is refused by the core and the edit would never land"
+    },
+    {
+      "type": "file_contains",
+      "label": "the-toggle-changed-the-bytes-on-disk",
+      "file": "settings",
+      "path": "externalLinksOpenInLittle",
+      "value": false,
+      "note": "the fixture omits the key, so a false here can only be this scenario's own edit"
+    },
+    {
+      "type": "ax_window_kind",
+      "pattern": "/foyer",
+      "expected": 0,
+      "desc": "THE POINT: with the row turned off from the pane, the handover built no little window."
+    },
+    {
+      "type": "ax_window_kind",
+      "pattern": "/sidebar",
+      "expected": 1,
+      "desc": "AND the space window is there, holding its sidebar and the handed-over URL. Without this the zero above is satisfied by an app that crashed on the handover - 'no little window' and 'no window at all' are different findings."
+    },
+    {
+      "type": "vlog_absent",
+      "label": "the-little-path-did-not-run",
+      "pattern": "Atrium: external link opened a little window",
+      "note": "corroboration for the kind gates, not a substitute for them"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits with the settings window open and an edit made"
+    }
+  ]
+}

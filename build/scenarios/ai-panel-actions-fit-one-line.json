@@ -1,0 +1,72 @@
+{
+  "name": "ai-panel-actions-fit-one-line",
+  "description": "the AI panel's two quick actions are glyph squares and the language picker shows a code, so all three sit on one line. Reads the row's children off the /ai-panel document, hovers a glyph to raise the shared hint bubble carrying the label the button no longer prints, and captures the open panel for a visual check.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "wait_vlog", "pattern": "Atrium: sidebar rows drawn [1-9]", "timeout_ms": 20000 },
+    {
+      "type": "eval_until",
+      "id": "panel-built",
+      "target": "/ai-panel",
+      "expression": "String(!!document.querySelector('.aichatinput'))",
+      "expected": "true",
+      "timeout_ms": 10000
+    },
+    { "type": "activate" },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "open",
+      "target": "/ai-panel",
+      "expression": "(() => { document.dispatchEvent(new KeyboardEvent('keydown', {key: '`'})); return String(document.getElementById('atrium-root').classList.contains('aipopen')); })()"
+    },
+    { "type": "settle", "ms": 2500, "note": "the container widens before the card's own layout settles" },
+    {
+      "type": "eval",
+      "id": "one-line",
+      "target": "/ai-panel",
+      "expression": "(() => { const kids = [...document.querySelector('.aiquick').children]; const tops = new Set(kids.map((k) => Math.round(k.getBoundingClientRect().top))); return kids.length + '/' + tops.size; })()",
+      "note": "three children sharing one top offset is the whole claim: a wrapped picker lands on a second one"
+    },
+    {
+      "type": "eval",
+      "id": "labels",
+      "target": "/ai-panel",
+      "expression": "(() => [...document.querySelectorAll('.aiquickbtn')].map((b) => b.textContent).join('|') + ' codes=' + [...document.querySelectorAll('.aiplang option')].slice(0, 3).map((o) => o.textContent).join(','))()"
+    },
+    {
+      "type": "eval",
+      "id": "hover",
+      "target": "/ai-panel",
+      "expression": "(() => { const b = document.querySelector('[data-ai-panel-quick=\"bullets\"]'); b.dispatchEvent(new PointerEvent('pointerover', {bubbles: true})); return 'sent'; })()"
+    },
+    { "type": "settle", "ms": 1200, "note": "the hover hint's own 600ms delay, on the real clock" },
+    {
+      "type": "eval",
+      "id": "hint",
+      "target": "/ai-panel",
+      "expression": "(() => document.querySelector('.hint .hint-text')?.textContent ?? 'none')()"
+    },
+    {
+      "type": "eval",
+      "id": "hint-above",
+      "target": "/ai-panel",
+      "expression": "(() => { const b = document.querySelector('[data-ai-panel-quick=\"bullets\"]').getBoundingClientRect(); const h = document.querySelector('.hint').getBoundingClientRect(); return h.bottom <= b.top ? 'above' : 'below'; })()",
+      "note": "the action row is one button-height off the bottom, so a bubble placed below lands on the prompt field"
+    },
+    { "type": "capture", "id": "warm-up", "duration_ms": 300, "fps": 10, "note": "the first stream in a run can deliver no frames" },
+    { "type": "capture", "id": "ai-panel-one-line", "duration_ms": 300, "fps": 10 }
+  ],
+  "assertions": [
+    { "type": "ax_window_count", "expected": 1, "min_area": 200000, "desc": "the browser window alone" },
+    { "type": "eval_equals", "id": "open", "expected": "\"true\"", "desc": "setup: the hotkey opened the panel" },
+    { "type": "eval_equals", "id": "one-line", "expected": "\"3/1\"", "desc": "the two actions and the picker share one row" },
+    { "type": "eval_equals", "id": "labels", "expected": "\"| codes=EN-US,EN,ES\"", "desc": "the buttons print no label and the picker prints codes" },
+    { "type": "eval_equals", "id": "hint", "expected": "\"Bullet points\"", "desc": "the hover hint carries the label the glyph dropped" },
+    { "type": "eval_equals", "id": "hint-above", "expected": "\"above\"", "desc": "the bubble clears the prompt field instead of sitting on it" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

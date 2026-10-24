@@ -1,0 +1,354 @@
+{
+  "name": "inline-autocomplete",
+  "description": "typing a prefix of a visited host completes the field inline, with the added tail selected, so Return goes straight there and the next character replaces it.\n\nTHE SEED IS THE MEASUREMENT, and three earlier runs died on it. Two things had to be true before the palette could show anything, and neither is about the palette.\n\nFIRST, the typed prefix has to classify as a URL-ish input against a host with a real registry. Seeding cb.localhost:8000 and typing 'cb.loc' put five Google search rows on screen and no history row at all - the run-2 frame shows 'cb.loc Search' selected at the top. So this maps a registrable name onto the fixture server with --host-resolver-rules. No outbound access is involved: the name resolves to the loopback the harness already serves.\n\nSECOND, and this is what run 3 proved, the omnibox offered the completion all along and simply ranked it below the search. The bridge logged 'completion 42' - the 45-character seeded URL minus the three typed characters - while the top row was still 'fix Search'. The palette completes only from the row it would ACCEPT, so a completion hanging off a lower row is correctly ignored. HistoryQuickProvider scores a URL by its own typed_count, so the fix is four typed visits to ONE URL rather than one visit each to four. Four is measured, not guessed: three runs failed below it and the run at four flipped the top row to 'Example Domain'.\n\nThe visits are typed because the palette accepts through chrome::AddTabAt, which navigates with ui::PAGE_TRANSITION_TYPED. Each tab is closed again because CommandBarRowsForQuery hands an open tab the row for its URL, and this measures the plain path rather than the inherited one. Only the first visit can be gated on its commit: wait_vlog greps the whole live log, so a second gate on the same pattern would match the first line and wait for nothing.\n\nPhase 2 types three characters and reads the field back. The value is asserted by SHAPE, since the omnibox elides the scheme and pinning exact bytes would test Chromium's fixup rather than the field. The selection range is the half that matters - a completion appended but not selected looks identical in a screenshot and behaves entirely differently under the next keystroke. Phase 3 presses Right, which takes the completion into the query. Phase 4 is the control: a query no history can answer must leave the field with no selected tail, or every assertion above would pass on an unconditional selection.\n\nDeliberately NOT seeded: a profile with search suggestions turned off. That was tried alongside the fourth visit and then removed, because a run without it is also green - so this measures the completion beating a LIVE search provider's rows, which is the real ranking the user faces.\n\nBackspace suppression (the other half of the rule) is not here: keycombo.sh has no backspace keycode, so build/scripts/commandbar-test.mjs is where that rule is proven.",
+  "fixture": "two-tabs.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "chromium_flags": "--host-resolver-rules='MAP fixtures.example.com 127.0.0.1'",
+  "chromium_flags_note": "A NAME, not a network. The fixture server already answers on the loopback for any Host, and this only gives it a name with a real registry so a three-letter prefix classifies as a URL rather than as a search term. Only this one host is mapped, every other lookup is untouched. The INNER QUOTES are load-bearing: launch_atrium interpolates this string unquoted into the ssh command, so without them the remote shell splits the rule into three arguments and Chromium takes the last two as URLs to open.",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "GATE: session restore has committed, so the window is up and the profile's history is live"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the reserved chrome context lands about 670ms after startup and the palette's WebContents needs it"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "PHASE 1, typed visit 1 of 4 to the SAME URL - HistoryQuickProvider scores a URL by its own typed_count, so four visits to one URL is the lever, not four URLs visited once"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "type",
+      "text": "http://fixtures.example.com:8000/example-domain.html"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://example\\.com",
+      "timeout_ms": 15000,
+      "note": "No subdomain. This line is redacted through LogSafeUrl, which returns scheme plus the REGISTRABLE domain, and example.com is registrable - so 'fixtures.' is dropped. A .localhost subdomain survives because GetDomainAndRegistry returns empty there and the bare host is used, which is why the migration audit's check passed while this case did not."
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w",
+      "note": "an open tab takes the row for its own URL (CommandBarRowsForQuery), so the seeded page must not be on screen when phase 2 measures"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "PHASE 1, typed visit 2 of 4 to the SAME URL - HistoryQuickProvider scores a URL by its own typed_count, so four visits to one URL is the lever, not four URLs visited once"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "type",
+      "text": "http://fixtures.example.com:8000/example-domain.html"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w",
+      "note": "an open tab takes the row for its own URL (CommandBarRowsForQuery), so the seeded page must not be on screen when phase 2 measures"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "PHASE 1, typed visit 3 of 4 to the SAME URL - HistoryQuickProvider scores a URL by its own typed_count, so four visits to one URL is the lever, not four URLs visited once"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "type",
+      "text": "http://fixtures.example.com:8000/example-domain.html"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w",
+      "note": "an open tab takes the row for its own URL (CommandBarRowsForQuery), so the seeded page must not be on screen when phase 2 measures"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "PHASE 1, typed visit 4 of 4 to the SAME URL - HistoryQuickProvider scores a URL by its own typed_count, so four visits to one URL is the lever, not four URLs visited once"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "type",
+      "text": "http://fixtures.example.com:8000/example-domain.html"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w",
+      "note": "an open tab takes the row for its own URL (CommandBarRowsForQuery), so the seeded page must not be on screen when phase 2 measures"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "PHASE 2: the measured open"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "type",
+      "text": "fix",
+      "note": "three characters of a host visited twice, typed both times"
+    },
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "the history pass has to land - the completion is applied by the push, not by the keystroke"
+    },
+    {
+      "type": "capture",
+      "id": "inline-completion",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the completed host in the field with its tail selected. Read this frame first when an assertion below fails: it shows which rows the pass carried and which one is highlighted"
+    },
+    {
+      "type": "eval",
+      "id": "inline-value",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbinput') || {}).value || 'no field')",
+      "note": "read for the failure line: what the field actually held"
+    },
+    {
+      "type": "eval",
+      "id": "inline-top-row",
+      "target": "/commandbar",
+      "expression": "(() => { const r = document.querySelector('.cbrow'); if (!r) return 'no rows'; return String((r.querySelector('.cbtitle') || {}).textContent || ''); })()",
+      "note": "read for the failure line: the row Return would take. A search row here means the omnibox never made the visited URL its default match, which is the run-2 failure and is not a palette defect"
+    },
+    {
+      "type": "eval",
+      "id": "inline-shape",
+      "target": "/commandbar",
+      "expression": "(() => { const v = (document.querySelector('.cbinput') || {}).value || ''; return String(v.startsWith('fix') && v.includes('fixtures.example.com:8000/') && v.length > 3); })()",
+      "note": "The field grew past what was typed, and it grew into the seeded host rather than into anything else"
+    },
+    {
+      "type": "eval",
+      "id": "inline-selection",
+      "target": "/commandbar",
+      "expression": "(() => { const f = document.querySelector('.cbinput'); if (!f) return 'no field'; return String(f.selectionStart === 3 && f.selectionEnd === f.value.length && f.selectionEnd > 3); })()",
+      "note": "The typed three characters are outside the selection and the whole completion is inside it. This is the half a screenshot cannot tell apart"
+    },
+    {
+      "type": "key",
+      "combo": "right",
+      "note": "PHASE 3: Right takes the completion into the query"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "accepted-value",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbinput') || {}).value || 'no field')",
+      "note": "read for the failure line: Right must keep the text it accepted"
+    },
+    {
+      "type": "eval",
+      "id": "accepted-caret",
+      "target": "/commandbar",
+      "expression": "(() => { const f = document.querySelector('.cbinput'); if (!f) return 'no field'; return String(f.selectionStart === f.selectionEnd && f.selectionEnd === f.value.length && f.value.length > 3); })()",
+      "note": "The selection is gone and the caret sits at the end, on text still longer than what was typed"
+    },
+    {
+      "type": "key",
+      "combo": "escape"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "PHASE 4 control: a query the profile's history cannot answer"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "type",
+      "text": "qzqx"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "eval",
+      "id": "control-value",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbinput') || {}).value || 'no field')",
+      "note": "read for the failure line: the field should hold exactly what was typed"
+    },
+    {
+      "type": "eval",
+      "id": "control-selection",
+      "target": "/commandbar",
+      "expression": "(() => { const f = document.querySelector('.cbinput'); if (!f) return 'no field'; return String(f.value === 'qzqx' && f.selectionStart === f.selectionEnd); })()",
+      "note": "the completion is not unconditional - without this, a field that always selected its own tail would pass every assertion above"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "inline-shape",
+      "expected": "\"true\"",
+      "desc": "Three characters of a twice-typed host completed to that host's URL. inline-value names what was in the field when this fails, and inline-top-row says whether the omnibox offered a URL row at all - an unchanged 'fix' next to a 'Search' top row means the completion was never offered, not that the palette dropped it."
+    },
+    {
+      "type": "eval_equals",
+      "id": "inline-selection",
+      "expected": "\"true\"",
+      "desc": "And the added tail is selected from character three to the end, so the next keystroke replaces it rather than appending to it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "accepted-caret",
+      "expected": "\"true\"",
+      "desc": "Right accepted the completion into the query - the selection collapsed to the end and the completed text stayed. accepted-value names what survived."
+    },
+    {
+      "type": "eval_equals",
+      "id": "control-selection",
+      "expected": "\"true\"",
+      "desc": "control: a query nothing in history answers leaves the field holding exactly what was typed, with no selection"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "name": "a-visible-hint-overlay-does-not-swallow-page-clicks",
+  "description": "Settles a question the hint overlay raises on its own.\n\nHintOverlayWidget hosts a WebContents in a frameless widget sized to the WHOLE parent window. A renderer hit-tests its entire viewport, and there is no setIgnoresMouseEvents, no EventTargeter and no NonClientHitTest override anywhere in the atrium widgets. hint.css puts pointer-events: none on .hint, the bubble element, but NOT on html or body. So the reasonable fear is that whenever this widget is visible, every click meant for the page is eaten by a transparent surface in front of it.\n\nIt matters for two reasons. A window-level toast surface built the same way would have the same exposure, and a toast follows a copy: swallowing clicks for the 1.4s it is up would be a worse bug than the misplaced card it fixes. And if the answer is bad, this widget already does it for the roughly 2.5s a hint lives, masked because a hint appears under a pointer that is parked on a control.\n\nHOW IT IS MEASURED, and why it is controlled. A counter is armed on the page itself, then the SAME screen point is clicked twice: once with no hint up, once while one is. The first click is not decoration. Without it a zero could equally mean the overlay swallowed the click, the coordinate missed the page, or cgevent never landed at all, and those are indistinguishable from a single reading. The hint is re-shown with a long ttl and its visibility is re-checked AFTER the click, so a pass cannot come from the bubble having quietly expired first.",
+  "fixture": "hotkey-rebind.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "arm-the-page-counter",
+      "target": "example-domain-tall",
+      "expression": "(() => { window.__atriumClicks = 0; document.addEventListener('click', () => { window.__atriumClicks++; }, true); return 'armed ' + window.innerWidth + 'x' + window.innerHeight; })()",
+      "note": "capture phase, so a handler on the page's own elements cannot stop it counting. The page's viewport is logged so a click that misses can be re-aimed."
+    },
+    {
+      "type": "click",
+      "x": 700,
+      "y": 500,
+      "note": "THE CONTROL: no hint up, so this must land. A point well inside the web card, clear of the sidebar and of where a hint anchored near the top will sit."
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "clicks-without-an-overlay",
+      "target": "example-domain-tall",
+      "expression": "String(window.__atriumClicks)"
+    },
+    {
+      "type": "eval",
+      "id": "hover-a-nav-button",
+      "target": "/sidebar",
+      "expression": "(() => { const nb = document.querySelector('.sbnav .nb'); if (!nb) { return 'no nav button'; } nb.dispatchEvent(new PointerEvent('pointerover', {bubbles: true})); nb.dispatchEvent(new PointerEvent('pointermove', {bubbles: true})); return 'hovered'; })()",
+      "note": "the widget builds its WebContents lazily inside Show, so a hint has to be triggered the product's own way before /hint can be addressed at all"
+    },
+    {
+      "type": "settle",
+      "ms": 1400,
+      "note": "past HOVER_DELAY_MS, which is 600"
+    },
+    {
+      "type": "eval_until",
+      "id": "hint-is-up",
+      "target": "/hint",
+      "expression": "String(!!document.querySelector('.hint') && document.querySelector('.hint').getBoundingClientRect().width > 0)",
+      "expected": "true",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "eval",
+      "id": "hold-the-hint-open",
+      "target": "/hint",
+      "expression": "(() => { window.atriumShowHint({text: 'held open for the click probe', keys: '', anchor: {left: 8, top: 40, width: 22, height: 22}, ttlMs: 30000}); return 'held'; })()",
+      "note": "30s, so the widget is certainly still visible when the click below lands and when the check after it runs"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "click",
+      "x": 700,
+      "y": 500,
+      "note": "THE MEASUREMENT: the same point, now with a full-window overlay in front of it"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "clicks-with-an-overlay",
+      "target": "example-domain-tall",
+      "expression": "String(window.__atriumClicks)"
+    },
+    {
+      "type": "eval",
+      "id": "hint-was-still-up-after-the-click",
+      "target": "/hint",
+      "expression": "String(!!document.querySelector('.hint') && document.querySelector('.hint').getBoundingClientRect().width > 0)",
+      "note": "guards the measurement itself: if the bubble had expired, a passing click would prove nothing about an overlay that was no longer there"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "clicks-without-an-overlay",
+      "expected": "\"1\"",
+      "desc": "THE CONTROL: the click reaches the page when nothing is over it. A failure here means the coordinate or cgevent is wrong, not that anything was swallowed."
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint-was-still-up-after-the-click",
+      "expected": "\"true\"",
+      "desc": "the overlay was genuinely in front of the page for the second click"
+    },
+    {
+      "type": "eval_equals",
+      "id": "clicks-with-an-overlay",
+      "expected": "\"2\"",
+      "desc": "THE QUESTION: a click passes through a visible full-window hint overlay. If this reads 1, the overlay swallows page clicks, a toast surface built the same way needs a click-through mechanism, and this widget has a defect of its own to file."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "name": "scrub-settle-timing",
+  "wip": true,
+  "description": "retro-verifies the settle-spring analytic predictions of two fixes (velocity-floor fix, ~141ms hard flick vs ~86ms unclamped, ~120ms perceptibility floor) and (hard-throw damping fix, hard settles ~0.248s LATER than gentle's ~0.1945s, inverted before the fix) shipped without a captured-frame check - both landed on host-only unit-test physics (SidebarScrubMath.slideSpringDisplacement / firstPerceivedSettleTime), never against actual rendered SwiftUI output. Same fixture, startup space, and 3-gesture dance (out/bridge-back/out) as the merged swipe-scroll-phase.json - reuses its exact gentle (dx=90 phase_ms=900 momentum_ms=0) and hard (dx=-45 phase_ms=120 momentum_ms=300) fixtures verbatim, since those are this harness's own established gentle/hard throw shapes - but raises capture fps/duration_ms to get the finest frame resolution the VM will actually deliver, for a pixcmp-based settle-duration measurement instead of a single before/after check. wip: true (diagnostic/measurement helper, not a regression gate - no fixed-duration assertion would be robust to VM load jitter); run by explicit name, not swept by `all`.",
+  "fixture": "space-cycle.spaces.json",
+  "startup_space": "a276b002-0000-0000-0000-000000000002",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the sidebar render and the startup space's (Elsewhere) tab commit"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 100,
+      "y": 200,
+      "dx": 90,
+      "phase_ms": 900,
+      "momentum_ms": 0,
+      "capture_id": "gentle-drag",
+      "duration_ms": 2200,
+      "fps": 30,
+      "note": "GENTLE DRAG (a sibling scenario's own slow-scrub fixture): long phase_ms, no momentum tail. Positive dx commits .next: Elsewhere -> Third. Analytic prediction: settles ~0.1945s after release."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "third-page",
+      "target": "peek-target.html",
+      "expression": "location.href",
+      "expected": "file:///Users/admin/atrium-probe/vm-fixtures/peek-target.html",
+      "timeout_ms": 8000,
+      "note": "OBJECTIVE PROOF the gentle drag actually committed a workspace change (Third's tab, cold at launch)"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "scroll",
+      "x": 100,
+      "y": 200,
+      "dx": -90,
+      "phase_ms": 900,
+      "momentum_ms": 0,
+      "note": "BRIDGE HOP (unasserted, uncaptured): negative dx commits .previous, Third -> Elsewhere, to reach the OTHER cold neighbor with a genuine single-commit gesture - same shape swipe-scroll-phase.json uses."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ activated on host",
+      "timeout_ms": 300000,
+      "note": "gates on the bridge hop's own completion instead of a fixed sleep - see swipe-scroll-phase.json's identical action for the full rationale."
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 100,
+      "y": 200,
+      "dx": -45,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "fast-flick",
+      "duration_ms": 1600,
+      "fps": 30,
+      "note": "FAST FLICK (a sibling scenario's own fast-flick fixture): short phase_ms + decaying momentum tail. Negative dx commits .previous: Elsewhere -> Editing. Analytic prediction: settles ~0.248s after release (LATER than the gentle drag - the earlier fix)."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "editing-page",
+      "target": "edit-focus-field.html",
+      "expression": "location.href",
+      "expected": "file:///Users/admin/atrium-probe/vm-fixtures/edit-focus-field.html",
+      "timeout_ms": 8000,
+      "note": "OBJECTIVE PROOF the fast flick actually committed a workspace change (Editing's tab, cold at launch)"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "third-page",
+      "expected": "file:///Users/admin/atrium-probe/vm-fixtures/peek-target.html",
+      "label": "gentle-drag-committed",
+      "desc": "gentle drag drove a real workspace change end to end"
+    },
+    {
+      "type": "eval_equals",
+      "id": "editing-page",
+      "expected": "file:///Users/admin/atrium-probe/vm-fixtures/edit-focus-field.html",
+      "label": "fast-flick-committed",
+      "desc": "fast flick drove a real workspace change end to end"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window throughout every hop"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q actually quits (process gone)"
+    }
+  ]
+}

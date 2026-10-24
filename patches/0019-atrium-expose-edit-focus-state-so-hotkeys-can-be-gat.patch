@@ -1,0 +1,54 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 26 Jul 2026 21:38:50 +0200
+Subject: [PATCH 019/154] atrium: expose edit-focus state so hotkeys can be
+ gated on it
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Two features were blocked on not being able to answer 'is the user typing?':
+Cmd+Shift+Arrow for workspace switching and Cmd+F for the sidebar
+filter. Both are standard macOS text-editing chords, and binding
+either without a focus signal would steal keystrokes from every text field.
+
+The signal is content::WebContents::IsFocusedElementEditable(), the public
+projection of the same renderer state that drives the virtual keyboard.
+TextInputManager would have been richer but lives in content/browser and
+chrome/browser/DEPS permits only content/public/browser; there is no public
+accessor for ui::TextInputType. The imprecision errs toward over-blocking - a
+readonly input reads as editable.
+
+Read live rather than cached. A cache diverges in a case no notification
+covers: dragging a tab with a focused field into another window reparents
+native views without moving DOM focus, so nothing fires and the destination
+reads 'nothing focused' while the caret is still in the field. The observer
+now only triggers a re-push to Swift.
+
+Gating is a property of the CHORD, not the action, so a rebind onto a
+text-editing chord is gated with no per-action policy. Both dispatch routes
+are covered: prePerformKeyEquivalent falls through to super rather than
+dropping, so a declined key still travels. Fails closed on an unresolved
+signal, an unknown kind, or a snapshot from another tab.
+
+New ABI group appended at the tail (ninth group); the frozen content/shell
+copy is untouched.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 205b3838feda3..bf62c173ffe71 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -619,6 +619,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:devtools_card_corners",
+     "//chrome/browser/ui/atrium:devtools_pane_selection",
+     "//chrome/browser/ui/atrium:extension_actions_json",
++    "//chrome/browser/ui/atrium:edit_focus_gate",
+     "//chrome/browser/ui/atrium:extension_popup_watchdog_policy",
+     "//chrome/browser/ui/atrium:little_marker",
+     "//chrome/browser/ui/atrium:routing_navigation_decision",

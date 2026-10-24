@@ -1,0 +1,103 @@
+{
+  "name": "scrub-chord-agree",
+  "description": "Drives one rightward scrub and one Cmd+Shift+Right from the same start and asserts both commit the SAME hop, via BrowserController::SelectSpace's own VLOG which fires identically for the sidebarSpaceSelected and CycleSpace routes.\n\nRED SINCE 2026-08-17 AND CORRECTLY SO. The user overturned the scrub direction on real hardware, so a rightward gesture now goes BACK (Safari and Arc do the same) while Cmd+Shift+Right still goes forward. This scenario asserts they agree, and they no longer do - measured 5 passed, 4 failed.\n\nIt is deliberately NOT marked cannot_pass. The disagreement is the open half of a gesture and a chord pointing opposite ways is a defect whichever way round it is, and this scenario is the thing that will notice when the keyboard is flipped to match. Marking it unpassable would retire the only check on that. Before the flip it was 7 passed, 0 failed.",
+  "fixture": "space-cycle.spaces.json",
+  "startup_space": "a276b002-0000-0000-0000-000000000002",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the sidebar render and the startup space's (Elsewhere) tab commit"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "scroll",
+      "x": 100,
+      "y": 200,
+      "dx": 90,
+      "phase_ms": 900,
+      "momentum_ms": 0,
+      "note": "PHASE 1, THE SCRUB: same gesture a sibling scenario drives (dx=+90, slow, no momentum tail). Rightward. Elsewhere is order 1, so FORWARD lands on Third (order 2)."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 1 -> 2 'Third'",
+      "timeout_ms": 8000,
+      "note": "THE CHECK for phase 1: the scrub must commit forward, index 1 -> 2, same as the chord below. Before the fix this line read 'active space 1 -> 0' instead - backward, to Editing - and this wait would time out."
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "scroll",
+      "x": 100,
+      "y": 200,
+      "dx": -90,
+      "phase_ms": 900,
+      "momentum_ms": 0,
+      "note": "BRIDGE HOP (unasserted): leftward scrub, Third -> Elsewhere, back to the same starting space for phase 2. Symmetric to phase 1 by construction - the machine's internal dir/p math did not change, only the sign it is fed."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 2 -> 1 'Elsewhere'",
+      "timeout_ms": 8000,
+      "note": "bridge landed back on Elsewhere before phase 2 starts"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "PHASE 2, THE CHORD: same starting space (Elsewhere, order 1) as phase 1's scrub. CycleSpace(1) is forward by definition (atrium_native_hotkey_map.mm) - the reference this task settled the scrub's direction against."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 1 -> 2 'Third'",
+      "timeout_ms": 8000,
+      "note": "THE CHECK for phase 2, and the point of this scenario: the SAME pattern as phase 1's check. If both wait_vlog steps observe this line, the scrub and the chord agreed. This line has always fired here, even before the fix - phase 1 is what the fix changes."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "pattern": "Atrium: active space 1 -> 2 'Third'",
+      "label": "scrub-committed-forward",
+      "desc": "THE SCRUB'S OWN CHECK: the rightward scroll's first hop must have logged the forward transition (Elsewhere, index 1 -> Third, index 2). Before the fix this occurrence read 'active space 1 -> 0' instead, so this line's presence at all is what the fix changed."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: active space 2 -> 1 'Elsewhere'",
+      "label": "bridge-hop-returned-to-elsewhere",
+      "desc": "The unasserted bridge hop (leftward scrub, Third -> Elsewhere) actually landed back on the shared starting space, which is what makes the chord's forward hop below a same-origin comparison against the scrub's."
+    },
+    {
+      "type": "vlog_after",
+      "pattern": "Atrium: active space 1 -> 2 'Third'",
+      "after_pattern": "Atrium: active space 2 -> 1 'Elsewhere'",
+      "label": "chord-committed-forward-after-the-bridge",
+      "desc": "THE CHORD'S OWN CHECK, distinguished from the scrub's earlier occurrence of the identical line by ordering: this occurrence must follow the bridge hop's return to Elsewhere, so it can only be Cmd+Shift+Right's own transition, not a stale match on phase 1's. Its presence after the bridge, combined with scrub-committed-forward above, is the agreement this scenario exists to prove - both routes chose the SAME target space from the SAME starting space."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "One window throughout: neither the scrub nor the chord opens a second surface, only navigates within the sidebar's active space."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits after the scrub and the chord agree."
+    }
+  ]
+}

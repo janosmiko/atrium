@@ -1,0 +1,250 @@
+{
+  "name": "cmd-l-prefills-the-url",
+  "description": "Cmd+L and Cmd+T opened the same empty palette. The hotkey has always set CommandBarOpenReason::kEditCurrentURL, but nothing read the latch, so the reason died in the controller. Show() consumes it now and hands the displayed tab's URL to atriumResetCommandBar, which fills the field and selects it.\n\nPhase 1 measures the COLD open, which is the half with new machinery behind it: the first Cmd+L runs before the /commandbar document exists, so its reset is dropped on the floor and commandBarReady has to replay the held URL. The fixture restores ONE of its two tabs and either may win, so this phase asserts the shape of the restored URL rather than its text, plus a selection that spans the whole field.\n\nPhase 2 measures the WARM open against an exact string. It first opens a tab on a URL this scenario chose (the earlier palette path a sibling scenario already proves works), so the active tab's URL is known to the character and the field can be compared against it rather than against a pattern.\n\nEscape then has to leave the tab where it was - a prefilled field is one Return away from navigating, and the point of the reason is that Cmd+L edits an address rather than committing one. The closing Cmd+T is the control: the same reset function, called with no URL, still opens empty.",
+  "fixture": "two-tabs.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "GATE: the restored tab has committed, so there is a URL for Cmd+L to read"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the reserved chrome context lands about 670ms after startup and the palette's WebContents needs it"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+l",
+      "note": "PHASE 1: the palette has never been opened, so this Show() runs before the document exists and the prefill can only arrive through the commandBarReady replay"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the /commandbar document has to load and announce itself before the held URL is replayed"
+    },
+    {
+      "type": "capture",
+      "id": "cold-prefill",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the restored tab's URL in the field, selected, on the first open of the session"
+    },
+    {
+      "type": "eval",
+      "id": "cold-prefill-value",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbinput') || {}).value || 'no field')",
+      "note": "read for the failure line: whichever of the two fixture tabs session restore brought up"
+    },
+    {
+      "type": "eval",
+      "id": "cold-prefill-shape",
+      "target": "/commandbar",
+      "expression": "(() => { const v = (document.querySelector('.cbinput') || {}).value || ''; return String(v.startsWith('http://') && v.includes('.localhost:8000/example-domain.html?')); })()",
+      "note": "On the cold path: either restored tab satisfies this and an empty field does not"
+    },
+    {
+      "type": "eval",
+      "id": "cold-prefill-selection",
+      "target": "/commandbar",
+      "expression": "(() => { const f = document.querySelector('.cbinput'); if (!f) return 'no field'; return String(f.selectionStart === 0 && f.selectionEnd === f.value.length && f.value.length > 0); })()",
+      "note": "The selection spans the whole URL. The length guard is what stops an empty field passing - 0-0 also spans its value"
+    },
+    {
+      "type": "key",
+      "combo": "escape"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "SETUP for phase 2: open a tab on a URL this scenario knows to the character"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the palette take the field"
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/peek-target.html"
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "eval_until",
+      "id": "phase2-tab-page",
+      "target": "peek-target.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-target.html",
+      "timeout_ms": 15000,
+      "note": "SETUP GATE: the active tab is now exactly this URL"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+l",
+      "note": "PHASE 2: the warm open, on a document that already exists"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "the reset and the pass answering its URL query land together"
+    },
+    {
+      "type": "capture",
+      "id": "warm-prefill",
+      "duration_ms": 300,
+      "fps": 20
+    },
+    {
+      "type": "eval",
+      "id": "warm-prefill-value",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbinput') || {}).value || 'no field')",
+      "note": "The field holds the active tab's URL, character for character"
+    },
+    {
+      "type": "eval",
+      "id": "warm-prefill-selection",
+      "target": "/commandbar",
+      "expression": "(() => { const f = document.querySelector('.cbinput'); if (!f) return 'no field'; return f.selectionStart + '-' + f.selectionEnd; })()",
+      "note": "The whole 38-character URL is selected, so the next keystroke replaces it"
+    },
+    {
+      "type": "eval_until",
+      "id": "warm-prefill-rows",
+      "target": "/commandbar",
+      "expression": "String(document.querySelectorAll('.cbrow').length > 0)",
+      "expected": "true",
+      "timeout_ms": 8000,
+      "note": "the prefill sent commandBarQuery for the URL rather than for the empty string - without that the palette would sit on an unanswered field"
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "dismiss. A prefilled field is one Return away from navigating, so the tab has to be untouched after this"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "tab-after-escape",
+      "target": "peek-target.html",
+      "expression": "String(location.href)",
+      "note": "Read from the PAGE, not the palette - Escape must not have committed the field"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "Control: the same reset function with no URL behind it"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "new-tab-open",
+      "duration_ms": 300,
+      "fps": 20
+    },
+    {
+      "type": "eval",
+      "id": "new-tab-field",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbinput') || {}).value)",
+      "note": "Cmd+T still opens empty, on the very palette that was holding a URL a moment ago"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "cold-prefill-shape",
+      "expected": "\"true\"",
+      "desc": "On the cold path: the first Cmd+L of the session came up on the restored tab's URL, which only the commandBarReady replay can deliver - the reset it was sent with reached no document. cold-prefill-value names what was actually there when this fails."
+    },
+    {
+      "type": "eval_equals",
+      "id": "cold-prefill-selection",
+      "expected": "\"true\"",
+      "desc": "And it was selected end to end, on a non-empty value"
+    },
+    {
+      "type": "eval_equals",
+      "id": "warm-prefill-value",
+      "expected": "\"http://127.0.0.1:8000/peek-target.html\"",
+      "desc": "The exact URL of the tab in front of the user, on a palette whose document was already live. Read against a URL this scenario opened itself, so a stale field cannot pass it."
+    },
+    {
+      "type": "eval_equals",
+      "id": "warm-prefill-selection",
+      "expected": "\"0-38\"",
+      "desc": "The selection covers all 38 characters, so typing replaces the URL instead of appending to it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "tab-after-escape",
+      "expected": "\"http://127.0.0.1:8000/peek-target.html\"",
+      "desc": "Escape closed the palette and the tab is where it was. A prefilled field that commits on dismiss would land this on whatever the omnibox ranked first."
+    },
+    {
+      "type": "eval_equals",
+      "id": "new-tab-field",
+      "expected": "\"\"",
+      "desc": "Cmd+T is still an empty open. Without this the prefill could be unconditional and every assertion above would still pass."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

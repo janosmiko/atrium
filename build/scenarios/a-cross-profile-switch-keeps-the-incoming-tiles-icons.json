@@ -1,0 +1,97 @@
+{
+  "name": "a-cross-profile-switch-keeps-the-incoming-tiles-icons",
+  "description": "Two spaces on two profiles, each with favourites on real origins. Both profiles visit their own space first, so each icon cache holds its own tiles. Back on Personal, the BPX pane beside it must already show BPX's icons from BPX's own cache. Cmd+2 then lands on BPX: the pinned grid must take over the very img nodes that the pane loaded. A fresh img shows the letter plate until it loads, and that was the blink on every cross-profile switch.",
+  "fixture": "two-profile-favourites.spaces.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "settle", "ms": 3000 },
+    { "type": "activate" },
+    { "type": "wait_vlog", "pattern": "Atrium: favicon backfill starting", "timeout_ms": 15000 },
+    {
+      "type": "eval_until",
+      "id": "personal-tiles-ok",
+      "target": "/sidebar",
+      "expression": "(() => { const t = [...document.querySelectorAll('#atrium-root > .favgrid .fav')]; return String(t.length > 0 && t.every(f => f.querySelector('.fvimg.ok'))); })()",
+      "expected": "true",
+      "timeout_ms": 30000,
+      "note": "a key sent before the startup space settles can be lost"
+    },
+    {
+      "type": "eval_until",
+      "id": "cold-bpx-pane-tiles-ok",
+      "target": "/sidebar",
+      "expression": "(() => { const t = [...document.querySelectorAll('.railpane[data-space-index=\"1\"] .fav')]; return String(t.length >= 5 && t.every(f => f.querySelector('.fvimg.ok'))); })()",
+      "expected": "true",
+      "timeout_ms": 30000,
+      "note": "BPX was never active, so only the backfill can have filled its cache"
+    },
+    { "type": "settle", "ms": 1000 },
+    { "type": "key", "combo": "cmd+2", "note": "BPX fills its own icon cache" },
+    {
+      "type": "eval_until",
+      "id": "bpx-tiles-ok",
+      "target": "/sidebar",
+      "expression": "(() => { const t = [...document.querySelectorAll('#atrium-root > .favgrid .fav')]; return String(t.length >= 5 && t.every(f => f.querySelector('.fvimg.ok'))); })()",
+      "expected": "true",
+      "timeout_ms": 30000
+    },
+    { "type": "key", "combo": "cmd+1", "note": "back to Personal" },
+    {
+      "type": "eval_until",
+      "id": "bpx-pane-tiles-ok",
+      "target": "/sidebar",
+      "expression": "(() => { const t = [...document.querySelectorAll('.railpane[data-space-index=\"1\"] .fav')]; return String(t.length >= 5 && t.every(f => f.querySelector('.fvimg.ok'))); })()",
+      "expected": "true",
+      "timeout_ms": 30000,
+      "note": "the BPX pane beside Personal shows its icons before any switch"
+    },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "marked",
+      "target": "/sidebar",
+      "expression": "(() => { const imgs = [...document.querySelectorAll('.railpane[data-space-index=\"1\"] .fav .fvimg.ok')]; imgs.forEach(i => { i.dataset.mark = '1'; }); return String(imgs.length); })()",
+      "note": "recorded: how many loaded BPX pane icons were marked"
+    },
+    {
+      "type": "eval",
+      "id": "probe-installed",
+      "target": "/sidebar",
+      "expression": "(() => { const orig = window.atriumSetSidebar; window.__pushLog = []; window.atriumSetSidebar = (s) => { const a = s?.activeSpace ?? 0; const sp = (s?.spaces || [])[a] || {}; const sc = (v) => String(v || '-').slice(0, 6); orig(s); const g = [...document.querySelectorAll('#atrium-root > .favgrid .fvimg')]; window.__pushLog.push('a' + a + ' top=' + sc(s?.iconScope) + ' sp=' + sc(sp.iconScope) + ' prof=' + (sp.profileId || '-') + ' grid=' + g.map(i => (i.dataset.mark === '1' ? 'K' : (i.classList.contains('ok') ? 'F' : 'L')) + sc((i.getAttribute('src') || '').split('/')[2])).join(',')); }; return 'ok'; })()",
+      "note": "recorded: wraps the push entry to log each push during the landing"
+    },
+    { "type": "key", "combo": "cmd+2", "note": "land on BPX" },
+    { "type": "settle", "ms": 3000 },
+    {
+      "type": "eval",
+      "id": "landed-tiles",
+      "target": "/sidebar",
+      "expression": "(() => { const t = [...document.querySelectorAll('#atrium-root > .favgrid .fav')]; return String(t.length >= 5 && t.every(f => { const i = f.querySelector('.fvimg'); return i && i.classList.contains('ok') && i.dataset.mark === '1'; })); })()",
+      "note": "every tile on the BPX pinned grid kept the node its pane loaded"
+    },
+    {
+      "type": "eval",
+      "id": "landed-detail",
+      "target": "/sidebar",
+      "expression": "[...document.querySelectorAll('#atrium-root > .favgrid .fav')].map(f => { const i = f.querySelector('.fvimg'); return (f.dataset.favId || '?').replace(/^https:\\/\\//, '').slice(0, 20) + '=' + (i ? (i.dataset.mark === '1' ? 'kept' : (i.classList.contains('ok') ? 'fresh' : 'loading')) : 'none'); }).join(' ')",
+      "note": "recorded: per tile, whether the landing kept the pane's node"
+    },
+    {
+      "type": "eval",
+      "id": "push-log",
+      "target": "/sidebar",
+      "expression": "(window.__pushLog || ['no log']).join(' | ')",
+      "note": "recorded: each push during the landing"
+    }
+  ],
+  "assertions": [
+    { "type": "ax_window_count", "expected": 1, "min_area": 200000, "desc": "sanity: one real window rendered" },
+    { "type": "eval_equals", "id": "cold-bpx-pane-tiles-ok", "expected": "true", "desc": "the pane of a never-active profile shows its icons" },
+    { "type": "eval_equals", "id": "bpx-tiles-ok", "expected": "true", "desc": "BPX's own tiles paint" },
+    { "type": "eval_equals", "id": "bpx-pane-tiles-ok", "expected": "true", "desc": "the BPX pane shows its icons beside Personal" },
+    { "type": "eval_equals", "id": "landed-tiles", "expected": "\"true\"", "desc": "the landing reuses every pane icon, so no tile blinks" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

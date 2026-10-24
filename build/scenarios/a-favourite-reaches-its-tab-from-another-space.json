@@ -1,0 +1,118 @@
+{
+  "name": "a-favourite-reaches-its-tab-from-another-space",
+  "description": "A favourite follows its profile and shows on every space of it, so the question is whether clicking the tile from a DIFFERENT space than the one its page was opened in reaches that page or opens a second copy.\n\nReading the code says it reaches it: a space is a document-level selection rather than a Browser of its own - SelectSpace sets the active index and then calls ShowRow, which activates a tab in this controller's OWN strip - so one strip holds a profile's tabs whatever space is showing, and the claim scan walks that strip with no space filter. This scenario is here to prove that rather than trust it.\n\nBoth spaces belong to one profile, which is the only arrangement where a tile appears in both. The favourite redirects, so only its claim can find the page again. One open across two clicks in two different spaces is the assertion.",
+  "fixture": "1-two-spaces-one-favourite.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the window finish first paint and the sidebar announce itself"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the grid before any click, so the tile that gets pressed is on record"
+    },
+    {
+      "type": "click",
+      "x": 40,
+      "y": 145,
+      "note": "The only favourite tile. Measured from the settled frame, whose grid put its first cell near x=40,y=145 under the 34px traffic-light inset."
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "long enough for the page to load AND for the meta refresh to commit, which is what moves the URL away from the tile's"
+    },
+    {
+      "type": "capture",
+      "id": "after-first",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 140,
+      "y": 300,
+      "dx": -90,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "swipe-to-second",
+      "duration_ms": 400,
+      "fps": 25,
+      "note": "Forward to the second space. dx is negative because the wheel listener negates deltaX."
+    },
+    {
+      "type": "settle",
+      "ms": 1800,
+      "note": "the rail settles on the second space before the tile is pressed again"
+    },
+    {
+      "type": "click",
+      "x": 40,
+      "y": 145,
+      "note": "the same tile again - this is the click that used to stack a second copy"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "capture",
+      "id": "after-second",
+      "duration_ms": 400,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: cold sidebar row opening",
+      "max": 1,
+      "label": "one-open-across-both-spaces",
+      "desc": "THE assertion. The tile is clicked once in each space. A second open here is the duplicate this task was filed about. The line no longer carries a URL; the fixture holds only this one favourite, so the bare prefix names the same event."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: cold sidebar row opening",
+      "label": "the-first-click-opened-it",
+      "desc": "The floor beside that ceiling, so a run whose clicks both missed the tile cannot pass by opening nothing."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: favourite activated its own tab [0-9]+",
+      "label": "the-second-space-reached-the-same-tab",
+      "desc": "Which path answered, and it moved one earlier. The tile used to carry a live tab id in the ACTIVE space alone, so a click from the second space fell through to the claim scan and logged 'by key'. A favourite is one tab on the profile now, so every space's tile carries the id and the id path answers first. Either way the URL scan cannot have done it - the page redirected away from the tile's URL - and the count above is what holds it to ONE tab across both clicks."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: active space 0 -> 1",
+      "label": "the-rail-really-changed-space",
+      "desc": "Without this the scenario proves nothing about spaces: a swipe that failed to settle would leave both clicks in space 0, which the redirect scenario already covers."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "label": "still-one-window",
+      "desc": "A second window would mean a different strip, which is a different question from the one asked here."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

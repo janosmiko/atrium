@@ -1,0 +1,149 @@
+{
+  "name": "the-quick-menu-opens-under-the-devbar-button",
+  "description": "The puzzle button at the right end of the floating address bar's extension strip opens the quick menu in its own child window, placed under that button. The card is a separate document, so the only way to see it land in the right place is to read both: the button's box in the devbar, and the card's own window position from the browser's log line.",
+  "fixture": "icon-tint-none.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "chromium_flags": "--vmodule=atrium_quick_menu_widget=1",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the reserved chrome context lands about 670ms after startup and the menu's WebContents needs it"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d"
+    },
+    {
+      "type": "eval_until",
+      "id": "bar-up",
+      "target": "/devbar",
+      "expression": "document.querySelector('.devbar') ? 'up' : 'absent'",
+      "expected": "up",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "button-box",
+      "target": "/devbar",
+      "expression": "(() => { const b = document.querySelector('.dvexts .qm-open'); if (!b) { return 'no button'; } const r = b.getBoundingClientRect(); return Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height); })()",
+      "note": "written into the log so a card that lands wrong can be re-checked against the button's own numbers"
+    },
+    {
+      "type": "capture",
+      "id": "before-the-click",
+      "duration_ms": 300,
+      "fps": 20
+    },
+    {
+      "type": "eval",
+      "id": "click-the-button",
+      "target": "/devbar",
+      "expression": "(() => { const b = document.querySelector('.dvexts .qm-open'); if (!b) { return 'no button'; } b.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window})); return 'clicked'; })()",
+      "expected": "clicked"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: quick menu showing at",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "eval_until",
+      "id": "card-rendered",
+      "target": "/quickmenu",
+      "expression": "(() => { const c = document.querySelector('.qm-card'); if (!c) { return 'no card'; } return document.querySelector('.qm-manage') ? 'card' : 'incomplete'; })()",
+      "expected": "card",
+      "timeout_ms": 10000,
+      "note": "THE GATE. 'no card' means the widget showed an empty document, which is a route or a grd problem, not a placement one."
+    },
+    {
+      "type": "eval",
+      "id": "card-width",
+      "target": "/quickmenu",
+      "expression": "String(Math.round(document.querySelector('.qm-card').getBoundingClientRect().width))",
+      "note": "the spec's 232px, measured rather than assumed"
+    },
+    {
+      "type": "capture",
+      "id": "menu-open",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "key",
+      "combo": "escape"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: quick menu closing",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bar-up",
+      "expected": "up",
+      "desc": "THE CONTROL: the floating bar is the one hosting the button"
+    },
+    {
+      "type": "eval_equals",
+      "id": "click-the-button",
+      "expected": "\"clicked\"",
+      "desc": "the button was there to click"
+    },
+    {
+      "type": "eval_equals",
+      "id": "card-rendered",
+      "expected": "card",
+      "desc": "the menu document rendered its card"
+    },
+    {
+      "type": "eval_equals",
+      "id": "card-width",
+      "expected": "\"232\"",
+      "desc": "the card is the spec's 232px wide"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: quick menu showing at",
+      "label": "the-window-placed-the-menu",
+      "desc": "the button's rect crossed from the page to the window and became a box. The numbers on this line are what a geometry regression shows up in."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: quick menu closing",
+      "label": "escape-closed-the-menu",
+      "desc": "Escape reached the widget's own key handler. Close() logs this only when the widget was visible, so the line is proof it went down rather than proof the key was pressed."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

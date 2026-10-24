@@ -1,0 +1,37 @@
+.arc-docs/
+.superpowers/
+.remember/
+.claude/
+.DS_Store
+build/scripts/local.env
+build/*.log
+build/atrium-run.log.prev
+build/vm-fixtures/results/
+build/vm-fixtures/.vm-in-use
+build/sbom/
+rust/*/target/
+
+# The removed Swift package left a .build output on some disks. The .gitignore
+# that hid it lived inside the package, so this entry covers it.
+swift/
+
+# keep-working loop state (local only)
+.claude/keep-working.local.md
+.claude/STOP-WORKING
+
+# Python bytecode. Six of these were tracked by accident; nothing reads them.
+__pycache__/
+*.pyc
+
+# Gate and scenario run logs. Kept on disk, not in the repo.
+build/logs/
+
+# Run logs and capture output. Written by every gate and scenario run.
+# Captures a test cites live in build/fixtures/ instead.
+build/logs/
+
+# Lane backups written during mutation testing. Never a build input.
+build/scratch-backup/
+
+# ruff writes this next to whatever it lints.
+.ruff_cache/

@@ -1,0 +1,190 @@
+{
+  "name": "the-favourites-hold-their-places-through-the-overview",
+  "description": "The Overview close narrows the sidebar from 380 to the user's width over 150ms, laid out at the live width on every tick. The favourites grid is auto-fill, so a rest width of 160-213 shows the tiles jump 4 columns -> 3 -> 2 as the slot narrows, reordering every tile after the second. The fix caps the grid to the settled rest width for the length of the crossing (--atrium-rest-width, set from the Overview open until the close has narrowed), so it holds one column count throughout instead of re-flowing on every tick.\n\nTHE FIXTURE stages sidebarWidth 160 with sidebarWidthMigrated true and 6 favourites under profile Default - a rest width of 214 or more shows 4 columns at both ends of the crossing and cannot fail.\n\nTHE GATES are copied from overview-widens-the-sidebar.json: dx=+90 at (140,300) reaches the Overview pane, dx=-90 mirrors it back. After the rail parks on the Overview, a sampler is armed in /sidebar: a ResizeObserver on document.documentElement plus a capped rAF loop (rAF alone is starved during the resize), each tick recording the live sidebar width, the grid's computed column count, and every tile's offsetTop:offsetLeft. The close swipe runs under scroll_during_capture so the frames are on hand for a manual crop-level check alongside the numeric one.\n\nsaw-narrow GATES the two checks below it: without at least one sample at 160 < w < 380, a run that never saw the narrow width could pass the column/position checks vacuously. cols-held asks whether the grid ever showed more than one distinct column count (it must not, the whole crossing must read as one column count). positions-held asks the same of each tile's own offset, which is what a column-count change actually looks like on screen. Both answer the actual set on failure rather than a plain false.",
+  "fixture": "the-favourites-hold-their-places-through-the-overview.spaces.json",
+  "startup_space": "8ab01286-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "width-before",
+      "target": "/sidebar",
+      "expression": "document.documentElement.clientWidth",
+      "expected": 160,
+      "timeout_ms": 8000,
+      "note": "the fixture's own rest width, before any gesture"
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 140,
+      "y": 300,
+      "dx": 90,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "to-overview",
+      "duration_ms": 260,
+      "fps": 25,
+      "note": "same scrub as overview-widens-the-sidebar.json: dx=+90 at (140,300) reaches the pane before the first workspace"
+    },
+    {
+      "type": "settle",
+      "ms": 1800,
+      "note": "the swipe settles the pane, then the width animation runs for 150ms"
+    },
+    {
+      "type": "eval_until",
+      "id": "width-during",
+      "target": "/sidebar",
+      "expression": "document.documentElement.clientWidth >= 380 ? 'wide' : document.documentElement.clientWidth",
+      "expected": "wide",
+      "timeout_ms": 8000,
+      "note": "the rail actually parked on the Overview and the sidebar reached its widened minimum"
+    },
+    {
+      "type": "eval",
+      "id": "arm-sampler",
+      "target": "/sidebar",
+      "expression": "(() => { window.__fav = []; const g = document.querySelector('#atrium-root > .favgrid'); if (!g) { return 'no-grid'; } const s = () => window.__fav.push({w: document.documentElement.clientWidth, cols: getComputedStyle(g).gridTemplateColumns.split(' ').length, pos: [...g.querySelectorAll('.fav')].map(t => t.offsetTop + ':' + t.offsetLeft).join(',')}); window.__favObs = new ResizeObserver(s); window.__favObs.observe(document.documentElement); const tick = () => { s(); if (window.__fav.length < 200) { window.__favRaf = requestAnimationFrame(tick); } }; tick(); return 'armed'; })()",
+      "note": "armed on the Overview pane, before the close swipe, so no tick of the narrow is missed. ResizeObserver plus a capped rAF loop: rAF alone is starved during the resize (sidebar.js onRailPaint)"
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 140,
+      "y": 300,
+      "dx": -90,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "closing",
+      "duration_ms": 260,
+      "fps": 25,
+      "note": "the same gesture mirrored, back onto the first workspace - this is the narrow the sampler has to catch. Kept as a capture for a frame-level crop check alongside the numeric one"
+    },
+    {
+      "type": "settle",
+      "ms": 1800,
+      "note": "the close settles the pane, then the width animation runs for 150ms"
+    },
+    {
+      "type": "eval_until",
+      "id": "saw-narrow",
+      "target": "/sidebar",
+      "expression": "(() => { const hit = window.__fav.some((r) => r.w > 160 && r.w < 380); return hit ? 'saw-narrow' : 'no-narrow, widths=' + JSON.stringify([...new Set(window.__fav.map((r) => r.w))]); })()",
+      "expected": "saw-narrow",
+      "timeout_ms": 8000,
+      "note": "GATES the two checks below: without a sample strictly between 160 and 380, a run that never saw the narrow could pass them vacuously"
+    },
+    {
+      "type": "eval_until",
+      "id": "cols-held",
+      "target": "/sidebar",
+      "expression": "(() => { const cols = new Set(window.__fav.map((r) => r.cols)); return (cols.size === 1 && cols.has(2)) ? 'cols-held' : 'cols=' + JSON.stringify([...cols]); })()",
+      "expected": "cols-held",
+      "timeout_ms": 8000,
+      "note": "AC: one column count for the whole crossing, not 4 -> 3 -> 2. Answers the actual set on failure"
+    },
+    {
+      "type": "eval_until",
+      "id": "positions-held",
+      "target": "/sidebar",
+      "expression": "(() => { const pos = new Set(window.__fav.map((r) => r.pos)); return pos.size === 1 ? 'positions-held' : 'positions=' + JSON.stringify([...pos]); })()",
+      "expected": "positions-held",
+      "timeout_ms": 8000,
+      "note": "AC: no tile ever moves to a different slot mid-crossing. Answers the actual set on failure"
+    },
+    {
+      "type": "eval",
+      "id": "width-after",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.clientWidth)",
+      "note": "the user's own width came back once the crossing settled"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "liveness, and a guard against the Overview pane opening a second window",
+      "label": "one-window-still"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: overview pane entered",
+      "label": "the-browser-was-told-the-rail-parked",
+      "desc": "separates a scrub that never reached the pane from a widen that never happened"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: overview pane left",
+      "label": "the-browser-was-told-the-rail-moved-on",
+      "desc": "the half that has no other reporter"
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: overview pane entered",
+      "max": 1,
+      "label": "the-rail-parked-once",
+      "desc": "one swipe in, one swipe out"
+    },
+    {
+      "type": "eval_equals",
+      "id": "width-before",
+      "expected": 160,
+      "desc": "the fixture's rest width, before the pane"
+    },
+    {
+      "type": "eval_equals",
+      "id": "width-during",
+      "expected": "wide",
+      "desc": "the sidebar reached at least the overview minimum while the pane was on screen"
+    },
+    {
+      "type": "eval_equals",
+      "id": "arm-sampler",
+      "expected": "\"armed\"",
+      "desc": "the sampler was installed on the Overview pane, before the close swipe"
+    },
+    {
+      "type": "eval_equals",
+      "id": "saw-narrow",
+      "expected": "saw-narrow",
+      "desc": "the check below is not vacuous: the sampler caught a live width strictly between 160 and 380"
+    },
+    {
+      "type": "eval_equals",
+      "id": "cols-held",
+      "expected": "cols-held",
+      "desc": "The favourites grid held one column count through the whole close, instead of re-flowing 4 -> 3 -> 2"
+    },
+    {
+      "type": "eval_equals",
+      "id": "positions-held",
+      "expected": "positions-held",
+      "desc": "No tile moved to a different slot mid-crossing"
+    },
+    {
+      "type": "eval_equals",
+      "id": "width-after",
+      "expected": "\"160\"",
+      "desc": "The user's own rest width came back once the crossing settled"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly after the round trip"
+    }
+  ]
+}

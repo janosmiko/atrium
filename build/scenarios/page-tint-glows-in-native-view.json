@@ -1,0 +1,124 @@
+{
+  "name": "page-tint-glows-in-native-view",
+  "description": "Native app view kept the page's colour off the chrome: the root painted a flat surround, the pane container a second flat fill under the card, and the sidebar document a third, so the edge glow had nowhere to show. Same two declared-colour pages and the same switch as page-tint-glows-through-a-theme, on a flat space with Native app view on. The window now paints the surround with the glow on top, on the root, in the pane container and under the floating panel, and the sidebar document no longer covers it.",
+  "fixture": "page-tint.spaces.json",
+  "settings": "page-tint-native.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "capture",
+      "id": "crimson",
+      "duration_ms": 500,
+      "fps": 10
+    },
+    {
+      "type": "eval_until",
+      "id": "row-click-4",
+      "target": "/sidebar",
+      "expression": "(() => { const r = [...document.querySelectorAll('.row.tabrow')].find(x => x.textContent.includes(\"Teal\")); if (!r) return 'no-row'; r.click(); return 'clicked'; })()",
+      "expected": "clicked",
+      "timeout_ms": 5000,
+      "note": "Found by title, so a row height change cannot retarget the click."
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "teal",
+      "duration_ms": 500,
+      "fps": 10
+    },
+    {
+      "type": "eval_until",
+      "id": "teal-page",
+      "target": "theme-color-teal.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/theme-color-teal.html",
+      "timeout_ms": 8000,
+      "note": "the teal page committed, read from the page itself"
+    },
+    {
+      "type": "eval",
+      "id": "native-mark",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.classList.contains('atrium-native-chrome'))",
+      "note": "the sidebar is in native mode, so the column below is graded in the mode under test"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "native-mark",
+      "expected": "\"true\"",
+      "desc": "THE CONTROL: Native app view is on"
+    },
+    {
+      "type": "eval_equals",
+      "id": "teal-page",
+      "expected": "http://127.0.0.1:8000/theme-color-teal.html",
+      "label": "the-switch-really-happened",
+      "desc": "THE CONTROL: the teal page committed, so the two captures are not the same page"
+    },
+    {
+      "type": "region_stable",
+      "before": "crimson",
+      "after": "teal",
+      "region": [
+        10,
+        460,
+        60,
+        100
+      ],
+      "desc": "THE CONTROL: the far side of the sidebar column keeps the flat surround, the glow reaches 64px from the card and no further",
+      "max_delta": 6
+    },
+    {
+      "type": "theme_changed",
+      "before": "crimson",
+      "after": "teal",
+      "region": [
+        206,
+        460,
+        16,
+        100
+      ],
+      "min_delta": 5,
+      "desc": "THE MEASUREMENT: the band beside the card follows the page with Native app view on"
+    },
+    {
+      "type": "theme_changed",
+      "before": "crimson",
+      "after": "teal",
+      "region": [
+        180,
+        460,
+        20,
+        100
+      ],
+      "min_delta": 3,
+      "desc": "THE MEASUREMENT: the sidebar column next to the card carries the glow too, so the sidebar document no longer paints over it"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

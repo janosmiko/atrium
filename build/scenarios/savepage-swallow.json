@@ -1,0 +1,106 @@
+{
+  "name": "savepage-swallow",
+  "description": "Cmd+S on a window with no sidebar is declined at the Atrium ExecuteCommand intercept - which is intended - and is then lost downstream in the responder chain, so native Save Page never runs. These gates started life in little-window-tab, where they did not belong: that scenario grades the claim about what is INSIDE a little window, and a red save-page gate there made a passing scenario look like a failing one. This scenario owns the swallow and nothing else. It reproduces little-window-tab's premise exactly - same fixture, same startup space, same Cmd+Opt+N, same wait for the little window's own tab 2 to commit - and only then presses Cmd+S. It is RED until the swallow is fixed, and that is the correct reading. The companion savepage-control presses the identical chord on an ordinary window and is the negative control for harness delivery.",
+  "fixture": "two-tabs.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+opt+n",
+      "note": "The default binding for OpenLittleWindow. A little window has no sidebar, which is the condition this scenario is about."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab 2 added",
+      "timeout_ms": 10000,
+      "note": "premise, not the measurement: without a tab there is nothing for Save Page to act on and a miss downstream would mean nothing. Hardcoded to id 2 because the fixture's startup space restores exactly one tab (id 1) before the hotkey fires, so id 2 is deterministically the little window's own tab."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab 2 url https?://[^ ]+",
+      "timeout_ms": 10000,
+      "note": "a real http(s) scheme rather than a named host. The url is kLittleWindowDefaultURL, a constexpr in atrium_browser_controller.cc, so no fixture edit could repoint it - and naming example.com tied this gate to a host the probe VM is not meant to reach without adding anything to what it proves."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "THE CHORD. The little window is key at this point (Cmd+Opt+N opened and focused it), so Cmd+S targets ITS tab, id 2."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab 2 save page",
+      "timeout_ms": 10000,
+      "note": "THE MEASUREMENT. Save Page reached the little window's OWN tab. Anchored to tab 2 so the assertion cannot be satisfied by the chord landing on the startup window instead. Measured red on 2026-08-11: zero matches in the run log, because the command is declined at the intercept and never returns at before_first_responder=0."
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "let the save sheet actually appear before trying to dismiss it. The wait_vlog above matches at chrome::SavePage entry, but the panel is shown later - SavePackage::GetSaveInfo hops to a background thread for the default download directory first. Measured on 2026-08-11: the escape fired 3s before Cmd+Q and the sheet was still up, which stalled the browser message loop for 9.83s between 'KeepAlives=[]' and GCM shutdown and made quit miss its 10s budget. The three earlier runs took 12-36ms across that same span, because Save Page never ran in them."
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "dismiss the save sheet, if one ever appears, so the quit assertion is not blocked by a modal"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "sheet teardown finishes before the assertions and Cmd+Q run"
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "second dismissal in case the first still raced the panel. Escape on a page with no dialog is a no-op, so this cannot change the measurement."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "desc": "one startup window plus the little one - liveness, and proof the chord had a sidebar-less window to land on"
+    },
+    {
+      "type": "vlog",
+      "label": "little-tab-committed",
+      "pattern": "Atrium: tab 2 url https?://[^ ]+",
+      "note": "a real http(s) scheme rather than a named host. The url is kLittleWindowDefaultURL, a constexpr in atrium_browser_controller.cc, so no fixture edit could repoint it - and naming example.com tied this gate to a host the probe VM is not meant to reach without adding anything to what it proves."
+    },
+    {
+      "type": "vlog",
+      "label": "intercept-declined",
+      "pattern": "Atrium: execute command 35004 before_first_responder=1 sidebar_toggle_available=0 claimed=0",
+      "note": "And currently GREEN. 35004 is IDC_SAVE_PAGE. Declining here is correct - a window with no sidebar must not claim Cmd+S. This assertion exists so a fix that repairs the swallow by making the intercept claim the command anyway is caught as a regression rather than mistaken for a fix."
+    },
+    {
+      "type": "vlog",
+      "label": "little-save-page",
+      "pattern": "Atrium: tab 2 save page",
+      "note": "And THE ASSERTION THIS SCENARIO EXISTS FOR. RED until the swallow is fixed. A declined command must fall through to the window's command handler; today it does not, and Save Page never runs."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits with a little window open"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "spaces": [
+    {
+      "id": "8ab01286-0000-4000-8000-000000000001",
+      "name": "Reflow",
+      "emoji": "G",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135200.0,
+          "url": "http://127.0.0.1:8000/swipe-lab.html",
+          "title": "The Lab"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "favorites": [
+    {
+      "url": "http://127.0.0.1:8000/favicon-page.html?n=1",
+      "title": "Fav 1",
+      "profileID": "Default"
+    },
+    {
+      "url": "http://127.0.0.1:8000/favicon-page.html?n=2",
+      "title": "Fav 2",
+      "profileID": "Default"
+    },
+    {
+      "url": "http://127.0.0.1:8000/favicon-page.html?n=3",
+      "title": "Fav 3",
+      "profileID": "Default"
+    },
+    {
+      "url": "http://127.0.0.1:8000/favicon-page.html?n=4",
+      "title": "Fav 4",
+      "profileID": "Default"
+    },
+    {
+      "url": "http://127.0.0.1:8000/favicon-page.html?n=5",
+      "title": "Fav 5",
+      "profileID": "Default"
+    },
+    {
+      "url": "http://127.0.0.1:8000/favicon-page.html?n=6",
+      "title": "Fav 6",
+      "profileID": "Default"
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 160,
+    "schemaVersion": 1,
+    "activeSpaceID": "8ab01286-0000-4000-8000-000000000001",
+    "sidebarWidthMigrated": true
+  }
+}

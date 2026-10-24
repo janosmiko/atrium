@@ -1,0 +1,111 @@
+{
+  "name": "is-the-favourite-row-even-offered",
+  "description": "Separates two failures that look identical from outside: the favourite ROW never arrived in the palette, or it arrived and Return did not accept it. A sibling scenario reports only that no accept reached the browser, which is true either way, and its sibling absence assertion passes in both - so the scenario reads '5 passed, 1 failed' whichever is wrong.\n\nReads the palette's own DOM before pressing Return. The command bar is its own surface, so the eval targets /commandbar rather than the sidebar.\n\nThe original sanity pairing compared the total row count against the favourite count and required them to differ, to catch a run where every eval returned one stored value. It was the wrong instrument: with the fix in place the palette offers exactly one row and it IS the favourite, so 1 and 1 are correct and the assertion failed on a healthy run. Naming the top row's text makes the same independence point and asserts something real.",
+  "fixture": "favourite-icon.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the sidebar render and the startup tab commit, so the favourite has a live tab to activate"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 1200,
+      "note": "let the palette's WebContents commit and take the field"
+    },
+    {
+      "type": "capture",
+      "id": "palette-empty",
+      "duration_ms": 300,
+      "fps": 20
+    },
+    {
+      "type": "type",
+      "text": "Blue Favicon"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "the autocomplete pass and the favourite rows land together"
+    },
+    {
+      "type": "capture",
+      "id": "palette-typed",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the favourite row, labelled, at the top"
+    },
+    {
+      "type": "eval",
+      "id": "rows-before-return",
+      "target": "/commandbar",
+      "expression": "String(document.querySelectorAll('.cbrow').length)",
+      "note": "how many rows the palette is offering at the moment Return is about to be pressed"
+    },
+    {
+      "type": "eval",
+      "id": "favourite-rows",
+      "target": "/commandbar",
+      "expression": "String(document.querySelectorAll('.cbrow.cbfav').length)",
+      "note": "and how many of them are FAVOURITES - the row the accept is supposed to take"
+    },
+    {
+      "type": "eval",
+      "id": "top-row-text",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbrow .cbtitle') || {}).textContent || 'no rows')",
+      "note": "what the top row actually says, since Return accepts the top one"
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "accept the top row, which is the favourite"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "after-accept",
+      "duration_ms": 300,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "favourite-rows",
+      "expected": "\"1\"",
+      "note": "THE QUESTION. One favourite row must be offered before Return is pressed. If this is 0 the accept had nothing to take and the defect is upstream of the keypress."
+    },
+    {
+      "type": "eval_equals",
+      "id": "top-row-text",
+      "expected": "\"Blue Favicon Site\"",
+      "note": "Return accepts the TOP row, so naming it is the claim that matters. It also keeps the reads honest in a way a count cannot: this returns a string from a different query than the counts above, so a run where every eval handed back one stored value fails here."
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

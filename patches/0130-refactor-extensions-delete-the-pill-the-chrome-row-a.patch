@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sat, 12 Sep 2026 10:03:12 +0200
+Subject: [PATCH 130/154] refactor(extensions): delete the pill, the chrome row
+ and the tray
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index a93619e3fe732..2876bc3ec2cd5 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3613,8 +3613,6 @@ static_library("ui") {
+       "atrium/atrium_permission_prompt.cc",
+       "atrium/atrium_command_dispatcher_delegate.h",
+       "atrium/atrium_command_dispatcher_delegate.mm",
+-      "atrium/atrium_extension_pill_widget.h",
+-      "atrium/atrium_extension_pill_widget.mm",
+       "atrium/atrium_quick_menu_widget.h",
+       "atrium/atrium_quick_menu_widget.mm",
+       "atrium/atrium_hint_overlay_widget.h",

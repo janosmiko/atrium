@@ -1,0 +1,39 @@
+{
+  "name": "peek-card-keeps-a-placeholder-while-the-page-loads",
+  "description": "A popup adopted as a peek card used to drop its loading placeholder the moment it was adopted, and every target=_blank link off a favourite takes that path now. Until the page painted, the card was a see-through window over the dimmed page: the user saw the scrim darken and nothing else for as long as the page took. The card now keeps its placeholder (the overlay paper colour and a throbber) until the popup's first paint.\n\nThe opener is a solid red page that window.opens a non-routable address, so the popup connects forever and never paints. The measurement is a pixel mean inside the card, away from its centre so the throbber does not land in it: with the bug the region is the dimmed red opener (about 166,0,0), with the fix it is the paper. 'Atrium: peek first paint' must be absent, or the region is a painted page and not the placeholder.\n\nThe click lands at 300,620 for the reason popup-opens-as-a-peek gives: the screen recording's consent dialog floats over the middle of the window. The card region is read off that scenario's own after frame: the card spans about x 327-925 at 280px of sidebar.",
+  "fixture": "peek-slow-popup.spaces.json",
+  "startup_space": "97797797-9779-4977-8977-977977977977",
+  "seed_prefs": "search-default-google.prefs.json",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "peek-slow-opener.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-slow-opener.html",
+      "timeout_ms": 25000,
+      "note": "gate: the opener page really committed as the startup tab"
+    },
+    { "type": "settle", "ms": 6000, "note": "let the page paint and the sidebar settle" },
+    { "type": "activate" },
+    { "type": "settle", "ms": 1500 },
+    { "type": "capture", "id": "before", "duration_ms": 400, "fps": 20, "note": "the red opener, no card yet" },
+    { "type": "move", "x": 300, "y": 620 },
+    { "type": "settle", "ms": 400 },
+    { "type": "click", "x": 300, "y": 620, "note": "THE MEASUREMENT, first way in: the button opens the popup" },
+    { "type": "settle", "ms": 1200 },
+    { "type": "key", "combo": "return", "note": "second way in, a no-op when the click landed" },
+    { "type": "wait_vlog", "pattern": "Atrium: peek widget showing for parent", "timeout_ms": 15000, "note": "gate: a card really opened" },
+    { "type": "settle", "ms": 2500, "note": "the open animation is long over, and the popup is still connecting" },
+    { "type": "capture", "id": "loading", "duration_ms": 400, "fps": 20, "note": "the card while its page has painted nothing" }
+  ],
+  "assertions": [
+    { "type": "vlog", "label": "the-popup-opened-as-a-peek", "pattern": "Atrium: peek widget showing for parent" },
+    { "type": "vlog_absent", "label": "the-popup-never-painted", "pattern": "Atrium: peek first paint", "desc": "VACUITY GUARD: a painted page would light the region up on its own" },
+    { "type": "region_mean", "capture": "loading", "x": 420, "y": 500, "w": 80, "h": 80, "min_mean": 200, "max_mean": 255, "label": "the-card-shows-its-placeholder-and-not-the-dimmed-page", "desc": "THE ASSERTION: paper, not the red opener through the scrim (mean about 55)" },
+    { "type": "ax_window_count", "expected": 2, "min_area": 200000, "note": "the browser window and the card" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

@@ -1,0 +1,218 @@
+{
+  "name": "engine-keyword-opens-and-scopes",
+  "description": "a search engine keyword typed alone must open that engine's site, and the same keyword plus Tab must scope the next query to that engine.\n\nTHE ENGINE'S URL CARRIES A PATH, which is the whole point. The reported engine was Google Maps on https://www.google.com/maps?q=%s, and AcceptCommandBarEngine derived its home with DeprecatedGetOriginAsURL, so '/maps' was dropped and Enter landed on google.com. The fixture engine is http://127.0.0.1:8000/engine-alpha.html?q=%s: its origin is the fixture server's root, which serves a directory listing, so an origin-only derivation cannot reach engine-alpha.html and cannot pass by luck.\n\nengine-alpha.html is reused rather than a maps-named page added, because the file the engine points at is not what is under test - the path surviving the derivation is. Both loopback validators (atrium_search_engine_mirror.cc IsAllowedEngineUrl and search_engines.rs allowed_engine_url) accept plain http to 127.0.0.1, so the mirror really installs this engine.\n\nTHE HOME IS ASSERTED AS THE FULL URL MINUS THE QUERY, http://127.0.0.1:8000/engine-alpha.html, not the directory it sits in. LogSafeUrl reduces an IP-host url to scheme plus bare host before it reaches VLOG (AtriumLogSafeUrlTest.IpAddressFallsBackToBareHost), so no logged line can tell the home from the origin - both read 'http://127.0.0.1'. The landing url is read from the committed page's own JS context instead, the way profiles-pane-two-engines.json reads its two engines apart.\n\nGoogle stays the default provider via seed_prefs. ScopeEngineForMatch refuses to scope to the default engine, so 'maps' has to be a non-default one for the Tab offer to exist at all.",
+  "fixture": "engine-keyword-opens-and-scopes.spaces.json",
+  "settings": "engine-keyword-opens-and-scopes.settings.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-committed",
+      "target": "example-domain.html",
+      "expression": "location.search",
+      "expected": "?keyword",
+      "timeout_ms": 20000,
+      "note": "GATE: the restored tab is up, so the app is live and the fixture server is answering"
+    },
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "the reserved chrome context lands about 670ms after startup and the palette's WebContents needs it"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the /commandbar document commit and take the field"
+    },
+    {
+      "type": "type",
+      "text": "maps"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the keyword pass has to finish before any row can carry an engine"
+    },
+    {
+      "type": "eval",
+      "id": "offered-keyword",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbrow[data-cb-keyword]') || {}).dataset?.cbKeyword || 'none')",
+      "note": "the typed keyword resolved to a TemplateURL in the ACTIVE space's profile. 'none' here would mean the mirror never installed it, which is a different bug from the two under test"
+    },
+    {
+      "type": "eval",
+      "id": "selected-row-index",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbrow.cbsel') || {}).dataset?.cbIndex ?? 'none')",
+      "note": "the row Enter will accept. The first RED run answered -1, so the leading row is Atrium's OWN engine row (BuildCommandBarRows inserts EngineMatchesForQuery at the front) and accept() already takes the engine branch. That rules out the second suspected cause, an omnibox default row carrying an associated keyword at index 0, and leaves the home derivation as the only live one"
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "THE MEASUREMENT for the bare keyword"
+    },
+    {
+      "type": "eval_until",
+      "id": "home-landing",
+      "target": "/engine-alpha.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/engine-alpha.html",
+      "timeout_ms": 15000,
+      "note": "THE OUTCOME: the engine's own page, path intact and no query. An origin-only derivation lands on http://127.0.0.1:8000/ and never opens this target at all"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w",
+      "note": "close the tab this Enter opened, so the scoped landing below is the only engine-alpha.html target in the browser. OpenOrActivateUrl and OpenCommandBarMatch both ADD a tab here (no favourite claims this site), so the startup tab survives and the window stays open"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "type",
+      "text": "maps"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "key",
+      "combo": "tab",
+      "note": "enter the scope"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "chip-text",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbscope') || {}).textContent || 'no chip')",
+      "note": "the chip carries the engine's DISPLAY name, which only TemplateURLService knows"
+    },
+    {
+      "type": "type",
+      "text": "cats"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the scoped pass lands - the query it answers is 'maps cats', not 'cats'"
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "THE MEASUREMENT for the scoped query"
+    },
+    {
+      "type": "eval_until",
+      "id": "scoped-landing",
+      "target": "/engine-alpha.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/engine-alpha.html?q=cats",
+      "timeout_ms": 15000,
+      "note": "THE OUTCOME: the query left through the fixture engine. A cosmetic scope sends it to the default provider instead, which on this network-less VM is an unreachable google.com"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-keyword-reached-the-active-profile",
+      "id": "offered-keyword",
+      "expected": "\"maps\"",
+      "desc": "the mirror installed the engine and the keyword provider offers it, so neither symptom below can be blamed on a missing TemplateURL"
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-accepted-row-is-atriums-own-engine-row",
+      "id": "selected-row-index",
+      "expected": "\"-1\"",
+      "desc": "the row Enter accepts has no AutocompleteResult position, so it reaches AcceptCommandBarEngine by the pre-existing branch. Pinned because the landing assertion below only measures the home derivation while this holds"
+    },
+    {
+      "type": "eval_equals",
+      "label": "a-bare-keyword-opens-the-engines-own-page",
+      "id": "home-landing",
+      "expected": "http://127.0.0.1:8000/engine-alpha.html",
+      "desc": "symptom 1: the path survives the home derivation and Enter does not search for the word"
+    },
+    {
+      "type": "eval_equals",
+      "label": "tab-named-the-engine",
+      "id": "chip-text",
+      "expected": "\"Fixture Maps\"",
+      "desc": "the scope offer half, unchanged by this fix - a guard against fixing the submit and losing the chip"
+    },
+    {
+      "type": "eval_equals",
+      "label": "a-scoped-query-searches-through-that-engine",
+      "id": "scoped-landing",
+      "expected": "http://127.0.0.1:8000/engine-alpha.html?q=cats",
+      "desc": "symptom 2: the scope is real, not cosmetic"
+    },
+    {
+      "type": "vlog",
+      "label": "the-mirror-installed-the-keyword",
+      "pattern": "Atrium: search engine mirrored: maps",
+      "desc": "the positive half of the cause-3 question: TemplateURLService of the mirrored profile really took 'maps'"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-keyword-collision-dropped-the-engine",
+      "pattern": "Atrium: search engine keyword taken: maps",
+      "desc": "the negative half: nothing else owned 'maps', so the scope cannot be cosmetic for want of an engine"
+    },
+    {
+      "type": "vlog",
+      "label": "enter-took-the-engine-branch",
+      "pattern": "Atrium: command bar engine accepted maps ->",
+      "desc": "Enter reached AcceptCommandBarEngine at all. Without this the landing assertion above could pass by an unrelated route"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

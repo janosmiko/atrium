@@ -1,0 +1,88 @@
+{
+  "name": "perm-page-survives",
+  "description": "opens perm-page.html, which auto-calls navigator.geolocation.getCurrentPosition() on load - the exact trigger that made PermissionPromptChip dereference a null GetChipController() and SEGV the browser process (3/3 runs). Asserts the process is still alive and showing its window afterward, then that Cmd+Q can still quit it cleanly.",
+  "fixture": "space-cycle.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "a276b002-0000-0000-0000-000000000002",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the sidebar render and the startup space's tab commit"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/perm-page.html"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "commit the permission-requesting page - this is what triggered the crash"
+    },
+    {
+      "type": "eval_until",
+      "id": "perm-page",
+      "target": "perm-page.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/perm-page.html",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "give the geolocation request, permission-prompt selection and (pre-fix) SEGV time to happen - the crash lands well within this window"
+    },
+    {
+      "type": "capture",
+      "id": "final-state",
+      "duration_ms": 400,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "perm-page",
+      "expected": "http://127.0.0.1:8000/perm-page.html",
+      "label": "perm-page-actually-loaded",
+      "desc": "PRECONDITION: the permission-requesting page committed."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "process still alive and showing exactly one window after the geolocation request - this is the assertion that would have failed 3/3 pre-fix"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q actually quits (process gone) - proves the process was alive to quit"
+    }
+  ]
+}

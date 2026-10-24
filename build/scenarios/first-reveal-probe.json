@@ -1,0 +1,51 @@
+{
+  "name": "first-reveal-probe",
+  "description": "Investigative, not a regression gate. Finding: this harness cannot sample the frost mid-fade on a first reveal. The capture is chained directly off the move that triggers the reveal, no wait_vlog and no settle first, yet every frame from t=160ms to t=751ms already reads the fully-shown region_mean (196.8,199.0,203.2) - the same value a sibling scenario's settled panel-over-page reads. Unlike the dismiss path, a reveal has no debounce ahead of its 240ms animation, so there is no window past dispatch latency left to land a frame inside. This is why the-frost-hides-with-the-panel.json carries no first-reveal opacity gate: the fix (constructing the frost at opacity 0) rests on code review, not on a measurement this harness can make.",
+  "fixture": "panel-legibility.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "settle", "ms": 5000 },
+    { "type": "activate" },
+    { "type": "settle", "ms": 1500 },
+    {
+      "type": "eval",
+      "id": "tab-opened",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.row'); if (!r) return 'no-row'; r.click(); return 'clicked'; })()"
+    },
+    { "type": "settle", "ms": 5000 },
+    {
+      "type": "eval",
+      "id": "collapse-pressed",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbtoggle'); if (!b) return 'no-button'; b.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar toggle requested from the chrome row",
+      "timeout_ms": 8000
+    },
+    { "type": "settle", "ms": 3000 },
+    { "type": "move", "x": 300, "y": 400 },
+    { "type": "settle", "ms": 600 },
+    { "type": "move", "x": 20, "y": 400, "note": "this is the FIRST reveal of this launch, THE MEASUREMENT starts on the very next action - no wait_vlog first, since polling the log over SSH appears to be its own source of latency" },
+    {
+      "type": "capture",
+      "id": "first-reveal",
+      "duration_ms": 700,
+      "fps": 30,
+      "note": "zero settle, chained directly off the move that triggers the reveal"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "timeout_ms": 20000,
+      "note": "post-hoc gate: confirms the move really triggered a reveal, after the capture already ran"
+    }
+  ],
+  "assertions": [
+    { "type": "ax_window_count", "expected": 1, "min_area": 200000 },
+    { "type": "quit" }
+  ]
+}

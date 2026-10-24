@@ -1,0 +1,52 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 4 Aug 2026 20:59:14 +0200
+Subject: [PATCH 024/154] atrium: assert the favicon cache bound instead of
+ reading it
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The 256-entry cap and its eviction were only ever verified by inspection. That
+is the weakest claim in the task, and the bound is the entire reason the type
+exists: tab ids are minted forever, so an unbounded map here grows for the life
+of the process.
+
+BoundedIconStore extracts the storage, dependency-free - no content::, no
+threading, just std - so it is a fast standalone gtest unit. Same posture as
+slot_presentation_table and edit_focus_gate, shared by //chrome/browser/ui:ui
+and :unit_tests through a diamond rather than compiled twice.
+
+Eight cases. Three are load-bearing beyond "it stores things":
+
+  - a thousand stores into a three-entry cache never exceed capacity, asserted
+    on every iteration rather than only at the end;
+  - a re-store does NOT renew an entry's place in the queue, so one busy tab
+    re-storing on every favicon change cannot hold every other entry alive -
+    that is the failure the bound exists to prevent, and insertion-order
+    eviction is deliberate rather than an incomplete LRU;
+  - empty bytes are ignored, so a tab with no icon cannot evict one that has
+    an icon.
+
+FaviconCache keeps its thread assertion and delegates the rest. Behaviour is
+unchanged: make favicon-probe still 4/4 and make swipe-probe 15/15 after the
+extraction.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index a30b75d1707b1..ff5ef7ddc03d5 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -619,6 +619,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:devtools_card_corners",
+     "//chrome/browser/ui/atrium:devtools_pane_selection",
+     "//chrome/browser/ui/atrium:extension_actions_json",
++    "//chrome/browser/ui/atrium:bounded_icon_store",
+     "//chrome/browser/ui/atrium:edit_focus_gate",
+     "//chrome/browser/ui/atrium:extension_popup_watchdog_policy",
+     "//chrome/browser/ui/atrium:little_marker",

@@ -1,0 +1,174 @@
+{
+  "name": "sidebar-toggle-beside-traffic-lights",
+  "description": "A row that had already shed sbtoggle (a narrow sidebar) must not keep it hidden once the floating address bar takes the nav group - setNavGroupInRow's inRow=false branch now clears navgone itself, since layoutNavRow (the only other code that clears it) early-returns for as long as the group is away. navgone is forced here rather than reached by narrowing the sidebar - the width ladder that produces it is already covered by sidebar-nav-row-test.mjs; this scenario proves the real browser renders the restored toggle inside the caption hole and that a click on it still reaches the window rather than starting a drag.",
+  "fixture": "presenter-startup.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "let the space and its tab render before the first eval targets /sidebar"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "docked-row",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.sbnav'); if (!row) { return 'no row'; } return [...row.children].map((b) => b.className).join('|'); })()",
+      "note": "Baseline: the floating bar is down, so the row should carry its ordinary five controls untouched by this fix."
+    },
+    {
+      "type": "capture",
+      "id": "bar-down",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the top-left corner with the floating bar down - the toggle sits beside back/forward/reload here"
+    },
+    {
+      "type": "eval",
+      "id": "force-shed",
+      "target": "/sidebar",
+      "expression": "(() => { const t = document.querySelector('.sbnav .sbtoggle'); if (!t) { return 'no-toggle'; } t.classList.add('navgone'); return t.className; })()",
+      "note": "Simulates the reported precondition: a sidebar narrow enough to have shed the toggle before the handover (visibleNavButtons sheds it below TWO_AND_MENU, reachable at kMinSidebarWidth per sidebar-nav-row-test.mjs). The width ladder itself is unit-tested; this scenario is only about what the real handover does once navgone is already set."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d",
+      "note": "opens the floating address bar (devbar), which drives atriumSetDevBarShown(true) -> setNavGroupInRow(row, false)"
+    },
+    {
+      "type": "eval_until",
+      "id": "group-handed-over",
+      "target": "/sidebar",
+      "expression": "document.querySelector('.sbnav .sbback') ? 'still-in-row' : 'moved'",
+      "expected": "moved",
+      "timeout_ms": 8000,
+      "note": "THE GATE for the handover itself: back/forward/reload leave the sidebar row for the devbar."
+    },
+    {
+      "type": "eval",
+      "id": "toggle-restored",
+      "target": "/sidebar",
+      "expression": "(() => { const t = document.querySelector('.sbnav .sbtoggle'); if (!t) { return 'no-toggle'; } return t.classList.contains('navgone') ? 'still-navgone' : 'visible'; })()",
+      "note": "THE FIX: before this change the toggle stayed navgone forever here, because layoutNavRow - the only other code that clears it - early-returns while inRow is false."
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "capture",
+      "id": "bar-up",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the top-left corner with the floating bar up - the toggle must sit beside the traffic lights, alone, inside the carved caption hole (x 82..196)"
+    },
+    {
+      "type": "eval",
+      "id": "hover-toggle",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbnav .sbtoggle'); if (!b) { return 'no-button'; } b.dispatchEvent(new PointerEvent('pointerover', {bubbles: true, pointerType: 'mouse'})); return 'hovered'; })()",
+      "note": "The second clause: starts the hover-hint delay (HOVER_DELAY_MS=600ms, hint-triggers.js). NATIVE_HINT_ROUTES maps /sidebar to the HintOverlayWidget path unconditionally, so the bubble itself renders on the /hint route, never as a DOM node here - hint.js's showHint native branch."
+    },
+    {
+      "type": "eval_until",
+      "id": "hint-appeared",
+      "target": "/hint",
+      "expression": "document.querySelector('.hint') ? 'shown' : 'not-yet'",
+      "expected": "shown",
+      "timeout_ms": 8000,
+      "note": "Gate only, no content check yet - covers the 600ms delay, the chrome.send round trip, and (first hover of the run) HintOverlayWidget constructing its own WebContents."
+    },
+    {
+      "type": "eval",
+      "id": "hover-hint-text",
+      "target": "/hint",
+      "expression": "(() => { const el = document.querySelector('.hint'); if (!el) { return 'no-hint'; } const text = el.querySelector('.hint-text')?.textContent || ''; const keys = [...el.querySelectorAll('.hint-keys .ov-key')].map((k) => k.textContent).join(''); return text + '|' + keys; })()",
+      "note": "Read the rendered chord, do not assume it: compare against atrium_native_hotkey_defaults.cc's kToggleSidebar row (\"cmd+s\", glyphed by CommandBarShortcutGlyphs) - the true source of NativeHotkeyMap's default, since this scenario loads no hotkeys.json override."
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "capture",
+      "id": "hover-hint",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the hint bubble HintOverlayWidget draws while hovering the restored toggle with the floating bar still up - read this frame directly rather than trusting eval_equals alone."
+    },
+    {
+      "type": "eval",
+      "id": "unhover-toggle",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbnav .sbtoggle'); if (!b) { return 'no-button'; } b.dispatchEvent(new PointerEvent('pointerout', {bubbles: true, pointerType: 'mouse', relatedTarget: document.body})); return 'unhovered'; })()",
+      "note": "Clears the hint before the click below, so its own hide/show round trip does not land in the middle of the toggle click."
+    },
+    {
+      "type": "eval",
+      "id": "click-toggle",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbnav .sbtoggle'); if (!b) { return 'no-button'; } b.dispatchEvent(new MouseEvent('click', {bubbles: true})); return 'clicked'; })()",
+      "note": "LAST: proves the moved toggle is still hit-testable rather than starting a window drag - a click outside the carved caption hole never reaches the DOM at all, so any answer other than 'no-button' already means the click landed. The vlog assertion below confirms the click reached ToggleSidebar."
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "docked-row",
+      "expected": "\"sbtd|nb sbtoggle|nb first sbback navdim|nb sbfwd navdim|nb sbreload\"",
+      "note": "Unchanged from the lab's own order while the floating bar is down. navdim on back/forward here is a fresh tab with no history to go back or forward to - orthogonal to this fix."
+    },
+    {
+      "type": "eval_equals",
+      "id": "force-shed",
+      "expected": "\"nb sbtoggle navgone\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "group-handed-over",
+      "expected": "moved"
+    },
+    {
+      "type": "eval_equals",
+      "id": "toggle-restored",
+      "expected": "\"visible\"",
+      "note": "The toggle is visible next to the traffic lights once the floating bar takes the group, even though it was shed before the handover."
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint-appeared",
+      "expected": "shown"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hover-hint-text",
+      "expected": "\"Hide sidebar|⌘S\"",
+      "note": "The second clause. ⌘S is CommandBarShortcutGlyphs(\"cmd+s\"), the compiled-in default for kToggleSidebar (atrium_native_hotkey_defaults.cc) - this scenario stages no hotkeys.json, so NativeHotkeyMap has no override to read instead. Read the hover-hint capture directly rather than trusting this line alone: a scenario asserting its own hardcoded guess proves nothing about the live map."
+    },
+    {
+      "type": "eval_equals",
+      "id": "click-toggle",
+      "expected": "\"clicked\""
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: sidebar toggle requested from the chrome row",
+      "label": "toggle-reached-the-window",
+      "note": "The click on the restored, relocated button still reaches BrowserController::ToggleSidebar rather than starting a window drag."
+    }
+  ]
+}

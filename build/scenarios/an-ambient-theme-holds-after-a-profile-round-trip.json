@@ -1,0 +1,97 @@
+{
+  "name": "an-ambient-theme-holds-after-a-profile-round-trip",
+  "fixture": "search-follows-the-active-space.spaces.json",
+  "themes": "ambient-across-profiles.themes.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "description": "Alpha (Default profile) wears a light ambient theme, Bravo (Second profile) a dark ambient one. After a trip to Bravo and back, Alpha's backdrop must drift slowly, not flip between light and dark. The recorded bug: the backdrop flipped every few hundred ms while nothing changed.",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-committed",
+      "target": "example-domain.html",
+      "expression": "location.search",
+      "expected": "?alpha",
+      "timeout_ms": 20000,
+      "note": "gate: the app is up on Alpha's own tab"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "capture",
+      "id": "alpha-first",
+      "duration_ms": 2000,
+      "fps": 15
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "into Bravo, which belongs to the Second profile"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 0 -> 1",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left",
+      "note": "back to Alpha"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 1 -> 0",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "capture",
+      "id": "alpha-back",
+      "duration_ms": 3000,
+      "fps": 15
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog_after",
+      "pattern": "Atrium: active space 1 -> 0",
+      "after_pattern": "Atrium: active space 0 -> 1",
+      "label": "the-round-trip-happened",
+      "desc": "gate: Alpha, then Bravo, then Alpha again"
+    },
+    {
+      "type": "region_steady",
+      "label": "alpha-before-the-trip",
+      "capture": "alpha-first",
+      "region": "20,320,200,300",
+      "max_step": 6,
+      "desc": "control: one profile, one timer, a slow drift"
+    },
+    {
+      "type": "region_steady",
+      "label": "alpha-after-the-trip",
+      "capture": "alpha-back",
+      "region": "20,320,200,300",
+      "max_step": 6,
+      "desc": "THE MEASUREMENT: the ambient drift moves the sidebar mean under 1 per frame. Two timers painting two themes on one window jump it by far more"
+    }
+  ]
+}

@@ -1,0 +1,166 @@
+{
+  "name": "floating-bar-wears-the-overlay-card",
+  "description": "the floating address bar reads its ground, ink and type from overlay.css rather than from literals of its own. Every JS test on this can only pin the class and the stylesheet text, which both stay true if the shared rules never reach the element, so the reading has to happen on a rendered bar. The ground is checked twice, once for matching --ov-paper and once for differing from the plate the bar used to paint, because a probe that only asserts the new value would also pass on a document where nothing changed but the two colours happen to sit close together. They do not: the old plate was rgb(233 237 240) and the paper is rgb(247 236 237), which is 14 apart in red against a tolerance of 4.\n\nThe button ink is the second reading. .ov-btn paints its glyph in --ov-accent where the old rule left it at half-opacity inherited grey, so an accent-coloured copy control is what proves the shared button rule applied and not merely the card.",
+  "fixture": "ambilight-brand.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d",
+      "note": "docked -> floating, so the bar exists at all"
+    },
+    {
+      "type": "eval_until",
+      "id": "bar-shown",
+      "target": "/devbar",
+      "expression": "String(!!document.querySelector('.devbar.ov-card'))",
+      "expected": "true",
+      "timeout_ms": 8000,
+      "note": "the bar is up AND carries the shared card class, before anything below reads a colour off it"
+    },
+    {
+      "type": "settle",
+      "ms": 1200,
+      "note": "the theme push lands after the document does, and --ov-accent is what every colour below resolves through"
+    },
+    {
+      "type": "eval",
+      "id": "bar-ground-is-paper",
+      "target": "/devbar",
+      "expression": "(() => { const c = getComputedStyle(document.querySelector('.devbar')).backgroundColor; const cs = c.match(/^color\\(srgb\\s+([\\d.]+)\\s+([\\d.]+)\\s+([\\d.]+)/); const rgb = cs ? cs.slice(1, 4).map((v) => Number(v) * 255) : (c.match(/[\\d.]+/g) || []).map(Number); const want = [247, 236, 237]; return String(rgb.length >= 3 && want.every((v, i) => Math.abs(v - rgb[i]) <= 4)); })()",
+      "note": "color-mix() serializes as color(srgb 0..1) in this Chromium build, so the probe scales that form before comparing, same as command-bar-wears-the-space-tint"
+    },
+    {
+      "type": "eval",
+      "id": "bar-ground-left-the-old-plate",
+      "target": "/devbar",
+      "expression": "(() => { const c = getComputedStyle(document.querySelector('.devbar')).backgroundColor; const cs = c.match(/^color\\(srgb\\s+([\\d.]+)\\s+([\\d.]+)\\s+([\\d.]+)/); const rgb = cs ? cs.slice(1, 4).map((v) => Number(v) * 255) : (c.match(/[\\d.]+/g) || []).map(Number); const old = [233, 237, 240]; return String(rgb.length >= 3 && !old.every((v, i) => Math.abs(v - rgb[i]) <= 4)); })()"
+    },
+    {
+      "type": "eval",
+      "id": "copy-ink-is-the-accent",
+      "target": "/devbar",
+      "expression": "(() => { const el = document.querySelector('.dvcopy'); if (!el) { return 'no copy control'; } const c = getComputedStyle(el).color; const rgb = (c.match(/[\\d.]+/g) || []).map(Number); const want = [176, 58, 72]; return String(rgb.length >= 3 && want.every((v, i) => Math.abs(v - rgb[i]) <= 6)); })()",
+      "note": "overlayAccent defaults to brand, so .ov-btn's --ov-accent ink is the fixed crimson here rather than the space tint"
+    },
+    {
+      "type": "eval",
+      "id": "bar-font-is-the-overlay-face",
+      "target": "/devbar",
+      "expression": "String(getComputedStyle(document.querySelector('.devbar')).fontFamily.includes('Archivo'))"
+    },
+    {
+      "type": "eval",
+      "id": "copy-box-and-resting-ground",
+      "target": "/devbar",
+      "expression": "(() => { const el = document.querySelector('.dvcopy'); if (!el) { return 'no copy control'; } const r = el.getBoundingClientRect(); return Math.round(r.left + r.width / 2) + ',' + Math.round(r.top + r.height / 2) + ' rest=' + getComputedStyle(el).backgroundColor; })()",
+      "note": "the copy control's centre in the devbar document, logged so the move below can be re-aimed from a measurement. Screen x is this plus 317 and screen y plus 40 on this window, which is the widget's own offset (the bubble's doc left 18 sits at screen 335). Its resting ground rides along for comparison with the hover reading."
+    },
+    {
+      "type": "move",
+      "x": 841,
+      "y": 67,
+      "note": "a real pointer, because CSS :hover does not answer to a synthetic PointerEvent. The next probe reports whether the aim landed, so a miss names itself instead of failing as a colour mismatch."
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "hover-ground-is-the-token",
+      "target": "/devbar",
+      "expression": "(() => { const el = document.querySelector('.dvcopy'); if (!el) { return 'no copy control'; } if (!el.matches(':hover')) { return 'MISSED: pointer is not on the copy control'; } const probe = document.createElement('div'); probe.style.background = 'var(--ov-sel)'; document.body.appendChild(probe); const want = getComputedStyle(probe).backgroundColor; probe.remove(); const got = getComputedStyle(el).backgroundColor; return got === want ? 'true' : 'got ' + got + ' want ' + want; })()",
+      "note": "resolved through a probe element rather than compared as text: getPropertyValue on the token returns its color-mix() source, not a colour"
+    },
+    {
+      "type": "eval",
+      "id": "pressed-ground-differs-from-hover",
+      "target": "/devbar",
+      "expression": "(() => { const pin = document.querySelector('.dvpin'); if (!pin) { return 'no pin'; } const before = getComputedStyle(pin).backgroundColor; pin.setAttribute('aria-pressed', 'true'); const pressed = getComputedStyle(pin).backgroundColor; const probe = document.createElement('div'); probe.style.background = 'color-mix(in srgb, var(--ov-accent) 24%, transparent)'; document.body.appendChild(probe); const want = getComputedStyle(probe).backgroundColor; probe.remove(); return String(pressed === want && pressed !== before); })()",
+      "note": "aria-pressed is an attribute, so unlike :hover this state can be entered from script and read back. It must also differ from the resting ground, or a pinned bar reads as an unpinned one."
+    },
+    {
+      "type": "eval",
+      "id": "url-stays-mono",
+      "target": "/devbar",
+      "expression": "String(getComputedStyle(document.querySelector('.dvurl')).fontFamily.includes('mono'))",
+      "note": "the one place the bar departs from the overlay face, and deliberately: a URL is read character by character"
+    },
+    {
+      "type": "eval",
+      "id": "insecure-ground-and-ink-are-the-danger-pair",
+      "target": "/devbar",
+      "expression": "(() => { window.atriumSetDevBarUrl('http://example.com/'); const bar = document.querySelector('.devbar'); if (!bar.classList.contains('insecure')) { return 'the bar did not go insecure'; } const resolve = (expr) => { const p = document.createElement('div'); p.style.background = expr; document.body.appendChild(p); const v = getComputedStyle(p).backgroundColor; p.remove(); return v; }; const cs = getComputedStyle(bar); const groundOk = cs.backgroundColor === resolve('var(--ov-danger-paper)'); const inkProbe = document.createElement('div'); inkProbe.style.color = 'var(--ov-danger)'; document.body.appendChild(inkProbe); const wantInk = getComputedStyle(inkProbe).color; inkProbe.remove(); const inkOk = cs.color === wantInk; return groundOk && inkOk ? 'true' : 'ground ' + cs.backgroundColor + ' ink ' + cs.color; })()",
+      "note": "LAST on purpose: this leaves the bar in its insecure state, so it must not run before the readings above. Resolved through probe elements because getPropertyValue returns a token's source text rather than a colour."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bar-ground-is-paper",
+      "expected": "\"true\"",
+      "desc": "The rendered ground is --ov-paper, so the shared card rule reached the element"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bar-ground-left-the-old-plate",
+      "expected": "\"true\"",
+      "desc": "And it is no longer the hardcoded plate. Paired with the reading above, because either one alone passes on a document where the two colours merely sit close together"
+    },
+    {
+      "type": "eval_equals",
+      "id": "copy-ink-is-the-accent",
+      "expected": "\"true\"",
+      "desc": "The copy control takes .ov-btn's accent ink, where the old rule left it inherited grey at half opacity"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bar-font-is-the-overlay-face",
+      "expected": "\"true\"",
+      "desc": "The bar sets type in the overlay face"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hover-ground-is-the-token",
+      "expected": "\"true\"",
+      "desc": "A real pointer on the copy control paints the shared --ov-sel ground, where the old rule used a literal rgba(0, 0, 0, .08)"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pressed-ground-differs-from-hover",
+      "expected": "\"true\"",
+      "desc": "The pressed pin takes its ground from the accent and stays distinguishable from its resting state"
+    },
+    {
+      "type": "eval_equals",
+      "id": "url-stays-mono",
+      "expected": "\"true\"",
+      "desc": "The URL keeps the overlay set's mono face, which is a token too"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

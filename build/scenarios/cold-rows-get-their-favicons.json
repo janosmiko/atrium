@@ -1,0 +1,71 @@
+{
+  "name": "cold-rows-get-their-favicons",
+  "description": "after a restart, a pinned tab and a favourite come up with no icon and keep none until the page is visited. The tab-keyed favicon cache is filled by a live WebContents pushing its icon, so a row with no tab yet can never be answered from it - and only favourites ever asked the URL-keyed one. Every other row asked nothing at all.\n\nThe run needs two launches. A clean VM snapshot has an empty favicon database, so the first launch is what puts the three fixture icons into it: the startup tab loads the blue page, and two openURLs Apple Events visit the red and the orange one. The relaunch is the cold launch the report is about - the same profile, the same spaces file, nothing loaded but the active tab.\n\nAfter it, the red page is a pinned row and the orange one is a favourite tile, neither with a tab behind it. Both must paint. The backfill's own count line separates 'the new path ran and found nothing' from 'the new path never ran'.\n\nA fourth row covers the tier the database cannot reach: a favourite on localhost:8000 that no action ever opens. Nothing has ever stored an icon for that host, so it paints only if the browser fetched /favicon.ico from the site itself.",
+  "fixture": "cold-rows.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "settle", "ms": 3000, "note": "launch 1: the sidebar renders and the startup tab commits the blue page, so its icon reaches the favicon database" },
+    { "type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot" },
+    { "type": "open_url", "url": "http://127.0.0.1:8000/brand-dark-red-icon.html", "note": "the pinned row's page - visited once here so the database has its icon to give back on the cold launch" },
+    { "type": "settle", "ms": 3000 },
+    { "type": "open_url", "url": "http://127.0.0.1:8000/icon-tint-orange.html", "note": "and the favourite tile's page" },
+    { "type": "settle", "ms": 3000 },
+    { "type": "open_url", "url": "http://127.0.0.1:8000/favicon-page.html", "note": "blue last, so it is the tab the relaunch loads and the other two stay cold" },
+    { "type": "settle", "ms": 2000 },
+    { "type": "relaunch", "note": "THE COLD LAUNCH. Not a restage: the profile keeps the favicon database the first launch filled, which is exactly the state a user restarts into" },
+    { "type": "settle", "ms": 3000, "note": "the sidebar renders its rows with their tint chips, before any lookup answers" },
+    { "type": "activate" },
+    { "type": "wait_vlog", "pattern": "Atrium: favicon backfill starting", "timeout_ms": 15000, "note": "the new path ran at all - without this line a green assertion below could only mean the live pipeline happened to cover the row" },
+    {
+      "type": "eval_until",
+      "id": "pinned-row-icon",
+      "target": "/sidebar",
+      "expression": "String([...document.querySelectorAll('.row.tabrow')].some(r => (r.dataset.url || '').includes('brand-dark-red-icon') && r.querySelector('.fvimg.ok')))",
+      "expected": "true",
+      "timeout_ms": 15000,
+      "note": "For a pinned tab. `ok` is added on load and a failed load removes the img, so this is the icon being on screen rather than a request having been made."
+    },
+    {
+      "type": "eval_until",
+      "id": "favourite-tile-icon",
+      "target": "/sidebar",
+      "expression": "String([...document.querySelectorAll('.fav')].some(f => (f.dataset.favId || '').includes('icon-tint-orange') && f.querySelector('.fvimg.ok')))",
+      "expected": "true",
+      "timeout_ms": 15000,
+      "note": "For a favourite, whose page has no tab at all after the relaunch"
+    },
+    {
+      "type": "eval_until",
+      "id": "never-visited-favourite-icon",
+      "target": "/sidebar",
+      "expression": "String([...document.querySelectorAll('.fav')].some(f => (f.dataset.favId || '').includes('localhost') && f.querySelector('.fvimg.ok')))",
+      "expected": "true",
+      "timeout_ms": 20000,
+      "note": "The third tier, on its own. This favourite is never opened, so no tab ever pushes its icon and the profile has no database entry to give: the only answer is the site's own /favicon.ico. It is on `localhost` rather than 127.0.0.1 for exactly that reason - the first tier falls back to any icon known for the HOST, so a page sharing 127.0.0.1 with the visited fixtures would resolve there and never reach the fetch. Same server either way, since python -m http.server binds every interface."
+    },
+    {
+      "type": "eval",
+      "id": "pinned-row-src",
+      "target": "/sidebar",
+      "expression": "(() => { const r = [...document.querySelectorAll('.row.tabrow')].find(r => (r.dataset.url || '').includes('brand-dark-red-icon')); if (!r) return 'no row'; const i = r.querySelector('.fvimg'); return i ? i.src : 'no img'; })()",
+      "note": "which source answered. /urlicon/ is the backfill's cache; /favicon/ would mean a live tab pushed it and this run proved nothing."
+    },
+    {
+      "type": "eval",
+      "id": "pinned-row-tab-id",
+      "target": "/sidebar",
+      "expression": "(() => { const r = [...document.querySelectorAll('.row.tabrow')].find(r => (r.dataset.url || '').includes('brand-dark-red-icon')); return r ? (r.dataset.tabId || 'cold') : 'no row'; })()",
+      "note": "recorded, not asserted: whether the relaunch left this row without a tab. `cold` is the case under test."
+    },
+    { "type": "capture", "id": "cold-rows-with-icons", "duration_ms": 300, "fps": 20 }
+  ],
+  "assertions": [
+    { "type": "ax_window_count", "expected": 1, "min_area": 200000, "desc": "sanity: one real window rendered after the relaunch" },
+    { "type": "vlog", "pattern": "Atrium: favicon backfill starting", "desc": "the cold launch asked for the rows missing an icon. Before the fix nothing but favourites ever asked, so this line did not exist." },
+    { "type": "eval_equals", "id": "pinned-row-icon", "expected": "true", "desc": "The pinned row shows its favicon after a restart, with no visit" },
+    { "type": "eval_equals", "id": "favourite-tile-icon", "expected": "true", "desc": "And so does the favourite tile" },
+    { "type": "eval_equals", "id": "never-visited-favourite-icon", "expected": "true", "desc": "For a favourite added by URL and never opened: neither database tier can answer it, so this is the site fetch or nothing" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

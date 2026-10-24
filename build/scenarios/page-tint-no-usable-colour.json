@@ -1,0 +1,101 @@
+{
+  "name": "page-tint-no-usable-colour",
+  "description": "neither a declared tag nor a favicon gives these pages a colour. Both declare no theme-color and carry the same all-white favicon, which the k-means lightness band refuses - a monochrome mark says nothing about its site that every other monochrome mark does not.\n\nWHAT THIS SCENARIO PROVES CHANGED. The vlog below is now the load-bearing assertion: 'page tint sampled (none)' is the declared-and-favicon path finding nothing, which is what this scenario is about. The region assertion no longer measures the space theme, because the ambilight reads these pages' own light-grey pixels and tints toward them. It measures that the glow holds steady across a tab switch instead - which is worth keeping: the first version of that sampler skipped the repaint whenever a new page resolved the colours the old one had, and the chrome sat on the plain space tint until something happened to differ.",
+  "fixture": "icon-tint-none.spaces.json",
+  "settings": "icon-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the first tab commit and its favicon resolve"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "capture",
+      "id": "one",
+      "duration_ms": 500,
+      "fps": 10,
+      "note": "the chrome while White One is in front"
+    },
+    {
+      "type": "eval",
+      "id": "second-row-point",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = document.querySelector('.railpane:not(.ovrailpane)').querySelectorAll('[data-dropzone=\"tabs\"] .tabrow'); if (rows.length < 2) { return 'rows ' + rows.length; } const b = rows[1].getBoundingClientRect(); return '100,' + Math.round((b.top + b.bottom) / 2 + 30); })()",
+      "note": "the second row's centre on screen, 30px below its client y, so a layout change cannot move the click off it"
+    },
+    {
+      "type": "click",
+      "from_eval": "second-row-point",
+      "note": "the White Two row."
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "long enough for a drift to have run, had there been one"
+    },
+    {
+      "type": "capture",
+      "id": "two",
+      "duration_ms": 500,
+      "fps": 10,
+      "note": "the chrome while White Two is in front"
+    },
+    {
+      "type": "eval_until",
+      "id": "white-two-page",
+      "target": "icon-tint-white-two.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/icon-tint-white-two.html",
+      "timeout_ms": 8000,
+      "note": "the White Two page committed, read from the page itself"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "white-two-page",
+      "expected": "http://127.0.0.1:8000/icon-tint-white-two.html",
+      "label": "the-switch-really-happened",
+      "desc": "THE CONTROL, and this scenario is worthless without it: region_stable passes for free when the tab switch never happened. That trap bit a partner scenario's first draft."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: page tint sampled \\(none\\)",
+      "label": "neither-tag-nor-favicon-gave-a-colour",
+      "desc": "Itself: the declared-tag path found no theme-color and the favicon path refused the all-white mark, so that half of the sampler resolved nothing. This is what the region assertion used to stand in for, and it says it directly."
+    },
+    {
+      "type": "region_stable",
+      "before": "one",
+      "after": "two",
+      "region": [
+        194,
+        460,
+        28,
+        100
+      ],
+      "max_delta": 3,
+      "desc": "THE MEASUREMENT: the glow beside the card held steady across the switch. ambilight-paints-the-near-edge reads 22.62 across this same region when the left edge really changes, so 3 is a ceiling the feature clears by an order of magnitude when it has a reason to move.",
+      "note": "The band the glow paints: 32 DIP out from the card's left edge at about x=225 in the VM frame, at 55 percent of the glass alpha. Re-measured 2026-08-27 when the glow was narrowed and dimmed."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

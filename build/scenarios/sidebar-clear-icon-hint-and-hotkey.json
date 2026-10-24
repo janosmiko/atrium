@@ -1,0 +1,123 @@
+{
+  "name": "sidebar-clear-icon-hint-and-hotkey",
+  "description": "The divider above the ungrouped rows is a bare line with an archive icon at its end - no TABS label, no CLEAR text. Hovering the icon shows the sidebar hint with its label and the clearTabs chord, read off the live bindings map PushSidebarBindings hands the page. Cmd+Shift+K then archives the rows the same way a click does, so the header (rendered only while there is something to clear) disappears.",
+  "fixture": "icon-tint-none.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "startup_space": "437b0002-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "header-shape",
+      "target": "/sidebar",
+      "expression": "(() => { const h = document.querySelector('.sechdr'); if (!h) { return 'no-header'; } const b = h.querySelector('.sechdrclear'); if (h.textContent.trim() !== '') { return 'text:' + h.textContent.trim(); } if (!b || !b.querySelector('svg')) { return 'no-icon'; } return 'line+icon'; })()"
+    },
+    {
+      "type": "move",
+      "x": 186,
+      "y": 166,
+      "note": "the icon at the divider's right end - it is opacity 0 until the sidebar is really hovered, and the synthetic pointerover below cannot do that"
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "eval",
+      "id": "hover-clear",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sechdrclear'); if (!b) { return 'no-button'; } b.dispatchEvent(new PointerEvent('pointerover', {bubbles: true})); return 'hovered'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 900,
+      "note": "past HOVER_DELAY_MS (600ms) in hint-triggers.js"
+    },
+    {
+      "type": "eval_until",
+      "id": "hint-text",
+      "target": "/hint",
+      "expression": "String((document.querySelector('.hint .hint-text') || {}).textContent || 'no hint')",
+      "expected": "Clear tabs",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "eval",
+      "id": "hint-keys",
+      "target": "/hint",
+      "expression": "[...document.querySelectorAll('.hint .hint-keys .ov-key')].map((k) => k.textContent).join('')"
+    },
+    {
+      "type": "capture",
+      "id": "clear-hover",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+k",
+      "note": "clearTabs: archives the space's ungrouped rows"
+    },
+    {
+      "type": "eval_until",
+      "id": "header-gone",
+      "target": "/sidebar",
+      "expression": "String(!!document.querySelector('.sechdrclear'))",
+      "expected": "false",
+      "timeout_ms": 8000,
+      "note": "the header only renders while there are tabs to clear"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "header-shape",
+      "expected": "\"line+icon\"",
+      "desc": "No label text, an SVG icon in the clear button"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hover-clear",
+      "expected": "\"hovered\"",
+      "desc": "the clear icon was found and hovered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint-text",
+      "expected": "Clear tabs",
+      "desc": "The hint carries the icon's label"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint-keys",
+      "expected": "\"⇧⌘K\"",
+      "desc": "The hint names Cmd+Shift+K off the live bindings map"
+    },
+    {
+      "type": "eval_equals",
+      "id": "header-gone",
+      "expected": "false",
+      "desc": "Cmd+Shift+K archived the rows, the header went with them"
+    }
+  ]
+}

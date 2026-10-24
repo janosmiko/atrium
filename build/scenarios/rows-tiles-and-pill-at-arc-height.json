@@ -1,0 +1,75 @@
+{
+  "name": "rows-tiles-and-pill-at-arc-height",
+  "description": "The sidebar draws its rows, favourite tiles and address pill at the heights measured off Arc, read as computed styles over CDP. The capture is for the eye.",
+  "fixture": "lab-compare.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "eval_until",
+      "id": "row-height",
+      "target": "/sidebar",
+      "expression": "getComputedStyle(document.querySelector('.row.tabrow')).height + ' ' + getComputedStyle(document.querySelector('.row.tabrow')).fontSize",
+      "expected": "36px 13px",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval_until",
+      "id": "tile-height",
+      "target": "/sidebar",
+      "expression": "(() => { const f = document.querySelector('.fav'); return f ? getComputedStyle(f).height : 'no-tile'; })()",
+      "expected": "47px",
+      "timeout_ms": 5000
+    },
+    {
+      "type": "eval_until",
+      "id": "pill-height",
+      "target": "/sidebar",
+      "expression": "getComputedStyle(document.querySelector('#sbUrl')).height",
+      "expected": "34px",
+      "timeout_ms": 5000
+    },
+    {
+      "type": "capture",
+      "id": "rows",
+      "duration_ms": 200,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "row-height",
+      "expected": "36px 13px",
+      "desc": "Tab rows are 36px with 13px text."
+    },
+    {
+      "type": "eval_equals",
+      "id": "tile-height",
+      "expected": "47px",
+      "desc": "favourite tiles are 47px (sized to fit the three-column grid math)."
+    },
+    {
+      "type": "eval_equals",
+      "id": "pill-height",
+      "expected": "34px",
+      "desc": "The address pill is 34px."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

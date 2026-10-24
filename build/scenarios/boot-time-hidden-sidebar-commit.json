@@ -1,0 +1,61 @@
+{
+  "name": "boot-time-hidden-sidebar-commit",
+  "description": "Re-grounded on the C++/HTML tree: does a profile that is never shown still get a live sidebar renderer? The SwiftUI-era evidence (GridWidthProbe, SidebarSwipeCatcher fan-out, a WKWebView spike) is gone with the Swift package, but the shape of the question survived the port unchanged. atrium_profile_bootstrap.cc::OnProfileAdded calls BrowserController::CreateForProfile(profile, show, startup_url) for EVERY startup-needed profile, with show=true for only the active one - its own comment names 'the hidden-pool profiles this function also constructs'. Every BrowserController owns an AtriumBrowserWindow, and AtriumBrowserWindow's constructor calls BuildHtmlSidebar() unconditionally (atrium_browser_window.cc:2060), with no gate on whether that window will ever be shown. BuildHtmlSidebar asks the single shared atrium::AtriumChromeContext for a WebContents on ITS reserved SiteInstance (atrium_chrome_context.h) and navigates it to chrome://atrium.top-chrome/sidebar. So: one shared renderer PROCESS regardless of profile count (that half of the old bug is genuinely fixed - see pick_renderer.py's own doc, 'sidebar, command bar, pill, foyer and settings all live in this one process'), but each profile still gets its OWN WebContents navigating that route, and nothing in BuildHtmlSidebar, PushSidebarSnapshot (atrium_browser_window.cc:2721, unconditional ExecuteJavaScript into sidebar_contents_) or AtriumChromeContext gates that on visibility. The fixture used here (presenter-startup.spaces.json) declares two spaces on two distinct profileIDs and no appState.startupProfiles list, so per ProfileBootstrap::Bootstrap's own comment ('An empty startup list means no deferral - preload everything') BOTH profiles are startup-needed and bootstrap in the same burst, before or around first paint - no space switch required to observe the second sidebar. The measurement: two independent 'Committed provisional load: chrome://atrium.top-chrome/sidebar' lines appear from booting alone, while ax_window_count never exceeds 1 - i.e. a second, unpresented sidebar WebContents did real navigation/render work purely because its profile exists, exactly the earlier complaint restated for this stack. The swipe-catcher fix is orthogonal to this: it was about a shared NSEvent.addLocalMonitorForEvents broadcasting every trackpad event to ~8 SidebarSwipeCatcher instances, a pattern this port does not have at all - swipe.js/sidebar.js each live inside their OWN WebContents and only ever see events Chromium's normal per-WebContents hit-testing actually routes to that WebContents, so there is no analogous fan-out to dedup. The dedup-free event routing retires the EVENT-FANOUT half of the old description but says nothing about the LAYOUT-ON-BOOT half this scenario measures, which remains open and unmeasured in the tree until this scenario runs.",
+  "cannot_pass": "NOT YET RUN - queued behind the other two lanes' build/VM ownership this iteration. Predicted from reading atrium_profile_bootstrap.cc, atrium_browser_window.cc and atrium_chrome_context.h, not from a VM trace, so treat the prediction as provisional the way this directory's other entries do until a real run backs it. Ways this could come back looking wrong rather than right: (1) if BuildHtmlSidebar's AtriumChromeContext::PostWhenReady callback for the hidden profile loses a race with the 4s settle below - measurements show the chrome context landing ~670ms after launch, so 4s should be generous, but an overloaded probe VM is exactly where 'should' fails; widen the settle before concluding the second commit assertion is a real regression rather than a timing miss. (2) if the startup/deferred profile split ever changes such that a fixture with no appState.startupProfiles list stops meaning 'preload everything' - re-read atrium_profile_bootstrap.cc's Bootstrap() before trusting this fixture choice again. (3) if the hidden profile's window construction crashes or short-circuits before BuildHtmlSidebar runs, in which case the FIRST assertion (bootstrapping 2 profile(s)) still passes but the second commit assertion fails for a reason that has nothing to do with suspension - check the pulled run log for a second 'Atrium: profile ... initialized' line to tell those apart. A PASS on the second-commit assertion is the regression: it means a sidebar nobody asked to see still built a renderer and painted into it.",
+  "fixture": "presenter-startup.spaces.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: bootstrapping 2 profile",
+      "timeout_ms": 20000,
+      "note": "GATE: confirms the two-profile fixture actually loaded as two profiles rather than falling back to the single-Default path (see the WARNING branch in atrium_profile_bootstrap.cc for when that fallback fires)."
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "AtriumChromeContext is created asynchronously and BuildHtmlSidebar defers to PostWhenReady; measurements show ~670ms for the context to land on an idle machine. This covers both profiles' deferred BuildHtmlSidebar callbacks landing and committing, not just the shown one's."
+    },
+    {
+      "type": "activate",
+      "note": "frontmost, so the quit assertion below reaches Atrium rather than whatever the clean snapshot left in front - same reason every other scenario in this directory carries this."
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "capture",
+      "id": "boot",
+      "duration_ms": 500,
+      "fps": 20,
+      "note": "evidence only, not graded: the presented window as it stands. There is nothing to compare it against - the point of this scenario is a renderer that never paints anywhere the capture can see."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "pattern": "Atrium: bootstrapping 2 profile",
+      "label": "two-profile-fixture-confirmed",
+      "desc": "SETUP GATE. If this fails, the run measured a one-profile fallback and the second-commit assertion below would be vacuously true (or false) for a reason unrelated to the startup split."
+    },
+    {
+      "type": "vlog_after",
+      "label": "second-hidden-sidebar-webcontents-committed",
+      "pattern": "Committed provisional load: chrome://atrium\\.top-chrome/sidebar",
+      "after_pattern": "Committed provisional load: chrome://atrium\\.top-chrome/sidebar",
+      "note": "THE MEASUREMENT. Both pattern and after_pattern are the SAME line (the established idiom in this directory - see crash-chrome-renderer.json's 'the-sidebar-route-came-back' assertion, which reuses this trick to prove a second commit after a crash): assert_vlog_after finds the FIRST match, then requires a SECOND match strictly later in the log. Here nothing crashed and nothing switched space - the only way a second commit of this route exists is a second, independently-constructed sidebar WebContents committing on its own, which is the hidden profile's. A build where hidden profiles are suspended/deferred/lazy would show exactly one commit and this assertion would correctly FAIL."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "exactly one window was ever shown across the whole run - so the second sidebar commit above cannot be explained by a second VISIBLE window. It belongs to a profile the user never looked at."
+    },
+    {
+      "type": "quit",
+      "desc": "and the app is still responsive enough to quit cleanly with the extra hidden renderer behind it."
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "name": "favourite-first-click-five-profiles",
+  "description": "The host document that showed the flash: six spaces on five profiles, the Default profile with two spaces and nine favourites on real origins, one of which (clockify) other profiles share. On a fresh launch the first click on the Reddit tile swapped five of the nine tiles to letter plates for half a second while the four tiles other profiles also know kept their icons, and one push brought every icon back. That split is the shape of one push whose favourites are the Default profile's but whose icon scope is another profile's cache.\n\nThe scenario wraps window.atriumSetSidebar before the click and records, for every push, the icon scope and the pinned favourite ids the push carried, plus a MutationObserver log of the tile ids and img states. The measurement is the number of distinct icon scopes the pushes carried across the click: one means the scope never left this profile.\n\nWith the fix, a rebuild adopts the loaded img nodes of the tree it replaces, so the nodes marked before the click are the nodes on screen after it whatever the renderer's image cache did in between.",
+  "fixture": "favourites-five-profiles.spaces.json",
+  "startup_space": "98298298-2982-4982-8982-982982982981",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "first paint, the sidebar announces itself, the site fetch fills the Default cache"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "eval_until",
+      "id": "tiles-painted",
+      "target": "/sidebar",
+      "expression": "(() => { const pin = [...document.querySelectorAll('.favgrid')].find(g => !g.closest('.railpane')); if (!pin) { return 'no-pin'; } const tiles = [...pin.querySelectorAll('.fav')]; return String(tiles.length === 9 && tiles.filter(f => f.querySelector('.fvimg.ok')).length >= 6); })()",
+      "expected": "true",
+      "timeout_ms": 40000,
+      "note": "VACUITY GUARD: the nine Default tiles are up and at least six carry a painted icon before the click"
+    },
+    {
+      "type": "eval",
+      "id": "hook",
+      "target": "/sidebar",
+      "expression": "(() => { const pinOf = () => [...document.querySelectorAll('.favgrid')].find(g => !g.closest('.railpane')); const tileState = () => { const pin = pinOf(); return pin ? [...pin.querySelectorAll('.fav')].map(f => { const i = f.querySelector('.fvimg'); return (f.dataset.favId || '').replace(/^https?:\\/\\//, '').slice(0, 12) + '=' + (i ? (i.classList.contains('ok') ? 'ok' : 'img') : 'none'); }).join(',') : 'no-pin'; }; window.__pushes = []; const orig = window.atriumSetSidebar; window.atriumSetSidebar = function(snap) { const favs = (snap && snap.favorites) || []; window.__pushes.push(String(snap && snap.iconScope).slice(0, 8) + '#' + favs.map(f => String(f.id || '').replace(/^https?:\\/\\//, '').slice(0, 12)).join(',')); return orig.apply(this, arguments); }; window.__dom = [tileState()]; new MutationObserver(() => { const s = tileState(); if (window.__dom[window.__dom.length - 1] !== s) { window.__dom.push(s); } }).observe(document.body, {subtree: true, childList: true, attributes: true, attributeFilter: ['src', 'class', 'data-fav-id']}); [...(pinOf() || document).querySelectorAll('.fvimg.ok')].forEach(i => { i.__carry = 1; }); return 'hooked:' + typeof orig; })()",
+      "note": "records the icon scope and favourite ids of every push, and every distinct tile state, from here on. Every painted pinned img is marked, so a later eval can tell an adopted node from a fresh one"
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "drops any suggestion popup the activation left open"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "click",
+      "x": 188,
+      "y": 143,
+      "note": "THE MEASUREMENT: the Reddit tile, row 1 column 3 of the pinned grid (three columns at this width)"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: favourite claimed tab",
+      "timeout_ms": 20000,
+      "note": "gate: the click reached a tile"
+    },
+    {
+      "type": "capture",
+      "id": "during",
+      "duration_ms": 3000,
+      "fps": 20
+    },
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "the page commits over the real network, every push lands"
+    },
+    {
+      "type": "eval",
+      "id": "pushes",
+      "target": "/sidebar",
+      "expression": "window.__pushes.join(' ; ')",
+      "note": "recorded: icon scope # pinned favourite ids, per push"
+    },
+    {
+      "type": "eval",
+      "id": "dom-states",
+      "target": "/sidebar",
+      "expression": "window.__dom.join(' ; ')",
+      "note": "recorded: every distinct tile state the observer saw"
+    },
+    {
+      "type": "eval",
+      "id": "scope-count",
+      "target": "/sidebar",
+      "expression": "String(new Set(window.__pushes.map(p => p.split('#')[0])).size)",
+      "note": "THE ASSERTION: distinct icon scopes across every push after the hook"
+    },
+    {
+      "type": "eval",
+      "id": "lost-icons",
+      "target": "/sidebar",
+      "expression": "String(window.__dom.slice(1).some(s => s.split(',').filter(t => /=none$/.test(t)).length > window.__dom[0].split(',').filter(t => /=none$/.test(t)).length))",
+      "note": "THE ASSERTION: a later state dropped an img that the first state had"
+    },
+    {
+      "type": "eval",
+      "id": "adopted",
+      "target": "/sidebar",
+      "expression": "(() => { const pin = [...document.querySelectorAll('.favgrid')].find(g => !g.closest('.railpane')); const imgs = pin ? [...pin.querySelectorAll('.fvimg.ok')] : []; return imgs.filter(i => i.__carry === 1).length + '/' + imgs.length; })()",
+      "note": "THE ASSERTION: painted pinned imgs that are the very nodes marked before the click / painted pinned imgs now"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "label": "the-hook-found-the-push-entry",
+      "id": "hook",
+      "expected": "\"hooked:function\"",
+      "desc": "VACUITY GUARD: atriumSetSidebar existed and is wrapped"
+    },
+    {
+      "type": "vlog",
+      "label": "the-click-claimed-a-tab",
+      "pattern": "Atrium: favourite claimed tab"
+    },
+    {
+      "type": "eval_equals",
+      "label": "every-push-carried-this-profiles-scope",
+      "id": "scope-count",
+      "expected": "\"1\"",
+      "desc": "THE ASSERTION: one icon scope across the click"
+    },
+    {
+      "type": "eval_equals",
+      "label": "no-tile-lost-its-icon",
+      "id": "lost-icons",
+      "expected": "\"false\"",
+      "desc": "THE ASSERTION: no push dropped a painted img"
+    },
+    {
+      "type": "eval_equals",
+      "label": "every-painted-tile-kept-its-img-node",
+      "id": "adopted",
+      "expected": "\"8/8\"",
+      "desc": "THE ASSERTION: across every push the click caused, the eight painted tiles still hold the img nodes that loaded before it (the ninth, an intranet host, never resolves in the VM)"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

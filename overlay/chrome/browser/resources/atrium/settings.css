@@ -1,0 +1,1390 @@
+/* Copyright 2026 The Atrium Authors
+ *
+ * The Settings route's shell. Colours, radii and durations are
+ * overlay.css tokens, so the route follows the active space tint.
+ * Direction: docs/lab/settings-lab.html variant A. Controls: brand book 08.
+ */
+
+/* macOS rubber-bands the viewport even with nothing to scroll. Transparent
+ * for the window's sidebar vibrancy (atrium_settings_titlebar_mac.mm). */
+html:has(#atrium-root.settingsroot) {
+  background: transparent;
+  /* The scrollbars and form controls follow the system ground, not light. */
+  color-scheme: light dark;
+  overscroll-behavior: none;
+}
+
+body {
+  margin: 0;
+}
+
+#atrium-root.settingsroot {
+  color: var(--ov-fg);
+  display: grid;
+  font: 13px var(--ov-font);
+  grid-template-columns: 190px minmax(0, 1fr);
+  height: 100vh;
+  position: relative;
+}
+
+/* Native mode swaps --ov-font for the system font, whose metrics move every
+ * row. This window keeps Archivo so both looks line up. */
+html.atrium-native-chrome #atrium-root.settingsroot {
+  --ov-font: 'Archivo', system-ui, -apple-system, sans-serif;
+  --ov-font-mono: ui-monospace, monospace;
+}
+
+/* Settings is always native. A theme class sets a light-mode ink
+ * that vanishes on the dark system ground, and :has() outranks it. Native
+ * paper equals the ground, so the cards get their own lift. */
+html.atrium-native-chrome:has(#atrium-root.settingsroot) {
+  --ov-ink: var(--atrium-surround-ink, 28 28 30);
+  --ov-paper: color-mix(in srgb, var(--ov-fg) 4%, var(--ov-ground));
+}
+
+/* The rail's own column - the search field sits above it, both
+ * sharing the one border that used to belong to the rail alone. */
+.settings-sidebar {
+  -webkit-app-region: drag;
+  border-inline-end: 1px solid var(--ov-border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  user-select: none;
+}
+
+/* No native titlebar, so this strip is a drag handle too - see
+ * atrium_settings_titlebar_mac.mm. Clears the floating traffic lights,
+ * which sit over the sidebar column's top-left. */
+.settings-drag-region {
+  -webkit-app-region: drag;
+  flex: none;
+  height: 40px;
+}
+
+/* .engine-row and .theme-studio-canvas-wrap are plain divs the tag selectors
+ * here miss. A scroll container's own scrollbar sits inside its drag
+ * ancestor's rect too, hence .settings-rail and .settings-search-results. */
+button,
+input,
+select,
+textarea,
+.settings-row,
+.engine-row,
+.theme-studio-canvas-wrap,
+.settings-rail,
+.settings-search-results {
+  -webkit-app-region: no-drag;
+}
+
+.settings-search {
+  border-block-end: 1px solid var(--ov-border);
+  flex: none;
+  padding: 12px 10px 10px;
+}
+
+.settings-search-field {
+  appearance: none;
+  background: var(--ov-paper);
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-anchor);
+  box-sizing: border-box;
+  color: var(--ov-fg);
+  font: inherit;
+  padding: 5px 8px;
+  width: 100%;
+}
+
+.settings-search-field:focus-visible {
+  outline: 2px solid var(--ov-accent);
+  outline-offset: 2px;
+}
+
+.settings-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.settings-search-empty {
+  color: var(--ov-mute);
+  padding: 6px 8px;
+}
+
+.settings-search-result {
+  align-items: baseline;
+  appearance: none;
+  background: none;
+  border: 0;
+  border-radius: var(--ov-radius-row);
+  color: inherit;
+  cursor: default;
+  display: flex;
+  font: inherit;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 6px 8px;
+  text-align: start;
+  width: 100%;
+}
+
+.settings-search-result:hover,
+.settings-search-result.active {
+  background: color-mix(in srgb, var(--ov-accent) 7%, transparent);
+}
+
+.settings-search-result-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-search-result-pane {
+  color: var(--ov-mute);
+  flex: none;
+  font-size: 11px;
+}
+
+/* Vertical, left of the body (variant A) - not a top bar.
+ * Its own scroller: eight panes plus a long label can outgrow the
+ * window height sooner than the body does. */
+.settings-rail {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 10px;
+}
+
+/* Only one of the rail or the results shows for a given query - the rail
+ * items themselves stay untouched, so its roving tabindex still works. */
+.settings-search.settings-search-active ~ .settings-rail {
+  display: none;
+}
+
+/* The window corner, unmoved by the rail's move from top to left. */
+.settings-pin {
+  align-items: center;
+  appearance: none;
+  background: var(--ov-paper);
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-row);
+  color: var(--ov-mute);
+  cursor: default;
+  display: grid;
+  height: 28px;
+  inset-block-start: 10px;
+  inset-inline-end: 12px;
+  place-items: center;
+  position: absolute;
+  transition: transform 90ms var(--ov-ease),
+              background var(--ov-expand-ms) var(--ov-ease),
+              border-color var(--ov-expand-ms) var(--ov-ease);
+  width: 28px;
+}
+
+.settings-pin:active {
+  transform: scale(.96);
+}
+
+.settings-pin .ov-icon {
+  height: 15px;
+  stroke-width: 1.7;
+  width: 15px;
+}
+
+.settings-pin[aria-pressed="true"] {
+  background: var(--ov-accent);
+  border-color: transparent;
+  color: var(--ov-accent-ink);
+}
+
+/* .ov-icon carries its own colour, which outranks the button's ink. */
+.settings-pin[aria-pressed="true"] .ov-icon {
+  color: inherit;
+}
+
+.settings-pin:focus-visible {
+  outline: 2px solid var(--ov-accent);
+  outline-offset: 2px;
+}
+
+/* The one button family here that never got appearance: none,
+   which is why it alone drew the platform's border and shadow. */
+.settings-rail-item {
+  align-items: center;
+  appearance: none;
+  background: none;
+  border: 0;
+  border-radius: var(--ov-radius-row);
+  color: inherit;
+  cursor: default;
+  display: flex;
+  font: inherit;
+  font-weight: 500;
+  gap: 9px;
+  padding: 8px 10px;
+  transition: background var(--ov-expand-ms) var(--ov-ease),
+              color var(--ov-expand-ms) var(--ov-ease);
+}
+
+/* The overlay's own focus convention - settings.css never adopted
+   it, so keyboard focus fell back to the browser's ring everywhere. */
+.settings-rail-item:focus-visible {
+  outline: 2px solid var(--ov-accent);
+  outline-offset: 2px;
+}
+
+.settings-rail-item:hover {
+  background: color-mix(in srgb, var(--ov-accent) 7%, transparent);
+}
+
+.settings-rail-item.selected {
+  background: var(--ov-sel);
+  color: var(--ov-accent);
+}
+
+/* Native mode sets --ov-sel to the accent itself, so accent ink vanishes. */
+html.atrium-native-chrome .settings-rail-item.selected {
+  color: var(--ov-accent-ink);
+}
+
+.settings-rail-item .ov-icon {
+  flex: none;
+}
+
+.settings-rail-item.selected .ov-icon {
+  color: inherit;
+}
+
+.settings-rail-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-body {
+  background: var(--ov-ground);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Not a drag region: on macOS a wheel over one never reaches the page, since
+ * AppKit picks the wheel target with the hitTest: that returns nil for
+ * HTCAPTION (bridged_content_view.mm). The heading below is the handle. */
+.settings-pane-content {
+  padding: 24px 26px;
+  user-select: none;
+}
+
+/* A short arrival on a rail change, not a slide - a pane sliding in from the
+ * side fights the rail the pointer just left. */
+@keyframes settings-pane-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.settings-body.settings-pane-swap {
+  animation: settings-pane-in 160ms var(--ov-ease);
+}
+
+.settings-heading {
+  -webkit-app-region: drag;
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 14px;
+  user-select: none;
+}
+
+.settings-group-title {
+  color: var(--ov-mute);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  margin: 0 0 7px 2px;
+  text-transform: uppercase;
+}
+
+.settings-group-title:not(:first-child) {
+  margin-top: 22px;
+}
+
+/* The summary is its details' first child, so the rule above never reaches it
+ * and the gap has to sit on the wrapper. Its marker stays: the triangle is the
+ * only thing saying this card opens. */
+.settings-group-collapsible {
+  margin-top: 22px;
+}
+
+/* Only the card carries a corner - the rows inside carry none, so a group
+ * reads as one object rather than a stack. */
+.settings-group {
+  background: var(--ov-paper);
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-card);
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-pin,
+  .settings-rail-item {
+    transition: none;
+  }
+
+  .settings-body.settings-pane-swap,
+  .settings-row.found {
+    animation: none;
+  }
+}
+
+.settings-row {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 11px 14px;
+}
+
+/* The card supplies the outer edge - a row only needs the seam between it and
+ * the one before it, so the last row in a group carries no trailing line. */
+.settings-row + .settings-row {
+  border-top: 1px solid var(--ov-border);
+}
+
+/* A chosen search result's row - fades on its own rather than staying
+ * lit, so it reads as "here it is" and not as a permanent selection state. */
+@keyframes settings-row-found {
+  from {
+    background: color-mix(in srgb, var(--ov-accent) 22%, transparent);
+  }
+
+  to {
+    background: transparent;
+  }
+}
+
+.settings-row.found {
+  animation: settings-row-found 900ms var(--ov-ease);
+}
+
+.settings-row-value {
+  color: var(--ov-mute);
+}
+
+/* A select/input/button's own text is a control, not copyable prose - only
+ * the plain-span variant stays selectable. */
+span.settings-row-value {
+  user-select: text;
+}
+
+/* The switch shape (brand book 08's Controls card): a filled track and a
+ * sliding knob, not the old bordered pill. */
+.settings-row-toggle {
+  align-items: center;
+  align-self: center;
+  appearance: none;
+  background: color-mix(in srgb, var(--ov-fg) 20%, transparent);
+  border: 0;
+  border-radius: 999px;
+  box-sizing: border-box;
+  color: var(--ov-fg);
+  cursor: default;
+  display: inline-flex;
+  flex-shrink: 0;
+  height: 22px;
+  padding: 2px;
+  transition: background var(--ov-expand-ms) var(--ov-ease);
+  width: 38px;
+}
+
+.settings-row-toggle:focus-visible {
+  outline: 2px solid var(--ov-accent);
+  outline-offset: 2px;
+}
+
+.settings-row-toggle-knob {
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgb(var(--ov-ink) / .28);
+  display: block;
+  height: 18px;
+  transition: transform var(--ov-expand-ms) var(--ov-ease);
+  width: 18px;
+}
+
+/* Read off aria-pressed, so nothing in the JS carries a second copy of the
+ * same bit. 16px is the track's own width less its padding and the knob. */
+.settings-row-toggle[aria-pressed="true"] {
+  background: var(--ov-accent);
+}
+
+.settings-row-toggle[aria-pressed="true"] .settings-row-toggle-knob {
+  transform: translateX(16px);
+}
+
+/* The state word travels for a11y and for the tests that read it, but the
+ * knob position already carries it visually - brand book 08's switch has no
+ * label of its own. */
+.settings-row-toggle-state {
+  clip: rect(0, 0, 0, 0);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  /* Placed by #atrium-root, not the pane: left static, it grows the document. */
+  top: 0;
+  width: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-row-toggle,
+  .settings-row-toggle-knob {
+    transition: none;
+  }
+}
+
+/* The field shape: the anchor radius, the address bar's own step, for every
+ * plain input and the 3-or-more choice picker.
+ * appearance: none plus the chevron background replaces the platform arrow,
+ * which drew at the old 4px box and nowhere near the brand book's mark. */
+.settings-row-choice,
+.settings-row-number,
+.settings-row-text {
+  appearance: none;
+  background: var(--ov-paper);
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-anchor);
+  color: var(--ov-fg);
+  cursor: default;
+  font: inherit;
+  padding: 5px 8px;
+  transition: border-color var(--ov-expand-ms) var(--ov-ease),
+              transform 90ms var(--ov-ease);
+}
+
+.settings-row-choice {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m4.5 6.5 3.5-3 3.5 3M4.5 9.5l3.5 3 3.5-3' fill='none' stroke='%23837079' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: right 6px center;
+  background-repeat: no-repeat;
+  background-size: 12px;
+  padding-inline-end: 24px;
+}
+
+.settings-row-choice:focus-visible,
+.settings-row-text:focus-visible,
+.settings-row-number:focus-visible {
+  outline: 2px solid var(--ov-accent);
+  outline-offset: 2px;
+}
+
+.settings-row-choice:hover,
+.settings-row-text:hover,
+.settings-row-number:hover {
+  border-color: var(--ov-soft);
+}
+
+.settings-row-choice:active,
+.settings-row-text:active,
+.settings-row-number:active {
+  transform: scale(.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-row-choice,
+  .settings-row-text,
+  .settings-row-number {
+    transition: none;
+  }
+}
+
+/* The segmented shape, for a choice under three (Sidebar position, Restore
+ * tabs on launch). Equal columns so the thumb's width is one column, computed
+ * in JS rather than measured - measuring would race the webfont, which loads
+ * after first paint and reflows every label under it. */
+.settings-seg {
+  background: var(--ov-sel);
+  border-radius: var(--ov-radius-chip);
+  display: inline-grid;
+  gap: 3px;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  padding: 3px;
+  position: relative;
+}
+
+/* Native mode sets --ov-sel to the solid accent, which is the thumb's colour. */
+html.atrium-native-chrome .settings-seg,
+html.atrium-native-chrome .settings-swipe-presets {
+  background: color-mix(in srgb, var(--ov-accent) 14%, transparent);
+}
+
+.settings-seg-thumb {
+  background: var(--ov-accent);
+  border-radius: var(--ov-radius-anchor);
+  inset-block: 3px;
+  inset-inline-start: 3px;
+  position: absolute;
+  transform: translateX(calc(var(--i) * (100% + 3px)));
+  transition: transform var(--ov-expand-ms) var(--ov-ease);
+  width: var(--w);
+}
+
+.settings-seg-option {
+  appearance: none;
+  background: none;
+  border: 0;
+  color: var(--ov-fg);
+  cursor: default;
+  font: 500 12px var(--ov-font);
+  padding: 3px 10px;
+  position: relative;
+  text-align: center;
+  transition: color var(--ov-expand-ms) var(--ov-ease);
+}
+
+.settings-seg-option.on {
+  color: var(--ov-accent-ink);
+}
+
+/* Offset inward - the sliding thumb sits right behind the option, and the
+   3px gap between options is too tight for an outward ring. */
+.settings-seg-option:focus-visible {
+  outline: 2px solid var(--ov-accent);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-seg-thumb,
+  .settings-seg-option {
+    transition: none;
+  }
+}
+
+/* order puts the range visually first even though the num field is first in
+ * the DOM (see buildSliderControl). */
+.settings-slider {
+  align-items: center;
+  display: inline-flex;
+  gap: 10px;
+}
+
+.settings-slider-range {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  cursor: default;
+  height: 15px;
+  margin: 0;
+  width: 120px;
+}
+
+.settings-slider-range:focus-visible {
+  outline: 2px solid var(--ov-accent);
+  outline-offset: 2px;
+}
+
+/* --fill (settings.js's paintSliderFill) is the accent/track split point. */
+.settings-slider-range::-webkit-slider-runnable-track {
+  background: linear-gradient(to right,
+      var(--ov-accent) var(--fill, 0%), var(--ov-sel) var(--fill, 0%));
+  border-radius: 999px;
+  height: 5px;
+}
+
+.settings-slider-range::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--ov-paper);
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgb(var(--ov-ink) / .3), 0 0 0 1px var(--ov-border);
+  height: 15px;
+  margin-top: -5px;
+  transition: transform 90ms var(--ov-ease);
+  width: 15px;
+}
+
+.settings-slider-range:active::-webkit-slider-thumb {
+  transform: scale(1.25);
+}
+
+.settings-slider-num {
+  min-width: 44px;
+  order: 1;
+  text-align: end;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-slider-range::-webkit-slider-thumb {
+    transition: none;
+  }
+}
+
+/* The bordered-button shape (it replaced an underline -
+ * an underlined control among static text read as the caption those rows
+ * are). Row-step radius, same family as .settings-rail-item. */
+.settings-row-credits,
+.settings-row-make-default,
+.settings-row-test-connection,
+.settings-row-test-custom-endpoint-connection,
+.settings-row-clear-api-key,
+.settings-space-open,
+.settings-profile-download,
+.settings-profile-page,
+.settings-profile-delete,
+.routing-add,
+.engine-add,
+.import-run {
+  appearance: none;
+  background: var(--ov-paper);
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-row);
+  color: var(--ov-fg);
+  cursor: default;
+  font: 500 12.5px var(--ov-font);
+  padding: 5px 11px;
+  transition: transform 90ms var(--ov-ease);
+}
+
+.settings-row-credits:focus-visible,
+.settings-row-make-default:focus-visible,
+.settings-row-test-connection:focus-visible,
+.settings-row-test-custom-endpoint-connection:focus-visible,
+.settings-row-clear-api-key:focus-visible,
+.settings-space-open:focus-visible,
+.settings-profile-download:focus-visible,
+.settings-profile-page:focus-visible,
+.settings-profile-delete:focus-visible,
+.routing-add:focus-visible,
+.engine-add:focus-visible,
+.import-run:focus-visible {
+  outline: 2px solid var(--ov-accent);
+  outline-offset: 2px;
+}
+
+.settings-row-credits:active,
+.settings-row-make-default:active,
+.settings-row-test-connection:active,
+.settings-row-test-custom-endpoint-connection:active,
+.settings-row-clear-api-key:active,
+.settings-space-open:active,
+.settings-profile-download:active,
+.settings-profile-page:active,
+.settings-profile-delete:active,
+.routing-add:active,
+.engine-add:active,
+.import-run:active {
+  transform: scale(.96);
+}
+
+.settings-row-make-default:disabled,
+.settings-row-api-key:disabled,
+.settings-profile-download:disabled,
+.settings-profile-page:disabled,
+.settings-profile-delete:disabled {
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-row-credits,
+  .settings-row-test-connection,
+  .settings-row-test-custom-endpoint-connection,
+  .settings-row-clear-api-key,
+  .settings-space-open,
+  .settings-profile-download,
+  .settings-profile-page,
+  .settings-profile-delete,
+  .routing-add,
+  .engine-add,
+  .import-run {
+    transition: none;
+  }
+}
+
+.settings-about-note {
+  color: var(--ov-mute);
+  margin: 0 0 12px;
+  max-width: 52ch;
+  user-select: text;
+}
+
+/* min-width: 0 overrides the flex default of auto, which floors this item at
+ * its hint's un-wrapped width and pushes the toggle past the row's padding
+ * on a narrow window - .settings-group's overflow: hidden then clips it. */
+.settings-row-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-row-hint {
+  color: var(--ov-mute);
+  font-size: 11.5px;
+}
+
+.settings-subhead {
+  font-weight: 600;
+  margin: 20px 0 6px;
+}
+
+/* The whole row recedes together - dimming only the value is what
+ * a row whose value has not arrived yet looks like, and that read as the same
+ * state. */
+.settings-row.unwired {
+  opacity: 0.5;
+}
+
+.settings-row.unwired .settings-row-value {
+  font-style: italic;
+}
+
+.settings-row-warn {
+  color: var(--ov-danger);
+  font-size: 11.5px;
+}
+
+.hotkey-reset-all,
+.hotkey-reset-all-confirm,
+.hotkey-reset-all-cancel,
+.hotkey-preset,
+.hotkey-preset-confirm,
+.hotkey-preset-cancel {
+  appearance: none;
+  background: var(--ov-paper);
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-row);
+  color: var(--ov-fg);
+  cursor: default;
+  font: 500 11.5px var(--ov-font);
+  padding: 4px 9px;
+}
+
+.hotkey-reset-all:focus-visible,
+.hotkey-reset-all-confirm:focus-visible,
+.hotkey-reset-all-cancel:focus-visible,
+.hotkey-preset:focus-visible,
+.hotkey-preset-confirm:focus-visible,
+.hotkey-preset-cancel:focus-visible {
+  outline: 2px solid var(--ov-accent);
+  outline-offset: 2px;
+}
+
+.hotkey-preset-slot {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+}
+
+.hotkey-preset.on {
+  background: var(--ov-accent);
+  border-color: var(--ov-accent);
+  color: var(--ov-accent-ink);
+}
+
+/* Custom names a state the rows put the pane in, so it greys out until they
+   do rather than disappearing and moving the two that remain. */
+.hotkey-preset:disabled {
+  opacity: 0.4;
+}
+
+/* Only the armed step reads as destructive, not the button that asks. */
+.hotkey-preset-confirm {
+  border-color: var(--ov-danger);
+  color: var(--ov-danger);
+}
+
+.hotkey-preset-question {
+  color: var(--ov-mute);
+  font-size: 11.5px;
+}
+
+/* Only the armed step reads as destructive, not the button that asks. */
+.hotkey-reset-all-confirm {
+  border-color: var(--ov-danger);
+  color: var(--ov-danger);
+}
+
+.hotkey-reset-all-slot {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.hotkey-reset-question {
+  color: var(--ov-mute);
+  font-size: 11.5px;
+}
+
+.hotkey-clear:disabled {
+  opacity: 0.4;
+}
+
+.hotkey-error {
+  color: var(--ov-danger);
+  font-size: 11.5px;
+  min-height: 1em;
+}
+
+/* One grid for every shortcut row, so the keycap column and the button
+ * column line up down the pane instead of following each label's width. */
+.hotkey-ledger {
+  display: grid;
+  /* Fixed, not max-content: a preset switch must not move the keys. A row
+   * with two chords wraps inside it. */
+  grid-template-columns: minmax(0, 1fr) 220px 94px;
+}
+
+.hotkey-ledger > .settings-row {
+  column-gap: 16px;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
+.hotkey-ledger > .hotkey-preset-row,
+.hotkey-ledger > .hotkey-reset-all-row {
+  display: flex;
+}
+
+.hotkey-ledger .settings-row-value {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hotkey-ledger .hotkey-error {
+  grid-column: 1 / -1;
+}
+
+.combo {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.combo.conflict kbd.key:last-child {
+  border-color: var(--ov-danger);
+  color: var(--ov-danger);
+}
+
+.hotkey-actions {
+  display: inline-flex;
+  gap: 4px;
+  justify-self: end;
+}
+
+.hotkey-record,
+.hotkey-clear,
+.hotkey-reset {
+  appearance: none;
+  background: var(--ov-paper);
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-anchor);
+  color: var(--ov-fg);
+  cursor: default;
+  display: inline-grid;
+  height: 26px;
+  padding: 0;
+  place-items: center;
+  width: 26px;
+}
+
+/* .ov-icon carries its own colour, which outranks the button's ink. */
+.hotkey-record svg,
+.hotkey-clear svg,
+.hotkey-reset svg {
+  color: inherit;
+  fill: none;
+  height: 14px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+  width: 14px;
+}
+
+.hotkey-record {
+  border-color: var(--ov-soft);
+  color: var(--ov-accent);
+}
+
+.hotkey-record:focus-visible,
+.hotkey-clear:focus-visible,
+.hotkey-reset:focus-visible {
+  outline: 2px solid var(--ov-accent);
+  outline-offset: 2px;
+}
+
+.hotkey-record.capturing {
+  animation: hotkey-capture 900ms ease-in-out infinite alternate;
+  border-color: var(--ov-accent);
+}
+
+@keyframes hotkey-capture {
+  from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ov-accent) 45%, transparent); }
+  to { box-shadow: 0 0 0 4px color-mix(in srgb, var(--ov-accent) 0%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hotkey-record.capturing { animation: none; }
+}
+
+/* The Swipe feel row's three presets, same segmented family as the choice
+ * rows below - a track holding fixed-width options, not a bordered pill each. */
+.settings-swipe-presets {
+  background: var(--ov-sel);
+  border-radius: var(--ov-radius-chip);
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+}
+
+.settings-swipe-preset {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-radius: var(--ov-radius-anchor);
+  color: var(--ov-fg);
+  cursor: default;
+  font: 500 12px var(--ov-font);
+  padding: 3px 10px;
+  transition: background var(--ov-expand-ms) var(--ov-ease),
+              color var(--ov-expand-ms) var(--ov-ease);
+}
+
+.settings-swipe-preset.on {
+  background: var(--ov-accent);
+  color: var(--ov-accent-ink);
+}
+
+.settings-swipe-preset:focus-visible {
+  outline: 2px solid var(--ov-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-swipe-preset {
+    transition: none;
+  }
+}
+
+/* The only row taller than its label, so it stacks instead of sitting on the
+ * shared baseline the flex row gives every other one. */
+.settings-row-appicon {
+  align-items: flex-start;
+}
+
+/* Buttons default to box-sizing: border-box, so the track must equal the
+ * button's full box: 56px icon plus 4px padding and 4px border. A 56px track
+ * squeezed the button and offset the ring. */
+.settings-app-icons {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, 64px);
+  justify-content: end;
+  max-width: 360px;
+}
+
+.settings-app-icon {
+  appearance: none;
+  background: none;
+  border: 2px solid transparent;
+  border-radius: var(--ov-radius-chip);
+  cursor: default;
+  display: block;
+  line-height: 0;
+  padding: 2px;
+}
+
+.settings-app-icon.on {
+  border-color: var(--ov-accent);
+}
+
+.settings-app-icon:focus-visible {
+  outline: 2px solid var(--ov-accent);
+  outline-offset: 2px;
+}
+
+.settings-app-icon-img {
+  border-radius: var(--ov-radius-swatch);
+  display: block;
+  height: 56px;
+  width: 56px;
+}
+
+/* A save that did not happen. Boxed rather than a tinted line: the row above
+ * it has already repainted with the edit, so this has to be the louder of the
+ * two. */
+.settings-alert {
+  background: var(--ov-danger-paper);
+  border: 1px solid var(--ov-danger);
+  border-radius: var(--ov-radius-row);
+  color: var(--ov-danger);
+  margin: 0 0 16px;
+  padding: 9px 12px;
+}
+
+.settings-spaces {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 180px 1fr;
+}
+
+/* The studio is a panel, not a row, so it takes the row padding by hand -
+ * without it it sits flush against the Profile row above and reads as part
+ * of it. */
+.settings-theme-section {
+  padding: 11px 14px;
+}
+
+.settings-space-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-space-item {
+  align-items: center;
+  appearance: none;
+  background: none;
+  border: 0;
+  border-radius: var(--ov-radius-row);
+  cursor: default;
+  display: flex;
+  font: inherit;
+  gap: 8px;
+  padding: 6px 8px;
+  text-align: start;
+}
+
+.settings-space-item.selected {
+  background: var(--ov-sel);
+}
+
+.settings-space-item:focus-visible {
+  outline: 2px solid var(--ov-accent);
+  outline-offset: 2px;
+}
+
+.settings-space-dot {
+  align-items: center;
+  border-radius: 50%;
+  display: flex;
+  flex: 0 0 auto;
+  font-size: 11px;
+  height: 18px;
+  justify-content: center;
+  width: 18px;
+}
+
+.settings-space-new {
+  opacity: 0.7;
+}
+
+.settings-profiles {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 180px 1fr;
+}
+
+.settings-profile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-profile-item {
+  align-items: center;
+  appearance: none;
+  background: none;
+  border: 0;
+  border-radius: var(--ov-radius-row);
+  cursor: default;
+  display: flex;
+  font: inherit;
+  justify-content: space-between;
+  padding: 6px 8px;
+  text-align: start;
+}
+
+.settings-profile-item.selected {
+  background: var(--ov-sel);
+}
+
+.settings-profile-item:focus-visible {
+  outline: 2px solid var(--ov-accent);
+  outline-offset: 2px;
+}
+
+.settings-profile-count {
+  color: var(--ov-mute);
+  font-size: 11px;
+}
+
+.settings-profile-new {
+  opacity: 0.7;
+}
+
+.engines {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr 1.2fr;
+}
+
+.engine-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.engine-row {
+  align-items: center;
+  border-radius: var(--ov-radius-row);
+  cursor: default;
+  display: flex;
+  gap: 8px;
+  padding: 6px 8px;
+}
+
+.engine-selected {
+  background: var(--ov-sel);
+}
+
+.engine-off {
+  opacity: 0.55;
+}
+
+.engine-name {
+  flex: 1;
+}
+
+.engine-keyword {
+  color: var(--ov-mute);
+  font-size: 11.5px;
+}
+
+.engine-builtin {
+  border: 1px solid var(--ov-border);
+  border-radius: 999px;
+  color: var(--ov-mute);
+  font-size: 10px;
+  padding: 1px 6px;
+}
+
+.engine-add {
+  align-self: start;
+  margin-top: 6px;
+}
+
+.engine-detail input[type="text"] {
+  background: var(--ov-paper);
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-anchor);
+  color: var(--ov-fg);
+  font: inherit;
+  padding: 5px 8px;
+}
+
+.engine-error {
+  color: var(--ov-mute);
+  font-size: 11.5px;
+  min-height: 1em;
+}
+
+.engine-delete {
+  appearance: none;
+  background: var(--ov-paper);
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-row);
+  color: var(--ov-fg);
+  cursor: default;
+  font: 500 12.5px var(--ov-font);
+  padding: 5px 11px;
+}
+
+.engine-delete:focus-visible {
+  outline: 2px solid var(--ov-accent);
+  outline-offset: 2px;
+}
+
+/* Routing: a rule is a sentence with controls in its slots, one column so
+ * the pane reads top to bottom as the policy it is. */
+.routing-sentences,
+.import-sources {
+  display: grid;
+  gap: 8px;
+}
+
+.routing-card,
+.import-card {
+  background: color-mix(in srgb, var(--ov-accent) 2%, transparent);
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-row);
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+}
+
+.import-title {
+  color: var(--ov-fg);
+  font: 600 13px var(--ov-font);
+}
+
+.import-counts,
+.import-result,
+.import-empty,
+.import-notes {
+  color: var(--ov-mute);
+  font: 400 12.5px var(--ov-font);
+  margin: 0;
+}
+
+.import-run {
+  justify-self: start;
+}
+
+/* Not the fallback: the tint on its dashed border reads as an error state. */
+.routing-card:not(.routing-fallback):focus-within {
+  background: var(--ov-sel);
+  border-color: var(--ov-soft);
+}
+
+.routing-off {
+  opacity: 0.55;
+}
+
+.routing-fallback {
+  background: transparent;
+  border-style: dashed;
+}
+
+.routing-line,
+.routing-except {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  line-height: 26px;
+}
+
+.routing-except {
+  padding-inline-start: 4px;
+}
+
+.routing-word {
+  color: var(--ov-mute);
+}
+
+.routing-slot {
+  appearance: none;
+  background: var(--ov-paper);
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-tile);
+  color: var(--ov-fg);
+  font: inherit;
+  padding: 1px 8px;
+}
+
+.routing-pattern {
+  font: 12px var(--ov-font-mono);
+  min-width: 18ch;
+}
+
+.routing-slot:focus-visible {
+  outline: 2px solid var(--ov-accent);
+  outline-offset: 2px;
+}
+
+.routing-chip {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--ov-border);
+  border-radius: 999px;
+  color: var(--ov-fg);
+  cursor: default;
+  font: 11.5px var(--ov-font);
+  padding: 2px 8px;
+}
+
+.routing-chip[aria-pressed="true"] {
+  background: var(--ov-sel);
+  border-color: var(--ov-soft);
+}
+
+.routing-chip:focus-visible,
+.routing-tool:focus-visible {
+  outline: 2px solid var(--ov-accent);
+  outline-offset: 2px;
+}
+
+.routing-error {
+  color: var(--ov-danger);
+  font-size: 11.5px;
+  min-height: 1em;
+}
+
+.routing-error:empty {
+  display: none;
+}
+
+.routing-tools {
+  align-items: center;
+  display: flex;
+  gap: 4px;
+}
+
+.routing-tools .settings-row-hint {
+  flex: 1;
+}
+
+.routing-tool {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ov-radius-anchor);
+  color: var(--ov-fg);
+  cursor: default;
+  display: inline-grid;
+  height: 26px;
+  padding: 0;
+  place-items: center;
+  width: 26px;
+}
+
+.routing-tool:hover {
+  border-color: var(--ov-border);
+}
+
+.routing-tool:disabled {
+  opacity: 0.35;
+}
+
+/* .ov-icon carries its own colour, which outranks the button's ink. */
+.routing-tool .ov-icon {
+  color: inherit;
+}
+
+.routing-tool svg {
+  fill: none;
+  height: 14px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+  width: 14px;
+}
+
+.routing-add {
+  justify-self: start;
+}

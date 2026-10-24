@@ -1,0 +1,14 @@
+{
+  "actions" : {
+    "goToSpace1" : [
+      "cmd+1"
+    ],
+    "nextSpace" : [
+      "opt+tab"
+    ],
+    "openCommandBar" : [
+
+    ]
+  },
+  "schemaVersion" : 1
+}

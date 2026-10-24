@@ -1,0 +1,2158 @@
+/* Copyright 2026 The Atrium Authors
+ *
+ * Ported from docs/lab/swipe-lab.html. The lab is the design reference: these
+ * rules are copied rather than reinvented so the prototype and the lab cannot
+ * drift while both exist. */
+
+/* The rail is one pane per space, so it is N times wider than the sidebar and
+   nothing else clips it. Without this the DOCUMENT becomes the horizontal
+   scroller: a swipe scrolls the page instead of moving the rail, and a
+   scrollbar appears along the bottom.
+   Scoped by a class rather than on the bare id: one stylesheet serves every
+   route, and other routes must not inherit a clip. */
+/* The sidebar's side insets, which are NOT equal. The web layer stops
+   kSidebarGripWidth (6px) short of the content card, so the grip's dead band
+   already reads as space on the trailing side and the page only has to make up
+   the rest: 8px on both sides as seen, so 2px of page on the trailing one.
+   Matching the two literally leaves the leading edge 6px tight, which
+   is how it was reported.
+   Tokens because three boxes have to agree and only one is inside the pane -
+   the hoisted address row and the rail's space-dots bar are children of the
+   root, so a literal would leave them behind the next time an inset moves. */
+:root {
+  --sb-pad-lead: 8px;
+  --sb-pad-trail: 2px;
+  --fav-h: 47px;
+  --exs-h: 28px;
+  /* What the strip costs the rows under it: every drawn row plus the 6px gap
+     each one carries. --exs-rows comes from renderExtStrip, so an element that
+     never sees the strip falls back to a single row. */
+  --exs-lane: calc(var(--exs-rows, 1) * (var(--exs-h) + 6px));
+}
+
+/* lead is the window edge and trail the page edge, and which
+   physical side each one is swaps with the dock. Swapped here rather than per
+   consumer - the address row, the extension strip and the tile grid all read
+   the same pair. */
+html.atrium-sidebar-on-right {
+  --sb-pad-lead: 2px;
+  --sb-pad-trail: 8px;
+}
+
+#atrium-root.sbroot {
+  /* Fills the window, not just its own content. Left at auto height the root
+     measured 274px inside a 678px viewport, and elementFromPoint at the bottom
+     returned NOTHING - so the empty strip below the last row was outside the
+     element the wheel listener is attached to, and a swipe started there did
+     nothing at all.
+     100vh rather than 100%: html and body are both auto-height here, so a
+     percentage has nothing to resolve against. */
+  height: 100vh;
+  overflow: hidden;
+  /* Held at the DOCKED width while the collapse animates the slot, and shifted
+     left by the width the slot has lost, so the whole pane slides off the left
+     edge and nothing inside re-flows. The hold has to sit on the root: the
+     favourites grid, the address row and the space dots are hoisted here as
+     absolute children, so a hold on .sidebar alone left them sizing against
+     the shrinking viewport and the grid re-filled its columns on every tick.
+     A held block wider than its parent gets a ZERO auto margin, so a negative
+     margin is the only thing that anchors it to the trailing edge.
+     Falls back to 100% and 0 until the native side pushes a
+     width. */
+  width: var(--atrium-docked-width, 100%);
+  margin-left: calc(100% - var(--atrium-docked-width, 100%));
+  /* The selected row's ring, and the margin every hover fill keeps inside it.
+     One token because the hover is defined as sitting within the ring: split
+     into two numbers they drift, and the hover reclaims the ring's edge. */
+  --selring: 2px;
+  /* Anchors the space dots bar, which hangs beside the rail. */
+  position: relative;
+  /* nothing shows until the first render, then all of it at once. */
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+
+#atrium-root.sbroot.drawn {
+  opacity: 1;
+}
+
+.sidebar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* The lab sets this on .sidebar and lets buttons inherit it. Without the
+     second rule a button keeps the pointer's hand, which is why crossing the
+     space dots at the bottom flipped the cursor (swipe-lab.html:141-143). */
+  cursor: default;
+  /* Fills the root, which holds the docked width during a collapse. */
+  width: 100%;
+  flex: none;
+  height: 100%;
+  box-sizing: border-box;
+  /* Top inset clears the floating traffic lights, which sit over this pane -
+     the same clearance SidebarMetrics.trafficLightClearance applies on the
+     Swift side. */
+  /* The lab's .pane, which is the element this one plays the part of:
+     padding 79px 8px 34px, gap 8px (swipe-lab.html:149). The top clears the
+     floating traffic lights AND leaves the address bar room to breathe under
+     them, which 34px did not; the narrower sides give the rows their width
+     back. */
+  padding: 79px var(--sb-pad-trail) 34px var(--sb-pad-lead);
+  overflow: hidden;
+  box-sizing: border-box;
+  font: 12px var(--sans, system-ui, -apple-system, sans-serif);
+  color: var(--fg, rgba(255, 255, 255, .92));
+}
+
+.wsname {
+  display: flex;
+  align-items: center;
+  position: relative;
+  isolation: isolate;
+  /* Matches .row's icon-to-text gap, so the label lines up with a tab row's -
+     6px used to land it two pixels short. */
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  /* The same box as .row, which it now sits among in the scroll zone. A label
+     that sized itself to its text stood shorter than every row beside it. */
+  height: 36px;
+  padding: 0 8px 0 9px;
+  box-sizing: border-box;
+  flex: none;
+  /* the UA's "normal" line-height varies by platform font, so the
+     label's line box could grow taller than the 16px icon by an amount
+     align-items: center could not predict. Pinned to 1 so both sit on the
+     same line, centred against a fixed height. */
+  line-height: 1;
+  opacity: .95;
+}
+
+/* One 16x16 slot for the icon and, when folding, the chevron - the lab's
+   .wsic pattern (swipe-lab.html:637-642). They cross-fade in place rather
+   than the chevron taking a column of its own, so the row never reflows on
+   hover. */
+.wsic {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.wsic-i {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 13px, the row's own type scale - with no plate behind it any more, 9.5px
+     read as a caption floating in the 16px box rather than a mark the size of
+     the favicons beside it. */
+  font: 600 13px var(--mono, ui-monospace, monospace);
+  transition: opacity .15s;
+}
+
+.wsic .chev {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  opacity: 0;
+  transition: opacity .15s, transform .22s ease;
+}
+
+/* Only present when the space has pinned tabs - the row folds them then. */
+.wsname.frow {
+  border-radius: 8px;
+}
+
+/* .hoverhold stands in for :hover on a head rebuilt under a still pointer, see
+   carryHover in sidebar.js. */
+.wsname.frow:is(:hover, .hoverhold) {
+  --rowfill: var(--fillhover, rgba(255, 255, 255, .15));
+}
+
+.wsname.frow:is(:hover, .hoverhold) .wsic-i {
+  opacity: 0;
+}
+
+.wsname.frow:is(:hover, .hoverhold) .wsic .chev {
+  opacity: 1;
+}
+
+/* A row rather than the bare bar: .urlbar takes its slack with flex:1, which
+   in a column would stretch it vertically instead. */
+.urlrow {
+  display: flex;
+  align-items: center;
+  /* The row's box is the field's box, because .urlbar is its only child and
+     takes the whole row. So the load fill sits here and the row clips it to
+     the field's own corners. */
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Hoisted out of the panes, so a swipe moves them underneath it.
+   A direct child of the root means hoisted - a single-space render keeps its
+   row inside .sidebar and in flow, where this does not reach. */
+
+/* Absolute for the reason .rail ~ .spacedots is: the rail already claims the
+   full height, so a row in flow would push its bottom out of the viewport. */
+#atrium-root.sbroot > .urlrow {
+  position: absolute;
+  /* 12px of air under the traffic lights, where Arc leaves it. */
+  top: 46px;
+  left: var(--sb-pad-lead);
+  right: var(--sb-pad-trail);
+  z-index: 5;
+  /* the delay is the fix. The rows below reach their docked place
+     over .2s, and a bar drawn before they arrive stands on top of them. */
+  opacity: 1;
+  visibility: visible;
+  transition: opacity .16s ease .2s, visibility 0s linear .2s;
+}
+
+/* The whole crossing is one number, --ov-share, written on every surface
+   below. Each derives its own scale and opacity from it, so nothing can drift
+   out of step the way four separate writers did. A scale needs no width, which
+   is the point: the browser resizes the sidebar across this same gesture
+  . Not inherited, so a new value restyles the surface only. */
+@property --ov-share {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+
+.ovcross #atrium-root.sbroot > .urlrow,
+.ovcross #atrium-root.sbroot > .favgrid,
+/* Child: a pane's own copy already scales with its pane. */
+.ovcross > .exs-row,
+.ovcross .railpane:not(.ovrailpane) {
+  /* The scale property, not transform: the rail writes the grid's slide as an
+     inline transform, and an inline value beats any stylesheet rule. These
+     compose instead of competing. */
+  scale: calc(1 - .08 * var(--ov-share, 0));
+  opacity: calc(1 - var(--ov-share, 0));
+  /* While the swipe drives these frame by frame, a transition would trail the
+     finger by its own duration. */
+  transition: none;
+  /* A layer each, or every frame repaints the rows under it. */
+  will-change: scale, opacity;
+}
+
+.ovcross .ovrailpane {
+  scale: calc(.92 + .08 * var(--ov-share, 0));
+  opacity: var(--ov-share, 0);
+  transition: none;
+  will-change: scale, opacity;
+}
+
+/* the favourites grid is auto-fill, so laid out at the live
+   (animating) sidebar width it re-counts its columns on every tick of the
+   Overview crossing. Capped to the width the crossing settles at instead -
+   pushed by the native side as --atrium-rest-width - so the grid holds its
+   column count and only gets clipped, the way the existing hold for the
+   Cmd+S collapse. Not scoped to .ovcross: a swipe close drops that class
+   before the native narrow ends. The native side sets the width only from
+   the Overview open until the close lands, so a live drag-resize still
+   reflows. Unset, the fallback is no cap, not 100vw: the hold lays
+   the page out wider than its viewport. */
+.favgrid,
+body > .exs-row {
+  max-width: calc(var(--atrium-rest-width, 100000px) - var(--sb-pad-lead) - var(--sb-pad-trail));
+}
+
+.ovpast .urlrow,
+.ovpast > .exs-row {
+  pointer-events: none;
+}
+
+/* mirrors the lab's .window.devurl #sbUrl rule (swipe-lab.html:480)
+   - the two address bars are never both visible. Opacity rather than display,
+   which cannot be timed against the rows' slide. */
+#atrium-root.devbar-shown.sbroot > .urlrow {
+  opacity: 0;
+  /* The same -6px the extension strip takes, so the row and the strip leave
+     together instead of one fading while the other slides. */
+  translate: 0 -6px;
+  visibility: hidden;
+  /* This way round the bar goes first - see the padding delay below. */
+  transition: opacity .16s ease, translate .16s ease,
+              visibility 0s linear .16s;
+}
+
+/* the anchored palette's own opaque card does not fully mask the
+   row's rounded corners, so the row is hidden outright while it is up. */
+#sbUrl.addr-hidden {
+  visibility: hidden;
+}
+
+/* Ported from the lab's .urlbar (swipe-lab.html:625), minus the lab's
+   position:absolute - this one sits in the sidebar's normal document flow
+   rather than layered over it. */
+.urlbar {
+  height: 34px;
+  border-radius: 8px;
+  background: color-mix(in srgb, currentColor 11%, transparent);
+  display: flex;
+  align-items: center;
+  padding: 0 30px 0 9px;
+  font: 12px var(--sans, system-ui, -apple-system, sans-serif);
+  /* flex: 1, not none: the bar is a .urlrow item and takes that row's slack. */
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  color: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Inside the field's padding, not beside it: the button sits over the input's
+   right end, which is why .urlbar reserves the room above. */
+.urlrow .qm-open {
+  position: absolute;
+  inset-inline-end: 5px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  z-index: 3;
+}
+
+.urlrow .qm-open:hover {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.urlbar::placeholder {
+  color: currentColor;
+  opacity: .85;
+}
+
+/* Above the input, not below it: .urlbar.insecure paints an opaque plate, and
+   a fill under an opaque ground would never show. pointer-events:none keeps
+   typing and clicks reaching the input underneath. */
+.loadfill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  background: rgb(var(--atrium-ink) / 1);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+  /* The fill animates, so it gets its own compositing layer and escapes the
+     row's rounded overflow clip - square corners on a pill. */
+  border-radius: inherit;
+}
+
+.loadfill.waiting {
+  animation: loadbreathe 1.2s ease-in-out infinite;
+}
+
+.loadfill.receiving {
+  opacity: .2;
+  transition: width .25s ease-out;
+}
+
+.loadfill.done {
+  opacity: 0;
+  transition: opacity .26s ease;
+}
+
+/* The breath is decoration. A steady plate still says the field is waiting.
+   Matches loadbreathe's midpoint, which now lives in overlay.css. */
+@media (prefers-reduced-motion: reduce) {
+  .loadfill.waiting {
+    animation: none;
+    opacity: .2;
+  }
+}
+
+/* ported from the lab's .urlbar.insecure (swipe-lab.html:629-631)
+   - an opaque red plate so it reads over any space gradient. Ink is set
+   inline by sidebar.js (matches the lab's own sbu.style.color), so this rule
+   only carries what CSS owns: ground, ring, and the broken-lock glyph an
+   <input> has no child element to hold. */
+.urlbar.insecure {
+  background: #FBE3E3;
+  box-shadow: inset 0 0 0 1px rgba(150, 32, 31, .35);
+  padding-left: 24px;
+  background-repeat: no-repeat;
+  background-position: 8px center;
+  background-size: 11px 11px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Crect x='2.5' y='5' width='7' height='5' rx='1.2' fill='none' stroke='%2396201F' stroke-width='1.2'/%3E%3Cpath d='M4 5V3.8a2 2 0 0 1 2-2' fill='none' stroke='%2396201F' stroke-width='1.2' stroke-linecap='round'/%3E%3Cpath d='M8 5V4.3' fill='none' stroke='%2396201F' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+.urlbar.insecure::placeholder {
+  opacity: 1;
+}
+
+/* The in-flow row of a single-space render. Nothing slides around it, so it
+   has no motion to be ordered against - see the hoisted row above. */
+#atrium-root.devbar-shown .sidebar .urlbar {
+  display: none;
+}
+
+/* Four columns at the 220px default, never five: the 1/4-of-the-row term caps
+   the count however wide the sidebar gets, and the 45px floor decides where
+   the row drops a column. Each step sits at n * floor + (n - 1) * gap + both
+   side insets, so the fourth column arrives under 220px even with 16px of
+   insets, and only the 160px minimum itself shows two. */
+.favgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(max(45px, calc((100% - 24px) / 4)), 1fr));
+  gap: 8px;
+  min-height: 18px;
+}
+
+/* An empty grid takes no room until a drag aims at it. sidebar-drag.js then
+   adds .dropopen to it and to every pane's room, and the rows slide down. */
+.favgrid.empty {
+  display: none;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+}
+
+.favgrid.empty.dropopen {
+  display: flex;
+}
+
+/* The pinned copy is absolute, so showing it on dragstart moves no row. A row
+   that moves on dragstart fails: Chromium cancels the drag.
+   Closed, it is a strip over the air under the address bar. Open, it also
+   covers that air and the gap above the space name, so the pointer stays on it
+   while the rows move. */
+.dragactive > .favgrid.empty {
+  display: flex;
+  box-sizing: content-box;
+  margin-top: -10px;
+  min-height: 16px;
+}
+
+.dragactive > .favgrid.empty.dropopen {
+  min-height: 34px;
+  padding: 10px 0 8px;
+}
+
+.fav {
+  position: relative;
+  height: var(--fav-h);
+  border-radius: 12px;
+  background: var(--fill, rgba(255, 255, 255, .10));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .12s;
+}
+
+.fav:hover {
+  background: var(--fillhover, rgba(255, 255, 255, .16));
+}
+
+/* The empty stand-in a rail pane draws for the pinned grid's tiles. Same token
+   as .fav above, because a slot shorter than a tile shifts every row below. */
+.favslot {
+  height: var(--fav-h);
+}
+
+/* No box size suits every icon, because the padding lives in the source art:
+   a full-bleed favicon fills whatever box it gets, while one shipped with a
+   transparent margin (youtube.com) draws its glyph smaller inside the same
+   box. Neither the opaque bounding box nor the opaque area can be scaled up
+   to fix this - both read messenger/linkedin's deliberately padded roundels
+   as needing the same growth as youtube's letterboxed bar. */
+.fav .fvi {
+  position: relative;
+  overflow: hidden;
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+}
+
+/* Same containment .row .fvimg gets. Without it the icon lays out at its own
+   bitmap size in a centred flex tile, so a favicon that loaded correctly still
+   painted oversized and clipped nothing.
+   contain, not cover: a tile is large enough that cover's crop shows. It scaled
+   a padded or non-square favicon up until its artwork ran past the edges, so
+   sites shipping a square full-bleed icon looked right and every other site
+   looked zoomed in. */
+.fav .fvimg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: contain;
+}
+
+/* The initial a tile shows until its icon lands. The img comes after it in
+   the chip, so a loaded icon paints over it. */
+.fav .fvinit {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 600 10px var(--sans, system-ui, -apple-system, sans-serif);
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Gone once the icon lands, not merely covered: a favicon shipped with a
+   transparent margin would otherwise show the hue around its edges. */
+.fav .fvi:has(.fvimg.ok) .fvinit {
+  display: none;
+}
+
+/* The peeked page's favicon while the tile's Peek is open. White in both
+   modes, as Arc draws it, with the brand book's switch-knob shadow. Above
+   .brdr, which paints the selection ring. */
+.fav > .peekbadge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  z-index: 3;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(34 16 22 / .28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.fav > .peekbadge img {
+  width: 12px;
+  height: 12px;
+  object-fit: contain;
+}
+
+.favgrid .favhint {
+  display: none;
+  font: 11px var(--sans, system-ui, sans-serif);
+  opacity: .7;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* The selection wash is the space tint the user chose. It used to blend an FNV
+   hash of the host into it, which put an arbitrary colour behind every selected
+   tile. */
+.fav {
+  --washc: var(--selbase, #7f8f9f);
+  /* --ringfb is the tint moved off its own background far enough to be seen,
+     computed in JS. The mix behind it is what a pane with no
+     resolved tint still gets. */
+  --ringb: var(--ringfb, color-mix(in srgb, var(--washc) 45%, white));
+}
+
+/* The same white wash as a selected row: the tint mix read as a
+   faint slab next to Arc's bright pill. */
+.fav.sel {
+  background: var(--selfill, rgba(255, 255, 255, .3));
+}
+
+/* the selected border: full themed ring once loaded */
+.brdr {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .25s ease;
+  z-index: 2;
+}
+
+.sel > .brdr {
+  opacity: 1;
+}
+
+.brdr::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: var(--selring) solid var(--ringb);
+  opacity: .9;
+  transition: opacity .25s ease;
+}
+
+/* A multi-colour icon: the ring is its palette, each colour at the angle it
+   sits in the icon, masked to the border box the way the sweep below is. A
+   border cannot carry a gradient and keep its radius. */
+.palette > .brdr::after {
+  border-color: transparent;
+  background: var(--ringgrad) border-box;
+  -webkit-mask: linear-gradient(#000 0 0) content-box,
+                linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+/* the loading sweep. A conic gradient masked to the border box, so
+   the comet travels the ring itself rather than a second element on top of it -
+   ported from swipe-lab.html:182-188. --sweep is what the keyframes move, and
+   the rest of the gradient is static. */
+.brdr::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  /* The ring's own width, so a row does not change size when a load starts.
+     A 1px ring read as a hairline because the comet covers under half the
+     perimeter, and its own floor is 2px, which this
+     meets - the contrast work is what carries the sweep now. */
+  padding: var(--selring);
+  background:
+      conic-gradient(from var(--sweep, 0deg), transparent 0deg,
+                     var(--ringb) 79deg, transparent 162deg) border-box,
+      color-mix(in srgb, var(--ringb) 70%, transparent) border-box;
+  filter: drop-shadow(0 0 3px var(--ringb));
+  -webkit-mask: linear-gradient(#000 0 0) content-box,
+                linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+
+/* A palette icon's comet passes over the icon's own colours, each where it
+   sits, instead of one mixed colour. The comet shape moves into the mask as a
+   third layer over the two that cut the ring, with the 70% floor the plain
+   sweep paints as its base ring. */
+.palette > .brdr::before {
+  background: var(--ringgrad) border-box;
+  -webkit-mask: conic-gradient(from var(--sweep, 0deg), rgba(0, 0, 0, .7) 0deg,
+                               #000 79deg, rgba(0, 0, 0, .7) 162deg),
+                linear-gradient(#000 0 0) content-box,
+                linear-gradient(#000 0 0);
+  -webkit-mask-composite: source-in, xor;
+  mask: conic-gradient(from var(--sweep, 0deg), rgba(0, 0, 0, .7) 0deg,
+                       #000 79deg, rgba(0, 0, 0, .7) 162deg),
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+  mask-composite: intersect, exclude;
+}
+
+/* Phase 1 (pending): the ring stays a full circle and pulses in place - no
+   partial arc, so it never reads as a sweep or a fill in progress. .brdr::before
+   stays at its default opacity: 0 until phase 2 claims it below. */
+.loading > .brdr::after {
+  /* Referencing --pulse rather than animating opacity directly: opacity
+     stays a plain, transitionable value, so the .25s exit transition to
+     .receiving's opacity: 0 can start from wherever the pulse left off
+     instead of being skipped because opacity itself was mid-animation. */
+  opacity: var(--pulse);
+  animation: ringpulse 1.3s ease-in-out infinite;
+}
+
+@property --pulse {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: .9;
+}
+
+/* A loading row shows its ring even when it is not the selected one - .brdr's
+   own opacity gates every state on it. */
+.loading > .brdr {
+  opacity: 1;
+}
+
+/* Phase 2 (receiving): the comet sweep, ported from swipe-lab.html:182-188. It
+   travels the ring itself rather than a second element on top of it, and this
+   rule follows phase 1's in the cascade so it wins whenever both classes are
+   on the same element. The spin lives only here, not on the base rule:
+   --sweep drives a conic gradient, which repaints on the main thread every
+   frame, and ungated it ran on every row's hidden ring and pinned the
+   renderer at full CPU while the app idled. */
+.receiving > .brdr::before {
+  opacity: 1;
+  animation: cometspin 1.1s linear infinite;
+}
+
+.receiving > .brdr::after {
+  opacity: 0;
+  animation: none;
+}
+
+@property --sweep {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes cometspin {
+  to {
+    --sweep: 360deg;
+  }
+}
+
+@keyframes ringpulse {
+  0%, 100% { --pulse: .7; }
+  50% { --pulse: 1; }
+}
+
+/* Stopping the animation alone left both phases at the idle ring's own
+   opacity, .9 - a selected loading row and a selected idle one drew the same
+   pixels. Reduced motion swaps in static shapes instead, one per phase, so
+   idle (solid, .9), phase 1 (dashed, full opacity) and phase 2 (thicker
+   solid, full opacity) stay pairwise distinct with no motion at all. Phase
+   2's ::before, the comet's partial arc, is hidden rather than frozen - a
+   static fragment of it reads as a stray ring, not a state. */
+@media (prefers-reduced-motion: reduce) {
+  .loading:not(.receiving) > .brdr::after {
+    animation: none;
+    opacity: 1;
+    border-style: dashed;
+  }
+
+  .receiving > .brdr::before {
+    animation: none;
+    opacity: 0;
+  }
+
+  .receiving > .brdr::after {
+    animation: none;
+    opacity: 1;
+    border-style: solid;
+    border-width: 3px;
+  }
+}
+
+/* Tab rows. Same shape as the lab's .row.tabrow, minus the states this route
+   has no data for yet (pinned two-stage close, mirrored). Hibernated is below. */
+/* The divider above the ungrouped rows: a 1px line with the Clear icon at its
+   end. A fixed height, because the old text label set the row height and 38
+   scenarios click the rows below by pixel. */
+.sechdr {
+  display: flex;
+  align-items: center;
+  height: 13px;
+  opacity: .5;
+  padding: 0 9px;
+}
+
+.sechdr::before {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: currentColor;
+  opacity: .35;
+}
+
+/* Takes no width at rest, so the line runs the whole row, and opens at the
+   line's right end when the sidebar is hovered: the lab's .clearbtn pattern.
+   Hidden until then because it archives the whole list. On the root, not
+   .sidebar: the favourites and the address row are hoisted outside .sidebar,
+   and a pointer over them is still over the sidebar. */
+.sechdrclear {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  max-width: 0;
+  margin-left: 0;
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  opacity: 0;
+  transition: opacity .12s, max-width .12s, margin-left .12s,
+      transform .18s cubic-bezier(.2, .8, .2, 1.3);
+}
+
+#atrium-root.sbroot:hover .sechdrclear {
+  max-width: 14px;
+  margin-left: 6px;
+  opacity: .85;
+}
+
+.sechdrclear:hover {
+  opacity: 1;
+  transform: scale(1.3) rotate(-10deg);
+}
+
+.sechdrclear:active {
+  transform: scale(.8);
+  transition-duration: .06s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sechdrclear {
+    transition: opacity .12s;
+  }
+
+  .sechdrclear:hover,
+  .sechdrclear:active {
+    transform: none;
+  }
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  /* The lab's 4px (swipe-lab.html:206). At 1px the list read as one solid
+     block rather than a set of rows. */
+  gap: 4px;
+}
+
+/* The drag-reorder wrapper (sidebar.js buildFolder) holds each
+   folder's .frow head and .fold body as SIBLING children, not one pair per
+   folder, so a flex gap on .folderlist itself would land between a folder's
+   own head and body too. Target the boundary precisely instead: a .frow
+   that follows a .fold is the START of the NEXT folder, which is the only
+   place .scrollinner's 4px gap needs to reach (it never crossed the
+   .folderlist boundary at all). */
+.folderlist > .fold + .frow {
+  margin-top: 4px;
+}
+
+/* Buttons do not inherit the cursor by default, and the sidebar is full of
+   them - the space dots, New Tab, every row's close control. */
+.sidebar button {
+  cursor: inherit;
+}
+
+/* An empty list is still a drop target, and it renders nothing, so the ZONE
+   needs a height of its own, or a drag has nothing to land on. Deep
+   enough to aim at without a steady hand, which is the whole complaint. */
+.rows.emptyzone {
+  min-height: 44px;
+}
+
+/* The only scrolling region: pinned, folders, New Tab and the regular rows.
+   The space name, the favourites grid and the space dots sit outside it and
+   stay put (ported from the lab's .scrollzone).
+
+   flex:1 with min-height:0 is the whole trick - a flex item defaults to
+   min-height:auto, so it refuses to shrink below its content and pushes the
+   layout out instead of scrolling. `.rows` used to carry overflow-y alone and
+   did exactly that, and the scrollbar it drew spanned the pane, which read as
+   the whole sidebar scrolling.
+
+   The bar itself is hidden: this is chrome, not content, and the lab hides it
+   the same way. */
+.scrollzone {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+/* The zone's single child, and the only thing the rubber band moves
+  . The column layout lives here rather than on .scrollzone so a
+   translate on it carries the whole list without dragging the viewport - and
+   therefore the clip box - along with it. */
+.scrollinner {
+  display: flex;
+  flex-direction: column;
+  /* The .rows gap. The workspace name, a folder and New Tab are rows among
+     rows, so a wider section gap here read as uneven spacing. */
+  gap: 4px;
+  will-change: transform;
+  /* With the tab list's flex-grow below, the empty pane under the last row is
+     part of the drop zone, so a drop there appends. */
+  min-height: 100%;
+}
+
+.rows[data-dropzone="tabs"] {
+  flex-grow: 1;
+}
+
+.scrollzone::-webkit-scrollbar {
+  display: none;
+}
+
+/* Scrolling and swiping compete for the same wheel events: once the list
+   starts a native scroll the rest of the gesture keeps going to it, so a
+   slightly diagonal flick never becomes a swipe. Locked for the duration of a
+   swipe, and only on the HORIZONTAL states - see swipe.js's syncLock. */
+.swipelock .scrollzone {
+  overflow-y: hidden;
+}
+
+.row {
+  height: 36px;
+  border-radius: 8px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  padding: 0 8px 0 9px;
+  font-size: 13px;
+  gap: 8px;
+  flex: none;
+  /* Hosts the hover fill below, which paints behind the label at z-index -1.
+     isolate keeps that inside the row rather than behind the sidebar's own
+     glass, where it would not show at all. */
+  position: relative;
+  isolation: isolate;
+}
+
+/* The hover fill, inset by the ring so it never claims the selected row's own
+   edge - a fill flush to that edge reads as the larger box of the two, which
+   is how it was reported. A pseudo-element rather than the row's background,
+   which always fills the whole box, and rather than a transparent border,
+   which would carry the ring and the label inwards with it. Always present so
+   the fade still has something to animate. */
+.row::before,
+.wsname::before,
+.newtab::before {
+  content: "";
+  position: absolute;
+  inset: var(--selring);
+  border-radius: calc(8px - var(--selring));
+  background: var(--rowfill, transparent);
+  transition: background .12s;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.row .tl {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row.tabrow {
+  /* --washc drives the RING, which rows do carry. --selfill is deliberately not
+     redefined here: the lab sets it once on the pane as a neutral wash and
+     comments that the tint wash is favourites-only (swipe-lab.html:211, 3206).
+     Redefining it per row as an opaque space-tint mix made every selected row
+     a slab of the space colour, which is the tile treatment, not the row one
+    . */
+  --washc: var(--selbase, #7f8f9f);
+  --ringb: var(--ringfb, color-mix(in srgb, var(--washc) 45%, white));
+  /* The ring overlay is absolute, so the row has to be its containing block. */
+  position: relative;
+  transition: background .12s;
+}
+
+.row.tabrow:not(.sel):is(:hover, .hoverhold) {
+  --rowfill: var(--fillhover, rgba(255, 255, 255, .15));
+}
+
+.row.tabrow.sel {
+  background: var(--selfill, rgba(255, 255, 255, .3));
+}
+
+.row .fv {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  flex: none;
+}
+
+/* Hibernated tab: dimmed favicon with a faint ring, ported from
+   the lab's .tabrow.hib. Click wakes it - a plain reload, no state here. */
+.row.tabrow.hib .fv {
+  opacity: .4;
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, currentColor 35%, transparent);
+}
+
+.row.tabrow.hib .tl {
+  opacity: .55;
+}
+
+/* A tab that is live in ANOTHER window. Sibling of .hib rather
+   than a reuse of it: clicking a hibernated row reloads the page, clicking this
+   one takes the live page back, and a user who cannot see the difference cannot
+   predict either. Italic and a dashed ring do the separating - dimming alone
+   would read as the same state at a glance. */
+.row.tabrow.elsewhere .fv {
+  opacity: .4;
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, currentColor 35%, transparent);
+}
+
+.row.tabrow.elsewhere .tl {
+  opacity: .55;
+  font-style: italic;
+}
+
+/* A favourite whose tab is in another window: the same dim as the row above,
+   and still ringed when this window is frozen on that tab. */
+.fav.elsewhere .fvi {
+  opacity: .4;
+}
+
+.row .mdot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+  background: #E0A33C;
+}
+
+/* The row whose AI panel is open. Absolute, so a row gains and
+   loses it without the title or the favicon moving. --ringb is redefined per
+   theme, so the bar follows the space tint the row's own ring uses. */
+.row.tabrow.aimark::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 9px;
+  bottom: 9px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--ringb, rgba(255, 255, 255, .8));
+  pointer-events: none;
+}
+
+/* Out of the flow, over the end of the title. In it, `flex: none`
+   held 17px on every row whether or not anything was hovering, so a title that
+   would have fitted was cut. The clearbtn idiom next door grows max-width
+   instead, which cannot be used here: the button is the row's last child, so
+   growing it shrinks the flex:1 title and reflows the text under the pointer. */
+.row .x {
+  position: absolute;
+  right: 8px;
+  opacity: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  width: 17px;
+  height: 17px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: opacity .22s ease .06s, background .12s, transform .18s ease;
+}
+
+/* Keep the room until the button's fade-out ends (.06s delay + .22s), or the
+   text expands under a still-visible glyph. */
+.row.tabrow .tl {
+  transition: padding-right 0s linear .28s;
+}
+
+/* The title ends before the button rather than under it. A mask fade sat here
+   first and still read as dirty: faded text under the glyph is text. Padding
+   shrinks the content box only, so the ellipsis moves in while the text keeps
+   its left origin and never reflows under the pointer. 17px button + 6px gap. */
+.row.tabrow:is(:hover, .hoverhold) .tl {
+  padding-right: 23px;
+  transition-delay: 0s;
+}
+
+.row.tabrow:is(:hover, .hoverhold) .x {
+  opacity: .6;
+}
+
+.row .x:hover {
+  opacity: 1;
+  background: var(--fill, rgba(255, 255, 255, .12));
+  transform: rotate(90deg);
+}
+
+/* The open split as one row. It is a container, so the titles
+   below drop on the ROW's width rather than on the window's - the sidebar is
+   resizable and the rail gives each pane its own width. */
+.row.tabrow.splitrow {
+  container: splitrow / inline-size;
+  gap: 4px;
+  padding: 0 6px;
+}
+
+/* One pane. Equal shares of the row, and min-width:0 so a long title shortens
+   its own segment instead of pushing its neighbour out of the row. */
+.splitrow .sseg {
+  flex: 1 1 0;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: var(--fill, rgba(255, 255, 255, .12));
+}
+
+.splitrow .sseg.segsel {
+  background: var(--selfill, rgba(255, 255, 255, .3));
+}
+
+.splitrow .sseg .tl {
+  min-width: 0;
+}
+
+/* The segment is the containing block, so the button sits over its OWN pane's
+   title and never over the neighbour's. In the flow it held 17px plus the gap
+   on every pane at rest, and a sidebar-wide row has about 40px per title, so
+   that reservation left no title at all. */
+.splitrow .sseg .x {
+  right: 4px;
+}
+
+/* Beats the plain row's 23px, which is measured for a button 8px from the
+   row's edge. This one sits 4px from the segment's. */
+.row.tabrow.splitrow:is(:hover, .hoverhold) .sseg .tl {
+  padding-right: 19px;
+}
+
+/* The titles go and the favicons stay. Each budget is the pane count times
+   10px padding + 16px favicon + 8px gap + 30px of title, plus the 4px gaps.
+   The query reads the content box, so the row's own 12px padding is not in
+   the budget. The close button is out of the flow, so it costs nothing here.
+   Below the budget a title holds two characters and an ellipsis, which says
+   less than the favicon already does. */
+@container splitrow (max-width: 132px) {
+  .splitrow[data-panes="2"] .sseg .tl {
+    display: none;
+  }
+}
+
+@container splitrow (max-width: 200px) {
+  .splitrow[data-panes="3"] .sseg .tl {
+    display: none;
+  }
+}
+
+@container splitrow (max-width: 268px) {
+  .splitrow[data-panes="4"] .sseg .tl {
+    display: none;
+  }
+}
+
+/* Folder rows. .fic holds the glyph and the chevron stacked; hover swaps them,
+   which is the lab's wshead pattern. */
+.row.frow {
+  font-weight: 700;
+}
+
+.row.frow:is(:hover, .hoverhold) {
+  --rowfill: var(--fillhover, rgba(255, 255, 255, .15));
+}
+
+.fic {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.fic .fic-g,
+.fic .chev {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  transition: opacity .15s, transform .22s ease;
+}
+
+.fic .chev {
+  width: 10px;
+  height: 10px;
+  opacity: 0;
+}
+
+.frow:is(:hover, .hoverhold) .fic-g {
+  opacity: 0;
+}
+
+.frow:is(:hover, .hoverhold) .fic .chev {
+  opacity: 1;
+}
+
+/* A carried hover snaps, it never animates. swipe.attach forces a layout
+   between the rebuild and carryHover's class, so the glyph's start style is
+   computed unhovered (opacity 1) and the class change would replay the whole
+   swap as a visible 1 -> 0 fade. Covers the row fill for the same reason.
+   Transitions resume when the pointer really moves: release drops the class. */
+.frow.hoverhold,
+.frow.hoverhold .fic-g,
+.frow.hoverhold .fic .chev,
+.frow.hoverhold .wsic-i,
+.frow.hoverhold .wsic .chev,
+.row.tabrow.hoverhold::before,
+.row.tabrow.hoverhold .x {
+  transition: none;
+}
+
+.closedH .chev {
+  transform: rotate(-90deg);
+}
+
+/* 1fr -> 0fr is what makes the collapse animate without measuring a height. */
+.fold {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows .26s ease;
+}
+
+.fold.closed {
+  grid-template-rows: 0fr;
+}
+
+.fold > .foldin {
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.fold > .foldin.indent {
+  padding-left: 10px;
+}
+
+/* The drop indicator. Absolutely positioned inside the route root,
+   which is why that root is a positioned ancestor. */
+#atrium-root.sbroot {
+  position: relative;
+}
+
+.dropline {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--ringb, rgba(255, 255, 255, .8));
+  box-shadow: 0 0 4px rgba(0, 0, 0, .35);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.row.tabrow.dragging,
+.row.frow.dragging {
+  opacity: .4;
+}
+
+/* A drag's copy of a tab row (sidebar-drag.js), drawn as the selected row. It
+   is not a .tabrow: every lookup of the real rows goes by that class. */
+.row.tablook {
+  --washc: var(--selbase, #7f8f9f);
+  --ringb: var(--ringfb, color-mix(in srgb, var(--washc) 45%, white));
+  background: var(--selfill, rgba(255, 255, 255, .3));
+}
+
+.tablook > .brdr {
+  opacity: 1;
+}
+
+.row.tablook .tl {
+  padding-right: 23px;
+}
+
+.row.tablook .x {
+  opacity: .6;
+}
+
+/* Where the dragged item will land, drawn as a faded row. */
+.row.rowghost {
+  opacity: .4;
+  pointer-events: none;
+}
+
+/* The drawn drag image (sidebar-drag-follow.js). It sits outside .sidebar,
+   where the rows take their font from. */
+.dragfollow {
+  font: 12px var(--sans, system-ui, -apple-system, sans-serif);
+  color: var(--fg, rgba(255, 255, 255, .92));
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  opacity: .8;
+  pointer-events: none;
+}
+
+/* The native drag image a favourite drag hands Blink: empty, off screen. */
+.dragblank {
+  position: fixed;
+  top: -10px;
+  left: -10px;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+/* The pin/unpin glide (sidebar-flip.js). The hold frame carries the old slot
+   as a transform and must not animate into it - the whole point is that the
+   row LOOKS unmoved until the run class turns the transition on. */
+.row.rowflip {
+  transition: none;
+}
+
+/* Both rules outrank .row.tabrow's own transition, so its background restates
+   itself here rather than being dropped for the length of the glide. */
+.row.rowflipgo {
+  transition: background .12s, transform .2s ease;
+}
+
+/* No reduced-motion rule here on purpose: sidebar-flip.js reads the query and
+   adds neither class, so the row is simply drawn in its new place and a rule
+   for it would never match. */
+
+/* The reflow moves the dragged tile to the slot it will take, so the dim copy
+   shows the drop target. */
+.fav.favdragging {
+  opacity: .45;
+}
+
+/* The tile a row dragged in from the rail will become, at its landing slot. */
+.fav.favghost {
+  opacity: .45;
+  pointer-events: none;
+}
+
+/* Which half of the target row the dropped tab's pane will take. Painted as a
+   half-row wash rather than the reorder line, which means the other gesture. */
+.row.dropsplit::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: var(--ringb, rgba(255, 255, 255, .8));
+  opacity: .28;
+  pointer-events: none;
+}
+
+.row.dropsplit[data-split-side="left"]::after {
+  right: 50%;
+}
+
+.row.dropsplit[data-split-side="right"]::after {
+  left: 50%;
+}
+
+.row.dropsplit[data-split-side="top"]::after {
+  bottom: 50%;
+}
+
+.row.dropsplit[data-split-side="bottom"]::after {
+  top: 50%;
+}
+
+[data-dropzone].dropinto {
+  outline: 2px dashed var(--ringb, rgba(255, 255, 255, .7));
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+.favgrid.dropopen .favhint {
+  display: block;
+  opacity: .95;
+}
+
+/* The pinned section's header folds like a folder but keeps the uppercase
+   section styling it has always had. */
+.row.frow.sechdrow {
+  font-size: 10.5px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  opacity: .5;
+  font-weight: 600;
+  height: 24px;
+  padding-left: 4px;
+}
+
+.row.frow.sechdrow .fic .chev {
+  opacity: .8;
+}
+
+/* "+ New Tab". NO border. The dashed one this used to
+   carry was inherited from the SwiftUI arm, where it read as a drop target -
+   the lab, which is the spec, gives this button `border:none` and leans on
+   opacity and a hover fill instead (docs/lab/swipe-lab.html:696). The border
+   read as a stray outline nobody asked for, which is how it was reported.
+   Height and opacity follow the lab too. */
+.newtab {
+  display: flex;
+  align-items: center;
+  position: relative;
+  isolation: isolate;
+  gap: 8px;
+  /* The same box as .row - it stands at the end of the tab list and read as a
+     smaller thing than the rows above it. */
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 8px 0 9px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font: 12.5px var(--sans, system-ui, sans-serif);
+  text-align: left;
+  opacity: .55;
+  flex: none;
+  transition: background .15s, opacity .15s;
+}
+
+.newtab:hover {
+  --rowfill: var(--fillhover, rgba(255, 255, 255, .15));
+  opacity: 1;
+}
+
+/* While the command bar is open for a new tab, the button is the selected
+   row: the same wash the selected row wears, and that row's own wash and
+   ring go quiet until the bar closes. */
+.cb-newtab-pending .newtab {
+  --rowfill: var(--selfill, rgba(255, 255, 255, .3));
+  opacity: 1;
+}
+
+.cb-newtab-pending .row.tabrow.sel {
+  background: var(--rowfill, transparent);
+}
+
+.cb-newtab-pending .sel > .brdr {
+  opacity: 0;
+}
+
+/* The plus glyph's own 16px slot, sized and weighted like .wsic-i so New
+   Tab's text starts where a tab row's does. No plate and no colour of its
+   own - opacity: .55 on .newtab already dims icon and label together, and
+   the hover above already lifts both back to full strength. */
+.newtab .nti {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  font: 600 13px var(--mono, ui-monospace, monospace);
+}
+
+/* the glow under the active dot. One element that MOVES rather
+   than one rebuilt per dot - the glide between dots is the effect. */
+.dotbloom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 90px;
+  height: 34px;
+  transform: translateX(calc(var(--dbx, 0px) - 45px));
+  pointer-events: none;
+  opacity: .55;
+  filter: blur(9px);
+  transition: transform .28s ease, background .28s ease, opacity .2s ease;
+  z-index: 0;
+}
+
+/* The glide is decoration - the active dot is already marked, so reduced
+   motion drops the movement and keeps the light. */
+@media (prefers-reduced-motion: reduce) {
+  .dotbloom {
+    transition: none;
+  }
+}
+
+/* Space switcher. Overview and + are its direct children so they never enter
+   the scroller below and can never be carried off by it.
+   centred, and safe about it. Packed to the start the row hugged
+   the sidebar's left edge and drifted further from the middle with every
+   point the pane was widened. `safe` falls back to flex-start once the
+   scroller below has shrunk to fill the row, so a long list still scrolls
+   from its first dot instead of centring itself past both edges. */
+.spacedots {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: safe center;
+  gap: 2px;
+  padding: 8px 8px 2px;
+  margin-top: auto;
+  color: rgb(var(--atrium-ink, 255 255 255) / .85);
+}
+
+/* Only the per-space dots live here, so this is the only part that scrolls.
+   No flex-grow: sized to its own dots, like the row was as one flat list, so
+   a short list still centres as a tight group with Overview and +. */
+.dotscroll {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: safe center;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
+  /* Scrolls but never shows it: chrome, not content, same as .scrollzone. */
+  scrollbar-width: none;
+  /* Setting overflow-x alone makes overflow-y compute to auto too, which cut
+     .dotbloom's blur into a hard edge. Padding gives the glow
+     room; the matching negative margin keeps the row's own height and the
+     dots' y position exactly where they were. 6px sideways: a magnified end
+     dot's .d (20px) is 4px wider than its .sdot slot (12px) each side. */
+  padding: 14px 6px;
+  margin: -14px -6px;
+  /* The padding above widens the hit box past the dots' own 26px row height,
+     stealing clicks and wheel from whatever sits above the bar. Only the
+     dots (pointer-events: auto below) need to be clickable. */
+  pointer-events: none;
+}
+
+.dotscroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Beside the rail rather than inside a pane, so a swipe cannot carry it off
+  . Absolute, because the rail already claims the full height. */
+.rail ~ .spacedots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  margin-top: 0;
+  /* Symmetric on purpose: --sb-pad-lead and --sb-pad-trail differ by 6px, and
+     centring inside that box left the chips 3px off the row's own middle
+    . 8px matches the sidebar root's own lead inset, so the row
+     lines up with the rows above it. */
+  padding: 8px 8px 10px;
+}
+
+/* Room for the two bars the panes no longer draw: the dots below, and the
+   address row above. 46 (traffic lights and air) + 34 (bar) + 10 (the .sidebar
+   gap the row used to sit in) leaves everything under it exactly where it was.
+   The grid IS drawn here again, and the pinned copy is painted over it. */
+.railpane .sidebar {
+  padding-top: 90px;
+  padding-bottom: 44px;
+  /* padding-bottom eases for padding-top's reason: the media block grows and
+     shrinks the lane it reserves, and a snap there jerks every row above it. */
+  transition: padding-top .2s ease, padding-bottom .2s ease;
+}
+
+/* The hidden bar gives its 34px back, or the rows sit under a blank strip. */
+#atrium-root.devbar-shown .railpane .sidebar {
+  padding-top: 44px;
+  /* the rows wait for the bar to fade out before they take its room,
+     so the two never share the strip. */
+  transition: padding-top .2s ease .16s;
+}
+
+/* The grid takes the room the panes used to reserve for the address row: 46
+   (traffic lights and air) + 34 (bar) + 10 (the .sidebar gap it sat in). */
+/* Painted OVER the active pane's own grid, at the same place, so switching
+   between the two moves nothing. Absolute, so the panes keep reserving the
+   room and the rows below never shift between the pinned and sliding modes. */
+#atrium-root.sbroot > .favgrid {
+  position: absolute;
+  top: 90px;
+  left: var(--sb-pad-lead);
+  right: var(--sb-pad-trail);
+  z-index: 4;
+  transition: top .2s ease;
+}
+
+/* The hidden bar gives its 34px back, or the tiles sit under a blank strip. */
+#atrium-root.devbar-shown.sbroot > .favgrid {
+  top: 44px;
+  /* the tiles wait for the bar to fade out before they take its
+     room, so the two never share the strip. */
+  transition: top .2s ease .16s;
+}
+
+/* Two spaces of one profile draw identical tiles, so the pane's own grid stays
+   hidden and the pinned copy above shows through: a swipe inside a profile
+   moves nothing. Hidden rather than removed, so the rows keep their place. */
+.railpane .favgrid {
+  visibility: hidden;
+}
+
+/* Across a profile change the tiles genuinely differ, so a pane shows its own
+   and travels with the swipe. Only the pane whose profile is NOT the pinned
+   grid's: a same-profile pane holds empty slots, so showing every grid at once
+   blanked the outgoing half of the gesture. swipe.js stamps the class. */
+#atrium-root.xprofile .railpane.otherprofile .favgrid {
+  visibility: visible;
+}
+
+/* Hidden once no pane on screen is the one it was drawn for - it would
+   otherwise hold the outgoing profile's tiles over the incoming pane until the
+   rebuild lands. While the outgoing pane is still spanned it stays up, and is
+   what that pane shows in place of its empty slots. */
+#atrium-root.pinnedoff.sbroot > .favgrid {
+  visibility: hidden;
+}
+
+/* The pinned strip rides with the grid, one mechanism for the two. Its pane
+   copies follow the same three rules, and the strip's own hide is a class on
+   itself rather than on the root: it is the root's sibling, and CSS has no way
+   back to a preceding one. */
+.railpane .exs-row {
+  visibility: hidden;
+  /* On screen only mid-swipe, where a click belongs to the gesture. */
+  pointer-events: none;
+}
+
+#atrium-root.xprofile .railpane.otherprofile .exs-row {
+  visibility: visible;
+}
+
+.exs-row.pinnedoff {
+  visibility: hidden;
+}
+
+/* Arc's switcher: the two controls at the ends are the big marks,
+   a space at rest is a small grey dot, and the active space is its bare glyph.
+   The narrow slots also fit more spaces before the bar has to scroll. */
+.sdot {
+  width: 12px;
+  height: 26px;
+  background: none;
+  border: 0;
+  padding: 0;
+  /* the rail's own space-dots bar sits beside .rail rather than
+     inside .sidebar, so .sidebar button's cursor:inherit never
+     reaches it and this pointer hand showed uncontested. Explicit here
+     rather than relied-on, so it holds regardless of which bar renders it. */
+  cursor: default;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  color: inherit;
+  /* Restores what .dotscroll's own pointer-events: none gives up, for the
+     per-space dots inside it - inherited by their .d glyph too. */
+  pointer-events: auto;
+  /* No width transition: placeDotBloom reads the slot widths straight after
+     a switch, and a transition hands it the old ones. */
+  transition: transform .28s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+.sdot .d {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: color-mix(in srgb, currentColor 35%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 600 10px var(--sans, system-ui, sans-serif);
+  line-height: 1;
+  /* No transition at rest: the grey fill never animates, so a
+     dot that keeps this size while shrinking read as a grey ghost pill
+     gliding down. Growing into .active/.mag below carries its own. */
+}
+
+.sdot.active {
+  width: 24px;
+}
+
+/* No plate: sidebar.js inks the glyph in the space's colour. */
+.sdot.active .d {
+  width: 18px;
+  height: 18px;
+  background: none;
+  font-size: 14px;
+}
+
+.sdot:is(.ovdot, .addws) {
+  width: 28px;
+  /* .dotscroll's own clearance paints over ~4px of each button.
+     Both are position: relative already; this just wins the stack so a click
+     or hover there lands on the button, not the scroller under it. */
+  z-index: 1;
+}
+
+.sdot:is(.ovdot, .addws) .d {
+  width: 20px;
+  height: 20px;
+  background: none;
+  font-size: 17px;
+  opacity: .6;
+}
+
+/* On the Overview pane the :: mark is the active space. */
+.sdot.ovdot.active .d {
+  opacity: 1;
+}
+
+.sdot:hover .d {
+  transform: scale(1.15);
+}
+
+/* From swipe-lab.html:1039-1053. The dot nearest the cursor grows
+   into a chip carrying the space initial, and its neighbours step aside. */
+@keyframes dotpop {
+  0% { transform: scale(.55); }
+  60% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+.sdot.mag .d {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
+}
+
+.sdot.active .d,
+.sdot.mag .d {
+  transition: width .2s ease, height .2s ease, border-radius .2s ease;
+}
+
+.sdot.mag ~ .sdot {
+  transform: translateX(9px);
+}
+
+.sdot:has(~ .sdot.mag) {
+  transform: translateX(-9px);
+}
+
+/* One chip at a time, so the active space does not read as a second cursor.
+   The Overview dot is a permanent control and keeps its shape. */
+.spacedots:has(.sdot.mag) .sdot.active:not(.mag):not(.ovdot) .d {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  /* The glyph's inline ink beats a transparent color, so the size hides the
+     glyph, and the grey comes from the bar's ink rather than currentColor. */
+  font-size: 0;
+  background: rgb(var(--atrium-ink, 255 255 255) / .3);
+  animation: none;
+  /* Still .active, so .sdot.active .d's grow transition would otherwise
+     apply here too and glide this demotion into a grey ghost. */
+  transition: none;
+}
+
+/* The magnification is the information, so it stays. Only the travel goes. */
+@media (prefers-reduced-motion: reduce) {
+  .sdot,
+  .sdot .d {
+    transition-duration: .01s;
+  }
+
+  .sdot.active .d,
+  .sdot.mag .d {
+    animation: none;
+  }
+}
+
+/* Swipe rail: panes side by side, the rail translates. transform is
+   compositor-driven, so the swipe does not relayout on every frame.
+   No transition: the settle spring writes the transform every frame,
+   and a CSS transition on top of it would chase the spring's own output. */
+.rail {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+}
+
+.railpane {
+  flex: 0 0 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Lifted off the rail for a long jump, so origin and target sit side by side. */
+.railpane.jumped {
+  display: none;
+}
+
+/* Clips the favicon to the slot. The img is removed on error, leaving the slot
+   an empty square. */
+.row .fv {
+  position: relative;
+  overflow: hidden;
+}
+
+/* An icon with a src and no pixels yet draws the browser's own missing-image
+   glyph, so it stays out of the paint until its load handler marks it
+  . */
+.fvimg {
+  display: none;
+}
+
+.fvimg.ok {
+  display: block;
+}
+
+.row .fvimg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+/* Tab row context menu. Positioned against the route root, which is
+   already a positioned ancestor for the drop indicator. Colors, radius and
+   shadow come from .ov-card (sidebar-menu.js adds the class) - this rule is
+   layout only. */
+.ctxmenu {
+  position: absolute;
+  z-index: 50;
+  min-width: 128px;
+  padding: 4px;
+  font-size: 12.5px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* .ov-row (sidebar-menu.js adds the class) gives the padding, radius, gap and
+   selected-row weight - this rule is the button reset plus the inherited
+   color and font a <button> does not pick up from its ancestors by default. */
+.ctxitem {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  text-align: left;
+  cursor: default;
+}
+
+.ctxitem:hover,
+.ctxitem:focus-visible {
+  background: var(--ov-sel);
+  outline: none;
+}
+
+/* Native mode's --ov-sel is the solid accent (overlay.css), so only the ink
+   needs a push here - the same pairing .ov-row.ov-sel makes with a class. */
+html.atrium-native-chrome .ctxitem:hover,
+html.atrium-native-chrome .ctxitem:focus-visible {
+  color: white;
+}
+
+/* greyed and inert, for an action with no chrome.send yet. */
+.ctxitem:disabled {
+  opacity: .38;
+  cursor: not-allowed;
+}
+
+.ctxitem:disabled:hover {
+  background: none;
+}
+
+.ctxitem .ctxkey {
+  margin-inline-start: auto;
+}
+
+.ctxrule {
+  height: 1px;
+  margin: 3px 4px;
+  background: var(--ov-border);
+}
+
+/* Geometry ported from swipe-lab.html's .shelfzone: thin bar
+   low on the sidebar's own outer edge, widening once a drag comes near. */
+.shelfzone {
+  position: fixed;
+  bottom: 60px;
+  left: 10px;
+  width: 10px;
+  height: 88px;
+  z-index: 46;
+  border: 1.5px dashed rgb(var(--atrium-ink, 255 255 255) / .55);
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 26, 32, .55);
+  backdrop-filter: blur(8px);
+  color: #dfe7ee;
+  font: 600 12px var(--sans, system-ui, sans-serif);
+  text-align: center;
+  line-height: 1.5;
+  pointer-events: auto;
+  opacity: .4;
+  overflow: hidden;
+  transition: width .18s cubic-bezier(.3, .9, .3, 1), border-color .15s,
+      background .15s, opacity .18s;
+}
+
+.shelfzone.sbright {
+  left: auto;
+  right: 10px;
+}
+
+.shelfzone span {
+  opacity: 0;
+  transition: opacity .12s;
+  white-space: nowrap;
+}
+
+.shelfzone.hot {
+  opacity: 1;
+  width: 78px;
+  border-color: rgb(var(--atrium-ink, 255 255 255) / .92);
+  color: rgb(var(--atrium-ink, 255 255 255));
+  background: rgb(var(--atrium-ink, 255 255 255) / .14);
+}
+
+.shelfzone.hot span {
+  opacity: 1;
+}
+
+/* Rewind scrubber. Ported from swipe-lab.html's
+   .rewindwrap/.rewindbar, lines 395-404. */
+.rewindwrap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 14px;
+  z-index: 49;
+  display: flex;
+  justify-content: center;
+}
+
+.rewindbar {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: min(560px, 90%);
+  padding: 11px 15px;
+  border-radius: 13px;
+  background: rgba(30, 37, 45, .94);
+  backdrop-filter: blur(22px) saturate(1.3);
+  -webkit-backdrop-filter: blur(22px) saturate(1.3);
+  color: #E7ECF1;
+  font: 12.5px var(--sans, system-ui, sans-serif);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, .5), 0 0 0 1px rgba(255, 255, 255, .09);
+}
+
+.rewindbar .rwslider {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--accent, #7aa2ff);
+}
+
+.rewindbar .rwinfo {
+  font: 11px var(--mono, ui-monospace, monospace);
+  opacity: .7;
+  white-space: nowrap;
+}
+
+.rwbtn {
+  border: 0;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .14);
+  color: inherit;
+  font: 12px var(--sans, system-ui, sans-serif);
+  padding: 5px 11px;
+  flex: none;
+}
+
+.rwbtn:hover {
+  background: rgba(255, 255, 255, .24);
+}
+
+.rwbtn.rwx {
+  width: 24px;
+  padding: 5px 0;
+}
+
+/* History scrubber: opened by a hold on Back. */
+.histscrubwrap {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, .35);
+}
+
+.histstrip {
+  display: flex;
+  gap: 10px;
+  max-width: 92%;
+  overflow-x: auto;
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(30, 37, 45, .94);
+  backdrop-filter: blur(22px) saturate(1.3);
+  -webkit-backdrop-filter: blur(22px) saturate(1.3);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, .5), 0 0 0 1px rgba(255, 255, 255, .09);
+}
+
+.histstop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 96px;
+  flex: none;
+}
+
+.histthumb {
+  width: 96px;
+  height: 64px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, .08);
+  outline: 2px solid transparent;
+}
+
+.histthumb.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, .05);
+}
+
+.histthumbimg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.histstop.sel .histthumb {
+  outline-color: var(--accent, #7aa2ff);
+}
+
+.histtitle {
+  font: 11px var(--sans, system-ui, sans-serif);
+  color: #E7ECF1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 96px;
+}
+
+/* the Overview rail pane. A distinct class from overview.css's
+   .ovpane, which is the Overview's INNER content pane - both stylesheets load
+   on every route, so sharing the name gave this pane flex:1 and min-width:0 and
+   collapsed it to nothing, putting the first space at x=0. */
+.ovrailpane {
+  flex: 0 0 100%;
+  height: 100%;
+  overflow: hidden;
+  /* The traffic lights alone: the address row fades out before this pane
+     arrives, so its 34px belong to the pane. The 44px below is
+     .railpane .sidebar's - the dots bar is absolute over this pane too, and at
+     the old 10px a long list ran under it. */
+  padding: 46px 0 44px;
+  box-sizing: border-box;
+}
+
+/* overview.css paints an opaque slab for the standalone window. In the rail the
+   native glass backdrop IS the surface, so that slab hides the tint. */
+.ovrailpane .ovwrap {
+  background: transparent;
+}
+
+/* The floating panel is a child NSWindow, so a material
+   on it samples nothing and the page had to paint its own wash - which could
+   carry only the flat tint, never the space's theme picture. The panel now
+   paints the docked backdrop stack under the page natively
+   (AtriumSidebarOverlayWidget), so no wash lives here. */
+html.atrium-sidebar-floating {
+  /* No grip band stands between the page and the panel's edge, so the page
+     inset matches the window one. Both named, not trail copied from lead: the
+     dock swaps which of the two is narrow. */
+  --sb-pad-lead: 8px;
+  --sb-pad-trail: 8px;
+}
+
+/* the native-app chrome mode. C++ fills the pane container, whose
+   bounds stop at the sidebar column, so the surround turned neutral and the
+   sidebar stayed on glass beside it - two halves of one window's chrome that
+   did not match. The page carries the mode across that edge.
+
+   Docked as well as floating, and no alpha either way: the sidebar paints no
+   background docked, which is what lets the window's glass read through it,
+   and that is the very thing this mode turns off.
+
+   The floating rules above decline when this class is present, rather than
+   this one out-ranking them by source order. Two rules that both apply and
+   are settled by which was written last is a trap for whoever edits next. */
+/* the native-app class flips in one push from the window, and the
+   window itself crossfades its surround on the same toggle. Without this the
+   sidebar column snapped while the rest of the chrome faded. */
+html {
+  transition: background-color .3s ease, color .3s ease;
+}
+
+/* the window measures its backdrop under the glass and pushes the
+   ink that reads on it. Same tokens as the native block below. Scoped to the
+   roots that sit on the backdrop, the sidebar and the AI panel: this sheet
+   serves every route, and on html it blanked the settings page's labels
+  . */
+html:not(.atrium-native-chrome) #atrium-root.aipanelroot,
+/* The pinned strip is the root's SIBLING, so it inherits none of this. Its
+   tiles read --fill, and left out they fell back to a flat white wash that
+   ignored the backdrop's ink. */
+html:not(.atrium-native-chrome) body > .exs-row,
+/* The media block is the root's sibling for the same reason, and its
+   controllers read --fill the way the tiles do. */
+html:not(.atrium-native-chrome) body > .sbm-block,
+html:not(.atrium-native-chrome) #atrium-root.sbroot {
+  --atrium-ink: var(--atrium-glass-ink, 255 255 255);
+  --fg: rgb(var(--atrium-ink) / .92);
+  /* White washes and fractions of --selfill, so all three move the row the
+     same way by the same rule. As ink washes these reversed under the black
+     ink of a light backdrop - darkening a hovered row while the selection
+     lightened it, which made the hover read as the selected row. */
+  --fill: rgb(255 255 255 / calc(var(--atrium-sel-alpha, .3) * .4));
+  --fillhover: rgb(255 255 255 / calc(var(--atrium-sel-alpha, .3) * .55));
+  /* A white wash, not an ink wash: the selected pill reads bright like
+     Arc's. The alpha follows the ink from PushSidebarInk. */
+  --selfill: rgb(255 255 255 / var(--atrium-sel-alpha, .3));
+  --ringb: rgb(var(--atrium-ink) / .8);
+  color: var(--fg);
+}
+
+/* No surround fill of the sidebar's own in native mode: the window paints the
+   surround under this document, docked and floating, and the page glow with
+   it. A fill here hid that glow on the sidebar column. */
+
+html.atrium-native-chrome {
+  /* The chrome's ink is white everywhere else, and that is a rule rather than a
+     choice: atrium_browser_window.cc's kChromeInkHex is #FFFFFF, and the core
+     refuses any space-tint drift that would cost contrast against it. A native
+     surround is the one background that rule never covered - it is the system's
+     neutral, near-white in a light appearance - and white ink on it is no ink
+     at all. Measured: the sidebar column came back at mean 251.7 with its
+     labels gone.
+
+     The tokens below are the ones the rows already read through
+     var(--fg, ...), so this reaches every one of them without touching the
+     declarations. --fill flattens .10 and .12 to one value, which is the
+     difference between two fills that mean the same thing. */
+  --atrium-ink: var(--atrium-surround-ink, 255 255 255);
+  --fg: rgb(var(--atrium-ink) / .92);
+  --fill: rgb(var(--atrium-ink) / .12);
+  --fillhover: rgb(var(--atrium-ink) / .16);
+  --selfill: rgb(var(--atrium-ink) / .22);
+  --ringb: rgb(var(--atrium-ink) / .8);
+  color: var(--fg);
+}
+
+/* Vim mode. Neither the cursor ring nor a hint label exists until a key puts
+   it there, so both cost nothing while the toggle is off. */
+.row.atrium-vim-cursor {
+  box-shadow: inset 0 0 0 2px var(--ringb);
+}
+
+.atrium-vim-hint {
+  position: absolute;
+  right: 4px;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: #fd0;
+  color: #000;
+  font: 11px ui-monospace, monospace;
+  pointer-events: none;
+}

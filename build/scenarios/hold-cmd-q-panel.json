@@ -1,0 +1,27 @@
+{
+  "name": "hold-cmd-q-panel",
+  "description": "The restyled 'Hold ⌘Q to Quit' HUD (overlay design language, direction D/brand look): a paper card with keycaps for the shortcut. confirmToQuitEnabled is staged true so the very first Cmd+Q shows the panel. key_delay_ms is 400 - proven safe by settings-confirm-quit-takes-effect.json's own first chord - well under the ~500ms mark where ConfirmQuitPanelController's targetDate/kTimeDeltaFuzzFactor math commits to quitting, so this is a tap the panel treats as cancelled: the key comes up, the panel stays fully visible for about another second, then fades. mid_at_ms lands after the release and well before that fade starts, so the capture is the panel at rest rather than mid-animation. ax_window_count at the end is the assertion that the release actually beat the quit - a build that committed anyway would leave no window to count.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "settings": "confirm-quit-on.settings.json",
+  "app_process": "Atrium",
+  "actions": [
+    {"type": "wait_vlog", "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost", "timeout_ms": 20000,
+     "note": "gate: the startup tab committed, so the browser window is up before Cmd+Q is sent"},
+    {"type": "settle", "ms": 6000},
+    {"type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot"},
+    {"type": "settle", "ms": 1500},
+    {"type": "key_during_capture", "combo": "cmd+q", "capture_id": "hold-cmd-q-panel", "duration_ms": 2000, "fps": 20,
+     "key_delay_ms": 400, "mid_at_ms": 600,
+     "note": "the panel: paper surface, ink, and the shortcut as keycaps followed by 'to Quit'. Released at 400ms, safely under the ~500ms commit mark, so the panel dismisses instead of the app quitting"},
+    {"type": "settle", "ms": 2500, "note": "let the panel's fade-out finish before the run ends"}
+  ],
+  "assertions": [
+    {"type": "ax_window_count", "expected": 1, "min_area": 200000,
+     "desc": "the browser window is still there - the release beat the quit. The HUD itself is far below min_area, so it cannot pad this count"},
+    {"type": "vlog", "label": "confirm-to-quit-is-armed", "pattern": "Atrium: confirm-to-quit is now on",
+     "note": "the gate this scenario is about was actually on for this launch, so the panel that appeared is the confirm-to-quit HUD and not some other window"}
+  ]
+}

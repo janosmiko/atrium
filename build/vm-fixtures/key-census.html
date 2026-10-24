@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>ATRIUM422-ready</title></head>
+<body style="margin:0;padding:40px;font-family:sans-serif;font-size:24px;background:#e8f0e8;">
+<p>Key delivery census.</p>
+<!-- Reports every keydown the page receives into document.title, which crosses
+     the bridge and lands in the run log via TabEventForwarder::TitleWasSet -
+     the same channel edit-focus-field.html uses for ATRIUM-SEL-*, so no
+     Chromium rebuild and no probe inside the app is needed to read it.
+
+     The title carries a PER-KEY counter, not a global one, so a missing key
+     shows up as a count that never reaches its expected total instead of
+     shifting every later index. The counter also guarantees each title
+     differs from the last, which is what makes TitleWasSet fire every time.
+
+     There is nothing focusable on this page and every key is defaultPrevented,
+     so focus cannot walk out of the document mid-census and no key can change
+     what the next one measures. -->
+<p id="marker">no keys yet</p>
+<script>
+  var counts = {};
+
+  function name(e) {
+    var base;
+    switch (e.key) {
+      case 'ArrowDown': base = 'down'; break;
+      case 'ArrowUp': base = 'up'; break;
+      case 'ArrowLeft': base = 'left'; break;
+      case 'ArrowRight': base = 'right'; break;
+      case 'Tab': base = 'tab'; break;
+      case 'Escape': base = 'esc'; break;
+      case 'Enter': base = 'return'; break;
+      case 'Meta': base = 'meta'; break;
+      case 'Shift': base = 'shift'; break;
+      case 'Control': base = 'ctrl'; break;
+      case 'Alt': base = 'opt'; break;
+      default: base = String(e.key).toLowerCase(); break;
+    }
+    if (e.metaKey && base !== 'meta') { base = 'cmd_' + base; }
+    return base;
+  }
+
+  // Separates "the click missed and the page never had the keyboard" from
+  // "the keys were sent and lost". Without it a totally silent census has two
+  // readings and settles neither.
+  window.addEventListener('focus', function () {
+    document.title = 'ATRIUM422-pagefocus';
+  });
+
+  document.addEventListener('keydown', function (e) {
+    var n = name(e);
+    counts[n] = (counts[n] || 0) + 1;
+    var label = 'ATRIUM422-' + n + '-' + counts[n];
+    document.getElementById('marker').textContent = label;
+    document.title = label;
+    // Plain keys only. Swallowing a Cmd chord here could swallow the teardown
+    // Cmd+Q too, and a census that cannot be shut down measures nothing.
+    if (!e.metaKey) { e.preventDefault(); }
+  }, true);
+</script>
+</body>
+</html>

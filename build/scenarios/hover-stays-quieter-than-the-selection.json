@@ -1,0 +1,74 @@
+{
+  "name": "hover-stays-quieter-than-the-selection",
+  "description": "Under the black ink a light backdrop produces, a hovered row must stay a quieter version of the selected row rather than out-shouting it. The scenario forces the pair PushSidebarInk pushes over a light backdrop - --atrium-glass-ink 0 0 0 and --atrium-sel-alpha .6 - then resolves --fill, --fillhover and --selfill through the live cascade with probe elements. All three must be white washes, so all three lighten the row, and the alphas must climb rest < hover < selected. Before the fix the hover was an ink wash: under black ink it darkened the row by 32 luminance while the selection lightened it by 33, and the hovered row read as the selected one. No :hover is used, because a tab row loses :hover whenever a favicon push rebuilds the list.",
+  "fixture": "tab-list-scroll-speed.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "20000000-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "example-domain.html?s1",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/example-domain.html?s1"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "force-light-backdrop",
+      "target": "/sidebar",
+      "expression": "(() => { const d = document.documentElement; if (!d) return 'NOROOT'; d.style.setProperty('--atrium-glass-ink', '0 0 0'); d.style.setProperty('--atrium-sel-alpha', '.6'); return getComputedStyle(d).getPropertyValue('--atrium-sel-alpha').trim(); })()",
+      "note": "the same two properties PushSidebarInk sets under black ink, so the page is in the reported state rather than a simulated one"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "eval",
+      "id": "fills",
+      "target": "/sidebar",
+      "expression": "(() => { const host = document.querySelector('.scrollinner') || document.querySelector('.sidebar'); if (!host) return 'NOHOST'; const read = (token) => { const p = document.createElement('div'); p.style.background = 'var(' + token + ')'; host.appendChild(p); const c = getComputedStyle(p).backgroundColor; p.remove(); const m = c.match(/rgba?\\(([\\d.]+),\\s*([\\d.]+),\\s*([\\d.]+)(?:,\\s*([\\d.]+))?\\)/); return m ? {r:+m[1], g:+m[2], b:+m[3], a: m[4] === undefined ? 1 : +m[4]} : null; }; const f = read('--fill'), h = read('--fillhover'), s = read('--selfill'); if (!f || !h || !s) return 'UNREADABLE'; const white = (c) => c.r === 255 && c.g === 255 && c.b === 255; if (!white(h)) return 'hover-not-white:' + h.r + ',' + h.g + ',' + h.b + '@' + h.a; if (!white(f)) return 'fill-not-white:' + f.r + ',' + f.g + ',' + f.b + '@' + f.a; if (!white(s)) return 'sel-not-white:' + s.r + ',' + s.g + ',' + s.b + '@' + s.a; if (!(h.a > 0.02)) return 'hover-invisible@' + h.a; if (!(f.a < h.a)) return 'rest-not-quieter:' + f.a + '>=' + h.a; return h.a < s.a ? 'quieter' : 'louder:' + h.a + '>=' + s.a; })()",
+      "note": "Probes resolve the three tokens through the real cascade, which needs no :hover - reading the live hovered row was measuring a race rather than the fills, because a rebuilt row only gets :hover back on Chromium's next hover update. The .hoverhold class closes that race, and this probe stays token-based because it is the cascade it is checking. The unit test pins the other half: that .row.tabrow:not(.sel):is(:hover, .hoverhold) draws var(--fillhover)."
+    },
+    {
+      "type": "eval",
+      "id": "negative-control",
+      "target": "/sidebar",
+      "expression": "(() => { const host = document.querySelector('.scrollinner') || document.querySelector('.sidebar'); if (!host) return 'NOHOST'; const p = document.createElement('div'); p.style.setProperty('--fillhover', 'rgb(var(--atrium-ink) / .16)'); p.style.background = 'var(--fillhover)'; host.appendChild(p); const c = getComputedStyle(p).backgroundColor; p.remove(); const m = c.match(/rgba?\\(([\\d.]+),\\s*([\\d.]+),\\s*([\\d.]+)(?:,\\s*([\\d.]+))?\\)/); if (!m) return 'UNREADABLE'; return (+m[1] === 255 && +m[2] === 255 && +m[3] === 255) ? 'still-white' : 'darkens@' + m[1] + ',' + m[2] + ',' + m[3]; })()",
+      "note": "Puts the OLD ink wash on one probe and reads it back, so the run proves the probe above can still fail. The override goes on the probe, not on documentElement: the sbroot rule redefines --fillhover further down the tree and shadowed an override set that high, which is how this control first reported still-white against an ink wash it never saw."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "force-light-backdrop",
+      "expected": "\".6\"",
+      "desc": "THE SETUP: the page really is in the light-backdrop state, so the fills below are the reported ones"
+    },
+    {
+      "type": "eval_equals",
+      "id": "fills",
+      "expected": "\"quieter\"",
+      "desc": "THE RULE: both fills are white washes, so both lighten the row, and the hover carries the smaller alpha. hover-not-white is the reported bug - an ink wash that darkens under black ink."
+    },
+    {
+      "type": "eval_equals",
+      "id": "negative-control",
+      "expected": "\"darkens@0,0,0\"",
+      "desc": "THE NEGATIVE CONTROL: the old ink wash, put back on this page alone, still resolves to a dark colour under the forced black ink. still-white would mean the probe cannot see the defect it is asked to catch."
+    }
+  ]
+}

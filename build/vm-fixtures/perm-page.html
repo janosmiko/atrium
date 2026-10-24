@@ -1,0 +1,12 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Permission Probe</title></head>
+<body style="font-family:sans-serif;padding:40px"><h1>Permission probe</h1>
+<p id="s">requesting geolocation...</p>
+<script>
+// auto-request geolocation on load - this is what triggered the crash
+window.addEventListener('load', function(){
+  try { navigator.geolocation.getCurrentPosition(
+    function(){document.getElementById('s').textContent='granted';},
+    function(e){document.getElementById('s').textContent='prompt/denied: '+e.code;});
+  } catch(err){ document.getElementById('s').textContent='err '+err; }
+});
+</script></body></html>

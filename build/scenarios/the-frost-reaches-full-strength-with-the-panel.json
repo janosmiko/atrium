@@ -1,0 +1,224 @@
+{
+  "name": "the-frost-reaches-full-strength-with-the-panel",
+  "description": "AtriumSidebarFrostLayer::AnimateShow faded the frost's opacity from 0 to 1 while the panel content slid in at full strength from the first frame, so the middle of the reveal showed the page through a panel that reads solid once it lands. Durations, curves and travel already matched - only the opacity ramp did not.\n\nAnimateShow now sets the container's layer opacity to 1 inside a disabled-actions transaction before the slide is added, so there is nothing left to ramp.\n\nA plain move-then-capture pair cannot film this: the reveal arms on a mouse-entered, and the 240ms slide is over before the second ssh round trip lands. move_during_capture fires the hover from inside the burst.",
+  "fixture": "lab-compare.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "move_window",
+      "x": 0,
+      "y": 40
+    },
+    {
+      "type": "resize",
+      "w": 560,
+      "h": 500,
+      "note": "screen coordinates are the window's own from here on, and the panel lands over x 0 to 220"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "collapse, which is what arms the edge strip - RevealFloatingSidebar only fires while the pane is collapsed and a last docked width is remembered"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "capture",
+      "id": "page-alone",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the page with nothing over it, the reading every later frame is held against"
+    },
+    {
+      "type": "move",
+      "x": 300,
+      "y": 400,
+      "note": "park well inside the page. The strip is 32pt from the window's content edge, and a pointer already inside it never sends the mouse-entered the reveal needs."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "move_during_capture",
+      "x": 12,
+      "y": 400,
+      "capture_id": "revealing",
+      "duration_ms": 3400,
+      "fps": 30,
+      "move_delay_ms": 1700,
+      "mid_after_move_ms": 90,
+      "note": "THE capture. 1700ms of lead because the ScreenCaptureKit stream stalls at the head of a burst for up to a second, which is longer than the whole slide. 90ms after the move returns lands about half way through the 240ms slide."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "timeout_ms": 8000,
+      "note": "gate: the panel really opened, so a still burst cannot read as a perfect slide"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "panel-settled",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "move_during_capture",
+      "x": 400,
+      "y": 400,
+      "capture_id": "dismissing",
+      "duration_ms": 4000,
+      "fps": 30,
+      "move_delay_ms": 500,
+      "mid_at_ms": 855,
+      "note": "Placed from the burst start, not from a stall: the stall here is the pointer's own move, and the close only starts kHideDebounceMs (280) later, so a stall-anchored probe lands before the panel has moved at all. 500 of lead plus about 35 of ssh puts the move at 535 and the close at 815, and the panel's own curve keeps its left edge in frame to about 890."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay closing",
+      "timeout_ms": 10000,
+      "note": "gate: the dismiss really ran"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "pixels_changed",
+      "before": "page-alone",
+      "after": "panel-settled",
+      "region": [
+        5,
+        300,
+        100,
+        10
+      ],
+      "min_changed_pct": 95,
+      "label": "the-settled-panel-covers-the-sample",
+      "desc": "Control. This band of the page reads near-white alone and the panel's own flat wash once it lands, so a run where the panel never opened cannot reach the assertion below."
+    },
+    {
+      "type": "pixels_changed",
+      "before": "page-alone",
+      "after": "revealing_mid",
+      "region": [
+        5,
+        300,
+        100,
+        10
+      ],
+      "min_changed_pct": 95,
+      "label": "the-sliding-panel-covers-it-too",
+      "desc": "Control. The panel's leading edge is already past this band mid-slide, so the reading there is panel and not page."
+    },
+    {
+      "type": "region_mean",
+      "capture": "revealing_mid",
+      "x": 205,
+      "y": 300,
+      "w": 14,
+      "h": 10,
+      "min_mean": 170,
+      "max_mean": 255,
+      "label": "the-frame-really-is-mid-slide",
+      "desc": "The frame guard. The last strip the panel covers, so it stays page until the slide's final frames: settled it reads 108,126,140 and mid-slide 244 or better. A burst that only caught the settled panel fails here rather than passing the assertion below for free."
+    },
+    {
+      "type": "region_stable",
+      "before": "panel-settled",
+      "after": "revealing_mid",
+      "region": [
+        5,
+        300,
+        100,
+        10
+      ],
+      "max_delta": 6,
+      "label": "the-sliding-panel-is-as-solid-as-the-settled-one",
+      "desc": "Row 300 is the one band of the panel that carries no text or icon, so it reads flat wash at every slide offset and the comparison is frost against frost. The page under it is white, so a frost still ramping up lifts the reading toward white by however much is missing: a tenth of the ramp moves it 13, the whole ramp 131. Measured drift between the two frames: 0.5."
+    },
+    {
+      "type": "region_mean",
+      "capture": "revealing_mid",
+      "x": 5,
+      "y": 300,
+      "w": 100,
+      "h": 10,
+      "min_mean": 100,
+      "max_mean": 133,
+      "max_r": 118,
+      "label": "the-sliding-panel-reads-full-strength-on-its-own",
+      "desc": "Stated without a second frame to lean on. The settled wash means 124.3 and the bare page 247.9, so the ceiling of 133 leaves room for about 7 percent of the ramp and no more."
+    },
+    {
+      "type": "region_mean",
+      "capture": "dismissing",
+      "x": 5,
+      "y": 300,
+      "w": 30,
+      "h": 10,
+      "min_mean": 230,
+      "max_mean": 255,
+      "label": "the-panel-really-left",
+      "desc": "Control for the dismiss probe. The last frame of that burst is the bare page again, so a run where the panel stayed open cannot reach the assertion below."
+    },
+    {
+      "type": "region_mean",
+      "capture": "dismissing_mid",
+      "x": 170,
+      "y": 300,
+      "w": 40,
+      "h": 10,
+      "min_mean": 230,
+      "max_mean": 255,
+      "label": "the-dismiss-frame-really-is-mid-slide",
+      "desc": "The frame guard for the dismiss. This band is panel wash while the panel is open and page once its edge has passed, so a probe that landed on either end of the slide fails here."
+    },
+    {
+      "type": "region_mean",
+      "capture": "dismissing_mid",
+      "x": 5,
+      "y": 300,
+      "w": 30,
+      "h": 10,
+      "min_mean": 100,
+      "max_mean": 133,
+      "max_r": 118,
+      "label": "the-departing-panel-is-as-solid-as-it-was",
+      "desc": "AnimateHide used to ramp the same opacity back down, which showed the page through a panel still fully drawn above it. The settled wash means 124.3 and the bare page 247.9, so the ceiling of 133 leaves room for about 7 percent of a ramp and no more."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "label": "the-window-survived-the-reveal",
+      "desc": "Liveness. The child panel is its own NSWindow but carries no AX standard-window role, so the count stays 1."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

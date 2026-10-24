@@ -1,0 +1,76 @@
+/* Copyright 2026 The Atrium Authors
+ *
+ * Little Atrium's top strip. Shapes come from the lab's .fhead; the band
+ * geometry matches LittleAtriumChromeView.swift, which this replaces. */
+
+.fhead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  /* Clears the floating traffic lights, same band they sit in - mirrors
+     SidebarMetrics.trafficLightClearance on the Swift side. */
+  padding: 0 10px 0 78px;
+  box-sizing: border-box;
+  font: 12px var(--sans, system-ui, -apple-system, sans-serif);
+  color: var(--fg, rgba(255, 255, 255, .92));
+}
+
+.fdot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--accent, #5b8def);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .35);
+}
+
+.ftl {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40%;
+  flex: none;
+}
+
+.furl {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  padding: 3px 9px;
+  border-radius: 7px;
+  background: var(--fill, rgba(255, 255, 255, .10));
+  opacity: .85;
+}
+
+.furl .flock {
+  flex: none;
+  opacity: .7;
+}
+
+/* Middle truncation is not expressible in CSS; the Swift strip used
+   .truncationMode(.middle). Tail truncation here is a deliberate, visible
+   difference rather than a silent one - revisit if it reads badly. */
+.furltext {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fbtn {
+  flex: none;
+  border: 0;
+  border-radius: 7px;
+  padding: 4px 9px;
+  font: 600 11.5px var(--sans, system-ui, sans-serif);
+  color: inherit;
+  background: var(--fill, rgba(255, 255, 255, .10));
+  transition: background .12s;
+}
+
+.fbtn:hover {
+  background: var(--fillhover, rgba(255, 255, 255, .18));
+}

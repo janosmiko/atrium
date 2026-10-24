@@ -1,0 +1,135 @@
+{
+  "name": "native-mode-reaches-settings-and-hint",
+  "description": "Reads a token off the settings document and off the hint bubble's own /hint document with Native app view off, then again after turning it on in the running app. The hint tokens must change. Settings must be native both times, since it is always native. The hint document only exists once a hint has shown (HintOverlayWidget builds lazily), so the scenario raises one via a real row hold before the toggle (mode off) and again after (mode on), the same trigger hint-shows-on-a-held-row.json uses. Settings is read before/after the same toggle, the technique a sibling scenario's scenario already proved for the command bar.",
+  "fixture": "hotkey-rebind.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "hotkeys": "sidebar-rebind.hotkeys.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "wait_vlog", "pattern": "Atrium: tab [0-9]+ title Example Domain", "timeout_ms": 20000 },
+    { "type": "settle", "ms": 3000 },
+    { "type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot" },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "arm-gesture-hints",
+      "target": "/sidebar",
+      "expression": "(() => { document.documentElement.dataset.gestureHints = 'live'; return 'armed'; })()"
+    },
+    {
+      "type": "eval",
+      "id": "press-before",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.row.tabrow'); if (!row) { return 'no-row'; } const r = row.getBoundingClientRect(); const cx = r.left + r.width / 2; const cy = r.top + r.height / 2; row.dispatchEvent(new PointerEvent('pointerdown', {clientX: cx, clientY: cy, bubbles: true})); return 'pressed'; })()"
+    },
+    { "type": "settle", "ms": 700, "note": "past HOLD_THRESHOLD_MS" },
+    {
+      "type": "eval_until",
+      "id": "hint-text-before",
+      "target": "/hint",
+      "expression": "String((document.querySelector('.hint .hint-text') || {}).textContent || 'no hint')",
+      "expected": "Hold to open in a peek",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "eval",
+      "id": "hint-tokens-before",
+      "target": "/hint",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(r); const t = (n) => (s.getPropertyValue(n) || '').trim().toLowerCase(); return 'surround=' + t('--atrium-surround-color') + ' native=' + r.classList.contains('atrium-native-chrome'); })()"
+    },
+    {
+      "type": "eval",
+      "id": "release-before",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.row.tabrow'); if (!row) { return 'no-row'; } const r = row.getBoundingClientRect(); const cx = r.left + r.width / 2; const cy = r.top + r.height / 2; row.dispatchEvent(new PointerEvent('pointerup', {clientX: cx, clientY: cy, bubbles: true})); return 'released'; })()"
+    },
+    { "type": "settle", "ms": 500 },
+    { "type": "key", "combo": "cmd+comma", "note": "open the settings window on Appearance" },
+    { "type": "settle", "ms": 6000, "note": "the window builds and the route answers" },
+    { "type": "activate" },
+    {
+      "type": "eval",
+      "id": "appearance-pane",
+      "target": "settings",
+      "expression": "(() => { const b = document.querySelector('.settings-rail-item[data-pane=\"appearance\"]'); if (!b) return 'no-pane'; b.click(); return 'clicked'; })()"
+    },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "settings-tokens-before",
+      "target": "settings",
+      "expression": "'native=' + document.documentElement.classList.contains('atrium-native-chrome')"
+    },
+    {
+      "type": "eval",
+      "id": "native-view-on",
+      "target": "settings",
+      "expression": "(() => { const t = document.querySelector('.settings-row[data-key=\"opaqueSurround\"] .settings-row-toggle'); if (!t) return 'no-toggle'; t.click(); return 'clicked'; })()"
+    },
+    { "type": "wait_vlog", "pattern": "Atrium: settings written", "timeout_ms": 6000 },
+    { "type": "settle", "ms": 4000, "note": "covers either the instant snap or the crossfade branch" },
+    {
+      "type": "eval",
+      "id": "settings-tokens-after",
+      "target": "settings",
+      "expression": "'native=' + document.documentElement.classList.contains('atrium-native-chrome')"
+    },
+    { "type": "activate" },
+    {
+      "type": "eval",
+      "id": "press-after",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.row.tabrow'); if (!row) { return 'no-row'; } const r = row.getBoundingClientRect(); const cx = r.left + r.width / 2; const cy = r.top + r.height / 2; row.dispatchEvent(new PointerEvent('pointerdown', {clientX: cx, clientY: cy, bubbles: true})); return 'pressed'; })()"
+    },
+    { "type": "settle", "ms": 700, "note": "past HOLD_THRESHOLD_MS" },
+    {
+      "type": "eval_until",
+      "id": "hint-text-after",
+      "target": "/hint",
+      "expression": "String((document.querySelector('.hint .hint-text') || {}).textContent || 'no hint')",
+      "expected": "Hold to open in a peek",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "eval",
+      "id": "hint-tokens-after",
+      "target": "/hint",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(r); const t = (n) => (s.getPropertyValue(n) || '').trim().toLowerCase(); return 'surround=' + t('--atrium-surround-color') + ' native=' + r.classList.contains('atrium-native-chrome'); })()"
+    },
+    {
+      "type": "capture",
+      "id": "settings-hint-sidebar-native",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "The sidebar, the settings window and the held-row hint bubble all visible together with the mode on"
+    },
+    {
+      "type": "eval",
+      "id": "release-after",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.row.tabrow'); if (!row) { return 'no-row'; } const r = row.getBoundingClientRect(); const cx = r.left + r.width / 2; const cy = r.top + r.height / 2; row.dispatchEvent(new PointerEvent('pointerup', {clientX: cx, clientY: cy, bubbles: true})); return 'released'; })()"
+    }
+  ],
+  "assertions": [
+    { "type": "ax_window_count", "expected": 2, "min_area": 200000, "desc": "the browser window and the settings window, both open at the end of the run" },
+    { "type": "eval_equals", "id": "press-before", "expected": "\"pressed\"", "desc": "the first pointerdown reached the row" },
+    { "type": "eval_equals", "id": "hint-text-before", "expected": "Hold to open in a peek", "desc": "the hint bubble exists so its tokens can be read" },
+    { "type": "eval_equals", "id": "release-before", "expected": "\"released\"", "desc": "the first pointerup reached the row" },
+    { "type": "eval_equals", "id": "native-view-on", "expected": "\"clicked\"", "desc": "the toggle was found and clicked" },
+    { "type": "vlog", "pattern": "Atrium: settings written", "label": "the-setting-landed", "desc": "the toggle reached the file" },
+    { "type": "eval_equals", "id": "press-after", "expected": "\"pressed\"", "desc": "the second pointerdown reached the row" },
+    { "type": "eval_equals", "id": "hint-text-after", "expected": "Hold to open in a peek", "desc": "the hint bubble shows again after the toggle, with a fresh Show() push" },
+    { "type": "eval_equals", "id": "release-after", "expected": "\"released\"", "desc": "the second pointerup reached the row" },
+    { "type": "eval_equals", "id": "settings-tokens-before", "expected": "\"native=true\"", "desc": "settings is native with Native app view off" },
+    { "type": "eval_equals", "id": "settings-tokens-after", "expected": "\"native=true\"", "desc": "and stays native after the toggle" },
+    {
+      "type": "eval_changed",
+      "before": "hint-tokens-before",
+      "after": "hint-tokens-after",
+      "desc": "The hint bubble's tokens change too, not only the sidebar and the command bar"
+    },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

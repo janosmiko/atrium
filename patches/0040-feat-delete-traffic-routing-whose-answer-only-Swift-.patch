@@ -1,0 +1,153 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 13:38:47 +0200
+Subject: [PATCH 040/154] feat: delete traffic routing, whose answer only Swift
+ had
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Every route decision came from UIBridge::CopyRouteForURL, so all three hooks
+have declined on their first line since the cut. The feature and its later
+fix have both been dead for a day.
+
+Gone: MaybeRerouteNavigation (chrome::Navigate), MaybeRerouteNewContents
+(window.open), MaybeRerouteRendererNavigation and the throttle that called
+it, both upstream call sites, the throttle registration, and the friend
+declarations that let a reroute reach BrowserController's private surface.
+
+ScopedRoutingBypass goes with them, and this corrects my own note on the
+task. NewTabWithURL does construct one at every AddTabAt, but g_routing_bypass
+had no reader outside the three hooks, so it set a value nobody read. The
+loop-prevention contract it carried is recorded for the follow-up.
+
+Kept, with its gtest suite: atrium_routing_navigation_decision. It is the
+pure eligibility rule - main frame, renderer-initiated, not same-document,
+user gesture, link transition, http or https, no bypass, resolvable
+non-little controller - and the only place that rule is written down. The
+rebuild starts from it rather than from a re-reading of the throttle.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../browser/chrome_content_browser_client.cc  |  8 --------
+ chrome/browser/ui/BUILD.gn                    |  4 ----
+ chrome/browser/ui/browser.cc                  | 16 ---------------
+ .../browser/ui/navigator/browser_navigator.cc | 20 -------------------
+ 4 files changed, 48 deletions(-)
+
+diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
+index e443fdb4830f5..904c6efe26037 100644
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -600,7 +600,6 @@
+ 
+ #if BUILDFLAG(IS_MAC)
+ #include "chrome/browser/ui/atrium/atrium_peek_navigation_throttle.h"
+-#include "chrome/browser/ui/atrium/atrium_routing_navigation_throttle.h"
+ #endif  // BUILDFLAG(IS_MAC)
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+@@ -5675,13 +5674,6 @@ void ChromeContentBrowserClient::CreateThrottlesForNavigation(
+   // vanilla/degraded dylib - MaybeCreateAndAdd only registers when the peek
+   // ABI group is connected.
+   atrium::AtriumPeekNavigationThrottle::MaybeCreateAndAdd(registry);
+-
+-  // Traffic routing Hook 3: chrome::Navigate() (Hook 1) never sees
+-  // a plain same-tab link click - it resolves via the renderer's own
+-  // BeginNavigation. This throttle is the seam that does see it. No-op for
+-  // a vanilla/degraded dylib or one with the routing group not connected -
+-  // MaybeCreateAndAdd only registers when routing_connected().
+-  atrium::AtriumRoutingNavigationThrottle::MaybeCreateAndAdd(registry);
+ #endif  // BUILDFLAG(IS_MAC)
+ }
+ 
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 3b7f6db7bf213..37947b0f56276 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3497,12 +3497,8 @@ static_library("ui") {
+       "atrium/atrium_peek_navigation_throttle.h",
+       "atrium/atrium_profile_bootstrap.h",
+       "atrium/atrium_profile_bootstrap.cc",
+-      "atrium/atrium_routing_navigation_throttle.cc",
+-      "atrium/atrium_routing_navigation_throttle.h",
+       "atrium/atrium_status_bubble_hook.h",
+       "atrium/atrium_status_bubble_hook.cc",
+-      "atrium/atrium_traffic_routing.h",
+-      "atrium/atrium_traffic_routing.cc",
+   ]
+ 
+   if (is_mac) {
+diff --git a/chrome/browser/ui/browser.cc b/chrome/browser/ui/browser.cc
+index 622a8c0f64303..a238181505c59 100644
+--- a/chrome/browser/ui/browser.cc
++++ b/chrome/browser/ui/browser.cc
+@@ -294,7 +294,6 @@
+ #if BUILDFLAG(IS_MAC)
+ #include "chrome/browser/ui/atrium/atrium_peek_intercept.h"
+ #include "chrome/browser/ui/atrium/atrium_status_bubble_hook.h"
+-#include "chrome/browser/ui/atrium/atrium_traffic_routing.h"
+ #include "chrome/browser/ui/atrium/atrium_ui_bridge.h"
+ #include "ui/display/display.h"
+ #include "ui/display/screen.h"
+@@ -1714,21 +1713,6 @@ content::WebContents* Browser::AddNewContents(
+     }
+   }
+ 
+-#if BUILDFLAG(IS_MAC)
+-  // Traffic routing Hook 2 (window.open, 2026-07-10 plan Task 4): the
+-  // renderer already pre-created `new_contents` and started its initial
+-  // load before Chromium reaches this point - Hook 1 (chrome::Navigate(),
+-  // browser_navigator.cc) never sees a window.open's URL at all, so this is
+-  // the only place that can catch it. A cross-profile match destroys
+-  // `new_contents` and reopens the URL on the target profile's controller
+-  // instead of ever inserting it into this Browser's strip; a same-profile
+-  // match or a non-match falls through unchanged.
+-  if (atrium::MaybeRerouteNewContents(this, source, new_contents,
+-                                      target_url)) {
+-    return nullptr;
+-  }
+-#endif  // BUILDFLAG(IS_MAC)
+-
+   return chrome::AddWebContents(this, source, std::move(new_contents),
+                                 target_url, disposition, window_features,
+                                 window_action, user_gesture);
+diff --git a/chrome/browser/ui/navigator/browser_navigator.cc b/chrome/browser/ui/navigator/browser_navigator.cc
+index 617d904dc944f..1474d759454a8 100644
+--- a/chrome/browser/ui/navigator/browser_navigator.cc
++++ b/chrome/browser/ui/navigator/browser_navigator.cc
+@@ -29,7 +29,6 @@
+ #include "chrome/browser/renderer_host/chrome_navigation_ui_data.h"
+ #include "chrome/browser/tab_contents/tab_util.h"
+ #if BUILDFLAG(IS_MAC)
+-#include "chrome/browser/ui/atrium/atrium_traffic_routing.h"
+ #endif  // BUILDFLAG(IS_MAC)
+ #include "chrome/browser/ui/browser.h"
+ #include "chrome/browser/ui/browser_window.h"
+@@ -635,25 +634,6 @@ base::WeakPtr<content::NavigationHandle> Navigate(NavigateParams* params) {
+                                   ->GetActiveWebContents();
+   }
+ 
+-#if BUILDFLAG(IS_MAC)
+-  // Traffic routing Hook 1 (2026-07-10 plan, Task 3): after source_contents
+-  // is resolved (a same-profile CURRENT_TAB reroute needs it, to decide
+-  // whether the origin tab is fresh enough to close) but before
+-  // GetBrowserAndTabForDisposition() below picks/creates the destination
+-  // browser - a rerouted navigation must not have chrome's own disposition
+-  // handling run first. atrium/atrium_traffic_routing.{h,mm} only build on
+-  // Mac (chrome/browser/ui/BUILD.gn's is_mac source list, same footprint as
+-  // every other atrium/ file this navigator.cc is otherwise untouched by),
+-  // hence the guard. MaybeRerouteNavigation() returning true means it took
+-  // over the navigation entirely (either handed off same-profile-passthrough
+-  // to Swift's already-armed adoption record, or rerouted CURRENT_TAB
+-  // itself) - cancel here with no NavigationHandle, the same contract as
+-  // every other early-nullptr path in this function.
+-  if (atrium::MaybeRerouteNavigation(params)) {
+-    return nullptr;
+-  }
+-#endif  // BUILDFLAG(IS_MAC)
+-
+   WebContents* contents_to_navigate_or_insert =
+       params->contents_to_insert.get();
+   if (params->switch_to_singleton_tab) {

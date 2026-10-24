@@ -1,0 +1,83 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 19:38:07 +0200
+Subject: [PATCH 049/154] feat: auto-peek's throttle comes back, on the Rust
+ answer
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The throttle, ShouldAutoPeek and OpenAutoPeek were all removed with the ABI,
+not just re-pointed - the task description said the registration survived, and
+it had not.
+
+ShouldAutoPeek fills PeekDecisionInputs from live objects and asks
+atrium_core_is_peek_source_url for the one field Swift used to answer. It asks
+LAST, and only when the cheap fields already agree, because that call takes the
+core's lock and walks the active space. The profile id is derived the way
+BrowserController derives its own cached one, so no accessor had to be opened
+up.
+
+MaybeCreateAndAdd no longer gates on anything. It used to refuse to register
+without a dylib export; a statically linked core cannot be absent, so the
+content-side gates carry the per-navigation cost instead.
+
+Registered under BUILDFLAG(IS_MAC), the same footprint as the rest of atrium/.
+
+A throttle now runs on every navigation, so the check that mattered before
+commit was that ordinary navigation still works: sidebar-row-click 3 of 3,
+which opens a cross-site tab, and devtools-dock 2 of 2.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/chrome_content_browser_client.cc | 8 ++++++++
+ chrome/browser/ui/BUILD.gn                      | 2 ++
+ 2 files changed, 10 insertions(+)
+
+diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
+index 356faf9cbdbe6..71154cffec88c 100644
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -180,6 +180,9 @@
+ #include "chrome/browser/task_manager/task_manager_interface.h"
+ #include "chrome/browser/tracing/chrome_tracing_delegate.h"
+ #include "chrome/browser/translate/translate_service.h"
++#if BUILDFLAG(IS_MAC)
++#include "chrome/browser/ui/atrium/atrium_peek_navigation_throttle.h"
++#endif
+ #include "chrome/browser/ui/blocked_content/blocked_window_params.h"
+ #include "chrome/browser/ui/blocked_content/chrome_popup_navigation_delegate.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+@@ -5664,6 +5667,11 @@ void ChromeContentBrowserClient::RemovePresentationObserver(
+ void ChromeContentBrowserClient::CreateThrottlesForNavigation(
+     content::NavigationThrottleRegistry& registry) {
+   CreateAndAddChromeThrottlesForNavigation(registry);
++#if BUILDFLAG(IS_MAC)
++  // Auto-peek. An off-site link click from a pinned or favourited
++  // tab opens the Keyhole instead of navigating that tab away.
++  atrium::AtriumPeekNavigationThrottle::MaybeCreateAndAdd(registry);
++#endif
+ }
+ 
+ std::vector<std::unique_ptr<content::CommitDeferringCondition>>
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 35ff75f497e4a..24221b1e05b32 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3494,6 +3494,7 @@ static_library("ui") {
+       "atrium/atrium_main_extra_parts.h",
+       "atrium/atrium_main_extra_parts.cc",
+       "atrium/atrium_peek_intercept.cc",
++      "atrium/atrium_peek_navigation_throttle.cc",
+       "atrium/atrium_profile_bootstrap.h",
+       "atrium/atrium_profile_bootstrap.cc",
+       "atrium/atrium_status_bubble_hook.h",
+@@ -3525,6 +3526,7 @@ static_library("ui") {
+       "atrium/atrium_native_hotkey_map.h",
+       "atrium/atrium_native_hotkey_map.mm",
+       "atrium/atrium_peek_intercept.h",
++      "atrium/atrium_peek_navigation_throttle.h",
+       "atrium/atrium_peek_widget.h",
+       "atrium/atrium_peek_widget.mm",
+       "atrium/atrium_sidebar_overlay_widget.h",

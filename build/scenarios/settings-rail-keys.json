@@ -1,0 +1,76 @@
+{
+  "name": "settings-rail-keys",
+  "description": "the settings rail, driven by the keyboard alone. settings-tab-row proves the SAME selection move via a click and says in its own description why: at the time it was rewritten settings.js had no keydown handler, so an arrow key left both captures byte-identical (delta=0.00). This scenario is the other half - it sends no pointer input at all, so the only thing that can move the selected fill off General is the rail's keyboard path (railKey() in installSettings, plus the open-time focus() that puts the keyboard on the rail in the first place). If either regresses, nothing else on this surface can make the assertion pass.",
+  "fixture": "presenter-startup.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the browser window finish first paint"
+    },
+    {
+      "type": "activate",
+      "note": "Atrium MUST be frontmost or cmd+comma opens Finder Settings instead - observed, see settings-tab-row"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "open Settings; its menu item is not reachable from a scenario"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "window opens on General - renderSettings(root, PANES[0].id)"
+    },
+    {
+      "type": "capture",
+      "id": "general",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "rail, General selected and holding focus"
+    },
+    {
+      "type": "key",
+      "combo": "down",
+      "note": "THE MEASUREMENT. No click, no Tab: the window must already have the keyboard on the rail for this to reach a '.settings-rail-item'. One step lands on Appearance, the same pane settings-tab-row reaches by clicking."
+    },
+    {
+      "type": "settle",
+      "ms": 1000,
+      "note": "renderSettings() is a synchronous DOM rebuild, no CSS transition in settings.css - slack for the ssh/capture round trip, not an animation"
+    },
+    {
+      "type": "capture",
+      "id": "appearance",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "rail, Appearance selected"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "theme_changed",
+      "before": "general",
+      "after": "appearance",
+      "region": [
+        256,
+        78,
+        70,
+        42
+      ],
+      "min_delta": 15,
+      "desc": "region re-measured 2026-08-17 against the TOP rail, the same correction settings-tab-row needed. The old region [85,81,207,29] was over the left column, where it reads delta=6.91 - under the threshold, while the pane behind it really does switch. This region covers the General pill alone (x=256-326, y=78-120). It must stay on ONE pill: pixcmp's delta is a euclidean distance between region MEANS, so a region spanning both General and Appearance cancels to delta=8.09. The 'down' key itself is still correct - RAIL_STEP in settings.js:1510 maps ArrowDown to +1, so it steps General to Appearance on the horizontal rail too."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits with the settings window open"
+    }
+  ]
+}

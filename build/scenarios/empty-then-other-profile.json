@@ -1,0 +1,95 @@
+{
+  "name": "empty-then-other-profile",
+  "description": "space 1 (Default) shows a page, space 2 (Default) is empty, space 3 (another profile) holds only cold pinned rows. Switching 1 -> 2 -> 3 must never bring space 1's page back into the pane. The page records its own visibility, so the read says whether the pane re-attached it.",
+  "fixture": "empty-then-other-profile.spaces.json",
+  "startup_space": "12640001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "space1-page-up",
+      "target": "long-page.html?space1",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/long-page.html?space1",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "watch-visibility",
+      "target": "long-page.html?space1",
+      "expression": "(() => { window.__vis = [document.visibilityState]; document.addEventListener('visibilitychange', () => window.__vis.push(document.visibilityState)); return window.__vis.join(','); })()"
+    },
+    {
+      "type": "eval",
+      "id": "select-space-2",
+      "target": "/sidebar",
+      "expression": "(() => { chrome.send('sidebarSpaceSelected', [1]); return 'sent'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 0 -> 1",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "on-space-2",
+      "target": "long-page.html?space1",
+      "expression": "document.visibilityState + ' ' + window.__vis.join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "select-space-3",
+      "target": "/sidebar",
+      "expression": "(() => { chrome.send('sidebarSpaceSelected', [2]); return 'sent'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 1 -> 2",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 3500
+    },
+    {
+      "type": "eval",
+      "id": "on-space-3",
+      "target": "long-page.html?space1",
+      "expression": "document.visibilityState + ' ' + window.__vis.join(',')"
+    },
+    {
+      "type": "capture",
+      "id": "space-3",
+      "duration_ms": 400,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "on-space-2",
+      "expected": "\"hidden visible,hidden\"",
+      "desc": "CONTROL: leaving for the empty space hides space 1's page"
+    },
+    {
+      "type": "eval_equals",
+      "id": "on-space-3",
+      "expected": "\"hidden visible,hidden\"",
+      "desc": "THE CLAIM: the other profile's space never re-shows space 1's page"
+    },
+    {
+      "type": "vlog",
+      "label": "switched-to-the-other-profile",
+      "pattern": "Atrium: active space 1 -> 2"
+    }
+  ]
+}

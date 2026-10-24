@@ -1,0 +1,435 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 30 Aug 2026 19:01:45 +0200
+Subject: [PATCH 095/154] feat(quit): restyle the hold-to-quit panel in the
+ overlay language
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The panel wears the overlay surface, ink, radius and shadow, and renders the shortcut as keycaps. It measured its label with the string width, but an NSTextField cell insets text 2pt a side and wraps by default, so the trailing words were cut and the window was sized too narrow. Measuring the cell fixes both.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/cocoa/confirm_quit.cc       |   6 +
+ .../ui/cocoa/confirm_quit_panel_controller.mm | 314 ++++++++++++++----
+ 2 files changed, 262 insertions(+), 58 deletions(-)
+
+diff --git a/chrome/browser/ui/cocoa/confirm_quit.cc b/chrome/browser/ui/cocoa/confirm_quit.cc
+index a36a97c4bca77..41547a093ae5c 100644
+--- a/chrome/browser/ui/cocoa/confirm_quit.cc
++++ b/chrome/browser/ui/cocoa/confirm_quit.cc
+@@ -30,6 +30,12 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
+   // who wants it. The app-menu toggle (toggleConfirmToQuit:) and the Settings
+   // toggle read/write this SAME pref, so all three always agree.
+   registry->RegisterBooleanPref(prefs::kConfirmToQuitEnabled, false);
++  // The panel's own appearance mirrors, kept beside the pref that gates
++  // showing it at all. See atrium_confirm_to_quit.h's
++  // SetConfirmQuitPanelAppearance.
++  registry->RegisterBooleanPref(prefs::kAtriumConfirmQuitPanelNative, false);
++  registry->RegisterIntegerPref(prefs::kAtriumConfirmQuitPanelSurroundColor,
++                                -1);
+ }
+ 
+ }  // namespace confirm_quit
+diff --git a/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm b/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
+index 39d8c13c4adc5..44755f08808e6 100644
+--- a/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
++++ b/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
+@@ -7,22 +7,29 @@
+ #import <Cocoa/Cocoa.h>
+ #import <QuartzCore/QuartzCore.h>
+ 
++#include <algorithm>
++
+ #include "base/check_op.h"
+ #include "base/strings/sys_string_conversions.h"
+ #include "chrome/app/chrome_command_ids.h"
+ #include "chrome/browser/browser_process.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/ui/atrium/atrium_confirm_quit_panel_style.h"
+ #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+ #include "chrome/browser/ui/cocoa/confirm_quit.h"
+ #include "chrome/common/pref_names.h"
+ #include "chrome/grit/generated_resources.h"
+ #include "components/prefs/pref_registry_simple.h"
++#include "components/prefs/pref_service.h"
+ #import "components/remote_cocoa/app_shim/native_widget_mac_nswindow.h"
++#import "skia/ext/skia_utils_mac.h"
+ #include "ui/base/accelerators/accelerator.h"
+ #import "ui/base/accelerators/platform_accelerator_cocoa.h"
++#include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/l10n/l10n_util_mac.h"
+ #include "ui/events/cocoa/cocoa_event_utils.h"
+ #include "ui/events/keycodes/keyboard_code_conversion_mac.h"
++#include "third_party/skia/include/core/SkColor.h"
+ #include "ui/gfx/native_ui_types.h"
+ 
+ // Constants ///////////////////////////////////////////////////////////////////
+@@ -36,85 +43,262 @@ constexpr NSTimeInterval kEventQueueWaitTime = 0.1;
+ 
+ namespace {
+ 
+-CGFloat ConfirmQuitFrameCornerRadius() {
+-  if (@available(macOS 26, *)) {
+-    return 20.0;
+-  }
+-  return 9.0;
++// Atrium: the overlay design language's tokens
++// (docs/superpowers/specs/2026-08-29-overlay-design-language-design.md),
++// computed once per show rather than kept live - this panel has no
++// WebContents to receive AtriumBrowserWindow::PushOverlayTheme.
++atrium::ConfirmQuitPanelStyle CurrentPanelStyle() {
++  NSAppearanceName best = [NSApp.effectiveAppearance
++      bestMatchFromAppearancesWithNames:@[
++        NSAppearanceNameAqua, NSAppearanceNameDarkAqua
++      ]];
++  const bool dark = [best isEqualToString:NSAppearanceNameDarkAqua];
++  const PrefService* local_state = g_browser_process->local_state();
++  const bool native =
++      local_state->GetBoolean(prefs::kAtriumConfirmQuitPanelNative);
++  const int surround_argb =
++      local_state->GetInteger(prefs::kAtriumConfirmQuitPanelSurroundColor);
++  const std::optional<SkColor> surround =
++      surround_argb >= 0
++          ? std::make_optional(static_cast<SkColor>(surround_argb))
++          : std::nullopt;
++  return atrium::ComputeConfirmQuitPanelStyle(dark, native, surround);
+ }
+ 
+ }  // namespace
+ 
+ // Custom Content View /////////////////////////////////////////////////////////
+ 
++namespace {
++
++// overlay.css's --ov-row gap (group-to-group) and --ov-keys gap
++// (cap-to-cap), plus the HUD's own outer padding.
++constexpr CGFloat kGroupGap = 10;
++constexpr CGFloat kCapGap = 3;
++constexpr CGFloat kOuterPaddingX = 22;
++constexpr CGFloat kOuterPaddingY = 16;
++constexpr CGFloat kCapRadius = 6;
++
++NSFont* RowFont() {
++  return [NSFont systemFontOfSize:20 weight:NSFontWeightMedium];
++}
++
++}  // namespace
++
++// One keycap chip. Bare in native mode - a transparent key_background and
++// key_underline already paint nothing, so no mode flag of its own is needed.
++@interface AtriumConfirmQuitKeyCapView : NSView {
++ @private
++  NSString* __strong _glyph;
++  SkColor _background;
++  SkColor _underline;
++  SkColor _ink;
++  CGFloat _paddingX;
++  CGFloat _paddingY;
++}
++- (instancetype)initWithGlyph:(NSString*)glyph
++                        style:(const atrium::ConfirmQuitPanelStyle&)style;
++- (NSSize)fittingSize;
++@end
++
++@implementation AtriumConfirmQuitKeyCapView
++
++- (instancetype)initWithGlyph:(NSString*)glyph
++                        style:(const atrium::ConfirmQuitPanelStyle&)style {
++  if ((self = [super initWithFrame:NSZeroRect])) {
++    _glyph = [glyph copy];
++    _background = style.key_background;
++    _underline = style.key_underline;
++    _ink = style.ink;
++    _paddingX = style.key_padding_horizontal;
++    _paddingY = style.key_padding_vertical;
++  }
++  return self;
++}
++
++- (NSDictionary*)textAttributes {
++  return @{
++    NSFontAttributeName : [NSFont monospacedDigitSystemFontOfSize:15
++                                                             weight:NSFontWeightSemibold],
++    NSForegroundColorAttributeName : skia::SkColorToSRGBNSColor(_ink),
++  };
++}
++
++- (NSSize)fittingSize {
++  NSSize text = [_glyph sizeWithAttributes:self.textAttributes];
++  return NSMakeSize(std::max<CGFloat>(text.width, 14) + _paddingX * 2,
++                    text.height + _paddingY * 2);
++}
++
++- (void)drawRect:(NSRect)dirtyRect {
++  NSRect bounds = self.bounds;
++  NSBezierPath* path = [NSBezierPath bezierPathWithRoundedRect:bounds
++                                                        xRadius:kCapRadius
++                                                        yRadius:kCapRadius];
++  [skia::SkColorToSRGBNSColor(_background) set];
++  [path fill];
++  [skia::SkColorToSRGBNSColor(_underline) set];
++  NSRectFill(NSMakeRect(NSMinX(bounds), NSMinY(bounds), NSWidth(bounds), 2));
++
++  NSDictionary* attrs = self.textAttributes;
++  NSSize text = [_glyph sizeWithAttributes:attrs];
++  [_glyph drawAtPoint:NSMakePoint(NSMidX(bounds) - text.width / 2,
++                                  NSMidY(bounds) - text.height / 2)
++       withAttributes:attrs];
++}
++
++@end
++
+ // The content view of the window that draws a custom frame.
+ @interface ConfirmQuitFrameView : NSView {
+  @private
+-  NSTextField* __weak _message;
++  NSTextField* __weak _prefixLabel;
++  NSTextField* __weak _suffixLabel;
++  NSMutableArray<NSView*>* __strong _rowViews;
+ }
+-- (void)setMessageText:(NSString*)text;
++- (void)applyStyle:(const atrium::ConfirmQuitPanelStyle&)style
++             prefix:(NSString*)prefix
++       shortcutCaps:(NSArray<NSString*>*)caps
++             suffix:(NSString*)suffix;
+ @end
+ 
+-@implementation ConfirmQuitFrameView
++@implementation ConfirmQuitFrameView {
++  CGFloat _cornerRadius;
++  SkColor _surfaceColor;
++}
+ 
+ - (instancetype)initWithFrame:(NSRect)frameRect {
+   if ((self = [super initWithFrame:frameRect])) {
+-    // The frame will be fixed up when |-setMessageText:| is called.
+-    NSTextField* message = [[NSTextField alloc] initWithFrame:NSZeroRect];
+-    message.editable = NO;
+-    message.selectable = NO;
+-    message.bezeled = NO;
+-    message.drawsBackground = NO;
+-    message.font = [NSFont boldSystemFontOfSize:24];
+-    message.textColor = NSColor.whiteColor;
+-    [self addSubview:message];
+-    _message = message;
++    self.wantsLayer = YES;
++    NSTextField* prefix = [self makeLabel];
++    NSTextField* suffix = [self makeLabel];
++    [self addSubview:prefix];
++    [self addSubview:suffix];
++    _prefixLabel = prefix;
++    _suffixLabel = suffix;
++    _rowViews = [NSMutableArray array];
+   }
+   return self;
+ }
+ 
++- (NSTextField*)makeLabel {
++  NSTextField* label = [[NSTextField alloc] initWithFrame:NSZeroRect];
++  label.editable = NO;
++  label.selectable = NO;
++  label.bezeled = NO;
++  label.drawsBackground = NO;
++  label.font = RowFont();
++  // The row is one line by construction. Left wrapping, an NSTextField reflows
++  // as soon as its frame is a hair narrow and the tail of the line vanishes.
++  label.usesSingleLineMode = YES;
++  label.lineBreakMode = NSLineBreakByClipping;
++  return label;
++}
++
+ - (void)drawRect:(NSRect)dirtyRect {
+-  const CGFloat cornerRadius = ConfirmQuitFrameCornerRadius();
+   NSBezierPath* path = [NSBezierPath bezierPathWithRoundedRect:self.bounds
+-                                                       xRadius:cornerRadius
+-                                                       yRadius:cornerRadius];
+-
+-  NSColor* fillColor = [NSColor colorWithCalibratedWhite:0.2 alpha:0.75];
+-  [fillColor set];
++                                                       xRadius:_cornerRadius
++                                                       yRadius:_cornerRadius];
++  [skia::SkColorToSRGBNSColor(_surfaceColor) set];
+   [path fill];
+ }
+ 
+-- (void)setMessageText:(NSString*)text {
+-  const CGFloat kHorizontalPadding = 30;  // In view coordinates.
+-
+-  // Style the string.
+-  NSMutableAttributedString* attrString =
+-      [[NSMutableAttributedString alloc] initWithString:text];
+-  NSShadow* textShadow = [[NSShadow alloc] init];
+-  textShadow.shadowColor = [NSColor colorWithCalibratedWhite:0 alpha:0.6];
+-  textShadow.shadowOffset = NSMakeSize(0, -1);
+-  textShadow.shadowBlurRadius = 1.0;
+-  [attrString addAttribute:NSShadowAttributeName
+-                     value:textShadow
+-                     range:NSMakeRange(0, text.length)];
+-  _message.attributedStringValue = attrString;
+-
+-  // Fixup the frame of the string.
+-  [_message sizeToFit];
+-  NSRect messageFrame = _message.frame;
+-  NSRect frameInViewSpace = [_message convertRect:self.window.frame
+-                                         fromView:nil];
+-
+-  if (NSWidth(messageFrame) > NSWidth(frameInViewSpace)) {
+-    frameInViewSpace.size.width = NSWidth(messageFrame) + kHorizontalPadding;
++- (void)applyStyle:(const atrium::ConfirmQuitPanelStyle&)style
++             prefix:(NSString*)prefix
++       shortcutCaps:(NSArray<NSString*>*)caps
++             suffix:(NSString*)suffix {
++  _cornerRadius = style.corner_radius;
++  _surfaceColor = style.surface;
++  self.layer.shadowColor = skia::SkColorToSRGBNSColor(style.ink).CGColor;
++  self.layer.shadowOpacity = 0.22;
++  self.layer.shadowRadius = 18;
++  self.layer.shadowOffset = NSMakeSize(0, -6);
++
++  NSDictionary* textAttrs = @{
++    NSFontAttributeName : RowFont(),
++    NSForegroundColorAttributeName : skia::SkColorToSRGBNSColor(style.ink),
++  };
++  [self setLabel:_prefixLabel text:prefix attributes:textAttrs];
++  [self setLabel:_suffixLabel text:suffix attributes:textAttrs];
++
++  for (NSView* view in _rowViews) {
++    if (view != _prefixLabel && view != _suffixLabel) {
++      [view removeFromSuperview];
++    }
++  }
++  [_rowViews removeAllObjects];
++  if (!_prefixLabel.hidden) {
++    [_rowViews addObject:_prefixLabel];
++  }
++  for (NSString* cap in caps) {
++    AtriumConfirmQuitKeyCapView* capView =
++        [[AtriumConfirmQuitKeyCapView alloc] initWithGlyph:cap style:style];
++    [self addSubview:capView];
++    [_rowViews addObject:capView];
++  }
++  if (!_suffixLabel.hidden) {
++    [_rowViews addObject:_suffixLabel];
+   }
+ 
+-  messageFrame.origin.x = NSWidth(frameInViewSpace) / 2 - NSMidX(messageFrame);
+-  messageFrame.origin.y = NSHeight(frameInViewSpace) / 2 - NSMidY(messageFrame);
++  [self layoutRowAndResizeWindow];
++}
+ 
+-  [self.window setFrame:[_message convertRect:frameInViewSpace toView:nil]
+-                display:YES];
+-  _message.frame = messageFrame;
++- (void)setLabel:(NSTextField*)label
++            text:(NSString*)text
++      attributes:(NSDictionary*)attributes {
++  label.attributedStringValue =
++      [[NSAttributedString alloc] initWithString:text attributes:attributes];
++  label.hidden = text.length == 0;
++}
++
++- (NSSize)fittingSizeOfRowView:(NSView*)view {
++  if ([view isKindOfClass:[AtriumConfirmQuitKeyCapView class]]) {
++    return [(AtriumConfirmQuitKeyCapView*)view fittingSize];
++  }
++  // -cellSize, not the attributed string's own size: the cell insets its text
++  // by 2pt a side, so the string size draws the label 4pt too narrow.
++  return [((NSTextField*)view).cell cellSize];
++}
++
++// Content-fit rather than fixed: the string is localized, and the shortcut
++// itself is whatever the app menu's Quit item resolves to.
++- (void)layoutRowAndResizeWindow {
++  NSMutableArray<NSValue*>* sizes = [NSMutableArray array];
++  CGFloat totalWidth = 0;
++  CGFloat maxHeight = 0;
++  for (NSUInteger i = 0; i < _rowViews.count; ++i) {
++    NSSize size = [self fittingSizeOfRowView:_rowViews[i]];
++    [sizes addObject:[NSValue valueWithSize:size]];
++    maxHeight = std::max(maxHeight, size.height);
++    if (i > 0) {
++      totalWidth += [self gapBefore:i];
++    }
++    totalWidth += size.width;
++  }
++
++  const NSSize contentSize = NSMakeSize(totalWidth + kOuterPaddingX * 2,
++                                        maxHeight + kOuterPaddingY * 2);
++  [self.window setContentSize:contentSize];
++  self.frame = NSMakeRect(0, 0, contentSize.width, contentSize.height);
++
++  CGFloat x = kOuterPaddingX;
++  const CGFloat centerY = contentSize.height / 2;
++  for (NSUInteger i = 0; i < _rowViews.count; ++i) {
++    if (i > 0) {
++      x += [self gapBefore:i];
++    }
++    const NSSize size = sizes[i].sizeValue;
++    _rowViews[i].frame =
++        NSMakeRect(x, centerY - size.height / 2, size.width, size.height);
++    x += size.width;
++  }
++}
++
++- (CGFloat)gapBefore:(NSUInteger)index {
++  const BOOL bothCaps =
++      [_rowViews[index] isKindOfClass:[AtriumConfirmQuitKeyCapView class]] &&
++      [_rowViews[index - 1] isKindOfClass:[AtriumConfirmQuitKeyCapView class]];
++  return bothCaps ? kCapGap : kGroupGap;
+ }
+ 
+ @end
+@@ -174,6 +358,7 @@ typedef NS_ENUM(NSInteger, FadeWindowsOperation) { kHide, kShow };
+ - (NSEvent*)waitForKeyEventUpWithTimeout:(NSTimeInterval)timeout;
+ - (void)hideAllWindowsWithDuration:(NSTimeInterval)duration;
+ - (void)sendAccessibilityAnnouncement;
++- (void)refreshAppearanceAndShortcut;
+ @end
+ 
+ static BOOL __strong (^g_isKeyDownForKeyCodeMock)(unsigned short) = nil;
+@@ -248,16 +433,28 @@ BOOL isKeyDownForKeyCode(unsigned short keyCode) {
+     ConfirmQuitFrameView* frameView =
+         [[ConfirmQuitFrameView alloc] initWithFrame:frame];
+     window.contentView = frameView;
+-
+-    // Set the proper string.
+-    NSString* message = l10n_util::GetNSStringF(
+-        IDS_CONFIRM_TO_QUIT_DESCRIPTION,
+-        base::SysNSStringToUTF16(ConfirmQuitPanelController.keyCommandString));
+-    frameView.messageText = message;
++    _contentView = frameView;
+   }
+   return self;
+ }
+ 
++// Recomputed on every show, not just at -init: dark/light and the native-app
++// chrome setting can both change mid-session, and this HUD is shown many
++// times over one.
++- (void)refreshAppearanceAndShortcut {
++  const atrium::ConfirmQuitLabelParts parts = atrium::SplitConfirmQuitLabel(
++      l10n_util::GetStringUTF16(IDS_CONFIRM_TO_QUIT_DESCRIPTION),
++      base::SysNSStringToUTF16(ConfirmQuitPanelController.keyCommandString));
++  NSMutableArray<NSString*>* caps = [NSMutableArray array];
++  for (const std::u16string& cap : parts.caps) {
++    [caps addObject:base::SysUTF16ToNSString(cap)];
++  }
++  [_contentView applyStyle:CurrentPanelStyle()
++                     prefix:base::SysUTF16ToNSString(parts.prefix)
++               shortcutCaps:caps
++                     suffix:base::SysUTF16ToNSString(parts.suffix)];
++}
++
+ - (BOOL)runConfirmQuitLoopWithEvent:(NSEvent*)event
+                   dismissedCallback:(void (^)())dismissedCallback {
+   _dismissedCallback = [dismissedCallback copy];
+@@ -367,6 +564,7 @@ BOOL isKeyDownForKeyCode(unsigned short keyCode) {
+       keepAlive = self;
+ 
+   self.window.animations = @{};
++  [self refreshAppearanceAndShortcut];
+   [self.window center];
+   self.window.alphaValue = 1.0;
+   [super showWindow:sender];

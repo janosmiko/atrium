@@ -1,0 +1,60 @@
+{
+  "name": "bracket-chord-control",
+  "description": "control. Identical to bracket-chord-switches-tab with the chord REMOVED, to tell 'the chord switched the tab' apart from 'startup opened both rows anyway'. Without this the other scenario's evidence is only that two tabs exist, which proves nothing about the key.",
+  "fixture": "two-tabs.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the window finish first paint and the sidebar announce itself"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "the row opens and the page starts loading"
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 400,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: tab [0-9]+ url http://127\\.0\\.0\\.1",
+      "max": 1,
+      "label": "nothing-reaches-the-next-row-on-its-own",
+      "desc": "The other half of the pair. Startup opens the active row alone, so the fixture's shared test host must commit exactly once here - measured: this run loads tab 1 alone while the chord run loads tab 1 and tab 2, which would push this past 1."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "label": "still-one-window",
+      "desc": "Liveness, and a guard against the chord reaching something that opens a window."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

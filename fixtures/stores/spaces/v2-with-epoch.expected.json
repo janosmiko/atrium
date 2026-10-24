@@ -1,0 +1,69 @@
+{
+  "appState" : {
+    "activeSpaceID" : "00000000-0000-4000-8000-000000000001",
+    "archiveEpoch" : 700000000,
+    "schemaVersion" : 6,
+    "sidebarWidth" : 240,
+    "sidebarWidthMigrated" : true
+  },
+  "archived" : [
+    {
+      "archivedAt" : 700000000,
+      "id" : "00000000-0000-4000-8000-000000000002",
+      "reason" : "archived",
+      "spaceID" : "00000000-0000-4000-8000-000000000001",
+      "title" : "Old",
+      "url" : "https://example.com/old"
+    }
+  ],
+  "doorways" : [
+
+  ],
+  "favorites" : [
+    {
+      "profileID" : "Default",
+      "title" : "Example",
+      "url" : "https://example.com/"
+    }
+  ],
+  "notes" : [
+
+  ],
+  "profiles" : [
+    {
+      "id" : "Default",
+      "name" : "Personal"
+    }
+  ],
+  "shelf" : [
+
+  ],
+  "snoozed" : [
+
+  ],
+  "spaces" : [
+    {
+      "emoji" : "🏠",
+      "groups" : [
+
+      ],
+      "id" : "00000000-0000-4000-8000-000000000001",
+      "name" : "Personal",
+      "order" : 0,
+      "pinnedCollapsed" : false,
+      "pinnedTabs" : [
+
+      ],
+      "profileID" : "Default",
+      "tabs" : [
+        {
+          "lastActiveAt" : 700000000,
+          "title" : "One",
+          "url" : "https://example.com/one"
+        }
+      ],
+      "tint" : "atriumSolarized",
+      "tintStrength" : 1
+    }
+  ]
+}

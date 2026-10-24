@@ -1,0 +1,126 @@
+{
+  "name": "page-tint-follows-the-page",
+  "description": "With chromePageTint on, the chrome drifts toward the active page's declared colour, so switching from a crimson page to a teal one repaints the sidebar backdrop. The two fixture pages declare theme-color and nothing else, so the only thing that changes between the captures is which page is in front. Its partner page-tint-off proves the same switch leaves the chrome alone when the setting is off - without that pair, this assertion would pass for any repaint at all.",
+  "fixture": "page-tint.spaces.json",
+  "settings": "page-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the first tab commit and declare its theme-color"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "capture",
+      "id": "crimson",
+      "duration_ms": 500,
+      "fps": 10,
+      "note": "the chrome while the crimson page is in front"
+    },
+    {
+      "type": "eval_until",
+      "id": "row-click-4",
+      "target": "/sidebar",
+      "expression": "(() => { const r = [...document.querySelectorAll('.row.tabrow')].find(x => x.textContent.includes(\"Teal\")); if (!r) return 'no-row'; r.click(); return 'clicked'; })()",
+      "expected": "clicked",
+      "timeout_ms": 5000,
+      "note": "Found by title, not by a coordinate the row heights keep moving. the Teal row. A click is the gesture a user makes, and nextTab's cmd+shift+] had no harness key when this was written. Re-measured 2026-08-27 off this scenario's own crimson capture: the sidebar gained a favourites placeholder above the rows since the 2026-08-16 reading of 413, which had been landing in empty sidebar and failing the control below."
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "the drift is an animation, so it needs longer than a paint"
+    },
+    {
+      "type": "scroll",
+      "x": 600,
+      "y": 400,
+      "dy": -600,
+      "note": "A burst of paints with no navigation and no theme-color change. A per-paint sampler would log through all of it.",
+      "dx": 0
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "teal",
+      "duration_ms": 500,
+      "fps": 10,
+      "note": "the chrome while the teal page is in front"
+    },
+    {
+      "type": "eval_until",
+      "id": "teal-page",
+      "target": "theme-color-teal.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/theme-color-teal.html",
+      "timeout_ms": 8000,
+      "note": "the teal page committed, read from the page itself"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "teal-page",
+      "expected": "http://127.0.0.1:8000/theme-color-teal.html",
+      "label": "the-switch-really-happened",
+      "desc": "THE CONTROL: the teal page committed, so the measurement below is not grading two captures of the same page. Without it a region that never moved would pass for the wrong reason - the switch never having happened."
+    },
+    {
+      "type": "region_stable",
+      "before": "crimson",
+      "after": "teal",
+      "region": [
+        10,
+        460,
+        60,
+        100
+      ],
+      "desc": "THE MEASUREMENT, inverted since the ambilight rework: the sidebar column keeps the space tint across the switch. The page colour lands in the band beside the card only.",
+      "note": "Clean sidebar backdrop below the last row and above the dots bar, so no row content moves through the sample.",
+      "max_delta": 6
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: page tint sampled",
+      "max": 10,
+      "min": 1,
+      "label": "sampled-per-event-not-per-paint",
+      "desc": "The sampler ran a handful of times across two page loads and a scroll burst. A per-paint reader would be in the hundreds. The floor of 1 stops a pattern that matches nothing from satisfying the ceiling. The ceiling was 6 and this run matched exactly 6 - no headroom - once an active-tab change became a third event source alongside a commit and a theme-color change."
+    },
+    {
+      "type": "theme_changed",
+      "before": "crimson",
+      "after": "teal",
+      "region": [
+        206,
+        460,
+        16,
+        100
+      ],
+      "min_delta": 5,
+      "desc": "The band beside the card follows the page.",
+      "note": "Clean sidebar backdrop below the last row and above the dots bar, so no row content moves through the sample."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

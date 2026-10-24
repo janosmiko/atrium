@@ -1,0 +1,47 @@
+{
+  "name": "opaque-surround",
+  "description": "Plus the corner-clip check the design never performed. Seeds opaqueSurround=true via ATRIUM_SETTINGS_FILE rather than driving Settings > Appearance, because synthetic SwiftUI control commits are unreliable and would test the input path instead of the rendering. Captures the full window so the corners can be inspected for the known fingerprint: four r-by-r notches where a square fill overruns the rounded silhouette.\n\nThis is the scenario that CANNOT assert its capture. Three reasons, in the order they bite.\n\nONE, the setting reaches the window now, and this pair can see it. SetWindowAppearance sets it, and a second path carries the mode into the sidebar page. Measured 2026-08-26 across this pair, control frame-007 against surround-on frame-004: the bottom gutter [400,700,200,2] reads 88.1,102.4,103.1 with the mode off and 208.0,208.0,208.0 with it on, and the sidebar column [20,60,180,630] goes from mean 106.0,122.5,127.1 variance 171.2 to mean 251.7 variance 293.3. The frames are no longer indistinguishable.\n\nTWO, the comparison this pair wants is across two scenarios, and no assertion in this harness reaches outside its own run. theme_changed and region_stable both resolve their before/after through CAPTURE_LAST, which is reset per scenario (vm-scenario.sh:1233).\n\nTHREE, even inside one run the right measure is not expressible. Glass and opaque differ in FLATNESS, not in mean colour: the left gutter reads variance 211.8 under glass because it is a gradient, and an opaque fill would collapse that toward zero while barely moving the mean. That is a one-frame variance gate. pixcmp already computes variance (vm-tools/pixcmp.swift regionStat) and prints it as evidence, but every assertion grades the MEAN delta between two frames, so nothing can act on it. The same holds for sidebar-vertical-band, and the work is the same two files: build/pixcmp and build/scenarios/lib/parse.py.\n\nSo no pixel assertion is added here, and reason TWO is the one that still holds: the difference is real and it lives across two runs, where nothing in this harness can reach it.\n\nthe capture gates on 'Atrium: sidebar rows drawn', the line the page sends once it has rows in the DOM, rather than on a fixed settle. Six runs of the old shape caught an empty sidebar in five, so no frame from that shape is cited.",
+  "fixture": "space-cycle.spaces.json",
+  "startup_space": "a276b002-0000-0000-0000-000000000002",
+  "settings": "opaque-surround.settings.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000,
+      "note": "the capture waits for the page to announce that it has drawn rows. A fixed 3000ms wait caught an empty sidebar five runs in six."
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "surround-on",
+      "ms": 1200,
+      "note": "the whole window with the opaque surround enabled. Kept as evidence, not as a measurement - nothing grades it, and the description says why"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "the window exists and is not degenerate"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "label": "the-rows-were-drawn",
+      "desc": "the frame was taken after the page reported rows in its DOM, so a capture of an empty sidebar cannot pass here."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

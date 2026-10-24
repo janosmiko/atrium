@@ -1,0 +1,125 @@
+{
+  "name": "ai-panel-resize-drag-does-not-flicker",
+  "description": "Dragging the AI panel's left edge flickered: the drag read e.clientX, which is relative to the panel's own WebView, and that WebView's left edge moves on every width push, so each pointer move fed the next one a shifted origin. The panel edge zigzagged +14/-7 px through a one-way drag. The fix reads e.screenX at both ends, as sidebar-drag.js does.\n\nA pointer-relative bug cannot be caught by a synthetic DOM event, so this drags the real grip with cgevent. A requestAnimationFrame sampler records window.innerWidth through the drag: the panel document IS the panel, so its innerWidth is the width the drag produced, frame by frame. A one-way widening drag must never narrow between two samples. The count of backward steps is the flicker, and it must be zero.\n\nThe capture is the recording a person can watch for blank or stale frames and for the web card staying with the panel edge.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "eval_until",
+      "id": "panel-built",
+      "target": "/ai-panel",
+      "expression": "String(!!document.querySelector('.aichatinput'))",
+      "expected": "true",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "open",
+      "target": "/ai-panel",
+      "expression": "(() => { document.dispatchEvent(new KeyboardEvent('keydown', {key: '`'})); return String(document.getElementById('atrium-root').classList.contains('aipopen')); })()"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "grip",
+      "target": "/ai-panel",
+      "expression": "(() => { const r = document.querySelector('.aipresize').getBoundingClientRect(); return `w=${window.innerWidth} local=${Math.round(r.left + r.width / 2)}`; })()",
+      "note": "the panel's width and the grip's centre inside it. screenX is 0 in this WebView, so the grip's screen x is derived instead: the window is 1024 wide at x=0 (see ax_window_count), which puts the panel's left edge at 1024-280 and the grip at 744. An assertion pins both numbers, so a layout move fails loudly instead of dragging empty background"
+    },
+    {
+      "type": "eval",
+      "id": "arm",
+      "target": "/ai-panel",
+      "expression": "(() => { window.__aipw = [window.innerWidth]; const tick = () => { const w = window.innerWidth; if (w !== window.__aipw[window.__aipw.length - 1]) { window.__aipw.push(w); } window.__aipr = requestAnimationFrame(tick); }; tick(); return String(window.__aipw.length); })()",
+      "note": "records every width the panel actually reaches, in order, deduplicated so a still frame is not a sample"
+    },
+    {
+      "type": "drag_during_capture",
+      "x1": 744,
+      "y1": 400,
+      "x2": 604,
+      "y2": 400,
+      "steps": 40,
+      "capture_id": "aipanel-resize-drag",
+      "duration_ms": 2500,
+      "fps": 30,
+      "drag_delay_ms": 400,
+      "note": "one way, leftwards, so the panel only ever widens - 140 points over 40 steps at cgevent's 20ms cadence"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "backsteps",
+      "target": "/ai-panel",
+      "expression": "(() => { cancelAnimationFrame(window.__aipr); const w = window.__aipw; let back = 0; for (let i = 1; i < w.length; i++) { if (w[i] < w[i - 1]) { back++; } } return String(back); })()"
+    },
+    {
+      "type": "eval",
+      "id": "grew",
+      "target": "/ai-panel",
+      "expression": "(() => { const w = window.__aipw; return String(w[w.length - 1] - w[0]); })()"
+    },
+    {
+      "type": "eval",
+      "id": "samples",
+      "target": "/ai-panel",
+      "expression": "String(window.__aipw.length)"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "the browser window alone"
+    },
+    {
+      "type": "eval_equals",
+      "id": "open",
+      "expected": "\"true\"",
+      "desc": "setup: the hotkey opened the panel"
+    },
+    {
+      "type": "eval_equals",
+      "id": "grip",
+      "expected": "\"w=280 local=5\"",
+      "desc": "setup: the grip sits where the drag below starts. A layout change moves it and this fails, rather than the drag quietly grabbing nothing"
+    },
+    {
+      "type": "eval_equals",
+      "id": "grew",
+      "expected": "\"120\"",
+      "desc": "THE CONTROL: the drag really widened the panel, from DEFAULT_WIDTH 280 to the MAX_WIDTH_CAP 400 its 140 points of travel run into. Without this the backstep count below passes on a drag that never landed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "backsteps",
+      "expected": "\"0\"",
+      "desc": "a one-way widening drag never narrows between two frames. Before the fix the edge zigzagged +14/-7 px per move, which is what the recording showed as flicker"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

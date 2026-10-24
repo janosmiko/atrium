@@ -1,0 +1,39 @@
+{
+  "name": "import-offer-on-a-fresh-profile",
+  "description": "A launch with no spaces.json and an Arc folder on disk opens Settings on the import pane, writes importPromptShown, and a relaunch does not offer again. Import from the offer opens a fresh spaces document, and the result line and the sidebar show the spaces. The fixture is ignored because spaces_absent points the spaces file at an empty folder.",
+  "fixture": "two-tabs.spaces.json",
+  "spaces_absent": true,
+  "import_arc_dir": "fixtures/import/arc/basic",
+  "routing": "routing-pane-adds-a-rule.routing.json",
+  "settings": "import-offer.settings.json",
+  "app_process": "Atrium",
+  "actions": [
+    {"type": "wait_vlog", "pattern": "Atrium: import offer shown", "timeout_ms": 30000, "note": "gate: only the offer path emits this line"},
+    {"type": "wait_vlog", "pattern": "Atrium: settings surface ready", "timeout_ms": 15000},
+    {"type": "wait_vlog", "pattern": "Atrium: import arc previewed", "timeout_ms": 10000, "note": "the pane opened on import and asked for its preview"},
+    {"type": "settle", "ms": 1000},
+    {"type": "capture", "id": "offer", "duration_ms": 400, "fps": 20},
+    {"type": "eval", "id": "offer-shows-import", "target": "/settings",
+     "expression": "String(!!document.querySelector('.import-card[data-source=\"arc\"]'))"},
+    {"type": "eval", "id": "run-import", "target": "/settings",
+     "expression": "(() => { const b = document.querySelector('.import-run'); if (!b) { return 'no button'; } b.click(); return 'clicked'; })()"},
+    {"type": "wait_vlog", "pattern": "Atrium: import arc applied", "timeout_ms": 20000},
+    {"type": "wait_vlog", "pattern": "Atrium: spaces pushed", "timeout_ms": 8000},
+    {"type": "settle", "ms": 800},
+    {"type": "capture", "id": "result", "duration_ms": 400, "fps": 20, "note": "evidence: the result line on a fresh profile"},
+    {"type": "eval", "id": "result-line", "target": "/settings",
+     "expression": "String((document.querySelector('.import-result') || {}).textContent)"},
+    {"type": "eval_until", "id": "sidebar-spaces", "target": "/sidebar",
+     "expression": "[...document.querySelectorAll('.spacedots .sdot[data-space-index]')].map((d) => d.dataset.init).filter((i) => i === '🧪' || i === '🏠').join(',')",
+     "expected": "🧪,🏠", "timeout_ms": 15000, "note": "Work and Home, by their Arc emoji, reached the sidebar from the fresh document"},
+    {"type": "relaunch"},
+    {"type": "settle", "ms": 12000, "note": "long enough for the offer's 20 tries at 500ms to have run"}
+  ],
+  "assertions": [
+    {"type": "eval_equals", "id": "offer-shows-import", "expected": "\"true\"", "desc": "the offer opened the import pane with the Arc card"},
+    {"type": "eval_equals", "id": "result-line", "expected": "\"Added 3 spaces, 6 tabs, 2 favourites, 3 routing rules and 1 profile. 1 already in Atrium. 1 skipped.\"", "desc": "Default matched the fresh document's profile, Side Project was created, the bad regex was skipped"},
+    {"type": "file_contains", "label": "the-flag-was-written", "file": "settings", "path": "importPromptShown", "value": true, "desc": "the offer wrote its flag"},
+    {"type": "vlog_count", "label": "offered-once", "pattern": "Atrium: import offer shown", "max": 1, "desc": "passes whether the count reads one log segment or both, and fails on a second offer"},
+    {"type": "quit"}
+  ]
+}

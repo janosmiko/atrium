@@ -1,0 +1,41 @@
+{
+  "name": "routing-opens-across-profiles",
+  "description": "A URL typed in the command bar that a rule claims for a space on ANOTHER profile opens there and nowhere else. Personal (Default) is active with one row; Work belongs to the Second profile and starts empty. The report this pins: the command bar used to add the tab to Personal first, the throttle cancelled that tab's load a task later, and only then did the window switch, reopen in Work and close the Personal copy - four visible steps where the user expects one. So the measurement is not the end state alone. A MutationObserver armed on Personal's own pane before Return records the HIGHEST row count that pane ever showed; a build that adds and then removes the tab reaches 2 there, a correct build never leaves 1. The vlog order proves the switch came before the open, and the absent 'source tab closed' proves no reopen-and-close ran.",
+  "fixture": "routing-opens-across-profiles.spaces.json",
+  "routing": "routing-opens-across-profiles.routing.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "437b0001-0000-4000-8000-00000000ad01",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "wait_vlog", "pattern": "Atrium: tab [0-9]+ url http://dl\\.localhost", "timeout_ms": 20000, "note": "gate: the Personal tab committed, so the app and the profile are live" },
+    { "type": "settle", "ms": 4000 },
+    { "type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot" },
+    { "type": "settle", "ms": 1000 },
+    { "type": "eval", "id": "rows-in-personal-before", "target": "/sidebar", "expression": "document.querySelectorAll('.railpane[data-space-index=\"0\"] .tabrow').length", "note": "the one row the fixture gives Personal" },
+    { "type": "eval", "id": "observer-armed", "target": "/sidebar", "expression": "(() => { const pane = document.querySelector('.railpane[data-space-index=\"0\"]'); if (!pane) { return 'no personal pane'; } window.__maxRows = pane.querySelectorAll('.tabrow').length; new MutationObserver(() => { window.__maxRows = Math.max(window.__maxRows, pane.querySelectorAll('.tabrow').length); }).observe(pane, {childList: true, subtree: true}); return 'armed'; })()", "note": "records the highest row count Personal's pane ever shows from here on - a tab that is added and then taken away still counts" },
+    { "type": "capture", "id": "before", "duration_ms": 400, "fps": 20, "note": "Personal tint (oceanBlue) baseline" },
+    { "type": "key", "combo": "cmd+t", "note": "open the command bar for a real navigation" },
+    { "type": "wait_vlog", "pattern": "Atrium: command bar widget showing", "timeout_ms": 15000 },
+    { "type": "settle", "ms": 2000 },
+    { "type": "type", "text": "http://corp.example/", "note": "a URL the staged rule claims for Work" },
+    { "type": "settle", "ms": 2000 },
+    { "type": "key", "combo": "return", "note": "commit the typed URL" },
+    { "type": "wait_vlog", "pattern": "Atrium: routed http://corp\\.example into space 437b0002-0000-4000-8000-00000000ad02, opened there", "timeout_ms": 10000, "note": "THE MEASUREMENT: the route ran from the command bar commit, before any tab existed" },
+    { "type": "settle", "ms": 3000, "note": "let the profile swap, the load and the repaint settle" },
+    { "type": "eval", "id": "max-rows-in-personal", "target": "/sidebar", "expression": "String(window.__maxRows)", "note": "THE OTHER HALF: Personal's pane never showed a second row, not even for a frame" },
+    { "type": "eval", "id": "rows-in-work-after", "target": "/sidebar", "expression": "document.querySelectorAll('.railpane[data-space-index=\"1\"] .tabrow').length", "note": "Work is showing now and holds the one routed row" },
+    { "type": "capture", "id": "after", "duration_ms": 400, "fps": 20, "note": "should now show Work tint (sunsetOrange)" }
+  ],
+  "assertions": [
+    { "type": "eval_equals", "id": "rows-in-personal-before", "expected": "1", "desc": "Personal starts with the one row the fixture gives it" },
+    { "type": "eval_equals", "id": "observer-armed", "expected": "\"armed\"", "desc": "the observer was watching Personal's pane, so the maximum below means something" },
+    { "type": "vlog", "label": "the-window-switched-to-work", "pattern": "Atrium: active space 0 -> 1 'Work'" },
+    { "type": "vlog_after", "label": "the-switch-came-before-the-open", "pattern": "Atrium: routed http://corp\\.example into space 437b0002-0000-4000-8000-00000000ad02, opened there", "after_pattern": "Atrium: active space 0 -> 1 'Work'", "note": "the user sees the space change first and the tab appear in it, not a tab that then travels" },
+    { "type": "eval_equals", "id": "max-rows-in-personal", "expected": "\"1\"", "desc": "Personal never held the routed tab, not even between the commit and the route" },
+    { "type": "eval_equals", "id": "rows-in-work-after", "expected": "1", "desc": "the routed tab has a row in the space the rule named" },
+    { "type": "vlog_absent", "label": "no-reopen-and-close", "pattern": "source tab closed", "note": "the cross-profile move path never ran, because there was no source tab to move" },
+    { "type": "vlog_absent", "label": "no-throttle-route", "pattern": "tab moved in place", "note": "the throttle never had a tab of its own to route" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

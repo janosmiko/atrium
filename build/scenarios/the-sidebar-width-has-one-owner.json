@@ -1,0 +1,24 @@
+{
+  "name": "the-sidebar-width-has-one-owner",
+  "description": "A resize made with the docked grip survives a restart, and the page holds a width only while the pane animates. The window used to cache the width beside the core's store and the page's copy, and each pair drifted: a docked drag wrote the store and not the window, so a hide-and-reveal came back at the pre-drag width. The core is the only owner now and the window reads it.\n\nThe drag is graded on the width the window printed, so a synthetic gesture that lands short corrects itself rather than reading as a drift. After the drag the page's --atrium-docked-width is polled until it is cleared, which is what lets the page follow its own viewport at rest. Then the app relaunches and the grip band has to come back where the drag left it.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {"type": "wait_vlog", "pattern": "Atrium: sidebar rows drawn [1-9]", "timeout_ms": 20000},
+    {"type": "activate"},
+    {"type": "settle", "ms": 1000},
+    {"type": "drag", "x1": 282, "y1": 400, "x2": 342, "y2": 400, "expect_width": 340, "tolerance": 12, "note": "the docked grip, from the fixture's 280 to 340"},
+    {"type": "eval_until", "id": "page-width-cleared", "target": "/sidebar", "expression": "getComputedStyle(document.documentElement).getPropertyValue('--atrium-docked-width').trim() === '' ? 'cleared' : 'held'", "expected": "cleared", "timeout_ms": 8000, "note": "The page's copy is for the animation only"},
+    {"type": "relaunch"},
+    {"type": "wait_vlog", "pattern": "Atrium: sidebar rows drawn [1-9]", "timeout_ms": 20000},
+    {"type": "settle", "ms": 1500}
+  ],
+  "assertions": [
+    {"type": "ax_window_count", "expected": 1, "min_area": 200000, "desc": "sanity: one real window rendered"},
+    {"type": "eval_equals", "id": "page-width-cleared", "expected": "cleared", "desc": "At rest the page holds no width of its own."},
+    {"type": "vlog", "pattern": "Atrium: sidebar grip band 3[3-4][0-9],", "label": "the-width-survived-the-restart", "desc": "After the relaunch the grip band prints within the drag's tolerance of 340, so the store the window now reads is the one the drag wrote."},
+    {"type": "quit", "desc": "Cmd+Q still quits cleanly"}
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "spaces": [
+    {
+      "id": "69669669-6966-4966-8966-696696696696",
+      "name": "Run",
+      "emoji": "\ud83d\udfe5",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135200.0,
+          "url": "http://127.0.0.1:8000/ambilight-run.html",
+          "title": "Run"
+        }
+      ],
+      "groups": []
+    },
+    {
+      "id": "69669669-6966-4966-8966-696696696697",
+      "name": "Empty",
+      "emoji": "\ud83e\uddea",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 1,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "69669669-6966-4966-8966-696696696696"
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "name": "ambilight-takes-the-brand-from-the-favicon",
+  "description": "Round 2: a page whose edges carry no colour glows the colour of its favicon. The fixture is a flat #101010 body with a solid #C02020 icon - the YouTube shape, where the page is grey and the red lives in the mark. Every edge reads #101010, so without the brand blend the glow is a dark grey nobody would call red.\n\nThe expected hex is exact: kBrandWeight 0.6 at zero saturation mixes #101010 six tenths of the way to #C02020, which is #7A1A1A, and at glassOpacity 0.2 the core's alpha division clamps to the page's own colour so nothing moves it again. The unit test AGreyEdgeTakesMostOfTheBrand pins the same number.",
+  "fixture": "ambilight-brand.spaces.json",
+  "settings": "icon-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "brand-dark-red-icon.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/brand-dark-red-icon.html",
+      "timeout_ms": 20000,
+      "note": "gate: the page committed. A settle alone missed it on a slow start."
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the page commits, the favicon resolves, the sampler reads"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "startup-page",
+      "expected": "http://127.0.0.1:8000/brand-dark-red-icon.html",
+      "label": "the-page-really-loaded",
+      "desc": "THE CONTROL: the page committed."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: ambilight edges L=#7A1A1A R=#7A1A1A",
+      "label": "the-grey-edge-took-the-brand",
+      "desc": "THE MEASUREMENT: a #101010 edge resolved to #7A1A1A, which is six tenths of the way to the icon's red. A reader that ignored the favicon logs L=#101010 here."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

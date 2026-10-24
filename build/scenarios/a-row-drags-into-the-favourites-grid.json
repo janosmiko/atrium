@@ -1,0 +1,133 @@
+{
+  "name": "a-row-drags-into-the-favourites-grid",
+  "description": "A real cgevent drag from a tab row into the favourites grid. The rest of this path is covered headlessly, but one thing cannot be: the grid physically reorders its tiles on every dragover to open the gap, and a DOM edit under a live drag is exactly what killed one before (a reflow at dragstart). So this asserts the drag still reaches drop and dragend, that the gap really opened and holds the faded tile, that the drawn drag image turned from a row into a tile, and that the slot the pointer was on is the slot the browser was told.\n\nThe fixture draws two tiles centred at client 31x114 and 86x114 and one row centred at 113x260. Screen coordinates are those plus the 30px the window sits below the screen top. The drop lands at 45x144, which is right of the first tile's centre and still nearest to it - slot 1, between the two.",
+  "fixture": "row-drags-into-the-grid.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "layout",
+      "target": "/sidebar",
+      "expression": "(() => { const grid = document.querySelector('[data-dropzone=\"favorites\"]'); if (!grid) { return 'no-grid'; } const tiles = [...grid.querySelectorAll('.fav')].map((t) => { const b = t.getBoundingClientRect(); return Math.round((b.left + b.right) / 2) + 'x' + Math.round((b.top + b.bottom) / 2); }); const pane = document.querySelector('.railpane:not(.ovrailpane)'); const row = pane && pane.querySelector('[data-dropzone=\"tabs\"] .tabrow'); const rb = row ? row.getBoundingClientRect() : null; return tiles.join(' ') + ' | row ' + (rb ? Math.round((rb.left + rb.right) / 2) + 'x' + Math.round((rb.top + rb.bottom) / 2) : 'none'); })()",
+      "expected": "31x114 86x114 | row 113x260",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "spy",
+      "target": "/sidebar",
+      "expression": "(() => { window.__ev = []; window.__cs = []; window.__ghost = []; for (const t of ['dragstart','dragover','drop','dragend']) { document.addEventListener(t, () => { if (window.__ev[window.__ev.length-1] !== t) { window.__ev.push(t); } }, true); } document.addEventListener('dragover', () => { const grid = document.querySelector('[data-dropzone=\"favorites\"]'); const tiles = grid ? [...grid.querySelectorAll('.fav')] : []; const at = tiles.findIndex((t) => t.classList.contains('favghost')); const v = at < 0 ? 'nogap' : 'gap' + at; if (window.__ghost[window.__ghost.length-1] !== v) { window.__ghost.push(v); } }, true); window.__look = []; document.addEventListener('dragover', () => requestAnimationFrame(() => { if (window.__ev.includes('drop')) { return; } const follow = document.querySelector('.dragfollow:not([hidden])'); const ghost = document.querySelector('[data-dropzone=\"favorites\"] .favghost'); const v = (follow ? follow.dataset.look : 'nofollow') + '/' + (ghost ? (ghost.querySelector('.fvi') ? 'tileghost' : 'emptyghost') : 'noghost'); if (window.__look[window.__look.length-1] !== v) { window.__look.push(v); } }), true); const orig = chrome.send.bind(chrome); chrome.send = (name, args) => { if (name === 'sidebarRowFavorited') { window.__cs.push([name, args]); } return orig(name, args); }; return 'spying'; })()"
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 290,
+      "x2": 45,
+      "y2": 144,
+      "steps": 40
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "events",
+      "target": "/sidebar",
+      "expression": "window.__ev.join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "gap",
+      "target": "/sidebar",
+      "expression": "window.__ghost.join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "looks",
+      "target": "/sidebar",
+      "expression": "window.__look.join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "sends",
+      "target": "/sidebar",
+      "expression": "window.__cs.map((c) => c[0] + ':' + c[1].join(',')).join(';')"
+    },
+    {
+      "type": "eval_until",
+      "id": "grid-order",
+      "target": "/sidebar",
+      "expression": "(() => { const grid = document.querySelector('[data-dropzone=\"favorites\"]'); return [...grid.querySelectorAll('.fav')].map((t) => (t.dataset.favId || '').split('/').pop()).join(' | '); })()",
+      "expected": "favicon-page.html | edit-focus-field.html | example-domain.html",
+      "timeout_ms": 8000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "layout",
+      "expected": "31x114 86x114 | row 113x260",
+      "desc": "gates the drag: the tiles and the row sit where the screen coordinates below assume"
+    },
+    {
+      "type": "eval_equals",
+      "id": "spy",
+      "expected": "\"spying\"",
+      "desc": "the spies installed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "events",
+      "expected": "\"dragstart,dragover,drop,dragend\"",
+      "desc": "THE MEASUREMENT: reordering the tiles under a live drag does not cancel it - the drop still fires"
+    },
+    {
+      "type": "eval_equals",
+      "id": "gap",
+      "expected": "\"nogap,gap1\"",
+      "desc": "the gap opened at the slot under the pointer, after the first dragover that had none"
+    },
+    {
+      "type": "eval_equals",
+      "id": "looks",
+      "expected": "\"row/noghost,tile/tileghost\"",
+      "desc": "the drag image is a row over the list and a tile over the grid, and the gap holds the faded tile the row becomes"
+    },
+    {
+      "type": "eval_equals",
+      "id": "sends",
+      "expected": "\"sidebarRowFavorited:0,tabs,-1,1\"",
+      "desc": "one message, carrying the slot the gap showed rather than an append"
+    },
+    {
+      "type": "eval_equals",
+      "id": "grid-order",
+      "expected": "favicon-page.html | edit-focus-field.html | example-domain.html",
+      "desc": "and the browser put the new tile between the two it was dropped between"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

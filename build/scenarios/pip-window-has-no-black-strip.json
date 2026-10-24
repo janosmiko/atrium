@@ -1,0 +1,119 @@
+{
+  "name": "pip-window-has-no-black-strip",
+  "description": "the video reaches the top edge of the mini player, with no fill between the rounded edge and the first row of video pixels.\n\nThis does not cover the defect the task was opened for. macOS 27 stroked the window outline on the frame view's square rectangle, around content rounded to 12pt. The VM runs macOS 26.5, which shapes the outline from the content, so only a host on 27 shows it.\n\nThe window is a native VideoOverlayWindowViews with no CDP target of its own, so the evidence is a capture. The pop-out itself is a-video-tab-pops-out-when-you-leave-it, copied here rather than shared, because that scenario proves the gate and this one proves the pixels.",
+  "fixture": "repeated-row-drags.spaces.json",
+  "settings": "auto-mini-player-audible.settings.json",
+  "seed_prefs": "auto-pip-allowed.prefs.json",
+  "chromium_flags": "--autoplay-policy=no-user-gesture-required",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    { "type": "activate" },
+    { "type": "settle", "ms": 1500 },
+    { "type": "key", "combo": "cmd+t" },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "type",
+      "text": "file:///Users/admin/atrium-probe/vm-fixtures/video-with-sound.html"
+    },
+    { "type": "key", "combo": "return" },
+    { "type": "settle", "ms": 2000 },
+    {
+      "type": "eval",
+      "id": "before",
+      "target": "video-with-sound.html",
+      "expression": "window.atriumPipState()",
+      "note": "warms the debugging tunnel the eval_until below would otherwise spend its budget on"
+    },
+    {
+      "type": "eval_until",
+      "id": "premise",
+      "target": "video-with-sound.html",
+      "expression": "(() => { const v = document.getElementById('video'); return (v.paused ? 'paused' : 'playing') + ',' + (v.muted || v.volume === 0 ? 'muted' : 'unmuted'); })()",
+      "expected": "playing,unmuted",
+      "timeout_ms": 20000
+    },
+    { "type": "key", "combo": "cmd+opt+up" },
+    {
+      "type": "eval_until",
+      "id": "after",
+      "target": "video-with-sound.html",
+      "expression": "window.atriumPipState()",
+      "expected": "pip",
+      "timeout_ms": 20000
+    },
+    { "type": "settle", "ms": 800 },
+    {
+      "type": "click",
+      "x": 721,
+      "y": 570,
+      "note": "Allow on every visit. The seeded content setting does not cover a file:// origin, and the prompt stands over the window this capture is for."
+    },
+    {
+      "type": "eval",
+      "id": "freeze",
+      "target": "video-with-sound.html",
+      "expression": "(() => { const v = document.getElementById('video'); v.pause(); v.currentTime = 1.0; return 'frozen'; })()",
+      "note": "the mini player mirrors this frame, so the two captures below differ only in what Chromium draws over it"
+    },
+    { "type": "settle", "ms": 1200 },
+    {
+      "type": "move",
+      "x": 120,
+      "y": 240,
+      "note": "off the mini player. Chromium fades its own controls scrim out on mouse-exit, and a band that survives that fade is not the scrim."
+    },
+    { "type": "settle", "ms": 3000 },
+    {
+      "type": "capture",
+      "id": "away",
+      "duration_ms": 400,
+      "fps": 5
+    }
+  ],
+  "assertions": [
+    {
+      "type": "region_mean",
+      "capture": "away",
+      "x": 489,
+      "y": 374,
+      "w": 400,
+      "h": 10,
+      "min_mean": 55,
+      "max_mean": 255,
+      "label": "away-top-band",
+      "desc": "the first ten rows under the window's top edge carry video, with the pointer off the window so Chromium's own scrim is out of the picture"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 150000,
+      "desc": "the line prints each window's position and size, which is what names the mismatch between the window and the video's aspect ratio"
+    },
+    {
+      "type": "eval_equals",
+      "id": "premise",
+      "expected": "playing,unmuted",
+      "desc": "the video really is playing with sound before the switch"
+    },
+    {
+      "type": "eval_equals",
+      "id": "after",
+      "expected": "pip",
+      "desc": "the mini player is open, so the capture holds the window this task is about"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

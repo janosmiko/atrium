@@ -1,0 +1,145 @@
+{
+  "name": "a-tab-lives-in-one-window-at-a-time",
+  "description": "clicking a row whose tab is live in ANOTHER window moves the page here instead of opening a second copy.\n\nTHE CAUSE, and it is not a missing mechanism. BrowserController::ActivateTab (atrium_browser_controller.cc) has carried the whole gesture since M2c - it finds the tab across same-profile windows, freezes the pane it leaves on a desaturated snapshot, and inserts here with ADD_ACTIVE, which its own comments call 'the Arc-style becomes-active-in-the-window-that-activated-it semantic'. Two things kept it unreachable from a sidebar click. Its only caller was the retired Swift ABI, so it was orphaned and left private. And a row whose tab is live elsewhere had an EMPTY id in this window's model, because LiveTabIds is built from this window's own strip - so there was no id to hand it, and AtriumBrowserWindow::ActivateSidebarTab logged the row as stale instead.\n\nWHY CMD+N IS THE RIGHT SECOND WINDOW. Atrium's Cmd+N opens a window slot with ZERO tabs (cmdn-window-slot pins that), on the same space and profile. So window 2's sidebar lists the same rows as window 1 while owning no tabs at all, which is exactly the state this task is about: every row it shows is live somewhere else.\n\nTHE CLICK COORDINATE IS BORROWED, NOT GUESSED. (110, 385) is sidebar-row-click's own first-row coordinate, measured against a real frame and still passing 6/0 on the 2026-08-18 run.\n\nWHAT SEPARATES A MOVE FROM A COPY. The move logs 'moved from host X to host Y on activation'. A copy would instead take the cold-row path and log 'cold sidebar row opening'. Asserting the first alone would pass on a build that did both, so the absence of the second is the half that makes this a measurement - the same trap as any presence check that stays green while the thing under it changes.\n\nTHE RETURN LEG IS NOT ASSERTED HERE, and the reason is recorded on its own task. Two attempts both landed on '+ New Folder' instead of the row: measuring the frame for INK finds a button's border and reads its empty interior as clear space, so a coordinate that looks blank can still be inside a control. The second attempt created two folders, which shifted every row below them and made the row click land on the control again.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: window 1's startup tab committed, so there is a live tab for window 2 to find"
+    },
+    {
+      "type": "settle",
+      "ms": 8000,
+      "note": "same settle sidebar-row-click uses - the sidebar model arrives a beat after the tab"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+n",
+      "note": "window 2: a fresh window slot with zero tabs of its own, on the same space and profile"
+    },
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "the window builds and its sidebar renders the space's rows"
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "Cmd+N opens the window with its command bar up - measured on the 2026-08-18 frame, a white input box centred over the page. It sits over the sidebar's click target and swallowed the first attempt, which logged nothing at all. cmdn-window-slot dismisses it the same way before its own click"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "move_window",
+      "x": 300,
+      "y": 120,
+      "note": "move the FRONTMOST window clear of the one behind it. This is the gate the scenario was missing. Both windows open at pos=0,30, so their sidebars share one x band and render rows at the same y - a click at a fixed point named no particular surface. Resizing was tried first and does not help: it moves the content card and leaves the sidebars stacked. Moving does. After this, window 2's sidebar starts at x=300 and window 1's is still at x=0, so the two are distinguishable in the frame and in the click."
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "before-move",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "window 2's sidebar before the click. Its rows are all live in window 1, so each should draw with the .elsewhere treatment rather than as cold"
+    },
+    {
+      "type": "click",
+      "x": 410,
+      "y": 470,
+      "note": "the row whose tab is live in WINDOW 1, in window 2's sidebar after the move. Re-measured 2026-08-18 evening off this scenario's own frame: the rows sit at y=440 (cold) and y=470 (elsewhere, fainter at variance 167 against 1272) after the sidebar layout reorder lifted them. Window 2 is at (300, 120) and its sidebar is 260 wide, so x=410 is inside it"
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "the detach, the freeze capture and the insert all happen here; the capture is a surface round trip"
+    },
+    {
+      "type": "capture",
+      "id": "after-move",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "window 2 showing the page it took"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "window_moved",
+      "x": 300,
+      "y": 120,
+      "tolerance": 16,
+      "note": "The frontmost window really is where the click below assumes it is. Listed first because every assertion after it depends on the click having reached the intended surface, and a click on nothing is silent in both the app and the harness"
+    },
+    {
+      "type": "vlog",
+      "label": "the-page-moved-rather-than-being-reopened",
+      "pattern": "Atrium: tab [0-9]+ moved from host .* to host .* on activation",
+      "note": "ActivateTab's own line for the cross-window branch. Before this task it could not be reached from a sidebar click at all: the method was private with no caller, and the row carried no id to pass it"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-second-copy-was-opened",
+      "pattern": "Atrium: cold sidebar row opening",
+      "note": "THE HALF THAT MAKES THIS A MEASUREMENT. The move line above would still appear on a build that also reopened the url, and a second copy is the whole defect. This is the cold-row path the click used to fall into"
+    },
+    {
+      "type": "theme_changed",
+      "label": "the-losing-window-marks-its-frame-as-frozen",
+      "before": "before-move",
+      "after": "after-move",
+      "region": [
+        230,
+        200,
+        65,
+        300
+      ],
+      "min_delta": 3,
+      "note": "the losing window's pane is WASHED once the tab leaves, so a frozen frame is not mistakable for a live page. Before that mark the region read delta 0.00 - pixel-identical to the live page - which is why this assertion used to be a stability check. The wash is modest on purpose: the frame still has to say WHICH page is waiting, so a heavy scrim would defeat it. A bounded change rather than an unbounded one, since a pane that went blank would move much further and is a different bug"
+    },
+    {
+      "type": "region_stable",
+      "label": "the-wash-does-not-erase-the-page",
+      "before": "before-move",
+      "after": "after-move",
+      "region": [
+        230,
+        200,
+        65,
+        300
+      ],
+      "max_delta": 30,
+      "note": "The other side of the band. Paired with the min_delta above this says the region changed a LITTLE: enough to mark the frame, not enough to have lost it. A pane that went blank or drew the empty card would move far past 30, and either would satisfy the min_delta on its own - which is why one assertion could not express this"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "note": "both windows are still standing. A move that closed the window it emptied would satisfy the two assertions above and be a different bug"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sat, 15 Aug 2026 01:29:07 +0200
+Subject: [PATCH 066/154] feat(atrium): insecure-origin treatment on whichever
+ address bar is showing
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Ported from the lab: red ground, dark red ink, an inset ring, the broken padlock,
+the words Not secure, and the host. Only the insecure state prints the host - the
+secure sidebar bar keeps its placeholder, because that bar has no url of its own.
+
+The ink race needed care. renderSidebar rebuilds the bar on every push, so the
+security check sits in buildUrlBar at construction rather than only in a live
+update - a space-switch rebuild then paints red on its first frame instead of
+racing the theme ink. Checking for a live per-frame ink push found none: no
+atriumSetSidebarInk exists and --fg is never set, so an inline colour closes the
+race as things stand.
+
+The localhost rule is the lab's, and the lab never covers 127.0.0.1 or [::1], so
+those are flagged Not secure today. Ported rather than widened on purpose, and
+tracked separately, because the Rust core already solved this properly after
+three rounds of hardening.
+
+grit's ID allocation for the grd needed raising to fit the new module.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ tools/gritsettings/resource_ids.spec | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/gritsettings/resource_ids.spec b/tools/gritsettings/resource_ids.spec
+index c9c488f5019ff..ff404801ac217 100644
+--- a/tools/gritsettings/resource_ids.spec
++++ b/tools/gritsettings/resource_ids.spec
+@@ -1810,7 +1810,7 @@
+   # Atrium chrome layer. Placed at the end of this section so the
+   # real IDs land after the placeholder block and nothing downstream realigns.
+   "chrome/browser/resources/atrium/atrium_resources.grd": {
+-    "META": {"sizes": {"includes": [60]}},
++    "META": {"sizes": {"includes": [70]}},
+     "includes": [12020],
+   },
+ 

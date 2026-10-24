@@ -1,0 +1,64 @@
+{
+  "name": "favourite-is-not-a-tab-row",
+  "description": "A favourite is a tab in its own right, so its page is never also a row in the tab list - the rule the lab keeps by never appending a favourite to paneTabs. Swift used to hold that line by keeping the page out of space.tabs, and deleting it took the rule with it, so favourite pages began showing as ordinary rows.\n\nThe fixture is the detector. Its space holds a favourite and a tab on the SAME url, and that tab is titled FAVOURITE NOT A ROW. If the row is on screen the rule is broken, and the title says so in the frame. A second tab titled Ordinary Row is there as the control: it must stay, or the exclusion is eating everything rather than the favourite.",
+  "fixture": "favourite-not-a-row.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the window finish first paint and the sidebar announce itself"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "rows",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "The tab list. It must show Ordinary Row and no FAVOURITE NOT A ROW."
+    },
+    {
+      "type": "eval_until",
+      "id": "rows",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) .row.tabrow')].map((r) => r.textContent.trim().slice(0, 20)); return rows.length + ' rows: ' + rows.join(', '); })()",
+      "expected": "1 rows: Ordinary Row",
+      "timeout_ms": 8000,
+      "note": "the favourite's restored tab is claimed and bound, so only the ordinary tab has a row"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "Liveness. It passes either way, so the frame is the evidence about the row itself - this only rules out a run that never drew a window.",
+      "label": "the-window-came-up"
+    },
+    {
+      "type": "eval_equals",
+      "id": "rows",
+      "expected": "1 rows: Ordinary Row",
+      "desc": "AC: the favourite's page has no row, the ordinary tab keeps its one. The restored favourite tab used to draw a cold row beside its selected tile."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: sidebar model from the RUST CORE",
+      "label": "the-core-built-the-model",
+      "desc": "The exclusion lives in the Rust core, so a run served by the C++ fall-through would show no row either way and prove nothing. This names the producer that actually answered."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

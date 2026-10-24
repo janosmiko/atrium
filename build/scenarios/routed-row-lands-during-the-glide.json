@@ -1,0 +1,127 @@
+{
+  "name": "routed-row-lands-during-the-glide",
+  "description": "A typed URL that a rule claims opens in Work, and the window glides the rail from Home to Work. The snapshot push that carries the routed tab's row lands while that glide runs. It used to park until the rail settled, about 0.9s, so the tab was on screen with no row. Same fixture and prelude as routing-moves-the-tab. A MutationObserver in the sidebar records whether the swipe loop was still running (.swipelock on the root) at the moment the row appears. The push lands one frame into the glide, 0.18px in on the 2026-09-10 run, so an offset check cannot tell it from rest.",
+  "fixture": "routing-moves-the-tab.spaces.json",
+  "routing": "routing-moves-the-tab.routing.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "437a0002-0000-4000-8000-00000000ad02",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://dl\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the Home tab committed, so the app and the profile are live"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "type",
+      "text": "http://corp.example/"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "armed",
+      "target": "/sidebar",
+      "expression": "(() => { window.__rowWatch = {seen: null}; const mo = new MutationObserver(() => { if (window.__rowWatch.seen) { return; } const row = document.querySelector('.tabrow[data-url*=\"corp.example\"]'); if (!row) { return; } const rail = document.querySelector('.rail'); const m = /translateX\\((-?[\\d.]+)px\\)/.exec((rail && rail.style.transform) || ''); window.__rowWatch.seen = {px: m ? Number(m[1]) : 0, gliding: !!document.querySelector('.swipelock')}; }); mo.observe(document.body, {childList: true, subtree: true}); return 'armed'; })()",
+      "note": "records whether the rail was still gliding (root carries .swipelock while a settle runs) when the routed row first entered the DOM"
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "commit the typed URL: the route, the glide, and the push"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: routed http://corp\\.example into space 437a0001-0000-4000-8000-00000000ad01, opened there",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the glide settle"
+    },
+    {
+      "type": "eval",
+      "id": "row-landing",
+      "target": "/sidebar",
+      "expression": "(() => { const s = window.__rowWatch && window.__rowWatch.seen; if (!s) { return 'no row seen'; } return s.gliding ? 'row landed during the glide' : 'row landed after the glide at ' + s.px; })()",
+      "note": "THE MEASUREMENT"
+    },
+    {
+      "type": "eval",
+      "id": "rows-in-work-after",
+      "target": "/sidebar",
+      "expression": "document.querySelectorAll('.railpane[data-space-index=\"2\"] .tabrow').length"
+    },
+    {
+      "type": "eval",
+      "id": "rail-at-rest",
+      "target": "/sidebar",
+      "expression": "(() => { const rail = document.querySelector('.rail'); const w = rail.parentElement.clientWidth || 260; const m = /translateX\\((-?[\\d.]+)px\\)/.exec(rail.style.transform || ''); return String(Math.round(-Number(m ? m[1] : 0) / w)); })()",
+      "note": "the glide still arrived: Work is pane 3 (Overview, Home, Personal, Work)"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "armed",
+      "expected": "\"armed\"",
+      "desc": "VACUITY GUARD: the observer was installed before the commit"
+    },
+    {
+      "type": "vlog",
+      "label": "the-route-fired",
+      "pattern": "Atrium: routed http://corp\\.example into space 437a0001-0000-4000-8000-00000000ad01, opened there"
+    },
+    {
+      "type": "eval_equals",
+      "id": "row-landing",
+      "expected": "\"row landed during the glide\"",
+      "desc": "THE MEASUREMENT: the routed row entered the DOM while the rail was still travelling"
+    },
+    {
+      "type": "eval_equals",
+      "id": "rows-in-work-after",
+      "expected": "1",
+      "desc": "the routed tab has its row in Work"
+    },
+    {
+      "type": "eval_equals",
+      "id": "rail-at-rest",
+      "expected": "\"3\"",
+      "desc": "the rebuild did not end the glide short: the rail rests on Work's pane"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

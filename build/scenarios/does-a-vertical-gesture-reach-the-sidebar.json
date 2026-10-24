@@ -1,0 +1,102 @@
+{
+  "name": "does-a-vertical-gesture-reach-the-sidebar",
+  "description": "Answers the question two sessions of guessing could not: does a synthesised vertical trackpad gesture ARRIVE at the sidebar document, or does it arrive and get ignored? Nothing in the log distinguishes those, and the difference decides whether the defect is in cgevent or in the surface.\n\nIt reads .scrollzone's scrollTop directly, before and after. A HORIZONTAL gesture is driven first as a control, because a probe that reports nothing for a gesture known to work is measuring its own setup rather than the product - which is exactly the mistake this scenario exists to avoid repeating.",
+  "fixture": "sidebar-vertical-band.spaces.json",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the 24 rows render"
+    },
+    {
+      "type": "activate",
+      "note": "an ssh-launched Atrium is not frontmost, so a gesture would land in Finder"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "wheels-before",
+      "target": "/sidebar",
+      "expression": "window.__probe = {wheels: 0}; document.addEventListener('wheel', () => window.__probe.wheels++, {capture: true, passive: true}); String(window.__probe.wheels)",
+      "note": "arms a counter AND returns its starting value, so a run where the listener failed to install stores nothing and the assertions below say so"
+    },
+    {
+      "type": "eval",
+      "id": "top-before",
+      "target": "/sidebar",
+      "expression": "String((document.querySelector('.scrollzone') || {}).scrollTop)"
+    },
+    {
+      "type": "scroll",
+      "x": 140,
+      "y": 258,
+      "dx": 90,
+      "phase_ms": 320,
+      "momentum_ms": 0,
+      "note": "THE CONTROL. A horizontal gesture with the parameters a sibling scenario uses, which is proven to reach this surface and switch a space."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval",
+      "id": "wheels-after-horizontal",
+      "target": "/sidebar",
+      "expression": "String(window.__probe ? window.__probe.wheels : 'no probe')"
+    },
+    {
+      "type": "vscroll",
+      "x": 110,
+      "y": 258,
+      "dy": -320,
+      "phase_ms": 300,
+      "momentum_ms": 0,
+      "note": "the gesture under test"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval",
+      "id": "wheels-after-vertical",
+      "target": "/sidebar",
+      "expression": "String(window.__probe ? window.__probe.wheels : 'no probe')"
+    },
+    {
+      "type": "eval",
+      "id": "top-after",
+      "target": "/sidebar",
+      "expression": "String((document.querySelector('.scrollzone') || {}).scrollTop)"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_changed",
+      "before": "wheels-before",
+      "after": "wheels-after-horizontal",
+      "note": "THE CONTROL, and it is checked first on purpose. If a horizontal gesture produces no wheel events either, the probe is blind and every other number here is worthless."
+    },
+    {
+      "type": "eval_changed",
+      "before": "wheels-after-horizontal",
+      "after": "wheels-after-vertical",
+      "note": "did the vertical gesture ARRIVE at all - the question two sessions could not answer"
+    },
+    {
+      "type": "eval_changed",
+      "before": "top-before",
+      "after": "top-after",
+      "note": "and did it MOVE the list. Arriving and being ignored is a different defect from never arriving, and this pair separates them."
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

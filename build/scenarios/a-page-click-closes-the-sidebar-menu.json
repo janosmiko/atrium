@@ -1,0 +1,118 @@
+{
+  "name": "a-page-click-closes-the-sidebar-menu",
+  "description": "right-click a sidebar row, then left-click the page. The menu has to go, and the page click still has to land.\n\nThe sidebar is its own document and its pointerdown listener only sees presses inside itself, so before this change the menu stayed up over the page for as long as the user left it there. The fix is a window-level NSEventMaskLeftMouseDown monitor in atrium_command_dispatcher_delegate.mm: on a press outside the sidebar WebContents' view bounds it pushes window.atriumDismissMenus() into the sidebar, and it returns the event unchanged so the page still gets the click.\n\nThe push is gated on a flag the page sets, so an ordinary click on the page runs no script. sidebarMenuOpened and sidebarMenuClosed carry that flag, and both vlog lines below are how the run says which way it went.\n\nFixture, flags and coordinates are sidebar-row-click.json's, whose row positions were re-measured on 2026-08-18: the sidebar spans x 10..208 and its first tab row sits at y=297. Window origin is (0,30), so these are screen coordinates already. x=700 is well right of the sidebar's right edge and inside the page.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: measure nothing until the restored tab has loaded"
+    },
+    {
+      "type": "settle",
+      "ms": 8000,
+      "note": "let both rows reach the sidebar and the snapshot settle"
+    },
+    {
+      "type": "activate",
+      "note": "Atrium frontmost, so a synthetic click lands on it"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "menu-before-open",
+      "target": "/sidebar",
+      "expression": "(() => document.querySelector('.ctxmenu') ? 'menu open' : 'no menu')()",
+      "note": "control: nothing is open before the right-click, so the 'no menu' reading after it means something"
+    },
+    {
+      "type": "rightclick",
+      "x": 110,
+      "y": 297,
+      "note": "the first tab row - sidebar-row-click.json's own measured coordinate. A left click here would activate the row instead of opening its menu."
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the menu build and report itself open"
+    },
+    {
+      "type": "eval",
+      "id": "menu-open",
+      "target": "/sidebar",
+      "expression": "(() => document.querySelector('.ctxmenu') ? 'menu open' : 'no menu')()",
+      "note": "the menu under test is actually up - without this the dismiss below proves nothing"
+    },
+    {
+      "type": "click",
+      "x": 700,
+      "y": 400,
+      "note": "the page, well right of the sidebar's x=208 edge. This is the press the sidebar document never sees."
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the push cross to the sidebar renderer"
+    },
+    {
+      "type": "eval",
+      "id": "menu-after-page-click",
+      "target": "/sidebar",
+      "expression": "(() => document.querySelector('.ctxmenu') ? 'menu open' : 'no menu')()",
+      "note": "THE MEASUREMENT"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "note": "the app is still up, so an empty reading above is a closed menu and not a dead surface"
+    },
+    {
+      "type": "eval_equals",
+      "id": "menu-before-open",
+      "expected": "\"no menu\"",
+      "desc": "no menu was open before the right-click"
+    },
+    {
+      "type": "eval_equals",
+      "id": "menu-open",
+      "expected": "\"menu open\"",
+      "desc": "the right-click opened the row menu"
+    },
+    {
+      "type": "eval_equals",
+      "id": "menu-after-page-click",
+      "expected": "\"no menu\"",
+      "desc": "THE MEASUREMENT: the page click closed it. 'menu open' is the old build, where the sidebar never heard about a press outside itself."
+    },
+    {
+      "type": "vlog",
+      "label": "the-page-reported-its-menu-open",
+      "pattern": "Atrium: sidebar menu open=1",
+      "note": "the flag that gates the push. Without it the monitor would run script on every click on the page."
+    },
+    {
+      "type": "vlog_after",
+      "label": "the-dismiss-push-followed-the-open-report",
+      "pattern": "Atrium: sidebar menus dismissed by an outside press",
+      "after_pattern": "Atrium: sidebar menu open=1",
+      "note": "ordering, not just presence: a dismiss logged before the menu opened would be some other press"
+    },
+    {
+      "type": "vlog",
+      "label": "the-page-reported-the-menu-closed",
+      "pattern": "Atrium: sidebar menu open=0",
+      "note": "the sidebar answered the push by closing and saying so, which clears the flag again - the next click on the page runs no script"
+    }
+  ]
+}

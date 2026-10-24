@@ -1,0 +1,72 @@
+{
+  "name": "vscroll-delivery",
+  "description": "a vertical gesture reaches the app at all. Opens Settings, whose General pane scrolls natively, and pulls on it - if the pane moves, the vertical axis is being delivered. This exists because cgevent could only ever send horizontal scrolls: wheel1 was hard-coded to 0, so no vertical behaviour anywhere was reachable from a scenario. The first attempt at the fix declared TWO axes with the horizontal at zero, and those events posted without any error and moved nothing at all - not this pane, not the sidebar. A vertical-only gesture is wheelCount 1. That failure mode is why this scenario asserts a natively scrollable surface rather than an Atrium-specific one: it separates 'the event arrived' from 'the thing under it responded', and those were confused for an hour.",
+  "wip": true,
+  "fixture": "presenter-startup.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the browser window finish first paint"
+    },
+    {
+      "type": "activate",
+      "note": "Atrium MUST be frontmost or cmd+comma opens Finder Settings instead - observed"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "open Settings; its menu item is not reachable from a scenario"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "window opens on General - SettingsModel.reset()"
+    },
+    {
+      "type": "capture",
+      "id": "settled",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "vscroll_during_capture",
+      "x": 320,
+      "y": 520,
+      "dy": -400,
+      "phase_ms": 500,
+      "momentum_ms": 0,
+      "step_ms": 20,
+      "capture_id": "scrolled",
+      "duration_ms": 900,
+      "fps": 25,
+      "note": "Over the Settings General pane's body, which scrolls natively. Coordinates read off settings-tab-row's captured frames - the window spans roughly x 0-640, y 250-700."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "theme_changed",
+      "before": "settled",
+      "after": "scrolled",
+      "region": [
+        20,
+        430,
+        400,
+        150
+      ],
+      "min_delta": 3.0,
+      "desc": "The pane's rows must move. A delta of 0 means the vertical event never arrived, which is a harness fault rather than anything about Atrium. Region read off settings-tab-row's captured frames."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits"
+    }
+  ]
+}

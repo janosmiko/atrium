@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 6 Sep 2026 23:00:41 +0200
+Subject: [PATCH 117/154] refactor(favicons): run a row's site lookup on the
+ machine, one deadline per row
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 64a4d1fe1d2b5..32ea831d0e063 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -630,6 +630,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:extension_actions_json",
+     "//chrome/browser/ui/atrium:bounded_icon_store",
+     "//chrome/browser/ui/atrium:icon_backfill",
++    "//chrome/browser/ui/atrium:row_icon_lookup",
+     "//chrome/browser/ui/atrium:log_safe_url",
+     "//chrome/browser/ui/atrium:visit_thumbnail_store",
+     "//chrome/browser/ui/atrium:edit_focus_gate",

@@ -1,0 +1,49 @@
+{
+  "name": "sidebar-side-insets-are-eight",
+  "description": "The sidebar's content sits 8px from the sidebar's left edge and 8px from the content card on the right. The web layer stops 6px short of the card (the grip column), so the page's own trailing inset is 2px and the leading one is 8px. Read off a real row: its box starts at 8 and ends 2px short of the document's width.",
+  "fixture": "two-tabs.spaces.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "tokens",
+      "target": "/sidebar",
+      "expression": "(() => { const s = getComputedStyle(document.documentElement); return s.getPropertyValue('--sb-pad-lead').trim() + ' ' + s.getPropertyValue('--sb-pad-trail').trim(); })()"
+    },
+    {
+      "type": "eval",
+      "id": "row-edges",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.railpane:not(.ovrailpane) .row.tabrow').getBoundingClientRect(); return Math.round(r.left) + ' ' + Math.round(document.documentElement.clientWidth - r.right); })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "tokens",
+      "expected": "\"8px 2px\"",
+      "label": "the-side-tokens-are-8-and-2"
+    },
+    {
+      "type": "eval_equals",
+      "id": "row-edges",
+      "expected": "\"8 2\"",
+      "label": "a-row-starts-8-in-and-stops-2-short-of-the-page-edge",
+      "desc": "2px of page plus the 6px grip column is the 8px seen beside the card"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

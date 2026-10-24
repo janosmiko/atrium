@@ -1,0 +1,219 @@
+{
+  "name": "the-system-accent-follows-the-macos-accent",
+  "description": "Settings.json says overlayAccent system, which names no brand book theme and no class in overlay.css: the window reads NSColor.controlAccentColor, derives the palette in the core, and pushes the values onto the root as --atrium-system-* properties. This asks a REAL overlay surface what it resolved.\n\nWHY THE TOKENS ARE COMPARED AND NOT PINNED. controlAccentColor is whatever the guest macOS answers, and the exact sRGB bytes differ between OS versions. Pinning #007AFF would fail on a VM image that is one point release along, and it would fail for the wrong reason. What the criterion actually says is that the overlays FOLLOW the accent, so this reads the tokens either side of a write and asserts they moved.\n\nWHY THE DEFAULT IS WRITTEN TWICE. The first write puts the guest on a known accent so the second one is a real change rather than a no-op against whatever the snapshot happened to hold. Between them nothing is clicked and nothing is relaunched - a repaint that needed either would not be the criterion.\n\nThe choice must survive a restart. The relaunch below reads the same tokens from a second launch against the same staged file.",
+  "fixture": "two-tabs.spaces.json",
+  "settings": "accent-system.settings.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "the theme push runs after the document is up"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "system_accent",
+      "value": 4,
+      "note": "Blue, so the second write below is a change from a known start"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "tokens-before",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(r); const t = (n) => (s.getPropertyValue(n) || '').trim().toLowerCase(); return 'accent=' + t('--ov-accent') + ' paper=' + t('--ov-paper') + ' soft=' + t('--ov-soft') + ' ink=' + t('--ov-ink') + ' classes=' + [...r.classList].filter((c) => c.startsWith('atrium-')).join(','); })()",
+      "note": "the four tokens and every atrium- class, so a failure names what it got"
+    },
+    {
+      "type": "eval",
+      "id": "system-class-is-on",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.classList.contains('atrium-overlay-accent-system'))"
+    },
+    {
+      "type": "eval",
+      "id": "brand-class-is-off",
+      "target": "/sidebar",
+      "expression": "String(!document.documentElement.classList.contains('atrium-overlay-accent-brand'))"
+    },
+    {
+      "type": "eval",
+      "id": "no-theme-class",
+      "target": "/sidebar",
+      "expression": "String(![...document.documentElement.classList].some((c) => c.startsWith('atrium-theme-')))"
+    },
+    {
+      "type": "eval",
+      "id": "accent-is-a-real-colour-before",
+      "target": "/sidebar",
+      "expression": "String(/^#[0-9a-f]{6}$/.test((getComputedStyle(document.documentElement).getPropertyValue('--atrium-system-accent') || '').trim().toLowerCase()))",
+      "note": "the pushed value, not the mapped one: an empty push would still leave --ov-accent readable through the class fallback"
+    },
+    {
+      "type": "eval",
+      "id": "paper-before",
+      "target": "/sidebar",
+      "expression": "(getComputedStyle(document.documentElement).getPropertyValue('--ov-paper') || '').trim().toLowerCase()"
+    },
+    {
+      "type": "eval",
+      "id": "ink-before",
+      "target": "/sidebar",
+      "expression": "(getComputedStyle(document.documentElement).getPropertyValue('--ov-ink') || '').trim()"
+    },
+    {
+      "type": "system_accent",
+      "value": 6,
+      "note": "Pink. Nothing is clicked and nothing relaunches after this."
+    },
+    {
+      "type": "settle",
+      "ms": 1000,
+      "note": "The bound - a repaint that needs longer than this fails"
+    },
+    {
+      "type": "eval",
+      "id": "tokens-after",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(r); const t = (n) => (s.getPropertyValue(n) || '').trim().toLowerCase(); return 'accent=' + t('--ov-accent') + ' paper=' + t('--ov-paper') + ' soft=' + t('--ov-soft') + ' ink=' + t('--ov-ink') + ' classes=' + [...r.classList].filter((c) => c.startsWith('atrium-')).join(','); })()"
+    },
+    {
+      "type": "eval",
+      "id": "paper-after",
+      "target": "/sidebar",
+      "expression": "(getComputedStyle(document.documentElement).getPropertyValue('--ov-paper') || '').trim().toLowerCase()"
+    },
+    {
+      "type": "eval",
+      "id": "ink-after",
+      "target": "/sidebar",
+      "expression": "(getComputedStyle(document.documentElement).getPropertyValue('--ov-ink') || '').trim()"
+    },
+    {
+      "type": "eval",
+      "id": "accent-is-a-real-colour-after",
+      "target": "/sidebar",
+      "expression": "String(/^#[0-9a-f]{6}$/.test((getComputedStyle(document.documentElement).getPropertyValue('--atrium-system-accent') || '').trim().toLowerCase()))"
+    },
+    {
+      "type": "relaunch",
+      "note": "Cmd+Q then Atrium again against the SAME staged settings"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "tokens-after-relaunch",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(r); const t = (n) => (s.getPropertyValue(n) || '').trim().toLowerCase(); return 'accent=' + t('--ov-accent') + ' paper=' + t('--ov-paper') + ' soft=' + t('--ov-soft') + ' ink=' + t('--ov-ink') + ' classes=' + [...r.classList].filter((c) => c.startsWith('atrium-')).join(','); })()"
+    },
+    {
+      "type": "eval",
+      "id": "system-class-survived-the-restart",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.classList.contains('atrium-overlay-accent-system'))"
+    },
+    {
+      "type": "eval",
+      "id": "paper-after-relaunch",
+      "target": "/sidebar",
+      "expression": "(getComputedStyle(document.documentElement).getPropertyValue('--ov-paper') || '').trim().toLowerCase()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "system-class-is-on",
+      "expected": "\"true\"",
+      "desc": "The push put the system accent class on the document"
+    },
+    {
+      "type": "eval_equals",
+      "id": "brand-class-is-off",
+      "expected": "\"true\"",
+      "desc": "And turned the brand accent class off, so the two are not both pinning --ov-accent at equal specificity"
+    },
+    {
+      "type": "eval_equals",
+      "id": "no-theme-class",
+      "expected": "\"true\"",
+      "desc": "'system' names no brand book theme, so no atrium-theme- class is added for it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "accent-is-a-real-colour-before",
+      "expected": "\"true\"",
+      "desc": "The window read a colour off macOS and pushed it, rather than pushing nothing"
+    },
+    {
+      "type": "eval_changed",
+      "before": "paper-before",
+      "after": "paper-after",
+      "desc": "The accent changed in the defaults and the paper followed it within a second, with nothing clicked and no restart"
+    },
+    {
+      "type": "eval_changed",
+      "before": "ink-before",
+      "after": "ink-after",
+      "desc": "And the ink too. Accent alone would pass on half a repaint."
+    },
+    {
+      "type": "eval_equals",
+      "id": "accent-is-a-real-colour-after",
+      "expected": "\"true\"",
+      "desc": "The repaint pushed another colour, not an empty value that also reads as changed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "system-class-survived-the-restart",
+      "expected": "\"true\"",
+      "desc": "A second launch against the same file resolves the system accent, with nothing clicked in between"
+    },
+    {
+      "type": "eval_changed",
+      "before": "paper-before",
+      "after": "paper-after-relaunch",
+      "desc": "And it resolves the accent macOS holds NOW, not the one the first launch read"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

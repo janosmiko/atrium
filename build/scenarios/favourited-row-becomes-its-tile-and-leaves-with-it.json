@@ -1,0 +1,112 @@
+{
+  "name": "favourited-row-becomes-its-tile-and-leaves-with-it",
+  "description": "A favourite tile is a tab in another shape. Dropping a tab row on the favourites grid used to add a tile and leave the row, so the page showed twice. Now the new tile claims the row's tab: the row goes, the tile is selected because that tab is the one on screen, and Remove from Favorites closes the tab with the tile, so no page is left open with nothing in the sidebar to reach it.\n\nThe fixture's Dark space holds one favourite on a slow page and one tab on example-domain.html, which is no favourite. The scenario sends the same messages the drop and the context menu send.",
+  "fixture": "favourite-ring-icon-colour.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval_until",
+      "id": "before",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) .row.tabrow')]; return rows.length + ' rows ' + document.querySelectorAll('.fav').length + ' tiles ' + document.querySelectorAll('.fav.sel').length + ' selected'; })()",
+      "expected": "1 rows 1 tiles 0 selected",
+      "timeout_ms": 8000,
+      "note": "one row, the example page, and one tile, the slow favourite"
+    },
+    {
+      "type": "eval",
+      "id": "row-clicked",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.railpane:not(.ovrailpane) .row.tabrow'); if (!r) return 'no-row'; r.click(); return 'clicked'; })()",
+      "note": "the row's tab on screen, so the tile that takes it over is the selected one"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "favourited",
+      "target": "/sidebar",
+      "expression": "(() => { chrome.send('sidebarRowFavorited', [0, 'tabs']); return 'sent'; })()",
+      "note": "what a drop of the row on the favourites grid sends"
+    },
+    {
+      "type": "eval_until",
+      "id": "after-drop",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) .row.tabrow')]; return rows.length + ' rows ' + document.querySelectorAll('.fav').length + ' tiles ' + document.querySelectorAll('.fav.sel').length + ' selected'; })()",
+      "expected": "0 rows 2 tiles 1 selected",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "removed",
+      "target": "/sidebar",
+      "expression": "(() => { const t = document.querySelector('.fav.sel'); if (!t) return 'no-tile'; chrome.send('sidebarFavoriteRemoved', [t.dataset.favId]); return 'sent ' + t.dataset.favId; })()",
+      "note": "the context menu's Remove from Favorites"
+    },
+    {
+      "type": "eval_until",
+      "id": "after-remove",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) .row.tabrow')]; return rows.length + ' rows ' + document.querySelectorAll('.fav').length + ' tiles ' + document.querySelectorAll('.fav.sel').length + ' selected'; })()",
+      "expected": "0 rows 1 tiles 0 selected",
+      "timeout_ms": 8000,
+      "note": "the new tile is gone and no row came back: the tab closed with the tile"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: favourite removed - closing its tab",
+      "timeout_ms": 8000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "before",
+      "expected": "1 rows 1 tiles 0 selected",
+      "desc": "the control: one row, three tiles, before any gesture"
+    },
+    {
+      "type": "eval_equals",
+      "id": "after-drop",
+      "expected": "0 rows 2 tiles 1 selected",
+      "desc": "AC: the row became the tile. The tile holds the tab, so it is the selected one and the row is gone."
+    },
+    {
+      "type": "eval_equals",
+      "id": "after-remove",
+      "expected": "0 rows 1 tiles 0 selected",
+      "desc": "AC: removing the favourite closed its tab, so nothing came back as a row"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: favourited row claims its tab",
+      "desc": "the drop claimed the row's tab for the tile"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ],
+  "settings": "page-tint-off.settings.json"
+}

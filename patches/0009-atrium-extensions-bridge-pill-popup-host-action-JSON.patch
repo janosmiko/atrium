@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 23 Jul 2026 13:18:26 +0200
+Subject: [PATCH 009/154] atrium: extensions bridge, pill, popup host, action
+ JSON
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../ui/extensions/extension_dialog_utils_views.cc    | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/chrome/browser/ui/extensions/extension_dialog_utils_views.cc b/chrome/browser/ui/extensions/extension_dialog_utils_views.cc
+index 011fcf743fae8..1944417b623de 100644
+--- a/chrome/browser/ui/extensions/extension_dialog_utils_views.cc
++++ b/chrome/browser/ui/extensions/extension_dialog_utils_views.cc
+@@ -87,8 +87,18 @@ void ShowDialog(ExtensionsToolbarDesktop* container,
+ 
+ void ShowDialog(BrowserWindowInterface* browser,
+                 std::unique_ptr<ui::DialogModel> dialog_model) {
++  BrowserView* browser_view =
++      BrowserView::GetBrowserViewForBrowser(browser);
++  if (!browser_view) {
++    // No BrowserView (e.g. chromeless window) means no toolbar to anchor to.
++    // Fall back to a browser-modal dialog parented to the native window.
++    ShowModalDialog(browser->GetWindow()->GetNativeWindow(),
++                    std::move(dialog_model));
++    return;
++  }
++
+   ToolbarButtonProvider* toolbar_button_provider =
+-      BrowserView::GetBrowserViewForBrowser(browser)->toolbar_button_provider();
++      browser_view->toolbar_button_provider();
+   CHECK(toolbar_button_provider);
+ 
+   views::BubbleAnchor anchor =

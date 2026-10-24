@@ -1,0 +1,9 @@
+[
+{"guid":"root________","id":1,"last_visit_date":null,"parent":0,"position":0,"title":"","type":2,"url":null},
+{"guid":"menu________","id":2,"last_visit_date":null,"parent":1,"position":0,"title":"menu","type":2,"url":null},
+{"guid":"toolbar_____","id":3,"last_visit_date":null,"parent":1,"position":1,"title":"toolbar","type":2,"url":null},
+{"guid":"tags________","id":4,"last_visit_date":null,"parent":1,"position":2,"title":"tags","type":2,"url":null},
+{"guid":"unfiled_____","id":5,"last_visit_date":null,"parent":1,"position":3,"title":"unfiled","type":2,"url":null},
+{"guid":"mobile______","id":6,"last_visit_date":null,"parent":1,"position":4,"title":"mobile","type":2,"url":null},
+{"guid":"fixtureB0010","id":10,"last_visit_date":null,"parent":3,"position":0,"title":"Tickets","type":1,"url":"https://tickets.example.test/"}
+]

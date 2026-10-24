@@ -1,0 +1,105 @@
+{
+  "name": "pinned-tab-joins-solo-folder-first",
+  "description": "A pinned tab dropped above the only member of a one-tab folder must become the first member, not land beside the last (its only) member. Real cgevent drag through the browser's input pipeline, chrome.send spied from the page.",
+  "fixture": "solo-folder-join.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "layout",
+      "target": "/sidebar",
+      "expression": "(() => { const pane = document.querySelector('.railpane:not(.ovrailpane)'); if (!pane) { return 'no-pane'; } const title = (r) => (r.querySelector('.tl') || r).textContent.trim(); const at = (name) => { const el = [...pane.querySelectorAll('.tabrow, .frow')].find((r) => title(r) === name); return el ? Math.round(el.getBoundingClientRect().top) : -1; }; return ['Loose', 'Solo Folder', 'Solo'].map(at).join(','); })()"
+    },
+    {
+      "type": "eval",
+      "id": "spy",
+      "target": "/sidebar",
+      "expression": "(() => { window.__reset = () => { window.__ev = []; window.__cs = []; return 'reset'; }; window.__reset(); for (const t of ['dragstart','dragover','drop','dragend']) { document.addEventListener(t, () => { if (window.__ev[window.__ev.length-1] !== t) { window.__ev.push(t); } }, true); } const orig = chrome.send.bind(chrome); chrome.send = (name, args) => { if (name === 'sidebarTabGrouped') { window.__cs.push([name, args]); } return orig(name, args); }; return 'spying'; })()"
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 178,
+      "x2": 113,
+      "y2": 238,
+      "steps": 40
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "events",
+      "target": "/sidebar",
+      "expression": "window.__ev.join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "sends",
+      "target": "/sidebar",
+      "expression": "window.__cs.map((c) => c[0] + ':' + c[1].join(',')).join(';')"
+    },
+    {
+      "type": "eval",
+      "id": "member-order",
+      "target": "/sidebar",
+      "expression": "(() => { const pane = document.querySelector('.railpane:not(.ovrailpane)'); const title = (r) => (r.querySelector('.tl') || r).textContent.trim(); const zone = pane.querySelector('.foldin[data-dropzone=\"pinned\"]'); return [...zone.children].filter((el) => el.matches('.tabrow, .frow')).map((el) => el.matches('.frow') ? 'F[' + [...el.nextElementSibling.querySelectorAll('.tabrow')].map(title).join('+') + ']' : title(el)).join(' | '); })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "layout",
+      "expected": "\"130,167,204\"",
+      "desc": "gates the drag: the rows sit where the screen coordinates below assume"
+    },
+    {
+      "type": "eval_equals",
+      "id": "spy",
+      "expected": "\"spying\"",
+      "desc": "the spy installed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "events",
+      "expected": "\"dragstart,dragover,drop,dragend\"",
+      "desc": "a real mouse drag reaches every drag event, drop included"
+    },
+    {
+      "type": "eval_equals",
+      "id": "sends",
+      "expected": "\"sidebarTabGrouped:0,33333333-1010-4010-8010-101010101010,pinned,0\"",
+      "desc": "THE MEASUREMENT: one message, carrying member slot 0 - no follow-up reorder"
+    },
+    {
+      "type": "eval_equals",
+      "id": "member-order",
+      "expected": "\"F[Loose+Solo]\"",
+      "desc": "the tab dropped above the only member landed first, not beside it as the last"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "name": "a-new-tab-lands-at-the-top-of-the-list",
+  "description": "A new tab used to be appended, so the newest row sat at the bottom of the space's tab list and the user had to look for it. mutate::open_tab now resolves the first rendered slot instead of the Chromium strip index.\n\nAn empty new tab carries no URL and so persists no row. The scenario opens one and loads a page the space does not already hold, which is the first moment a row exists, then reads the order.",
+  "fixture": "repeated-row-drags.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "order-before",
+      "target": "/sidebar",
+      "expression": "(() => { const pane = document.querySelector('.railpane:not(.ovrailpane)'); const rows = [...pane.querySelectorAll('[data-dropzone=\"tabs\"] .tabrow')]; return rows.map((r) => r.querySelector('.tl').textContent).join('|'); })()"
+    },
+    {
+      "type": "eval",
+      "id": "press-new-tab",
+      "target": "/sidebar",
+      "expression": "(() => { const pane = document.querySelector('.railpane:not(.ovrailpane)'); const b = pane.querySelector('.newtab'); if (!b) { return 'no button'; } b.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window})); return 'clicked'; })()",
+      "note": "dispatched on the button rather than aimed by coordinate - row heights move under other tasks and a pixel click retargets silently."
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "type",
+      "text": "127.0.0.1:8000/checkerboard.html",
+      "note": "a page this space does not hold. A URL it already holds would be adopted by that cold row, and no row would be added at all."
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "eval_until",
+      "id": "order-after",
+      "target": "/sidebar",
+      "expression": "(() => { const pane = document.querySelector('.railpane:not(.ovrailpane)'); const rows = [...pane.querySelectorAll('[data-dropzone=\"tabs\"] .tabrow')]; if (rows.length !== 4) { return 'rows ' + rows.length; } const tail = rows.slice(1).map((r) => r.querySelector('.tl').textContent).join('|'); return tail === 'Example Domain|Row Two|Row Three' ? 'new on top' : 'order ' + tail; })()",
+      "expected": "new on top",
+      "timeout_ms": 25000,
+      "note": "THE GATE. 'rows 3' means the page never opened a row. An 'order ...' answer names where the three older rows ended up, which is what a regression to appending looks like."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "order-before",
+      "expected": "\"Example Domain|Row Two|Row Three\"",
+      "desc": "the fixture order as it renders, so the comparison after the load means something"
+    },
+    {
+      "type": "eval_equals",
+      "id": "order-after",
+      "expected": "new on top",
+      "desc": "THE MEASUREMENT: the new row is first and the three older rows keep their order below it"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

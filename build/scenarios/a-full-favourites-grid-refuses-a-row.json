@@ -1,0 +1,131 @@
+{
+  "name": "a-full-favourites-grid-refuses-a-row",
+  "description": "A real cgevent drag of a tab row onto the end of a favourites grid that already holds 12 tiles, the most one profile may keep. The grid used to open a gap and draw the row as a tile, then the core refused the favourite and the drop did nothing, so the end of the grid read as broken.\n\nWhat it measures: no gap opens, the drawn row keeps its row look, the drop sends no favourite, and the grid and the tab list stay as they were. The drag ends right of the last tile's centre, the slot after it.",
+  "fixture": "full-favourites-grid.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "layout",
+      "target": "/sidebar",
+      "expression": "(() => { const grid = document.querySelector('[data-dropzone=\"favorites\"]'); const row = document.querySelector('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow'); return (grid ? grid.querySelectorAll('.fav').length : 0) + ' tiles, ' + (row ? 'a row' : 'no row'); })()",
+      "expected": "12 tiles, a row",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "row-point",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow').getBoundingClientRect(); return Math.round((b.left + b.right) / 2) + ',' + Math.round((b.top + b.bottom) / 2 + 30); })()"
+    },
+    {
+      "type": "eval",
+      "id": "end-point",
+      "target": "/sidebar",
+      "expression": "(() => { const tiles = document.querySelectorAll('[data-dropzone=\"favorites\"] .fav'); const b = tiles[tiles.length - 1].getBoundingClientRect(); return Math.round((b.left + b.right) / 2 + 8) + ',' + Math.round((b.top + b.bottom) / 2 + 30); })()"
+    },
+    {
+      "type": "eval",
+      "id": "spy",
+      "target": "/sidebar",
+      "expression": "(() => { window.__ev = []; window.__cs = []; window.__look = []; for (const t of ['dragstart','dragover','drop','dragend']) { document.addEventListener(t, () => { if (window.__ev[window.__ev.length-1] !== t) { window.__ev.push(t); } }, true); } document.addEventListener('dragover', () => requestAnimationFrame(() => { if (window.__ev.includes('drop')) { return; } const follow = document.querySelector('.dragfollow:not([hidden])'); const ghost = document.querySelector('[data-dropzone=\"favorites\"] .favghost'); const v = (follow ? follow.dataset.look : 'nofollow') + '/' + (ghost ? 'ghost' : 'noghost'); if (window.__look[window.__look.length-1] !== v) { window.__look.push(v); } }), true); const orig = chrome.send.bind(chrome); chrome.send = (name, args) => { if (name === 'sidebarRowFavorited') { window.__cs.push(name); } return orig(name, args); }; return 'spying'; })()"
+    },
+    {
+      "type": "drag",
+      "from_eval": "row-point",
+      "to_eval": "end-point",
+      "steps": 40
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "events",
+      "target": "/sidebar",
+      "expression": "window.__ev.join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "looks",
+      "target": "/sidebar",
+      "expression": "window.__look.join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "sends",
+      "target": "/sidebar",
+      "expression": "window.__cs.join(';') || 'none'"
+    },
+    {
+      "type": "eval_until",
+      "id": "after",
+      "target": "/sidebar",
+      "expression": "(() => { const grid = document.querySelector('[data-dropzone=\"favorites\"]'); const rows = document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow'); return grid.querySelectorAll('.fav').length + ' tiles, ' + rows.length + ' row'; })()",
+      "expected": "12 tiles, 1 row",
+      "timeout_ms": 4000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "layout",
+      "expected": "12 tiles, a row",
+      "desc": "gates the drag: the grid is full and the row is there"
+    },
+    {
+      "type": "eval_equals",
+      "id": "spy",
+      "expected": "\"spying\"",
+      "desc": "the spies installed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "events",
+      "expected": "\"dragstart,dragover,drop,dragend\"",
+      "desc": "the drag reached drop"
+    },
+    {
+      "type": "eval_equals",
+      "id": "looks",
+      "expected": "\"row/noghost\"",
+      "desc": "THE MEASUREMENT: the whole way, the drawn image stayed a row and no gap opened in the full grid"
+    },
+    {
+      "type": "eval_equals",
+      "id": "sends",
+      "expected": "\"none\"",
+      "desc": "the drop asked for no favourite"
+    },
+    {
+      "type": "eval_equals",
+      "id": "after",
+      "expected": "12 tiles, 1 row",
+      "desc": "the grid and the tab list are as they were"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

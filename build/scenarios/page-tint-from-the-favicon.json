@@ -1,0 +1,150 @@
+{
+  "name": "page-tint-from-the-favicon",
+  "description": "At the SHIPPED glass opacity of 0.2, switching between two pages that declare no theme-color drifts the chrome, because the favicon is the fallback source. Both fixture pages carry the same neutral body and differ only in the colour of a solid 32px icon, so the only thing that can move the backdrop is the fallback.\n\nBOTH MEASURED SWITCHES ARE WARM. The rows are opened once at the start and the captures come from switches back to pages already loaded, which commit nothing. The first draft clicked COLD rows and passed while a warm switch did nothing at all - a reload was the only gesture that moved the chrome.",
+  "fixture": "icon-tint.spaces.json",
+  "settings": "icon-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the blue tab commit and its favicon resolve"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval_until",
+      "id": "row-click-3",
+      "target": "/sidebar",
+      "expression": "(() => { const r = [...document.querySelectorAll('.row.tabrow')].find(x => x.textContent.includes(\"Orange Icon\")); if (!r) return 'no-row'; r.click(); return 'clicked'; })()",
+      "expected": "clicked",
+      "timeout_ms": 5000,
+      "note": "Found by title, not by a coordinate the row heights keep moving. the Orange Icon row, COLD. This one navigates - it is here to warm the tab, not to be measured."
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the orange commit and its favicon"
+    },
+    {
+      "type": "eval_until",
+      "id": "row-click-5",
+      "target": "/sidebar",
+      "expression": "(() => { const r = [...document.querySelectorAll('.row.tabrow')].find(x => x.textContent.includes(\"Blue Icon\")); if (!r) return 'no-row'; r.click(); return 'clicked'; })()",
+      "expected": "clicked",
+      "timeout_ms": 5000,
+      "note": "Found by title, not by a coordinate the row heights keep moving. back to the Blue Icon Page row, WARM. Nothing commits. Row coordinates measured 2026-08-27 off this scenario's own capture."
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "the drift is an animation, so it needs longer than a paint"
+    },
+    {
+      "type": "capture",
+      "id": "blue",
+      "duration_ms": 500,
+      "fps": 10,
+      "note": "the chrome after a WARM switch to the blue-icon page"
+    },
+    {
+      "type": "eval_until",
+      "id": "row-click-8",
+      "target": "/sidebar",
+      "expression": "(() => { const r = [...document.querySelectorAll('.row.tabrow')].find(x => x.textContent.includes(\"Orange Icon\")); if (!r) return 'no-row'; r.click(); return 'clicked'; })()",
+      "expected": "clicked",
+      "timeout_ms": 5000,
+      "note": "Found by title, not by a coordinate the row heights keep moving. back to the Orange Icon row, WARM. Nothing commits."
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "scroll",
+      "x": 600,
+      "y": 400,
+      "dy": -600,
+      "dx": 0,
+      "note": "A burst of paints with no navigation, no theme-color and no favicon change. A per-paint sampler would log through all of it."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "orange",
+      "duration_ms": 500,
+      "fps": 10,
+      "note": "the chrome after a WARM switch to the orange-icon page"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "pixels_changed",
+      "before": "blue",
+      "after": "orange",
+      "region": [
+        380,
+        50,
+        340,
+        26
+      ],
+      "min_changed_pct": 3,
+      "desc": "THE CONTROL: the page's own heading reads 'Blue favicon only' in one capture and 'Orange favicon only' in the other, so a different page really is in front. A vlog on the committed url cannot serve here - a warm switch commits nothing, which is the entire point of this scenario."
+    },
+    {
+      "type": "region_stable",
+      "before": "blue",
+      "after": "orange",
+      "region": [
+        10,
+        460,
+        60,
+        100
+      ],
+      "desc": "THE MEASUREMENT, inverted since the ambilight rework: the sidebar column keeps the space tint across the switch. The page colour lands in the band beside the card only.",
+      "note": "Clean sidebar backdrop below the last row and above the dots bar, so no row content moves through the sample.",
+      "max_delta": 6
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: page tint sampled",
+      "max": 16,
+      "min": 1,
+      "label": "sampled-per-event-not-per-paint",
+      "desc": "Two page loads, two favicon resolutions, three tab activations and a scroll burst. A per-paint reader would be in the hundreds. The floor of 1 stops a pattern that matches nothing from satisfying the ceiling."
+    },
+    {
+      "type": "theme_changed",
+      "before": "blue",
+      "after": "orange",
+      "region": [
+        206,
+        460,
+        16,
+        100
+      ],
+      "min_delta": 5,
+      "desc": "The band beside the card follows the page.",
+      "note": "Clean sidebar backdrop below the last row and above the dots bar, so no row content moves through the sample."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

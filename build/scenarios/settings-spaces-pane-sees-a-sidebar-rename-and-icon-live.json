@@ -1,0 +1,118 @@
+{
+  "name": "settings-spaces-pane-sees-a-sidebar-rename-and-icon-live",
+  "description": "AtriumSettingsWindow::RefreshSpaces() closes the gap where a sidebar-driven space rename or icon pick never reached an already-open Settings window. This opens Settings > Spaces first, then renames the active space and picks its icon from the sidebar's context menu and the native icon picker widget, and checks the Spaces pane already shows both without being reopened.",
+  "fixture": "canvas.spaces.json",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {"type": "settle", "ms": 6000},
+    {"type": "activate"},
+    {"type": "settle", "ms": 1500},
+    {"type": "key", "combo": "cmd+comma"},
+    {"type": "wait_vlog", "pattern": "Atrium: settings surface ready", "timeout_ms": 15000},
+    {
+      "type": "eval",
+      "id": "open-spaces-pane",
+      "target": "/settings",
+      "expression": "(() => { const item = document.querySelector('.settings-rail-item[data-pane=\"spaces\"]'); if (!item) { return 'no item'; } item.click(); return 'clicked'; })()"
+    },
+    {"type": "settle", "ms": 800},
+    {
+      "type": "eval",
+      "id": "initial-name",
+      "target": "/settings",
+      "expression": "String(document.querySelector('.settings-space-item[data-space=\"0\"] span:not(.settings-space-dot)')?.textContent)"
+    },
+    {
+      "type": "eval",
+      "id": "open-rename-menu",
+      "target": "/sidebar",
+      "expression": "(() => { const wsname = document.querySelector('.wsname'); if (!wsname) { return 'no-wsname'; } const r = wsname.getBoundingClientRect(); wsname.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: r.left + 5, clientY: r.top + 5})); return document.querySelector('.ctxmenu') ? 'menu-open' : 'no-menu'; })()",
+      "note": "a synthetic DOM contextmenu on .wsname, not a real OS rightclick - Settings is a separate frontmost window at this point"
+    },
+    {
+      "type": "eval",
+      "id": "commit-rename",
+      "target": "/sidebar",
+      "expression": "(() => { const item = [...document.querySelectorAll('.ctxitem')].find((b) => b.textContent === 'Change Space Name'); if (!item) { return 'no-item'; } item.click(); const label = document.querySelector('.railpane[data-space-index=\"0\"] .wsname .wsl'); if (!label) { return 'no-label'; } label.textContent = 'Workshop'; label.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true})); return 'renamed'; })()",
+      "note": "a real Enter keydown, not label.blur() - blur() called from a CDP eval does not reliably dispatch a 'blur' DOM event in this VM, so startInlineRename's onBlur commit path never ran; Enter's onKey handler commits synchronously instead"
+    },
+    {
+      "type": "eval_until",
+      "id": "sidebar-shows-rename",
+      "target": "/sidebar",
+      "expression": "document.querySelector('.railpane[data-space-index=\"0\"] .wsname .wsl')?.textContent || 'no label'",
+      "expected": "Workshop",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "open-icon-menu",
+      "target": "/sidebar",
+      "expression": "(() => { const wsname = document.querySelector('.wsname'); if (!wsname) { return 'no-wsname'; } const r = wsname.getBoundingClientRect(); wsname.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: r.left + 5, clientY: r.top + 5})); return document.querySelector('.ctxmenu') ? 'menu-open' : 'no-menu'; })()"
+    },
+    {
+      "type": "eval",
+      "id": "click-change-icon",
+      "target": "/sidebar",
+      "expression": "(() => { const item = [...document.querySelectorAll('.ctxitem')].find((b) => b.textContent === 'Change Space Icon'); if (!item) { return 'no-item'; } item.click(); return 'clicked'; })()",
+      "note": "Change Space Icon opens the native /spaceicon widget, so this only reports the click"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: space icon picker showing",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "eval_until",
+      "id": "widget-rendered",
+      "target": "/spaceicon",
+      "expression": "document.querySelector('.spicon-cell') ? 'ready' : 'no cell'",
+      "expected": "ready",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "eval",
+      "id": "pick-icon",
+      "target": "/spaceicon",
+      "expression": "(() => { const tab = document.querySelector('.spicon-seg .settings-seg-option[data-tab=\"icon\"]'); if (!tab) { return 'no-icon-tab'; } tab.click(); const cell = document.querySelector('.spicon-grid .spicon-cell'); if (!cell) { return 'no-cell'; } const name = cell.firstElementChild?.dataset?.icon || ''; cell.click(); return name; })()"
+    },
+    {
+      "type": "eval_until",
+      "id": "sidebar-shows-icon",
+      "target": "/sidebar",
+      "expression": "document.querySelector('.sdot.active .d svg')?.dataset.icon || 'no-svg'",
+      "expected": "star",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval_until",
+      "id": "settings-shows-rename",
+      "target": "/settings",
+      "expression": "document.querySelector('.settings-space-item[data-space=\"0\"] span:not(.settings-space-dot)')?.textContent || 'no name'",
+      "expected": "Workshop",
+      "timeout_ms": 8000,
+      "note": "no reopen of Settings between here and the sidebar edits above - RefreshSpaces() must have pushed on its own"
+    },
+    {
+      "type": "eval_until",
+      "id": "settings-shows-icon",
+      "target": "/settings",
+      "expression": "document.querySelector('.settings-space-item[data-space=\"0\"] .settings-space-dot svg')?.dataset.icon || 'no-svg'",
+      "expected": "star",
+      "timeout_ms": 8000
+    }
+  ],
+  "assertions": [
+    {"type": "eval_equals", "id": "open-spaces-pane", "expected": "\"clicked\""},
+    {"type": "eval_equals", "id": "initial-name", "expected": "\"Work\""},
+    {"type": "eval_equals", "id": "open-rename-menu", "expected": "\"menu-open\""},
+    {"type": "eval_equals", "id": "commit-rename", "expected": "\"renamed\""},
+    {"type": "eval_equals", "id": "sidebar-shows-rename", "expected": "Workshop"},
+    {"type": "eval_equals", "id": "open-icon-menu", "expected": "\"menu-open\""},
+    {"type": "eval_equals", "id": "pick-icon", "expected": "\"star\""},
+    {"type": "eval_equals", "id": "sidebar-shows-icon", "expected": "star"},
+    {"type": "eval_equals", "id": "settings-shows-rename", "expected": "Workshop"},
+    {"type": "eval_equals", "id": "settings-shows-icon", "expected": "star"}
+  ]
+}

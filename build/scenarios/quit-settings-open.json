@@ -1,0 +1,81 @@
+{
+  "name": "quit-settings-open",
+  "description": "Cmd+Q with the Atrium settings window open and holding key.\n\nThe settings window is the third chrome-layer surface to hit the gap found on the palette and the peek card: it hosts a live WebContents, so its RenderWidgetHostViewCocoa claims every key equivalent and forwards it to the renderer asynchronously. CommandDispatcher only calls postPerformKeyEquivalent when the view hierarchy DECLINES, and a live renderer never declines - so any main-menu route reached after the web content is never reached at all. The settings window had no CommandDispatcher delegate of its own either, so Cmd+Q simply vanished.\n\nWHY THIS NEEDED ITS OWN SCENARIO. Two scenarios already pressed Cmd+Q with this window up and neither reported it. settings-tab-row-keyboard-focus-ring did fail its quit assertion, but its cannot_pass marking talks only about a missing settings window and a delta of 0.00, so the quit line read as part of an expected failure. settings-confirm-quit-toggle scores 12/0 while its relaunch logs 'Cmd+Q did not stop Atrium within 15s - sending SIGTERM': shutdown_app fails open to SIGTERM by design, because a persistence path may only flush on the way out, so a swallowed chord cannot fail that scenario. Neither is a defect in those scenarios - it is why the question needs asking somewhere it can be answered.\n\nWhat makes this one able to answer it: the premise gates below establish that the settings window was built AND held key when the chord landed, and the quit assertion is the only thing standing between the chord and the verdict - no SIGTERM fallback runs before it.\n\nThe rail is a 190px left column, so (192,96) would land on blank window chrome rather than the General item. This click still has to be a REAL OS-level click, not an eval - the point is that the page holds FIRST RESPONDER when the chord lands, which an eval dispatched over CDP does not exercise. Measured on a 1024x768 frame in the same point coordinates `click` uses: the General rail item's box spans roughly x 93-262, y 84-120, giving a centre of (177, 102).",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so the browser window is up before anything is typed at it"
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate",
+      "note": "Atrium MUST be frontmost or cmd+comma opens the frontmost app's own settings instead - observed"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "open the settings window; its menu item is not reachable from a scenario"
+    },
+    {
+      "type": "settle",
+      "ms": 7000,
+      "note": "the window builds, the route loads, and the core's values land a beat after the labels - same wait settings-confirm-quit-toggle measured"
+    },
+    {
+      "type": "click",
+      "x": 177,
+      "y": 102,
+      "note": "THE VARIABLE, and it is not the one this task started with. Opening the window is NOT enough: a first run of this scenario without this click quit cleanly, because being the key window and having a live page still leaves the page's RenderWidgetHostViewCocoa out of the responder chain, so the hierarchy declines and the chord reaches the main menu after all. The swallow needs the page to hold FIRST RESPONDER. This clicks the General rail item, which is already selected - a real click into the page that changes no settings. Deliberately not the 'Warn before quitting' row: turning confirm-to-quit on would put a panel in front of the quit and fail this scenario for an unrelated reason. Coordinate measured for the 190px left column (see the description) - the window's own left rail."
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let first responder land in the page before the chord"
+    },
+    {
+      "type": "capture",
+      "id": "state",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence of the exact state Cmd+Q is pressed in: the settings window frontmost over the browser window, with the click already delivered to its page"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-window-was-built",
+      "pattern": "Atrium: settings window built",
+      "note": "gate on the PREMISE. Without it a build where cmd+comma did nothing would pass the quit trivially, having tested a plain browser window."
+    },
+    {
+      "type": "vlog",
+      "label": "the-settings-window-had-key",
+      "pattern": "Atrium: settings window gained key",
+      "note": "the other half of the premise, and the half a screenshot cannot settle: a window can be visible and on top without owning key, and it is owning key that decides which CommandDispatcher sees the chord. Pre-quit line, so it is checked against the pre-quit log."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q quits while the settings window holds key focus"
+    },
+    {
+      "type": "vlog",
+      "label": "the-quit-route-was-taken",
+      "pattern": "Atrium: settings passing key-equivalent to main menu",
+      "note": "Listed AFTER the quit assertion on purpose, following quit-palette-open: the run log is pulled before assertions run, so a line Cmd+Q itself emits is only in the log assert_quit re-pulls. Placed before it this gate could never match. It separates 'quit worked' from 'quit worked through the fix' - the chord leaving from prePerformKeyEquivalent, ahead of the web content."
+    }
+  ]
+}

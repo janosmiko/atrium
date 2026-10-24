@@ -1,0 +1,58 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 13:41:08 +0200
+Subject: [PATCH 111/154] fix(split): route a cmd+option link click into the
+ atrium split
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+A link click with cmd+option asks for NEW_SPLIT_VIEW. Stock handling pairs
+the new tab through TabStripModel::AddToNewSplit, which an Atrium window
+never populates, so the second pane silently never appeared. Browser::
+OpenURLFromTab now hands that disposition to OpenLinkInAtriumSplit, and the
+hover card names the chord again.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/browser.cc | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+
+diff --git a/chrome/browser/ui/browser.cc b/chrome/browser/ui/browser.cc
+index b7b01080ce2ef..4982efcff8008 100644
+--- a/chrome/browser/ui/browser.cc
++++ b/chrome/browser/ui/browser.cc
+@@ -292,6 +292,7 @@
+ #endif
+ 
+ #if BUILDFLAG(IS_MAC)
++#include "chrome/browser/ui/atrium/atrium_feature_check.h"
+ #include "chrome/browser/ui/atrium/atrium_peek_intercept.h"
+ #include "chrome/browser/ui/atrium/atrium_status_bubble_hook.h"
+ #include "ui/display/display.h"
+@@ -1516,6 +1517,24 @@ WebContents* Browser::OpenURLFromTab(
+   }
+ 
+ #if BUILDFLAG(IS_MAC)
++  // Cmd+Option on a link is NEW_SPLIT_VIEW, whose stock handling pairs the new
++  // tab through TabStripModel::AddToNewSplit - a path Atrium's TabStripModel
++  // never populates, so the pane silently never appears. NEW_BACKGROUND_TAB
++  // because OpenLinkInAtriumSplit opens the link itself and would recurse.
++  if (params.disposition == WindowOpenDisposition::NEW_SPLIT_VIEW && source &&
++      atrium::IsAtriumBrowserWindowEnabled()) {
++    OpenURLParams split_params(params);
++    split_params.disposition = WindowOpenDisposition::NEW_BACKGROUND_TAB;
++    if (atrium::OpenLinkInAtriumSplit(this, source, split_params,
++                                      /*stacked=*/false)) {
++      return source;  // No new WebContents created on this path.
++    }
++    // Nothing Atrium can split - a devtools or popup window, say - so open a
++    // plain tab rather than fall into a split this window cannot build.
++    return OpenURLFromTab(source, split_params,
++                          std::move(navigation_handle_callback));
++  }
++
+   // Peek mode (2026-07-10 plan, Q1): shift+click on Mac maps to
+   // NEW_WINDOW (ui/base/window_open_disposition_utils.cc's
+   // DispositionFromClick) - intercept it here, before a real window/tab is

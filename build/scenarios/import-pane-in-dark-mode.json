@@ -1,0 +1,29 @@
+{
+  "name": "import-pane-in-dark-mode",
+  "description": "The import pane previews a staged Arc folder in dark mode. The pane uses only the shared settings tokens, so the capture is the dark theme evidence.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "import_arc_dir": "fixtures/import/arc/basic",
+  "system_appearance": "dark",
+  "app_process": "Atrium",
+  "actions": [
+    {"type": "wait_vlog", "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost", "timeout_ms": 20000, "note": "gate: the startup tab committed"},
+    {"type": "settle", "ms": 4000},
+    {"type": "activate", "note": "Atrium frontmost, or cmd+comma opens Finder Settings"},
+    {"type": "settle", "ms": 1000},
+    {"type": "key", "combo": "cmd+comma"},
+    {"type": "wait_vlog", "pattern": "Atrium: settings surface ready", "timeout_ms": 15000},
+    {"type": "eval", "id": "open-import-pane", "target": "/settings",
+     "expression": "(() => { const item = document.querySelector('.settings-rail-item[data-pane=\"import\"]'); if (!item) { return 'no import rail item'; } item.click(); return 'clicked'; })()"},
+    {"type": "wait_vlog", "pattern": "Atrium: import arc previewed", "timeout_ms": 10000},
+    {"type": "settle", "ms": 800},
+    {"type": "capture", "id": "preview", "duration_ms": 400, "fps": 20, "note": "evidence: the Arc card with its counts, dark mode"},
+    {"type": "eval", "id": "card-counts", "target": "/settings",
+     "expression": "String((document.querySelector('.import-card[data-source=\"arc\"] .import-counts') || {}).textContent)"}
+  ],
+  "assertions": [
+    {"type": "eval_equals", "id": "card-counts", "expected": "\"3 spaces, 6 tabs, 2 favourites, 4 routing rules and 2 profiles\"", "desc": "the preview counts the fixture"}
+  ]
+}

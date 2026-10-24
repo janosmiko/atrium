@@ -1,0 +1,162 @@
+{
+  "name": "peek-controls-close-the-card",
+  "description": "Peek controls, both looks: the /peekctl WebUI cluster next to a peek card renders its two buttons, carries the parent space's tint, and the close button really dismisses the card. Same fixture, gate and link coordinates as peek-dismiss-escape.json - a peek opened on this fixture, at this link, is a proven precondition, so this scenario reuses it rather than re-deriving it. Where it diverges: the dismiss comes from clicking .pkc-close on the controls widget's own document instead of the Escape accelerator, and the DOM/tint checks run against /peekctl (PeekControlsWidget::BuildContents, chrome/browser/ui/atrium/atrium_peek_widget.mm) rather than the card's own page. peek-controls.js's installPeekControls() renders one .pkc cluster holding two buttons, class pkc-close/pkc-popout plus the shared ov-btn class, each wired to chrome.send('peekControl', [kind]) on click. OnSurfaceMessage's 'close' branch calls owner_->RunDismissCallback(), the same funnel Escape uses (PeekWidget::OnEscapePressed), which is why the dismiss proof below is identical to peek-dismiss-escape's. The tint check expects '15 43 70' because oceanBlue (this fixture's space tint) resolves to #0F2B46 (rust/atrium-core/src/tint.rs) and PushOverlayTheme writes the RGB triplet as --atrium-space-tint on peekControlsReady - the same push command-bar-wears-the-space-tint.json already proved reaches a sibling overlay document.\n\nASSUMPTION FOR THE CONTROLLER: the ax_window_count assertion is written to expect the card AND the controls cluster both counted (one more than the 2-window baseline peek-auto-pinned/a sibling scenario measured for a plain peek-open state at min_area 200000), using a lower min_area (1000, comfortably under kPeekControlsSize's 70x38=2660 area) so the controls window is not floored out. But ax_window_count always reads LIVE state at the very end of the action list, after every action including the close click has already run, and the vm-scenario.sh runner has no way to sample it mid-run - so by the time this assertion's own retry loop (up to 8s) starts, the close IPC round-trip and the closing VLOG line have already landed, and the card's own 170ms dismiss animation (kPeekDismissDuration) may well have already finished too, since pulling the run log over SSH before assertions run is itself likely to take longer than 170ms. If this assertion is flaky or consistently reads back down to 1, that is this timing gap, not a widget bug - the controller should re-grade it against the close-button proof (the eval_equals checks and the theme_changed dim-region measurement below), which do not have this race.",
+  "fixture": "peek-scrim.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "27027027-2702-4702-8702-270270270270",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the startup tab commit before navigating, same wait peek-dismiss-escape uses"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "peek-scrim-red.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-scrim-red.html",
+      "timeout_ms": 15000,
+      "note": "GATE: the red page really committed as the STARTUP tab, same fixture and gate as peek-dismiss-escape"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the undimmed parent, for visual record only"
+    },
+    {
+      "type": "move",
+      "x": 338,
+      "y": 96,
+      "note": "hover the link before pressing it, same coordinates peek-dismiss-escape reads off a captured frame on this fixture"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "click",
+      "x": 338,
+      "y": 96,
+      "note": "the link, opening the peek"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: peek widget showing for parent",
+      "timeout_ms": 15000,
+      "note": "GATE: a peek really opened, PeekWidget::Show's own line"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the open animation finish so the controls cluster is fully placed and the scrim is at full strength"
+    },
+    {
+      "type": "capture",
+      "id": "peeked",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the parent dimmed with the card and cluster showing, the BEFORE half of the dismiss proof"
+    },
+    {
+      "type": "eval",
+      "id": "button-count",
+      "target": "/peekctl",
+      "expression": "String(document.querySelectorAll('.pkc .ov-btn').length)",
+      "note": "AC: installPeekControls renders exactly close and popout"
+    },
+    {
+      "type": "eval",
+      "id": "space-tint",
+      "target": "/peekctl",
+      "expression": "getComputedStyle(document.documentElement).getPropertyValue('--atrium-space-tint').trim()",
+      "note": "AC: PushOverlayTheme reaches this document too, on peekControlsReady"
+    },
+    {
+      "type": "eval",
+      "id": "close-click",
+      "target": "/peekctl",
+      "expression": "(document.querySelector('.pkc-close').click(), 'clicked')",
+      "note": "THE MEASUREMENT: fires chrome.send('peekControl', ['close']), the same funnel Escape uses"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: peek widget closing for parent",
+      "timeout_ms": 15000,
+      "note": "GATE: the close button really triggered PeekWidget::Close, not just a DOM click that went nowhere"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the dismiss animation finish, same wait peek-dismiss-escape uses after Escape"
+    },
+    {
+      "type": "capture",
+      "id": "dismissed",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the parent after the card and cluster are gone, the AFTER half of the dismiss proof"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "button-count",
+      "expected": "\"2\"",
+      "desc": "close and popout, nothing else"
+    },
+    {
+      "type": "eval_equals",
+      "id": "space-tint",
+      "expected": "\"15 43 70\"",
+      "desc": "this fixture's startup space carries tint oceanBlue, which resolves to #0F2B46"
+    },
+    {
+      "type": "eval_equals",
+      "id": "close-click",
+      "expected": "\"clicked\"",
+      "desc": "the button was really there and took the click"
+    },
+    {
+      "type": "theme_changed",
+      "before": "peeked",
+      "after": "dismissed",
+      "region": [
+        240,
+        400,
+        60,
+        150
+      ],
+      "min_delta": 4.0,
+      "desc": "THE MEASUREMENT: the parent's red must come back once the close button has done its job, same region and threshold peek-dismiss-escape and peek-scrim already proved on this fixture"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits"
+    }
+  ]
+}

@@ -1,0 +1,139 @@
+/* Copyright 2026 The Atrium Authors */
+
+/* One card, the overlay design language's own. Every colour, radius and face
+   comes from overlay.css - a literal here is the drift that layer stops. */
+.qm-card {
+  width: 232px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  box-sizing: border-box;
+  font: 400 12px var(--ov-font);
+}
+
+.qm-share {
+  display: flex;
+  gap: 4px;
+}
+
+.qm-share-btn,
+.qm-copy-btn {
+  flex: 1;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: 500 12px var(--ov-font);
+  cursor: default;
+}
+
+.qm-share-btn:hover:enabled,
+.qm-copy-btn:hover:enabled,
+.qm-site:hover {
+  background: var(--ov-sel);
+}
+
+.qm-share-btn:disabled,
+.qm-copy-btn:disabled {
+  color: var(--ov-mute);
+}
+
+.qm-site {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: 400 12px var(--ov-font);
+  cursor: default;
+}
+
+/* The lock's own ink, so the SVG's currentColor strokes follow the state. */
+.qm-site-glyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  color: var(--ov-accent);
+}
+
+.qm-site.qm-insecure .qm-site-glyph {
+  color: var(--ov-danger);
+}
+
+.qm-site-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.qm-site-host {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qm-site-state {
+  color: var(--ov-mute);
+  font-size: 11px;
+}
+
+.qm-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 4px 2px;
+}
+
+.qm-tile {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--ov-radius-tile);
+  background: transparent;
+  cursor: default;
+}
+
+.qm-tile:hover {
+  background: var(--ov-sel);
+}
+
+.qm-tile-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* The pin's own mark, top right, so a pinned tile reads at a glance. */
+.qm-tile.qm-pinned::after {
+  content: '';
+  position: absolute;
+  inset-block-start: 3px;
+  inset-inline-end: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--ov-radius-dot);
+  background: var(--ov-accent);
+}
+
+.qm-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  border-top: 1px solid var(--ov-border);
+}
+
+.qm-manage,
+.qm-store {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--ov-accent);
+  font: 500 12px var(--ov-font);
+  cursor: default;
+}

@@ -1,0 +1,96 @@
+{
+  "name": "a-navigated-tab-keeps-its-row",
+  "description": "A row's persisted url follows the page its tab navigates to.\n\nONE STALE STRING, THREE REPORTED SYMPTOMS. A row's live tab id is assigned by matching its persisted url against the live strip's url EXACTLY (sidebar::LiveTabIds::take), and nothing wrote that url after the tab was opened. So a tab that navigated stopped resolving to its own row, and a row with no live id cannot be drawn as selected, cannot be closed by id, and its click falls through to the cold-row branch - which reopens the page as a SECOND tab. Those were reported as three separate defects.\n\nWHY THIS ASSERTS THE FILE AND NOT THE SYMPTOMS. The url on disk is the cause; the three symptoms are consequences of it. Reading the file back needs no click coordinate at all, and every coordinate in this suite is a measurement that can go stale. A scenario that proves the cause with no coordinate in it will still be true after the next layout change.\n\nWHAT MAKES IT A MEASUREMENT. The staged fixture holds ?com at spaces.0.tabs.1.url, and the assertion expects the page the tab NAVIGATES to, which the fixture does not contain anywhere. So a match cannot be the fixture's own value - and before the fix this path held ?com forever, whatever the tab was showing.\n\nTHE STARTUP TAB IS ROW 1, not row 0. Measured from a run rather than assumed: the log carries 'Atrium: tab 1 url .../example-domain.html?com', and the fixture's second row is the ?com one.\n\nWHY THERE IS NO 'THE OTHER ROW WAS LEFT ALONE' ASSERTION HERE. It was written and the harness refused it, correctly: a file_contains whose expected value the staged fixture ALREADY holds would pass against a build that wrote nothing at all. Proving that only ONE row moved needs a comparison the file cannot express, so it lives in the crate instead - a_navigation_moves_only_the_row_its_tab_is_showing checks both rows in-process, where the untouched one can be distinguished from a coincidence.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://dl\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed the url its row was written with, so the row and the tab agree to begin with"
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+l",
+      "note": "the address bar, to navigate the tab that is already open rather than opening a new one - cmd+t would add a tab and prove nothing about a row following its own page"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/routing3-target.html"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "eval_until",
+      "id": "navigated-page",
+      "target": "routing3-target.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/routing3-target.html",
+      "timeout_ms": 15000,
+      "note": "gate: the navigation committed. PrimaryPageChanged is the hook the url catch-up runs from, so this is the event under test"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the row write goes through the core and out to the file"
+    },
+    {
+      "type": "capture",
+      "id": "after-navigation",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the sidebar with the row still resolving to its tab - it should read as selected, which is one of the three symptoms this fixes"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog_absent",
+      "label": "the-navigation-opened-no-second-tab",
+      "pattern": "Atrium: cold sidebar row opening",
+      "note": "the cold-row path is where a row with no live id sent its clicks, and it is what produced the duplicate tab. Nothing in this scenario should reach it"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "note": "one window - the address bar is not a window of its own, and a second would mean the url opened somewhere this scenario is not reading"
+    },
+    {
+      "type": "quit"
+    }
+  ],
+  "teardown_assertions": [
+    {
+      "type": "file_contains",
+      "label": "the-row-followed-its-page",
+      "file": "spaces",
+      "path": "spaces.0.tabs.1.url",
+      "value": "http://127.0.0.1:8000/routing3-target.html",
+      "note": "THE ASSERTION THAT PINS THE CAUSE. Before the fix this path held the fixture's ?com url forever, whatever the tab was showing, and the row's live id went empty the moment the tab navigated. The fixture contains routing3-target.html nowhere, so a match here was written by the app. Read in teardown because the write flushes on the core's own schedule and a read while the app runs can race it"
+    }
+  ]
+}

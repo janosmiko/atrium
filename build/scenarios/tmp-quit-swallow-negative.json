@@ -1,0 +1,64 @@
+{
+  "name": "tmp-quit-swallow-negative",
+  "description": "Negative control: does the harness FAIL a Cmd+Q that did not end the app? It could not before - shutdown_app waited fifteen seconds, sent SIGTERM, logged a line and recorded nothing, so settings-confirm-quit-toggle scored 12 passed, 0 failed on 2026-08-10 while its own log said the chord had been ignored. This stages a page that refuses to unload, clicks into it so the refusal is armed and the page's RenderWidgetHostViewCocoa holds first responder (the swallow needs first responder, not merely a live renderer in the key window), and then asks for a teardown assertion, which is what makes the runner stop the app. The expected result is a red 'quit:shutdown' naming SIGTERM. wip, like every other tmp-* probe: it is built to fail and has no place in the default suite.",
+  "wip": true,
+  "fixture": "quit-swallow.spaces.json",
+  "startup_space": "48900001-0000-0000-0000-000000000001",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "quit-swallow.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/quit-swallow.html",
+      "timeout_ms": 20000,
+      "note": "GATE: the page really loaded off the fixture server. Without it a blank tab would take the quit cleanly and this control would report the opposite of what it measured."
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate",
+      "note": "frontmost, so the shutdown step's Cmd+Q reaches Atrium and not whatever else the clean snapshot left in front."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "click",
+      "x": 620,
+      "y": 430,
+      "note": "THE PRECONDITION. Chromium suppresses a beforeunload dialog until the frame has sticky user activation, and the click is also what puts the page's RenderWidgetHostViewCocoa in first responder - the same thing the settings window needs before it will swallow anything."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "ATRIUM-SWALLOW-ARMED",
+      "timeout_ms": 8000,
+      "note": "GATE: the page saw the click, so the refusal is armed. The page reports it through document.title, which reaches the run log via TitleWasSet."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-page-is-armed",
+      "pattern": "ATRIUM-SWALLOW-ARMED",
+      "note": "Stated again as a graded assertion so the artifact says on its own terms that the premise held."
+    }
+  ],
+  "teardown_assertions": [
+    {
+      "type": "vlog",
+      "label": "the-app-was-signalled",
+      "pattern": "Handling shutdown for signal 15",
+      "note": "The app's own account of how it ended, independent of the harness's pgrep bookkeeping. Present here and absent from every clean quit measured on 2026-08-10, which is what lets quit_outcome.py tell the two apart."
+    }
+  ]
+}

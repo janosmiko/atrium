@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 14 Sep 2026 04:38:37 +0200
+Subject: [PATCH 137/154] refactor(atrium): rename the overview widget files to
+ the controller
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 42c4c038c808c..b0f05360e8a11 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -675,6 +675,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:status_bubble_color_math",
+     "//chrome/browser/ui/atrium:surface_key_route",
+     "//chrome/browser/ui/atrium:url_submit_decision",
++    "//chrome/browser/ui/atrium:vim_key_decision",
+     "//chrome/browser/ui/atrium:vim_script",
+     "//chrome/browser/ui/atrium:window_appearance",
+     "//chrome/browser/ui/atrium:theme_animator",
+@@ -3621,8 +3622,8 @@ static_library("ui") {
+       "atrium/atrium_hint_overlay_widget.mm",
+       "atrium/atrium_toast_overlay_widget.h",
+       "atrium/atrium_toast_overlay_widget.mm",
+-      "atrium/atrium_overview_widget.h",
+-      "atrium/atrium_overview_widget.mm",
++      "atrium/atrium_overview_controller.h",
++      "atrium/atrium_overview_controller.mm",
+       "atrium/atrium_courtyard_widget.h",
+       "atrium/atrium_courtyard_widget.mm",
+       "atrium/atrium_extension_popup_host.h",

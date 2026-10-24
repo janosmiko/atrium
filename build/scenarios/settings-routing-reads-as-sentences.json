@@ -1,0 +1,82 @@
+{
+  "name": "settings-routing-reads-as-sentences",
+  "description": "the Routing pane reads as sentence cards, not the old engine-styled rows. Opens Settings, selects the Routing pane by its rail id, and reads the DOM the routing-as-sentences redress produced: one '.routing-card[data-rule-id]' per rule under '.routing-sentences', plus a last '.routing-card.routing-fallback' holding 'select[name=\"defaultTargetSpaceID\"]'. No routing fixture is staged, so the store loads its empty defaults - the fallback card must still be there on a fresh profile.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so the app is up"
+    },
+    {"type": "settle", "ms": 4000},
+    {"type": "activate", "note": "Atrium must be frontmost or cmd+comma opens Finder Settings instead"},
+    {"type": "settle", "ms": 1000},
+    {"type": "key", "combo": "cmd+comma", "note": "open Settings"},
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings surface ready",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: routing rules pushed",
+      "timeout_ms": 8000,
+      "note": "the pane's data source loaded before the pane is asked to read it"
+    },
+    {
+      "type": "eval",
+      "id": "open-routing-pane",
+      "target": "/settings",
+      "expression": "(() => { const item = document.querySelector('.settings-rail-item[data-pane=\"routing\"]'); if (!item) { return 'no routing rail item'; } item.click(); return 'clicked'; })()"
+    },
+    {"type": "settle", "ms": 1500, "note": "renderRoutingPane is a synchronous DOM rebuild, slack for the ssh/eval round trip"},
+    {
+      "type": "capture",
+      "id": "routing",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence: sentence cards with the dashed fallback card last"
+    },
+    {
+      "type": "eval",
+      "id": "routing-has-card",
+      "target": "/settings",
+      "expression": "String(document.querySelectorAll('.routing-card').length >= 1)"
+    },
+    {
+      "type": "eval",
+      "id": "routing-has-fallback-select",
+      "target": "/settings",
+      "expression": "String(!!document.querySelector('.routing-fallback select[name=\"defaultTargetSpaceID\"]'))"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "routing-has-card",
+      "expected": "\"true\"",
+      "desc": "a fresh, ruleless profile still shows the fallback card"
+    },
+    {
+      "type": "eval_equals",
+      "id": "routing-has-fallback-select",
+      "expected": "\"true\"",
+      "desc": "the fallback card holds the default-target-space select"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "desc": "the browser window and the settings window"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

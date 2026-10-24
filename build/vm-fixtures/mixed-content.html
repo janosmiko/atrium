@@ -1,0 +1,34 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Mixed Content</title>
+
+<!-- a checkerboard and a flat colour are both single-scale
+     fixtures. This mixes a heading, body text and a photo-like gradient so
+     the frost's reach across scales can be measured, not assumed. Absolute
+     and flush left, same as panel-legibility-type.html - the reveal covers a
+     fixed strip from the window's left edge, not wherever body flow lands. -->
+<style>
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 35%, #86a8e7 70%, #7f7fd5 100%);
+  }
+  .type {
+    /* Below the panel's own url bar/space name/tab-list chrome (through
+       about y=270 at this window size) - the sibling scenario's own type block starts
+       higher but is measured at y=300 for the same reason. */
+    position: absolute; left: 0; top: 320px; width: 420px;
+    font-family: system-ui, sans-serif;
+  }
+  h1 { font-size: 48px; font-weight: 800; color: #111; margin: 0 0 20px; }
+  p { font-size: 18px; line-height: 1.5; color: #222; }
+</style>
+<body>
+<div class="type">
+<h1>Weekend Reading</h1>
+<p>The old lighthouse keeper climbed the spiral stairs every evening, counting
+each step out of habit rather than need. Below him the harbor lights blinked
+awake one by one, and somewhere past the breakwater a boat's engine coughed
+twice before catching. He had done this ten thousand times and it never once
+felt routine.</p>
+</div>
+</body>

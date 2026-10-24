@@ -1,0 +1,30 @@
+{
+  "spaces": [
+    {
+      "id": "48b00000-0000-4000-8000-000000000481",
+      "name": "Hover",
+      "emoji": "H",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135131.0,
+          "url": "http://127.0.0.1:8000/hover-probe.html?a",
+          "title": "Hover Probe A"
+        },
+        {
+          "lastActiveAt": 805135094.0,
+          "url": "http://127.0.0.1:8000/hover-probe.html?b",
+          "title": "Hover Probe B"
+        }
+      ]
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 260,
+    "schemaVersion": 1,
+    "activeSpaceID": "48b00000-0000-4000-8000-000000000481"
+  }
+}

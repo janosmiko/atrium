@@ -1,0 +1,32 @@
+{
+  "appState" : {
+    "activeSpaceID" : "00000000-0000-4000-8000-000000000001",
+    "schemaVersion" : 1,
+    "sidebarWidth" : 280
+  },
+  "favorites" : [
+
+  ],
+  "spaces" : [
+    {
+      "emoji" : "🏠",
+      "groups" : [
+
+      ],
+      "id" : "00000000-0000-4000-8000-000000000001",
+      "name" : "Personal",
+      "order" : 0,
+      "pinnedTabs" : [
+
+      ],
+      "profileID" : "Default",
+      "tabs" : [
+        {
+          "title" : "One",
+          "url" : "https://example.com/one"
+        }
+      ],
+      "tint" : "atriumSolarized"
+    }
+  ]
+}

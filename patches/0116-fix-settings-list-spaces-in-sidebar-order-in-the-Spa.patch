@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 6 Sep 2026 11:15:44 +0200
+Subject: [PATCH 116/154] fix(settings): list spaces in sidebar order in the
+ Spaces and Routing panes
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The settings window pushed spaces.json's raw array order, so the Spaces
+pane list and the Routing pane's targetSpaceID select drew array order
+instead of sidebar order. SpacesInSidebarOrder sorts the pushed document
+by the order field before OnSpacesLoaded forwards it.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 41a5ec30bb65c..64a4d1fe1d2b5 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -664,6 +664,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:sidebar_seam_line",
+     "//chrome/browser/ui/atrium:sidebar_snapshot_gate",
+     "//chrome/browser/ui/atrium:slot_presentation_table",
++    "//chrome/browser/ui/atrium:spaces_order",
+     "//chrome/browser/ui/atrium:split_orientation_decision",
+     "//chrome/browser/ui/atrium:split_tree",
+     "//chrome/browser/ui/atrium:split_tree_layout",

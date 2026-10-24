@@ -1,0 +1,221 @@
+{
+  "name": "scrubber-cancel-and-branch",
+  "description": "The cancel and branch quarters of the scrubber behaviour. Escape closes the scrubber and leaves the page exactly where it was, and the timeline still holds the stop a real back-then-branch drops off the back stack.\n\nTHE BRANCH IS DRIVEN FOR REAL, not asserted from the core. The run visits A, then B, then presses Back - the control's own short press, so this is Chromium's NavigationController going back, not a replayed url - and then navigates to C. Chromium truncates the forward entries at that point, so B is gone from the back stack while the user still remembers being there. a_branch_keeps_the_states_the_back_stack_would_drop proves the log keeps it; this proves the app does.\n\nTHE BACK STACK'S SIDE IS MEASURED TOO. After the scrubber is cancelled, one more short press on Back lands on A rather than B. Without that leg 'the timeline contains B' would be true of a build whose back stack also still had B, and the criterion is about the difference between the two.\n\nCANCEL IS READ OFF THE PAGE. Escape sends nothing at all, so there is no log line to gate on and the only honest question is where the tab is - location.pathname on the tab's own target, before and after.",
+  "fixture": "scrubber.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "43843843-4384-4384-8384-438438438438",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the space and its tab render"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "a-page",
+      "target": "example-domain.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/example-domain.html",
+      "timeout_ms": 20000,
+      "note": "GATE: A committed"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "click",
+      "x": 900,
+      "y": 660,
+      "note": "Empty page, and the click is the point: a renderer navigation out of a document that never saw a gesture marks the entry it leaves as skippable, and Back then walks straight past it."
+    },
+    {
+      "type": "eval",
+      "id": "nav-b",
+      "target": "127.0.0.1:8000",
+      "expression": "(() => { setTimeout(() => { location.href = 'http://127.0.0.1:8000/favicon-page.html'; }, 50); return 'sent'; })()",
+      "note": "B - the stop the branch below will drop off the back stack. The page moves itself: the address row carries no submit message any more, and the palette's own accept opens a tab of its own, which would leave this run with no history to branch."
+    },
+    {
+      "type": "eval_until",
+      "id": "b-page",
+      "target": "favicon-page.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/favicon-page.html",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "back-to-a",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbback'); if (!b) { return 'no-button'; } b.dispatchEvent(new PointerEvent('pointerdown', {clientX: 8, clientY: 8, bubbles: true})); b.dispatchEvent(new PointerEvent('pointerup', {clientX: 8, clientY: 8, bubbles: true})); return 'pressed'; })()",
+      "note": "A REAL back: down then straight up, well under the hold threshold, so sidebarBackPressed calls NavigationController::GoBack"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "eval",
+      "id": "page-after-back",
+      "target": "127.0.0.1:8000",
+      "expression": "location.pathname",
+      "note": "GATE for the whole scenario: the back really happened. Everything below is about what a branch FROM this point keeps, so a back that silently did nothing would make the branch assertion measure a plain three-page walk."
+    },
+    {
+      "type": "click",
+      "x": 900,
+      "y": 660,
+      "note": "the document A came back to needs its own gesture, for the reason above"
+    },
+    {
+      "type": "eval",
+      "id": "nav-c",
+      "target": "127.0.0.1:8000",
+      "expression": "(() => { setTimeout(() => { location.href = 'http://127.0.0.1:8000/theme-color-teal.html'; }, 50); return 'sent'; })()",
+      "note": "C, from mid-history - this is the branch. Chromium drops B's forward entry here."
+    },
+    {
+      "type": "eval_until",
+      "id": "c-page",
+      "target": "theme-color-teal.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/theme-color-teal.html",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "hold",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbback'); if (!b) { return 'no-button'; } b.dispatchEvent(new PointerEvent('pointerdown', {clientX: 8, clientY: 8, bubbles: true})); return 'holding'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "past the 500ms threshold plus the round trip"
+    },
+    {
+      "type": "eval",
+      "id": "branch-keeps-b",
+      "target": "/sidebar",
+      "expression": "(() => { const titles = [...document.querySelectorAll('.histstop .histtitle')].map(t => t.textContent); return titles.includes('Blue Favicon Site') ? 'the dropped stop is still on the timeline' : 'timeline reads ' + titles.join(' | '); })()",
+      "note": "Read off the rendered strip rather than off the core, which is the part that was only ever proven in a unit test. The failure branch prints the whole timeline, so a red run says what the app actually kept."
+    },
+    {
+      "type": "eval",
+      "id": "escape",
+      "target": "/sidebar",
+      "expression": "(() => { const w = document.querySelector('.histscrubwrap'); if (!w) { return 'no-scrubber'; } w.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})); return 'escaped'; })()",
+      "note": "On the wrap, which is where the scrubber listens - it takes focus on open rather than relying on the document's"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "generous on purpose: a commit that Escape wrongly sent would have landed by now, so the page read below is not just fast"
+    },
+    {
+      "type": "eval",
+      "id": "closed-after-escape",
+      "target": "/sidebar",
+      "expression": "(() => { const wraps = document.querySelectorAll('.histscrubwrap').length; const imgs = document.querySelectorAll('.histthumbimg').length; return wraps === 0 && imgs === 0 ? 'scrubber closed' : wraps + ' wrap ' + imgs + ' thumbs still in the document'; })()"
+    },
+    {
+      "type": "eval",
+      "id": "page-after-escape",
+      "target": "127.0.0.1:8000",
+      "expression": "location.pathname",
+      "note": "THE MEASUREMENT for the cancel half: the page is where it was before the hold"
+    },
+    {
+      "type": "eval",
+      "id": "back-after-branch",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbback'); if (!b) { return 'no-button'; } b.dispatchEvent(new PointerEvent('pointerdown', {clientX: 8, clientY: 8, bubbles: true})); b.dispatchEvent(new PointerEvent('pointerup', {clientX: 8, clientY: 8, bubbles: true})); return 'pressed'; })()",
+      "note": "The back stack's own answer, for contrast with the timeline. A fresh pointerdown clears the latched hold, so this is a plain press."
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "eval",
+      "id": "page-after-second-back",
+      "target": "127.0.0.1:8000",
+      "expression": "location.pathname",
+      "note": "One step back from C lands on A, so B really is off the stack the scrubber still shows"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "back-to-a",
+      "expected": "\"pressed\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "page-after-back",
+      "expected": "\"/example-domain.html\"",
+      "note": "GATE: the real back landed, so what follows is a genuine branch"
+    },
+    {
+      "type": "vlog",
+      "label": "hold-answered",
+      "pattern": "Atrium: back held, timeline is [0-9]+ bytes",
+      "note": "GATE: the hold reached C++ and it answered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "branch-keeps-b",
+      "expected": "\"the dropped stop is still on the timeline\"",
+      "note": "End to end rather than in the core alone."
+    },
+    {
+      "type": "eval_equals",
+      "id": "escape",
+      "expected": "\"escaped\"",
+      "note": "GATE: there was a scrubber to cancel. 'no-scrubber' here would make the two assertions below pass on an app that never opened one."
+    },
+    {
+      "type": "eval_equals",
+      "id": "closed-after-escape",
+      "expected": "\"scrubber closed\"",
+      "note": "Escape closes it."
+    },
+    {
+      "type": "eval_equals",
+      "id": "page-after-escape",
+      "expected": "\"/theme-color-teal.html\"",
+      "note": "And leaves the page unchanged."
+    },
+    {
+      "type": "eval_equals",
+      "id": "page-after-second-back",
+      "expected": "\"/example-domain.html\"",
+      "note": "The back stack goes C -> A, having dropped B, while the timeline above still shows B."
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-commit-from-escape",
+      "pattern": "Atrium: timeline commit refused",
+      "note": "Escape sends nothing, so the commit handler is never reached - not even to refuse. A refusal line would mean a message went out that the scrubber had no business sending."
+    }
+  ]
+}

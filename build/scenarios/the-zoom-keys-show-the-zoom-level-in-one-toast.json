@@ -1,0 +1,84 @@
+{
+  "name": "the-zoom-keys-show-the-zoom-level-in-one-toast",
+  "description": "Cmd+=, Cmd+- and Cmd+0 each show the active tab's zoom percent in the confirmation toast. Every press updates the one card keyed 'zoom', so the stack never holds a second zoom card. Each step polls for 'percent|cards', where cards counts only .ov-card, because toast-surface.js keeps a .toast shadow probe in the same stack.",
+  "fixture": "cmdf-swallowed.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "settings": "ambilight-off.settings.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "timeout_ms": 20000,
+      "note": "zoom needs a committed tab"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+equal"
+    },
+    {
+      "type": "eval_until",
+      "id": "zoom-in-once",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast.ov-card .ctl'); return (t ? t.textContent : '') + '|' + document.querySelectorAll('.toasts .toast.ov-card').length; })()",
+      "expected": "110%|1",
+      "timeout_ms": 5000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+equal"
+    },
+    {
+      "type": "eval_until",
+      "id": "zoom-in-twice",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast.ov-card .ctl'); return (t ? t.textContent : '') + '|' + document.querySelectorAll('.toasts .toast.ov-card').length; })()",
+      "expected": "125%|1",
+      "timeout_ms": 5000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+minus"
+    },
+    {
+      "type": "eval_until",
+      "id": "zoom-out",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast.ov-card .ctl'); return (t ? t.textContent : '') + '|' + document.querySelectorAll('.toasts .toast.ov-card').length; })()",
+      "expected": "110%|1",
+      "timeout_ms": 5000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+0"
+    },
+    {
+      "type": "eval_until",
+      "id": "zoom-reset",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast.ov-card .ctl'); return (t ? t.textContent : '') + '|' + document.querySelectorAll('.toasts .toast.ov-card').length; })()",
+      "expected": "100%|1",
+      "timeout_ms": 5000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "quit",
+      "desc": "the window is still alive after four zoom presses"
+    }
+  ]
+}

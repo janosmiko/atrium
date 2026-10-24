@@ -1,0 +1,181 @@
+{
+  "name": "a-split-shows-as-one-sidebar-row",
+  "description": "The sidebar drew the tabs of a split as two ordinary rows, so nothing on screen said the two pages were one arrangement. One split row replaces the member rows now, at the slot of the first member, and holds one segment per pane with its own favicon, title and close button.\n\nReaches the split by the row drag the drag scenario already proves, then reads the drawn row: the member rows are gone, the row carries a segment per pane, the segments name the two tabs in pane order, and each segment carries a favicon and a close button of its own. The last check squeezes the row to 130px and asks the container query for the titles - they go, and the favicons stay.\n\nScreen coordinates are the sidebar's client rectangles plus the 30px the window sits below the screen top.",
+  "fixture": "frost-two-tabs.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "wake-first",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 2) { return 'rows ' + rows.length; } rows[0].click(); return 'clicked'; })()",
+      "note": "Both rows are cold at launch, and a split needs two live pages."
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "wake-second",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 2) { return 'rows ' + rows.length; } rows[1].click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval_until",
+      "id": "layout",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 2) { return 'rows ' + rows.length; } return rows.slice(0, 2).map((r) => { const b = r.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.right), Math.round(b.top), Math.round(b.bottom), r.dataset.tabId ? 'live' : 'cold'].join(':'); }).join(','); })()",
+      "expected": "8:258:187:223:live,8:258:227:263:live",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "name-the-tabs",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; window.__targetId = rows[0].dataset.tabId; window.__dragId = rows[1].dataset.tabId; window.__name = (id) => id === window.__targetId ? 'target' : id === window.__dragId ? 'dragged' : id ? 'other:' + id : 'none'; return 'named'; })()",
+      "note": "Tab ids are minted per run, so every id below is reported by the row it came from."
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 275,
+      "x2": 235,
+      "y2": 233,
+      "steps": 40,
+      "note": "Row 1 onto the right quarter of row 0, the gesture a-row-dropped-on-the-right-edge-opens-a-split proves. 40 steps, or the release can beat the native drag session open."
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "eval_until",
+      "id": "one-row",
+      "target": "/sidebar",
+      "expression": "(() => { const zone = document.querySelector('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"]'); if (!zone) { return 'no zone'; } const rows = [...zone.children].filter((el) => el.matches('.tabrow')); const split = rows.filter((r) => r.classList.contains('splitrow')); return rows.length + ' rows, ' + split.length + ' split'; })()",
+      "expected": "1 rows, 1 split",
+      "timeout_ms": 10000,
+      "note": "THE MEASUREMENT: both member rows left the list and one row stands in their place."
+    },
+    {
+      "type": "eval",
+      "id": "panes",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.railpane:not(.ovrailpane) .splitrow'); return row.dataset.panes + '/' + row.querySelectorAll('.sseg').length; })()"
+    },
+    {
+      "type": "eval",
+      "id": "segment-ids",
+      "target": "/sidebar",
+      "expression": "[...document.querySelectorAll('.railpane:not(.ovrailpane) .splitrow .sseg')].map((s) => window.__name(s.dataset.tabId)).join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "segment-parts",
+      "target": "/sidebar",
+      "expression": "[...document.querySelectorAll('.railpane:not(.ovrailpane) .splitrow .sseg')].map((s) => [s.querySelector('.fv') ? 'fv' : 'nofv', s.querySelector('.tl') && s.querySelector('.tl').textContent ? 'title' : 'notitle', s.querySelector('button.x') ? 'x' : 'nox'].join('+')).join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "titles-at-full-width",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.railpane:not(.ovrailpane) .splitrow'); return Math.round(row.getBoundingClientRect().width) > 144 ? [...row.querySelectorAll('.sseg .tl')].map((t) => getComputedStyle(t).display).join(',') : 'row too narrow to test'; })()"
+    },
+    {
+      "type": "eval",
+      "id": "titles-when-squeezed",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.railpane:not(.ovrailpane) .splitrow'); const held = row.style.cssText; row.style.width = '130px'; row.style.flex = 'none'; void row.offsetWidth; const shown = [...row.querySelectorAll('.sseg .tl')].map((t) => getComputedStyle(t).display); const icons = [...row.querySelectorAll('.sseg .fv')].map((f) => getComputedStyle(f).display); row.style.cssText = held; return shown.join(',') + ' with ' + icons.join(','); })()",
+      "note": "The container query reads the ROW's width, so squeezing the row is the whole test - no window resize needed."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "wake-first",
+      "expected": "\"clicked\"",
+      "desc": "the first row went live"
+    },
+    {
+      "type": "eval_equals",
+      "id": "wake-second",
+      "expected": "\"clicked\"",
+      "desc": "and the second, so both carry a tab id"
+    },
+    {
+      "type": "eval_equals",
+      "id": "layout",
+      "expected": "8:258:187:223:live,8:258:227:263:live",
+      "desc": "gates the drag: the rows are live and sit where the screen coordinates assume"
+    },
+    {
+      "type": "eval_equals",
+      "id": "one-row",
+      "expected": "1 rows, 1 split",
+      "desc": "THE MEASUREMENT: the two member rows are gone and one split row stands in their place"
+    },
+    {
+      "type": "eval_equals",
+      "id": "panes",
+      "expected": "\"2/2\"",
+      "desc": "the row reports two panes and draws a segment for each"
+    },
+    {
+      "type": "eval_equals",
+      "id": "segment-ids",
+      "expected": "\"target,dragged\"",
+      "desc": "the segments name the two split tabs in pane order - the page dropped on first, the dragged page second"
+    },
+    {
+      "type": "eval_equals",
+      "id": "segment-parts",
+      "expected": "\"fv+title+x,fv+title+x\"",
+      "desc": "each pane carries a favicon, a title and a close button of its own"
+    },
+    {
+      "type": "eval_equals",
+      "id": "titles-at-full-width",
+      "expected": "\"block,block\"",
+      "desc": "at the sidebar's own width both titles are drawn"
+    },
+    {
+      "type": "eval_equals",
+      "id": "titles-when-squeezed",
+      "expected": "\"none,none with block,block\"",
+      "desc": "THE MEASUREMENT: squeezed under 144px the titles go and the favicons stay"
+    },
+    {
+      "type": "vlog",
+      "label": "the-window-opened-the-split",
+      "pattern": "Atrium: sidebar split tab [0-9]+ right of tab [0-9]+"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

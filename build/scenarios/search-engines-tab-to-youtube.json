@@ -1,0 +1,133 @@
+{
+  "name": "search-engines-tab-to-youtube",
+  "description": "Search engines plan: a seeded, enabled starter offers Tab-to-search on a fresh profile. Tasks 1-3 landed the model, C++ mirror, and settings pane; this is the first VM proof that a starter's keyword actually reaches TemplateURLService and the omnibox keyword provider offers it. The fixture carries no settings file, so the profile starts at searchEnginesSeed 0 and the C++ mirror seeds every starter, YouTube included, as enabled. Google stays the DEFAULT engine via seed_prefs, and a default engine is never offered for Tab-to-search, so this types the full keyword 'youtube.com' - KeywordProvider::GetTemplateUrlForText looks the text up as a keyword, it does not complete a prefix.",
+  "fixture": "two-tabs.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "GATE: the restored tab has committed, so the app is up and the profile is live"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the reserved chrome context lands about 670ms after startup and the palette's WebContents needs it"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the /commandbar document commit and take the field"
+    },
+    {
+      "type": "type",
+      "text": "youtube.com"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the keyword pass has to finish before any row can carry an engine"
+    },
+    {
+      "type": "capture",
+      "id": "before-tab",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the row offering the scope, on an unscoped bar"
+    },
+    {
+      "type": "eval",
+      "id": "offered-keyword",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbrow[data-cb-keyword]') || {}).dataset?.cbKeyword || 'none')",
+      "note": "the typed keyword resolved to a TemplateURL and the row carries it"
+    },
+    {
+      "type": "key",
+      "combo": "tab",
+      "note": "enter the scope"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "scoped",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "THE CHIP, beside an emptied field - or the scope-less bar the bug leaves behind"
+    },
+    {
+      "type": "eval",
+      "id": "chip-text",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbscope') || {}).textContent || 'no chip')",
+      "note": "the chip carries the engine's DISPLAY name, which only TemplateURLService knows"
+    },
+    {
+      "type": "type",
+      "text": "cats"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "the scoped pass lands - the query it answers is 'youtube.com cats', not 'cats'"
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "accept the scoped query"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url https://youtube\\.com",
+      "timeout_ms": 15000,
+      "note": "No www. The line is redacted through LogSafeUrl, which returns scheme plus the REGISTRABLE domain: GetDomainAndRegistry('https://www.youtube.com') is 'youtube.com', so the subdomain is gone from the log. The migration audit checked that no pattern expected a path after the host, and that a .localhost subdomain survives (it does, because GetDomainAndRegistry returns empty there and the bare host is used). A www. on a real registrable domain is the case neither check covered."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "offered-keyword",
+      "expected": "\"youtube.com\"",
+      "desc": "a fresh profile seeds YouTube as enabled and the keyword provider offers it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "chip-text",
+      "expected": "\"YouTube\"",
+      "desc": "Tab entered the scope and the chip names the engine, not the raw keyword"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

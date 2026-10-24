@@ -1,0 +1,165 @@
+{
+  "name": "the-address-field-shows-it-is-loading",
+  "description": "navigating leaves the address field with no pulse and no fill. This run produces the numbers, and it grades nothing - every region bound is 0..256.\n\nWHAT THE TASK'S TWO CANDIDATES WERE, AND WHY BOTH ARE WRONG. It offered 'too faint to read' and 'no width to show'. The width one dies on reading load-fill.js: setPhase writes element.style.width = '100%' inline for waiting, and an inline width beats the stylesheet's width: 0. The sequence one dies in the VM: a real navigation logged '77ms loadfill waiting w=100% | 923ms loadfill receiving w=70%', so the phase arrives and holds full width for most of a second. What is left is contrast, and that is what this measures.\n\nWHY A PIXEL AND NOT A COMPUTED STYLE. getComputedStyle reports the declared opacity, which says nothing about what the eye gets once it composites. The fill is BLACK here - bg=rgb(0, 0, 0), because --atrium-ink resolves to 0 0 0 on a light-tinted space - over .urlbar's own color(srgb 0 0 0 / 0.1012). An earlier reading of this task argued white ink on a white wash, which was the wrong colour entirely. The captures settle it: field with the fill at its trough, field with the fill gone, field at the peak, same patch in all three. The gap between the first two IS the visibility of the waiting phase.\n\nTHE ANIMATION IS PAUSED, NOT OVERRIDDEN. loadbreathe runs 1.2s, so an unpinned capture lands somewhere unknown on the curve. A first version set style.opacity directly, which measures the number the scenario chose rather than the one the stylesheet ships - it could not have noticed a keyframe change at all. animation-play-state paused with delay 0s pins the 0% stop, and delay -0.6s pins the 50% stop.\n\nCOORDINATES COME FROM THE RUN. The urlbar's own box is read and logged first. It measured 10,46 246x34 in a 260x680 sidebar, and the window's content starts at screen y=30.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval_until",
+      "id": "urlbar-exists",
+      "target": "/sidebar",
+      "expression": "String(!!document.querySelector('.urlbar'))",
+      "expected": "true",
+      "timeout_ms": 10000,
+      "note": "GATE: the field the fill lives in"
+    },
+    {
+      "type": "eval",
+      "id": "urlbar-box",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.urlbar').getBoundingClientRect(); return Math.round(b.left) + ',' + Math.round(b.top) + ' ' + Math.round(b.width) + 'x' + Math.round(b.height) + ' in ' + window.innerWidth + 'x' + window.innerHeight; })()",
+      "note": "the window content starts at screen y=30, so a screen probe is this top plus 30. Logged rather than assumed, because sidebar layout has moved before."
+    },
+    {
+      "type": "eval",
+      "id": "fill-exists",
+      "target": "/sidebar",
+      "expression": "String(!!document.querySelector('.loadfill'))",
+      "note": "createLoadFill inserts it at build time, so it should be here before any navigation"
+    },
+    {
+      "type": "eval",
+      "id": "fill-waiting-computed",
+      "target": "/sidebar",
+      "expression": "(() => { const f = document.querySelector('.loadfill'); if (!f) { return 'no fill'; } f.className = 'loadfill waiting'; f.style.width = '100%'; f.style.animationDelay = '0s'; f.style.animationPlayState = 'paused'; const s = getComputedStyle(f); return 'w=' + s.width + ' op=' + s.opacity + ' bg=' + s.backgroundColor + ' anim=' + s.animationName; })()",
+      "note": "PAUSED at the 0% stop, not overridden. An earlier version wrote style.opacity directly, which measures the number the scenario chose rather than the one the stylesheet ships - it could not have noticed a keyframe change at all. animation-delay 0s with play-state paused pins the trough, which is the end a glance during the wait usually gets."
+    },
+    {
+      "type": "eval",
+      "id": "urlbar-ground",
+      "target": "/sidebar",
+      "expression": "(() => { const s = getComputedStyle(document.querySelector('.urlbar')); return 'bg=' + s.backgroundColor + ' color=' + s.color; })()",
+      "note": "what the fill is composited over. The pair of backgrounds is the arithmetic behind candidate one."
+    },
+    {
+      "type": "capture",
+      "id": "fill-dim",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 700
+    },
+    {
+      "type": "settle",
+      "ms": 700
+    },
+    {
+      "type": "eval",
+      "id": "fill-peak-computed",
+      "target": "/sidebar",
+      "expression": "(() => { const f = document.querySelector('.loadfill'); f.style.animationDelay = '-0.6s'; return getComputedStyle(f).opacity; })()",
+      "note": "a negative delay of half the 1.2s cycle pins the 50% stop, still from the shipped keyframe. It runs BEFORE the control below: a first version put it after, and hide-the-fill sets animation: none, so the delay change could not revive it - the peak capture came back byte-identical to the control at 101.9."
+    },
+    {
+      "type": "settle",
+      "ms": 700
+    },
+    {
+      "type": "capture",
+      "id": "fill-peak",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "eval",
+      "id": "hide-the-fill",
+      "target": "/sidebar",
+      "expression": "(() => { const f = document.querySelector('.loadfill'); f.style.animation = 'none'; f.style.opacity = '0'; return 'hidden'; })()",
+      "note": "THE CONTROL, taken last so nothing it turns off can affect a reading above it"
+    },
+    {
+      "type": "settle",
+      "ms": 700
+    },
+    {
+      "type": "capture",
+      "id": "fill-none",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "urlbar-exists",
+      "expected": "true",
+      "desc": "GATE: the address field was on screen, so the captures below hold it"
+    },
+    {
+      "type": "region_mean",
+      "capture": "fill-dim",
+      "x": 30,
+      "y": 96,
+      "w": 60,
+      "h": 10,
+      "min_mean": 0,
+      "max_mean": 256,
+      "label": "diag-field-with-the-dim-fill",
+      "desc": "DIAGNOSTIC: inside the address field with the breath paused at its 0% stop, the trough. This is the end a glance during the wait usually gets. At the old .08 it read 93.9 against the control's 101.9 - 8 levels out of 255, which fails 'reads at a glance'."
+    },
+    {
+      "type": "region_mean",
+      "capture": "fill-none",
+      "x": 30,
+      "y": 96,
+      "w": 60,
+      "h": 10,
+      "min_mean": 0,
+      "max_mean": 256,
+      "label": "diag-field-with-no-fill",
+      "desc": "DIAGNOSTIC, THE CONTROL: the same patch with the fill hidden, previously 101.9. The difference between this and the trough reading above is the whole measurement - neither number means anything alone."
+    },
+    {
+      "type": "region_mean",
+      "capture": "fill-peak",
+      "x": 30,
+      "y": 96,
+      "w": 60,
+      "h": 10,
+      "min_mean": 0,
+      "max_mean": 256,
+      "label": "diag-field-with-the-peak-fill",
+      "desc": "DIAGNOSTIC: the 50% stop, the bright end, previously 81.5 at .2. If even the peak sits close to the control then the fill is too faint across its whole cycle rather than only at the trough."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

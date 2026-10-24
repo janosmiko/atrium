@@ -1,0 +1,26 @@
+# Release build for the hosted-runner workflow (ci-release.sh). args.gn is the
+# developer build. The script appends atrium_repo_dir.
+is_debug = false
+is_official_build = false
+is_component_build = false
+symbol_level = 0
+blink_symbol_level = 0
+v8_symbol_level = 0
+target_cpu = "arm64"
+
+# Chromium 151 turns DCHECKs on in every non-official build.
+dcheck_always_on = false
+
+# H.264/AAC playback, same as args.gn.
+proprietary_codecs = true
+ffmpeg_branding = "Chrome"
+
+# Real third-party notices at chrome://credits, same as args.gn.
+generate_about_credits = true
+
+# Keeps the TLS ClientHello identical to Chrome stable, same as args.gn.
+disable_fieldtrial_testing_config = true
+
+# Runner has 3 cores and 7 GB RAM: plain ninja, one link at a time.
+use_siso = false
+concurrent_links = 1

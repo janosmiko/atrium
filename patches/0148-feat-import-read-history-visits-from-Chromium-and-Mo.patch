@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 27 Sep 2026 05:04:17 +0200
+Subject: [PATCH 148/154] feat(import): read history visits from Chromium and
+ Mozilla files
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index ec9e541bf810c..07e3b51cb0c94 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -633,6 +633,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:own_window_drop",
+     "//chrome/browser/ui/atrium:extension_actions_json",
+     "//chrome/browser/ui/atrium:icon_backfill",
++    "//chrome/browser/ui/atrium:import_history",
+     "//chrome/browser/ui/atrium:import_sql_reader",
+     "//chrome/browser/ui/atrium:row_icon_lookup",
+     "//chrome/browser/ui/atrium:log_safe_url",

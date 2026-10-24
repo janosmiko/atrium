@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 23 Jul 2026 13:18:09 +0200
+Subject: [PATCH 006/154] atrium: profile bootstrap + keep-alive types
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../profiles/keep_alive/profile_keep_alive_types.cc    |  2 ++
+ .../profiles/keep_alive/profile_keep_alive_types.h     | 10 +++++++++-
+ 2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc b/chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc
+index 7c6da8e1d67d1..d1fa5678a61ad 100644
+--- a/chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc
++++ b/chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc
+@@ -89,6 +89,8 @@ std::ostream& operator<<(std::ostream& out,
+       return out << "kSkillsDialog";
+     case ProfileKeepAliveOrigin::kWebAppDatabaseCorruptionRecovery:
+       return out << "kWebAppDatabaseCorruptionRecovery";
++    case ProfileKeepAliveOrigin::kAtriumSpace:
++      return out << "kAtriumSpace";
+   }
+   NOTREACHED();
+ }
+diff --git a/chrome/browser/profiles/keep_alive/profile_keep_alive_types.h b/chrome/browser/profiles/keep_alive/profile_keep_alive_types.h
+index cdf63fafcdcbb..3143632370279 100644
+--- a/chrome/browser/profiles/keep_alive/profile_keep_alive_types.h
++++ b/chrome/browser/profiles/keep_alive/profile_keep_alive_types.h
+@@ -183,7 +183,15 @@ enum class ProfileKeepAliveOrigin {
+   // Used during WebApp database cleanup from corruption
+   kWebAppDatabaseCorruptionRecovery = 44,
+ 
+-  kMaxValue = kWebAppDatabaseCorruptionRecovery,
++  // Atrium-local addition (not upstream, not in enums.xml): pins a space's
++  // profile alive independent of whether it has a visible window, since
++  // macOS's kDestroyProfileOnBrowserClose only guarantees a profile stays
++  // alive while it has an open Browser (see
++  // chrome/browser/ui/atrium/atrium_profile_bootstrap.mm and
++  // m2b-research.md Q4).
++  kAtriumSpace = 45,
++
++  kMaxValue = kAtriumSpace,
+ };
+ // LINT.ThenChange(/tools/metrics/histograms/metadata/profile/enums.xml)
+ 

@@ -1,0 +1,263 @@
+{
+  "name": "nav-buttons-follow-the-modifiers",
+  "description": "While Option is held every nav button takes its wider function and says so with a different glyph and colour, Cmd+Shift takes the widest, and a release puts all three back. Shift alone is no longer a state - it is Chromium's own new-window modifier - so this run holds Option, not Shift. THE MODIFIER COMES FROM NATIVE. The sidebar is its own WebContents and receives key events only while it holds the keyboard, which it does not while someone reads a page - the first run of this scenario measured exactly that: a real held modifier produced no keydown and no keyup in the page. The flagsChanged monitor in atrium_command_dispatcher_delegate.mm (installed for Ctrl-Tab) also calls AtriumBrowserWindow::SetSidebarNavModifiers(shift, cmd, option), which pushes window.atriumSetNavModifiers into every live sidebar; the page's own keydown/keyup listeners stay as the fallback for when the sidebar does hold the keyboard. WHAT THIS HARNESS CANNOT DRIVE, measured on the 2026-08-29 21:56 run: cgevent's withModifier (build/vm-tools/cgevent.swift) posts its modifier press and release as plain virtual-key events, and while the PRESS does reach the monitor - that run logged 'Atrium: nav modifiers shift=1 cmd=0' at 19:58:18, inside key_hold_taps - the RELEASE never does. The proving line is seven seconds later at 19:58:25, where a Command keydown (key=91) arrives and the monitor reads shift=1 cmd=1: the OS still had Shift down long after cgevent had 'released' it. Option is posted the same way, so the real key grades the ARM only. The release is graded three other ways: mod_released here (the page's own keyup), and the page tests for keyup, window blur and visibilitychange. THE MODIFIER CLICK NEEDS A LIVE BUTTON. Back and forward grey out when the tab has no entry that way and a greyed one swallows every click, modifier included, so this run first gives the fixture tab a second entry and returns to the first - the Option click then lands on a Forward that can move. Both setup navigations happen before the resting capture, and the click itself after the last one: sidebarForwardToEnd really jumps the tab now, which repaints back and forward, and a rest/after pair straddling that would be comparing two different histories. ORDER MATTERS FOR THE SAME REASON. Every capture is taken BEFORE the real key, because the modifier the harness leaves stuck down would repaint the row amber under any capture that followed it. The PAINT is graded from a state latched by a KeyboardEvent dispatched in the page - same tracker, same CSS, same compositor - because key_hold_taps and capture each block for their whole duration and cannot overlap. The modifier CLICK is graded on the browser side: Option-clicking Forward sends sidebarForwardToEnd, whose handler logs before it tests for a forward entry, so the line proves the modifier function ran even on a fresh tab with nowhere forward to go. REGION COORDINATES ARE SCREEN-ABSOLUTE. Every Atrium window opens at pos=(0,30), so the row's CSS band (y 9..31) is y 39..61 on screen; an earlier run asserted the CSS numbers, read a patch of empty page and reported 0.00% change for a swap that had in fact happened. x needs no offset because the window sits at x=0: back 191, forward 215, reload 239, the group spanning x 180..250 (nav-buttons-animate's own math at the fixture's 260pt width).",
+  "fixture": "two-tabs.spaces.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the nav row announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "click",
+      "x": 900,
+      "y": 660,
+      "note": "Empty page, and the click is the point: a renderer navigation out of a document that never saw a gesture marks the entry it leaves as skippable, and Back then walks straight past it."
+    },
+    {
+      "type": "eval",
+      "id": "nav_setup",
+      "target": "example-domain.html",
+      "expression": "(() => { setTimeout(() => { location.href = 'http://127.0.0.1:8000/favicon-page.html'; }, 50); return 'sent'; })()",
+      "note": "SETUP for the Option click: the fixture tab starts on one page, and a Forward button with nothing ahead of it is now greyed and inert. This gives the tab a second entry. The page moves itself - the address row carries no submit message any more, and the palette's own accept would put the second page in a tab of its own. The timer is so the eval answers before the document unloads under it."
+    },
+    {
+      "type": "eval_until",
+      "id": "second-entry-page",
+      "target": "favicon-page.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/favicon-page.html",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "back_setup",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbnav .sbback'); if (!b) { return 'gone'; } b.dispatchEvent(new PointerEvent('pointerdown', {clientX: 8, clientY: 8, bubbles: true})); b.dispatchEvent(new PointerEvent('pointerup', {clientX: 8, clientY: 8, bubbles: true})); return 'pressed'; })()",
+      "note": "and this puts the tab back on the first entry, which is what leaves Forward live. A plain press, no modifier - the modifier phase starts below."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar back on tab [0-9]+",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "let the ability push land before the resting capture, or rest and after would be read in different states"
+    },
+    {
+      "type": "capture",
+      "id": "rest",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the three controls with no modifier held"
+    },
+    {
+      "type": "eval",
+      "id": "mod_rest",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.sbnav'); if (!r) { return 'no nav row'; } return (r.dataset.mod || '-') + '|' + r.querySelector('.sbback .g').textContent; })()",
+      "note": "VACUITY GUARD. Reads '-' for no modifier, so every check below compares against a value this run actually measured rather than against an absent element."
+    },
+    {
+      "type": "eval",
+      "id": "mod_option",
+      "target": "/sidebar",
+      "expression": "(() => { window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Alt', altKey: true})); const r = document.querySelector('.sbnav'); return (r.dataset.mod || '-') + '|' + r.querySelector('.sbback .g').textContent; })()",
+      "note": "the fallback listener path, and no keyup, so the row stays latched for the capture that follows"
+    },
+    {
+      "type": "capture",
+      "id": "held",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the same three controls, now painted in the Option state"
+    },
+    {
+      "type": "eval",
+      "id": "mod_cmdshift",
+      "target": "/sidebar",
+      "expression": "(() => { window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Meta', metaKey: true, shiftKey: true})); const r = document.querySelector('.sbnav'); return (r.dataset.mod || '-') + '|' + r.querySelector('.sbback .g').textContent; })()",
+      "note": "the third state, entered from the second without a release in between"
+    },
+    {
+      "type": "eval",
+      "id": "mod_released",
+      "target": "/sidebar",
+      "expression": "(() => { window.dispatchEvent(new KeyboardEvent('keyup', {key: 'Alt'})); const r = document.querySelector('.sbnav'); return (r.dataset.mod || '-') + '|' + r.querySelector('.sbback .g').textContent; })()",
+      "note": "The release restores every control, and makes the capture below comparable with rest"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the restored paint, to compare against rest"
+    },
+    {
+      "type": "eval",
+      "id": "mod_click",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.sbnav'); const f = r.querySelector('.sbfwd'); if (!f) { return 'gone'; } const was = f.classList.contains('navdim') ? 'dim' : 'live'; window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Alt', altKey: true})); f.dispatchEvent(new MouseEvent('click', {bubbles: true, altKey: true})); window.dispatchEvent(new KeyboardEvent('keyup', {key: 'Alt'})); return was + '|' + (r.dataset.mod || '-'); })()",
+      "note": "The Option state again, then a click on Forward that CARRIES Option. A bare .click() would be healed to plain first - the row resyncs from the click's own flags, which is what un-sticks a release the OS swallowed. AFTER the captures, because this one really navigates now: the setup above left a forward entry, so the Option function jumps the tab to it and repaints back and forward - a rest/after pair straddling that would compare two different histories. It releases Option itself, so watch_armed below still starts from a plain row."
+    },
+    {
+      "type": "eval",
+      "id": "watch_armed",
+      "target": "/sidebar",
+      "expression": "(() => { window.__navMods = 'not yet'; const r = document.querySelector('.sbnav'); if (!r) { return 'no nav row'; } const mo = new MutationObserver(() => { if ((r.dataset.mod || '') === 'option') { window.__navMods = 'option'; } }); mo.observe(r, {attributes: true, attributeFilter: ['data-mod']}); return 'armed'; })()",
+      "note": "armed AFTER the synthetic phase, so the only thing that can move it is the real key below. Records the arm and never downgrades, so a harness that one day delivers the release too still reads the same."
+    },
+    {
+      "type": "key_hold_taps",
+      "modifier": "option",
+      "key": "b",
+      "taps": 2,
+      "tap_delay_ms": 700,
+      "note": "a REAL Option, physically pressed by cgevent. The taps are only what heldtaps needs to hold a modifier at all; Option+B binds nothing."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: nav modifiers shift=0 cmd=0 option=0",
+      "timeout_ms": 5000,
+      "note": "cgevent now clears the modifier's own flag on release, so the OS actually lets Option go - this is the native push seeing that release."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval",
+      "id": "mods_seen",
+      "target": "/sidebar",
+      "expression": "String(window.__navMods)",
+      "note": "THE END-TO-END READING: a physically held Shift armed the row, through native flagsChanged, with the page never seeing a key."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "nav_setup",
+      "expected": "\"sent\"",
+      "desc": "VACUITY GUARD: the setup navigation was really asked for"
+    },
+    {
+      "type": "eval_equals",
+      "id": "back_setup",
+      "expected": "\"pressed\"",
+      "desc": "and the press that returns the tab landed on a button that existed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "mod_click",
+      "expected": "\"live|-\"",
+      "desc": "THE GUARD THE MODIFIER CLICK NEEDS: Forward was live when the click landed, so the line below is the Option function running rather than a greyed button swallowing it. The '-' is the release, which watch_armed depends on."
+    },
+    {
+      "type": "eval_equals",
+      "id": "mod_rest",
+      "expected": "\"-|‹\"",
+      "desc": "the row starts with no modifier state and Back's plain glyph"
+    },
+    {
+      "type": "eval_equals",
+      "id": "mod_option",
+      "expected": "\"option|⇤\"",
+      "desc": "An Option keydown marks the row and swaps Back's glyph to its jump-to-start arrow"
+    },
+    {
+      "type": "eval_equals",
+      "id": "mod_cmdshift",
+      "expected": "\"cmdshift|↰\"",
+      "desc": "Cmd+Shift is a third state, not a repeat of the second"
+    },
+    {
+      "type": "pixels_changed",
+      "before": "rest",
+      "after": "held",
+      "region": [
+        180,
+        39,
+        70,
+        22
+      ],
+      "min_changed_pct": 4.0,
+      "desc": "THE PAINT: the whole nav group looks different while the modifier is held - the glyph and colour swap reached the screen, not just the DOM"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: sidebar forward to the last page of tab [0-9]+",
+      "desc": "The click under Option ran the Option function. The setup navigations put a forward entry under it, since a Forward with nothing ahead is greyed and sends nothing at all."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "Atrium: sidebar forward on tab",
+      "desc": "and it did NOT run the plain one - a tracker that never armed would send sidebarForwardPressed from the same click"
+    },
+    {
+      "type": "eval_equals",
+      "id": "mod_released",
+      "expected": "\"-|‹\"",
+      "desc": "The release puts every control back"
+    },
+    {
+      "type": "region_stable",
+      "before": "rest",
+      "after": "after",
+      "region": [
+        180,
+        39,
+        70,
+        22
+      ],
+      "max_delta": 3,
+      "desc": "and the restored paint matches the resting one, so nothing is left stuck in a modifier colour"
+    },
+    {
+      "type": "eval_equals",
+      "id": "watch_armed",
+      "expected": "\"armed\"",
+      "desc": "VACUITY GUARD: the observer really was watching across the real hold, so the reading below is a measurement rather than an unset variable"
+    },
+    {
+      "type": "eval_equals",
+      "id": "mods_seen",
+      "expected": "\"option\"",
+      "desc": "THE MEASUREMENT: a physically held Option armed the row. Reads 'not yet' on a build where the native push never lands - which is what the page-only version of this row did, with the page seeing no key at all."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: nav modifiers shift=0 cmd=0 option=1",
+      "desc": "the same arm seen from the native side, in the push's new three-flag shape, so mods_seen cannot be crediting the page's own listeners for it"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

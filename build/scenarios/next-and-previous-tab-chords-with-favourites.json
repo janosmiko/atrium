@@ -1,0 +1,164 @@
+{
+  "name": "next-and-previous-tab-chords-with-favourites",
+  "description": "The same six nextTab/previousTab chords as next-and-previous-tab-chords, against a space whose tabs are mostly held by favourite tiles: one plain row, and two tabs opened through the tiles by cmd+opt+1 and cmd+opt+2.\n\nA tile that has claimed a tab hides that tab's row, so the space draws one row for three live tabs. The cycle walks the drawn rows, and a walk over one row has nowhere to go, which is how a key that is wired end to end still does nothing.\n\nThe cycle chords are fenced by cmd+shift+right for the same reason as the plain scenario: one space, so nextSpace always declines and the fence lines separate one chord's hotkey line from the next.\n\nAll urls are LOCAL. The VM has DNS but no outbound HTTPS.",
+  "fixture": "next-and-previous-tab-chords-with-favourites.spaces.json",
+  "startup_space": "9ab00902-0000-4000-8000-000000000902",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the window finish first paint and the sidebar announce itself"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+opt+1",
+      "note": "open the first tile's page THROUGH the tile, which is the only way a tab gets claimed - a restored startup tab never claims one"
+    },
+    { "type": "settle", "ms": 2500 },
+    {
+      "type": "key",
+      "combo": "cmd+opt+2",
+      "note": "the second tile, so two of the three live tabs are tile-held"
+    },
+    { "type": "settle", "ms": 2500 },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "fence 1"
+    },
+    { "type": "settle", "ms": 800 },
+    {
+      "type": "key",
+      "combo": "cmd+opt+down",
+      "note": "nextTab, the compiled-in default"
+    },
+    { "type": "settle", "ms": 2500 },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "fence 2"
+    },
+    { "type": "settle", "ms": 800 },
+    {
+      "type": "key",
+      "combo": "cmd+opt+up",
+      "note": "previousTab, the compiled-in default"
+    },
+    { "type": "settle", "ms": 2500 },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "fence 3"
+    },
+    { "type": "settle", "ms": 800 },
+    {
+      "type": "key",
+      "combo": "cmd+j",
+      "note": "nextTab, seeded from the core's table"
+    },
+    { "type": "settle", "ms": 2500 },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "fence 4"
+    },
+    { "type": "settle", "ms": 800 },
+    {
+      "type": "key",
+      "combo": "cmd+k",
+      "note": "previousTab, seeded from the core's table"
+    },
+    { "type": "settle", "ms": 2500 },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "fence 5"
+    },
+    { "type": "settle", "ms": 800 },
+    {
+      "type": "key",
+      "combo": "cmd+shift+]",
+      "note": "nextTab, the chord a sibling scenario already proved on plain rows"
+    },
+    { "type": "settle", "ms": 2500 },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "fence 6"
+    },
+    { "type": "settle", "ms": 800 },
+    {
+      "type": "key",
+      "combo": "cmd+shift+[",
+      "note": "previousTab, the bracket chord"
+    },
+    { "type": "settle", "ms": 2500 },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "fence 7"
+    },
+    { "type": "settle", "ms": 1200 }
+  ],
+  "assertions": [
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: favourite claimed tab",
+      "min": 2,
+      "max": 2,
+      "label": "both-tiles-hold-a-tab",
+      "desc": "The state the rest of the run is about. Without two claims this is just a three-plain-row space and the cycle assertions below would prove nothing about favourites."
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: hotkey nextSpace declined",
+      "min": 7,
+      "max": 7,
+      "label": "every-fence-reached-the-app",
+      "desc": "The fences. Seven presses, seven lines, so the gap between two of them identifies the chord it belongs to."
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: hotkey nextTab fired",
+      "min": 3,
+      "max": 3,
+      "label": "all-three-next-tab-chords-fired",
+      "desc": "THE assertion. A tile-held tab is somewhere the cycle must be able to go, so three nextTab chords over three live tabs move three times whether the tab wears a row or a tile."
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: hotkey previousTab fired",
+      "min": 3,
+      "max": 3,
+      "label": "all-three-previous-tab-chords-fired",
+      "desc": "The same for previousTab."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "Atrium: hotkey (nextTab|previousTab) declined",
+      "label": "no-cycle-chord-was-declined",
+      "desc": "The failure this scenario was written for. A walk over one drawn row declines silently, and the decline line is what tells that apart from a chord macOS never delivered."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "label": "still-one-window",
+      "desc": "Liveness, and a guard against a chord reaching something that opens a window."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

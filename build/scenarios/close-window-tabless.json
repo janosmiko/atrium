@@ -1,0 +1,65 @@
+{
+  "name": "close-window-tabless",
+  "description": "Cmd+Shift+W on a window whose space has no live tab must close it. Same fixture and palette-dismiss gate as quit-empty-no-palette.json - the auto-opened command palette would otherwise route the chord through its own kPassToMainMenu path and never test the browser window's own IDC_CLOSE_WINDOW handling at all.",
+  "fixture": "empty-window-quit.spaces.json",
+  "themes": "empty-window-quit.themes.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "33333333-3333-3333-3333-333333333333",
+  "app_process": "Atrium",
+  "actions": [
+    {"type": "settle", "ms": 8000, "note": "long enough that the auto-opened palette is definitely up before the dismiss attempts"},
+    {"type": "activate", "note": "ssh-launched Atrium is not always frontmost - without this the dismiss keys can land elsewhere"},
+    {"type": "settle", "ms": 500},
+    {"type": "key", "combo": "escape", "note": "first dismiss attempt"},
+    {"type": "settle", "ms": 1500},
+    {"type": "click", "x": 900, "y": 660, "note": "second dismiss attempt: scrim click clear of the panel and the sidebar"},
+    {"type": "settle", "ms": 2000},
+    {"type": "key", "combo": "escape", "note": "third dismiss attempt - repeat in case the first landed before the palette had key focus"},
+    {"type": "settle", "ms": 1500},
+    {"type": "click", "x": 900, "y": 660, "note": "fourth dismiss attempt"},
+    {"type": "settle", "ms": 4000, "note": "quit-two-windows.json's own history is that the dismiss needs more like 4-6s to land on this VM"},
+    {
+      "type": "key",
+      "combo": "cmd+shift+w",
+      "note": "THE MEASUREMENT: IDC_CLOSE_WINDOW on a tabless space"
+    },
+    {"type": "settle", "ms": 2000, "note": "let the close commit"}
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "palette-dismissed",
+      "pattern": "Atrium: command bar widget closing",
+      "note": "GATE: without this the chord routes through the palette's kPassToMainMenu path, same trap quit-empty-no-palette.json exists to avoid"
+    },
+    {
+      "type": "vlog",
+      "label": "chord-reached-the-window",
+      "pattern": "Atrium: user-initiated window close requested",
+      "note": "separates 'the window is still standing' from 'the chord never arrived at all' - the ambiguity that let a check pass against a scenario which had never run its own assertions"
+    },
+    {
+      "type": "vlog",
+      "label": "user-initiated-close-taken",
+      "pattern": "Atrium: user-initiated close beats the last-tab-out keep-open",
+      "note": "THE MEASUREMENT, positive half: OnWindowCloseRequested took the user-initiated branch rather than falling into the empty-strip suppression"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "suppression-did-not-fire",
+      "pattern": "Atrium: suppressing auto-close",
+      "note": "THE MEASUREMENT, negative half: the keep-open veto (Last-tab-out interception) must NOT have fired for this close - it still must for an automatic empty-strip close, just not this user-initiated one"
+    },
+    {
+      "type": "vlog_after",
+      "label": "browser-keep-alive-released",
+      "after_pattern": "Atrium: user-initiated window close requested",
+      "pattern": "KeepAlives=\\[APP_CONTROLLER \\(1\\)\\]",
+      "note": "THE WINDOW IS REALLY GONE. This replaces an ax_window_count of 0, which could never answer here: axresize prints nothing for a windowless app AND nothing for a dead one, so the runner reports it as a harness error rather than a pass. The registry losing BROWSER is the evidence for this control. vlog_after, not vlog: the identical line appears at launch, before the browser registers its own keep-alive."
+    },
+    {
+      "type": "quit",
+      "desc": "LIVENESS: the app survived the close and still answers Cmd+Q. With no window left it is running on APP_CONTROLLER's keep-alive alone, which is what Chrome on macOS does after its last window closes."
+    }
+  ]
+}

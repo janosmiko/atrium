@@ -1,0 +1,203 @@
+{
+  "name": "action-rows-carry-their-binding",
+  "description": "the palette's verbs were seven literals in commandbar.js, so an action that gained a key never gained a row and no row ever showed its key. The rows now come from atrium_command_bar_actions.cc, built from the native hotkey table and pushed on every open with each row's current binding as glyphs.\n\nThe staged hotkeys file is what makes the binding half provable end to end. It binds toggleSidebar to cmd+shift+j and names nothing else, so this run measures BOTH readings of the map in one pass: a rebound action (Toggle Sidebar, which must read the file's combo and not the compiled-in cmd+s) and an absent one (Overview, which must fall back to cmd+shift+o rather than reading as unbound). A run that only checked the rebound row could not tell a working fallback from a chip that draws whatever the last row had.\n\nSettings is the third reading: a verb with no hotkey action at all, whose row must carry NO chip. An empty chip would read as glyphs that failed to load, which is why the page omits the element rather than emptying it - so the assertion counts elements, not text.\n\nThe glyph order is the platform's, not the store's: macOS writes control, option, shift, command, so cmd+shift+j displays as SHIFT-COMMAND-J. A palette that ordered them the other way would disagree with every menu on the machine.\n\nNOT claimed here: that a rebinding made in the Settings window reaches the chip. Nothing in Settings writes hotkeys today - the Inputs pane is read-only and no message carries a rebind - so the only writer of live bindings is NativeHotkeyMap::SetFromJSON, which is exactly the path this fixture drives.",
+  "fixture": "hotkey-rebind.spaces.json",
+  "hotkeys": "sidebar-rebind.hotkeys.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "timeout_ms": 20000,
+      "note": "GATE: a committed navigation, the same line hotkey-rebind gates on with this fixture"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the reserved chrome context lands about 670ms after startup and the palette's WebContents needs it"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "the palette opens on an empty field, and the catalog rides this open"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the /commandbar document commit and take the field"
+    },
+    {
+      "type": "type",
+      "text": "sett"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "the local rows are drawn by the pass answering this query"
+    },
+    {
+      "type": "capture",
+      "id": "palette-settings",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "a verb with no hotkey action: a row and no chip"
+    },
+    {
+      "type": "eval",
+      "id": "settings-row-title",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbrow.cbaction .cbtitle') || {}).textContent || 'no action rows')",
+      "note": "Four letters of a verb's name still reach its row now that the row comes from C++"
+    },
+    {
+      "type": "eval",
+      "id": "settings-row-chips",
+      "target": "/commandbar",
+      "expression": "String(document.querySelectorAll('.cbrow.cbaction .cbkey').length)",
+      "note": "Unbound draws no chip at all, rather than an empty one"
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "a REOPEN rather than a select-all, so each query starts on a field the reset emptied - and each open re-pushes the catalog, which is the path a rebinding travels"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "type",
+      "text": "sidebar"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "palette-sidebar",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the rebound verb, with the staged file's combo on its chip"
+    },
+    {
+      "type": "eval",
+      "id": "sidebar-row-title",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbrow.cbaction .cbtitle') || {}).textContent || 'no action rows')",
+      "note": "An action reachable only because the hotkey table names it - the old literal list had no such row"
+    },
+    {
+      "type": "eval",
+      "id": "sidebar-row-chip",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbrow.cbaction .cbkey') || {}).textContent || 'no chip')",
+      "note": "The STAGED binding, read through a different query than the count above"
+    },
+    {
+      "type": "key",
+      "combo": "escape"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "type",
+      "text": "overview"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "overview-row-chip",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbrow.cbaction .cbkey') || {}).textContent || 'no chip')",
+      "note": "An action the staged file does not name keeps its compiled-in combo, so the chip is not empty"
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "leave the palette closed, so the quit assertion is not measuring a dismiss"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "settings-row-title",
+      "expected": "\"Settings\"",
+      "desc": "The seven rows the palette shipped with are still reachable by the words they always were, now that C++ owns the list"
+    },
+    {
+      "type": "eval_equals",
+      "id": "settings-row-chips",
+      "expected": "\"0\"",
+      "desc": "The other half: no hotkey action means no chip element. A count rather than a string, because an empty chip and an absent one both read as empty text"
+    },
+    {
+      "type": "eval_equals",
+      "id": "sidebar-row-title",
+      "expected": "\"Toggle Sidebar\"",
+      "desc": "A row derived from the hotkey registry rather than hand-written. Nothing in the old LOCAL_ACTIONS could produce this"
+    },
+    {
+      "type": "eval_equals",
+      "id": "sidebar-row-chip",
+      "expected": "\"⇧⌘J\"",
+      "desc": "The chip reads the STAGED cmd+shift+j, not the compiled-in cmd+s, so a rebinding is what the palette shows. Shift before command, as macOS writes it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "overview-row-chip",
+      "expected": "\"⇧⌘O\"",
+      "desc": "An action the staged file leaves out falls back to its built-in cmd+shift+o. Without this a chip that always read empty would still pass the row above"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

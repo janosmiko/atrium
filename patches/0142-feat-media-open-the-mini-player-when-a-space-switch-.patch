@@ -1,0 +1,119 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 21 Sep 2026 16:39:39 +0200
+Subject: [PATCH 142/154] feat(media): open the mini player when a space switch
+ hides the video tab
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../auto_picture_in_picture_tab_helper.cc     |  4 ++++
+ .../auto_picture_in_picture_tab_helper.h      |  3 +++
+ ...ture_in_picture_tab_observer_helper_base.h |  4 ++++
+ ...re_in_picture_tab_strip_observer_helper.cc | 19 ++++++++++++++++---
+ ...ure_in_picture_tab_strip_observer_helper.h |  1 +
+ 5 files changed, 28 insertions(+), 3 deletions(-)
+
+diff --git a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
+index 70bbd7c1efbde..49a7b003552ae 100644
+--- a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
++++ b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.cc
+@@ -440,6 +440,10 @@ void AutoPictureInPictureTabHelper::OnTabActivatedChanged(
+   }
+ }
+ 
++void AutoPictureInPictureTabHelper::RecheckTabActivated() {
++  tab_observer_helper_->RecheckIsTabActivated();
++}
++
+ void AutoPictureInPictureTabHelper::OnOcclusionStateChanged(
+     OcclusionState occlusion_state) {
+   // If the tab is not the active tab in its window, then the window becoming
+diff --git a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h
+index 4996815bf2207..5bce4a188db59 100644
+--- a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h
++++ b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h
+@@ -79,6 +79,9 @@ class AutoPictureInPictureTabHelper
+   // activated and unactivated.
+   void OnTabActivatedChanged(bool is_tab_activated);
+ 
++  // Atrium: see AutoPictureInPictureTabObserverHelperBase.
++  void RecheckTabActivated();
++
+   // Called by `window_occlusion_helper_` when the tab's window changes between
+   // occluded and unoccluded.
+   void OnOcclusionStateChanged(
+diff --git a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_observer_helper_base.h b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_observer_helper_base.h
+index 5abb6641141d9..8487971b7e7f5 100644
+--- a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_observer_helper_base.h
++++ b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_observer_helper_base.h
+@@ -44,6 +44,10 @@ class AutoPictureInPictureTabObserverHelperBase {
+   // Returns true if the observed tab is currently activated.
+   virtual bool IsTabActivated() = 0;
+ 
++  // Atrium: re-reads the activation after a space switch, which moves no tab
++  // strip, and runs the callback if it changed.
++  virtual void RecheckIsTabActivated() {}
++
+  protected:
+   void RunCallback(bool is_tab_activated);
+ 
+diff --git a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_strip_observer_helper.cc b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_strip_observer_helper.cc
+index 1c541e7122130..f92edca514f4b 100644
+--- a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_strip_observer_helper.cc
++++ b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_strip_observer_helper.cc
+@@ -4,6 +4,7 @@
+ 
+ #include "chrome/browser/picture_in_picture/auto_picture_in_picture_tab_strip_observer_helper.h"
+ 
++#include "chrome/browser/ui/atrium/atrium_auto_mini_player.h"
+ #include "chrome/browser/ui/browser_tab_strip_tracker.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+@@ -117,9 +118,10 @@ void AutoPictureInPictureTabStripObserverHelper::UpdateIsTabActivated(
+     const tabs::TabInterface* observed_tab =
+         tabs::TabInterface::GetFromContents(GetObservedWebContents());
+     is_tab_activated_ =
+-        (tab_strip_model->GetActiveWebContents() == GetObservedWebContents()) ||
+-        (active_tab->IsSplit() &&
+-         active_tab->GetSplit() == observed_tab->GetSplit());
++        ((tab_strip_model->GetActiveWebContents() == GetObservedWebContents()) ||
++         (active_tab->IsSplit() &&
++          active_tab->GetSplit() == observed_tab->GetSplit())) &&
++        !atrium::TabIsOutsideActiveSpace(GetObservedWebContents());
+   }
+ }
+ 
+@@ -167,6 +169,17 @@ AutoPictureInPictureTabStripObserverHelper::GetActiveWebContents() const {
+   return observed_tab_strip_model_->GetActiveWebContents();
+ }
+ 
++void AutoPictureInPictureTabStripObserverHelper::RecheckIsTabActivated() {
++  if (!is_observing_) {
++    return;
++  }
++  const bool old_is_tab_activated = is_tab_activated_;
++  UpdateIsTabActivated(observed_tab_strip_model_);
++  if (is_tab_activated_ != old_is_tab_activated) {
++    RunCallback(is_tab_activated_);
++  }
++}
++
+ bool AutoPictureInPictureTabStripObserverHelper::IsTabActivated() {
+   // If we're currently observing the tab strip, then `is_tab_activated_` is
+   // current so we can just return it.
+diff --git a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_strip_observer_helper.h b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_strip_observer_helper.h
+index d15f6f81dac56..3caddd7b09566 100644
+--- a/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_strip_observer_helper.h
++++ b/chrome/browser/picture_in_picture/auto_picture_in_picture_tab_strip_observer_helper.h
+@@ -39,6 +39,7 @@ class AutoPictureInPictureTabStripObserverHelper final
+   void StopObserving() override;
+   content::WebContents* GetActiveWebContents() const override;
+   bool IsTabActivated() override;
++  void RecheckIsTabActivated() override;
+ 
+   // TabStripModelObserver:
+   void OnTabStripModelChanged(

@@ -1,0 +1,88 @@
+{
+  "name": "frost-mixed-content",
+  "description": "is the blur 'shapes dissolved' or only 'softened' against real content at mixed scales - a 48px heading, 18px body text and a photo-like gradient, not a single-scale checkerboard. Captures the page alone (control) and the same region under the revealed panel (measurement); read both by eye and by pixcmp variance.",
+  "fixture": "mixed-content.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {"type": "settle", "ms": 5000, "note": "first paint, and the mixed-content tab loads"},
+    {"type": "activate"},
+    {"type": "settle", "ms": 1500},
+    {
+      "type": "eval",
+      "id": "tab-opened",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.row'); if (!r) return 'no-row'; r.click(); return 'clicked'; })()"
+    },
+    {"type": "settle", "ms": 5000},
+    {
+      "type": "eval",
+      "id": "collapse-pressed",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbtoggle'); if (!b) return 'no-button'; b.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar toggle requested from the chrome row",
+      "timeout_ms": 8000
+    },
+    {"type": "settle", "ms": 3000, "note": "the collapse animation finishes"},
+    {
+      "type": "capture",
+      "id": "page-alone",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "control: full-width page, sidebar collapsed and no floating overlay revealed yet - heading, body text and gradient with nothing drawn over them at all"
+    },
+    {"type": "move", "x": 300, "y": 400, "note": "park inside the page first"},
+    {"type": "settle", "ms": 600},
+    {"type": "move", "x": 20, "y": 400, "note": "cross into the 32pt arming strip from outside it"},
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "timeout_ms": 20000
+    },
+    {"type": "settle", "ms": 2000, "note": "the slide finishes"},
+    {
+      "type": "capture",
+      "id": "panel-over-page-shipped-floor",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "as shipped today: .96 wash floor on top of the frost"
+    },
+    {
+      "type": "eval",
+      "id": "floor-lowered",
+      "target": "/sidebar",
+      "expression": "(() => { document.documentElement.style.setProperty('--atrium-glass-alpha', '0'); document.documentElement.style.setProperty('--atrium-float-wash-floor', '0.05'); return 'set'; })()",
+      "note": "--atrium-glass-alpha is pushed live from C++ (backdrop_glass_alpha_) and is NOT the CSS's .72 fallback - overriding it here too, not just the floor, or max(glassAlpha, floor) clamps to whatever the live glass setting is. Reading resolved backgroundColor back in the SAME eval as the setProperty calls returned a stale pre-mutation value in an earlier run - read it in a separate step instead."
+    },
+    {"type": "settle", "ms": 300},
+    {
+      "type": "eval",
+      "id": "floor-lowered-confirm",
+      "target": "/sidebar",
+      "expression": "(() => getComputedStyle(document.documentElement).backgroundColor)()"
+    },
+    {"type": "settle", "ms": 500},
+    {
+      "type": "capture",
+      "id": "panel-over-page-raw-blur",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the measurement: what the frost alone does, wash nearly out of the way"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

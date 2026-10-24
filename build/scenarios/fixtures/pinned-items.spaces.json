@@ -1,0 +1,61 @@
+{
+  "spaces": [
+    {
+      "id": "74774774-7477-4774-8774-747747747747",
+      "name": "Header Test",
+      "emoji": "\ud83d\uddc2",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?p1",
+          "title": "Pin One"
+        },
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?f1",
+          "title": "Work A",
+          "groupID": "11111111-1010-4010-8010-101010101010"
+        },
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?f2",
+          "title": "Work B",
+          "groupID": "11111111-1010-4010-8010-101010101010"
+        },
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?p2",
+          "title": "Pin Two"
+        }
+      ],
+      "tabs": [
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?g1",
+          "title": "News A",
+          "groupID": "22222222-1010-4010-8010-101010101010"
+        },
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?plain",
+          "title": "Plain"
+        }
+      ],
+      "groups": [
+        {
+          "id": "11111111-1010-4010-8010-101010101010",
+          "name": "Work",
+          "collapsed": false
+        },
+        {
+          "id": "22222222-1010-4010-8010-101010101010",
+          "name": "News",
+          "collapsed": false
+        }
+      ]
+    }
+  ],
+  "favorites": [],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "74774774-7477-4774-8774-747747747747"
+  }
+}

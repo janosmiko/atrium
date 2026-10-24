@@ -1,0 +1,19 @@
+{
+  "version": ["sessionrestore", 1],
+  "windows": [
+    {
+      "tabs": [
+        {"entries": [{"url": "https://mail.example.test/", "title": "Mail"}], "index": 1, "pinned": true, "lastAccessed": 1704067200000},
+        {"entries": [{"url": "https://a.example.test/1", "title": "Article one"}, {"url": "https://a.example.test/2", "title": "Article"}], "index": 2, "groupId": "g1", "lastAccessed": 1704153600000},
+        {"entries": [{"url": "about:newtab", "title": "New Tab"}], "index": 1},
+        {"entries": [{"url": "https://bank.example.test/", "title": "Bank"}], "index": 1, "userContextId": 3},
+        {"entries": [{"url": "https://news.example.test/", "title": "News"}], "index": 1}
+      ],
+      "groups": [{"id": "g1", "name": "Reading", "color": "blue", "collapsed": false}],
+      "selected": 2
+    }
+  ],
+  "_closedWindows": [
+    {"tabs": [{"entries": [{"url": "https://closed.example.test/", "title": "Closed"}], "index": 1}]}
+  ]
+}

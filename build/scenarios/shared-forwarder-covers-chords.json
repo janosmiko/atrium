@@ -1,0 +1,26 @@
+{
+  "name": "shared-forwarder-covers-chords",
+  "description": "Cmd+Opt+I and Cmd+comma both arrive on the DEFAULT HTML surface, where they were dead.\n\nEach chord is claimed in prePerformKeyEquivalent. The shared cause is fixed underneath - ChromeSurfaceKeyForwarder gives every CreateChromeContents surface a WebContentsDelegate, so an unhandled key comes back as a redispatch and postPerformKeyEquivalent is reachable again. This scenario is the measurement that says whether the per-chord claims are still load-bearing, and it is the regression guard for any that get removed: with a claim gone, the only thing left carrying that chord is the forwarder.\n\nAnchored so a wrong window cannot pass. UpdateDockedDevtoolsForPane is the sole writer of the docked= line, and the fixture starts one browser window, so docked=1 names that window's pane. 'settings window built' and 'settings surface ready' are written only by the settings window, and the second only once the /settings module ran and answered over chrome.send - an empty or failed window does not reach it. The window count is the third leg: with both chords through, 2 is browser + settings, so DevTools is DOCKED. A detached DevTools would make it 3, and a dead Cmd+comma would make it 1.",
+  "fixture": "presenter-startup.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {"type": "settle", "ms": 3500, "note": "let the space and its single tab render"},
+    {"type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot; without this the keystrokes land in Finder"},
+    {"type": "settle", "ms": 1500, "note": "let the window come forward"},
+    {"type": "capture", "id": "before", "duration_ms": 400, "fps": 20, "note": "one window, no DevTools, no settings"},
+    {"type": "key", "combo": "cmd+opt+i", "note": "MEASUREMENT 1: DevTools on the visible tab"},
+    {"type": "settle", "ms": 5000, "note": "the DevTools frontend is a full WebContents load; the dock VLOG only fires once UpdateDockedDevtoolsForPane runs with a non-null GetInTabWebContents"},
+    {"type": "capture", "id": "devtools", "duration_ms": 400, "fps": 20, "note": "evidence of the docked pane"},
+    {"type": "key", "combo": "cmd+comma", "note": "MEASUREMENT 2: the settings window"},
+    {"type": "settle", "ms": 6000, "note": "let the window build and its route load"},
+    {"type": "capture", "id": "after", "duration_ms": 400, "fps": 20, "note": "evidence of both surfaces at once"}
+  ],
+  "assertions": [
+    {"type": "vlog", "label": "devtools-docked", "pattern": "Atrium: devtools pane 0x[0-9a-f]+ docked=1", "note": "Cmd+Opt+I reached the browser and DevTools resolved into the pane - the sole writer of this state"},
+    {"type": "vlog", "label": "settings-window-built", "pattern": "Atrium: settings window built", "note": "Cmd+comma reached the settings window host"},
+    {"type": "vlog", "label": "settings-route-loaded", "pattern": "Atrium: settings surface ready", "note": "settingsReady only arrives when the /settings module ran and chrome.send reached the host, so an empty shell cannot pass this"},
+    {"type": "ax_window_count", "expected": 2, "min_area": 100000, "note": "browser + settings. 1 means Cmd+comma did nothing; 3 means DevTools opened DETACHED rather than docked"}
+  ]
+}

@@ -1,0 +1,120 @@
+{
+  "name": "second-reveal-still-carries-the-sidebar",
+  "description": "The reporter sees an EMPTY panel. The first reveal draws the sidebar (edge-reveal-control's revealed frame proves it), so the suspect is the handover: docking hands the WebContents back to the pane, and the next reveal has to take it again. This reveals, dismisses, reveals a second time and grades the second panel against the first. A second reveal that comes up blank reads as no change from the hidden strip.",
+  "fixture": "lab-compare.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1800
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "collapse the pane, which is the state the edge zone arms in"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "hidden",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the baseline both reveals are graded against"
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 400,
+      "note": "the left window edge, where the reveal is armed"
+    },
+    {
+      "type": "settle",
+      "ms": 1800
+    },
+    {
+      "type": "capture",
+      "id": "first-reveal",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "move",
+      "x": 600,
+      "y": 400,
+      "note": "leave the edge, so the panel slides away and the pane takes its contents back"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "longer than the 240ms slide, so the dock-back has certainly run"
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 400,
+      "note": "arm it a second time"
+    },
+    {
+      "type": "settle",
+      "ms": 1800
+    },
+    {
+      "type": "capture",
+      "id": "second-reveal",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the frame the reporter says is empty"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "theme_changed",
+      "before": "hidden",
+      "after": "first-reveal",
+      "region": [
+        20,
+        90,
+        60,
+        250
+      ],
+      "min_delta": 8,
+      "label": "the-first-reveal-carries-the-sidebar",
+      "desc": "The control half. If this fails the run says nothing about the second reveal."
+    },
+    {
+      "type": "theme_changed",
+      "before": "hidden",
+      "after": "second-reveal",
+      "region": [
+        20,
+        90,
+        60,
+        250
+      ],
+      "min_delta": 8,
+      "label": "so-does-the-second",
+      "desc": "The measurement. A panel that comes up empty reads the same as the hidden strip, so the delta collapses and this fails."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "DCHECK failed",
+      "label": "no-dcheck-fired"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

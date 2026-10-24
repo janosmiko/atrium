@@ -1,0 +1,138 @@
+{
+  "name": "cmd-d-glides-the-row-to-its-new-slot",
+  "description": "Cmd+D moves a tab between the pinned section and the regular list, and the row now glides from its old slot to its new one instead of appearing there. The render rebuilds the whole tree, so the proof is a FLIP: the row that lands is held at the old slot with an inline translate for one frame, then released and carried home by a .2s transition.\n\nA transform that lives for 200ms is shorter than one CDP round trip, so it is not read by polling. Two records armed BEFORE the chord, tied to the same element: a MutationObserver names the row that gained an inline translate, and a transitionrun listener says that row's transform then animated. Held without a transitionrun is a snap, which is the defect this task fixes. The burst around the chord is the human evidence: the mid frame shows the row between its two slots, the settled frame shows it arrived.\n\nThe fixture is a sibling scenario's, two regular rows and nothing pinned, so the row that ends up pinned cannot be one the fixture already had.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "before",
+      "target": "/sidebar",
+      "expression": "(() => { const n = s => document.querySelectorAll(s).length; return 'pinned=' + n('[data-dropzone=\"pinned\"] .row.tabrow') + ' tabs=' + n('[data-dropzone=\"tabs\"] .row.tabrow'); })()",
+      "expected": "pinned=0 tabs=2",
+      "timeout_ms": 8000,
+      "note": "THE CONTROL: nothing is pinned yet, and the list is at rest before anything is armed."
+    },
+    {
+      "type": "eval",
+      "id": "armed",
+      "target": "/sidebar",
+      "expression": "(() => { window.__flipSeen = 'no glide'; window.__flipHeld = ''; window.__flipRow = null; const mo = new MutationObserver((recs) => { for (const rec of recs) { const el = rec.target; if (!el.classList || !el.classList.contains('tabrow')) { continue; } const t = el.style.transform || ''; if (t.indexOf('translate') === 0) { window.__flipRow = el; window.__flipHeld = t; window.__flipSeen = 'held'; } } }); mo.observe(document.body, {subtree: true, attributes: true, attributeFilter: ['style']}); const ran = (e) => { if (e.propertyName === 'transform' && e.target === window.__flipRow) { window.__flipSeen = 'held then glided'; } }; document.body.addEventListener('transitionrun', ran, true); document.body.addEventListener('transitionstart', ran, true); return 'armed'; })()",
+      "note": "Armed before the chord, because the held frame is over long before a poll could reach it. TWO records, on the SAME element: the observer names the row that got an inline translate, and transitionrun/transitionstart say that row then animated its transform. A row that snaps writes and clears the same style with no transition, and a favicon setting --ringb on a row writes style with no translate - neither can produce the pair."
+    },
+    {
+      "type": "key_during_capture",
+      "combo": "cmd+d",
+      "capture_id": "pinning",
+      "duration_ms": 800,
+      "fps": 30,
+      "key_delay_ms": 150,
+      "mid_after_chord_ms": 120,
+      "note": "THE capture. The glide runs 200ms, so the frames that matter are the ~400ms after the chord returns - the burst is 800ms because driving the chord itself eats a few hundred ms of it (see a sibling scenario's measurements). 30fps to put several frames inside the glide. Registers 'pinning' settled and 'pinning_mid' in flight."
+    },
+    {
+      "type": "eval_until",
+      "id": "glide",
+      "target": "/sidebar",
+      "expression": "String(window.__flipSeen)",
+      "expected": "held then glided",
+      "timeout_ms": 8000,
+      "note": "The row was held at its old slot and then MOVED there. 'held' alone means it snapped, 'no glide' means it was drawn straight into its new slot - both are the defect."
+    },
+    {
+      "type": "eval",
+      "id": "glide-offset",
+      "target": "/sidebar",
+      "expression": "String(window.__flipHeld)",
+      "note": "Diagnostic, not asserted: the distance the row was held back by. A y of 0 would say the sections did not actually trade places."
+    },
+    {
+      "type": "eval_until",
+      "id": "after-pin",
+      "target": "/sidebar",
+      "expression": "(() => { const n = s => document.querySelectorAll(s).length; return 'pinned=' + n('[data-dropzone=\"pinned\"] .row.tabrow') + ' tabs=' + n('[data-dropzone=\"tabs\"] .row.tabrow'); })()",
+      "expected": "pinned=1 tabs=1",
+      "timeout_ms": 8000,
+      "note": "The glide has to end in the right place. Both counts move, so a redraw that dropped a row reads differently from a pin."
+    },
+    {
+      "type": "eval_until",
+      "id": "settled",
+      "target": "/sidebar",
+      "expression": "(() => { const held = document.querySelectorAll('.row.rowflip, .row.rowflipgo').length; const rows = [...document.querySelectorAll('.row.tabrow')]; const stuck = rows.filter(r => (r.style.transform || '') !== '').length; return 'held=' + held + ' stuck=' + stuck; })()",
+      "expected": "held=0 stuck=0",
+      "timeout_ms": 8000,
+      "note": "Nothing is left displaced, in either glide class. A transform that is never cleared leaves the row drawn away from the slot the list thinks it occupies, and every later click lands on the wrong row. rowflipgo counts too: a row that keeps it is a row whose release never landed."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "label": "the-window-survived-the-glide",
+      "desc": "Liveness. The frames are half the point here and a person reads them, so a run that crashed must not leave a capture nobody questions."
+    },
+    {
+      "type": "eval_equals",
+      "id": "before",
+      "expected": "pinned=0 tabs=2",
+      "desc": "THE CONTROL: the space started with nothing pinned."
+    },
+    {
+      "type": "eval_equals",
+      "id": "armed",
+      "expected": "\"armed\"",
+      "desc": "The observer was installed. Without this an unarmed page and a missing glide read the same. Quoted, because a plain eval stores the JSON answer while eval_until strips the quotes."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: hotkey pinToggleTab fired",
+      "label": "the-chord-reached-the-map",
+      "desc": "Cmd+D ran the Atrium action rather than Bookmark This Tab."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: cmd\\+d pinned tab [0-9]+ moved",
+      "label": "the-window-pinned-it",
+      "desc": "The core moved the row into the pinned list, so there was a move for the sidebar to animate."
+    },
+    {
+      "type": "eval_equals",
+      "id": "glide",
+      "expected": "held then glided",
+      "desc": "The row was held at its old slot and its transform then ran as a transition, on that same row - a snap writes the style without ever animating it."
+    },
+    {
+      "type": "eval_equals",
+      "id": "after-pin",
+      "expected": "pinned=1 tabs=1",
+      "desc": "The glide ended with the row in the pinned section."
+    },
+    {
+      "type": "eval_equals",
+      "id": "settled",
+      "expected": "held=0 stuck=0",
+      "desc": "No row is left holding a transform, so the drawn list and the real list agree again."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

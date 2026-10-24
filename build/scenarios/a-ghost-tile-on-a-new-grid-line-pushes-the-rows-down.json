@@ -1,0 +1,155 @@
+{
+  "name": "a-ghost-tile-on-a-new-grid-line-pushes-the-rows-down",
+  "description": "A real cgevent drag from a tab row, up over the space name, to the slot after the fourth favourite. That slot starts a second grid line. The pinned grid is absolute and a hidden room grid in the pane holds its place, so the room must grow too, or the ghost tile covers the space name. On the way the pointer crosses the space name, the pin target: it must show a ghost row under the name, and no dashed ring. Coordinates come from the DOM, plus the 30px the window sits below the screen top.",
+  "fixture": "four-favourites-one-row.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "layout",
+      "target": "/sidebar",
+      "expression": "(() => { const tiles = document.querySelectorAll('[data-dropzone=\"favorites\"] .fav').length; const rows = document.querySelector('.railpane:not(.ovrailpane)').querySelectorAll('[data-dropzone=\"tabs\"] .tabrow').length; return tiles + ' tiles, ' + rows + ' rows'; })()",
+      "expected": "4 tiles, 1 rows",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "row-point",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.railpane:not(.ovrailpane)').querySelector('[data-dropzone=\"tabs\"] .tabrow').getBoundingClientRect(); return Math.round((b.left + b.right) / 2) + ',' + Math.round((b.top + b.bottom) / 2 + 30); })()"
+    },
+    {
+      "type": "eval",
+      "id": "drop-point",
+      "target": "/sidebar",
+      "expression": "(() => { const tiles = document.querySelectorAll('[data-dropzone=\"favorites\"] .fav'); const b = tiles[3].getBoundingClientRect(); return Math.round((b.left + b.right) / 2 + 10) + ',' + Math.round((b.top + b.bottom) / 2 + 30); })()"
+    },
+    {
+      "type": "eval",
+      "id": "spy",
+      "target": "/sidebar",
+      "expression": "(() => { window.__ev = []; for (const t of ['dragstart','dragover','drop','dragend']) { document.addEventListener(t, () => { if (window.__ev[window.__ev.length-1] !== t) { window.__ev.push(t); } }, true); } const orig = chrome.send.bind(chrome); window.__cs = []; chrome.send = (name, args) => { if (name === 'sidebarRowFavorited') { window.__cs.push([name, args]); } return orig(name, args); }; const name = () => document.querySelector('.railpane:not(.ovrailpane)').querySelector('.wsname'); const base = name().getBoundingClientRect().top; window.__shift = 0; window.__name = 'none'; window.__ring = 'noring'; document.addEventListener('dragover', () => requestAnimationFrame(() => { if (window.__ev.includes('drop')) { return; } window.__shift = Math.max(window.__shift, Math.round(name().getBoundingClientRect().top - base)); if (name().nextElementSibling?.classList.contains('rowghost')) { window.__name = 'nameghost'; } if (document.querySelector('.dropinto')) { window.__ring = 'ring'; } }), true); return 'spying'; })()"
+    },
+    {
+      "type": "drag",
+      "from_eval": "row-point",
+      "to_eval": "drop-point",
+      "steps": 40
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "events",
+      "target": "/sidebar",
+      "expression": "window.__ev.join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "shift",
+      "target": "/sidebar",
+      "expression": "window.__shift >= 30 ? 'pushed' : 'shift ' + window.__shift"
+    },
+    {
+      "type": "eval",
+      "id": "sends",
+      "target": "/sidebar",
+      "expression": "window.__cs.map((c) => c[0] + ':' + c[1].join(',')).join(';')"
+    },
+    {
+      "type": "eval",
+      "id": "name",
+      "target": "/sidebar",
+      "expression": "window.__name"
+    },
+    {
+      "type": "eval",
+      "id": "ring",
+      "target": "/sidebar",
+      "expression": "window.__ring"
+    },
+    {
+      "type": "eval_until",
+      "id": "after",
+      "target": "/sidebar",
+      "expression": "(() => [...document.querySelectorAll('[data-dropzone=\"favorites\"] .fav')].map((t) => (t.dataset.favId || '').split('/').pop()).join(' | '))()",
+      "expected": "favicon-page.html | example-domain.html | engine-alpha.html | engine-bravo.html | edit-focus-field.html",
+      "timeout_ms": 8000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "layout",
+      "expected": "4 tiles, 1 rows",
+      "desc": "gates the drag: one full grid line and one row"
+    },
+    {
+      "type": "eval_equals",
+      "id": "spy",
+      "expected": "\"spying\"",
+      "desc": "the spies installed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "events",
+      "expected": "\"dragstart,dragover,drop,dragend\"",
+      "desc": "the drag reached drop and dragend"
+    },
+    {
+      "type": "eval_equals",
+      "id": "shift",
+      "expected": "\"pushed\"",
+      "desc": "THE MEASUREMENT: the ghost tile on a new grid line pushed the space name down by a tile line"
+    },
+    {
+      "type": "eval_equals",
+      "id": "name",
+      "expected": "\"nameghost\"",
+      "desc": "over the space name a ghost row stood under it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "ring",
+      "expected": "\"noring\"",
+      "desc": "no dashed ring on the grid or the space name"
+    },
+    {
+      "type": "eval_equals",
+      "id": "sends",
+      "expected": "\"sidebarRowFavorited:0,tabs,-1,4\"",
+      "desc": "the drop asked for the slot after the fourth tile"
+    },
+    {
+      "type": "eval_equals",
+      "id": "after",
+      "expected": "favicon-page.html | example-domain.html | engine-alpha.html | engine-bravo.html | edit-focus-field.html",
+      "desc": "and the new tile is fifth"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

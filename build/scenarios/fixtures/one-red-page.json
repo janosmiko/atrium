@@ -1,0 +1,26 @@
+{
+  "spaces": [
+    {
+      "id": "77177177-7717-4717-8717-771771771781",
+      "name": "Red",
+      "emoji": "🟥",
+      "tint": "#F0F4F8",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135200.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html",
+          "title": "Peek Scrim Parent"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "77177177-7717-4717-8717-771771771781"
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "name": "folder-head-drag-reorders-folders",
+  "description": "A folder head can be picked up and dragged among its siblings. The drag is synthesised as real dragstart/dragover/drop DOM events with a DataTransfer against the real running sidebar, the same events installRowDrag listens for. The head's own [data-dropzone] is the group-into-folder target for a TAB, so the scenario also proves that a FOLDER dragged over another folder's head resolves to the shared folders list (the drop indicator line, not that head's own highlight) rather than being refused as an attempt to group a folder into a folder.",
+  "fixture": "sidebar-header-and-folder-geometry.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "baseline-order",
+      "target": "/sidebar",
+      "expression": "(() => JSON.stringify([...document.querySelectorAll('.folderlist > .frow[data-folder-id]')].map(h => h.dataset.folderId)))()"
+    },
+    {
+      "type": "eval",
+      "id": "draggable-check",
+      "target": "/sidebar",
+      "expression": "(() => { const heads = [...document.querySelectorAll('.folderlist > .frow[data-folder-id]')]; return heads.length === 2 && heads.every(h => h.draggable === true) ? 'both draggable' : 'not both draggable: ' + heads.map(h => h.draggable).join(','); })()"
+    },
+    {
+      "type": "eval",
+      "id": "drag",
+      "target": "/sidebar",
+      "expression": "(() => { const heads = [...document.querySelectorAll('.folderlist > .frow[data-folder-id]')]; const news = heads.find(h => h.dataset.folderId === '11111111-7477-4774-8774-747747747747'); const sports = heads.find(h => h.dataset.folderId === '22222222-7477-4774-8774-747747747747'); if (!news || !sports) { return 'missing-heads'; } const dt = new DataTransfer(); news.dispatchEvent(new DragEvent('dragstart', {bubbles: true, cancelable: true, dataTransfer: dt})); const rect = sports.getBoundingClientRect(); const clientY = rect.top + rect.height * 0.75; sports.dispatchEvent(new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer: dt, clientX: rect.left + 5, clientY})); const line = document.querySelector('.dropline'); const shown = !!line && line.hidden === false; sports.dispatchEvent(new DragEvent('drop', {bubbles: true, cancelable: true, dataTransfer: dt, clientX: rect.left + 5, clientY})); return 'dragged News onto Sports lower half, indicator ' + (shown ? 'shown' : 'NOT shown'); })()",
+      "note": "Hovering Sports's OWN head while dragging a folder must redirect to the shared folders zone (the targetFor fix) or the drop is refused as a group-into-folder attempt and the line never shows."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval_until",
+      "id": "order-after",
+      "target": "/sidebar",
+      "expression": "(() => JSON.stringify([...document.querySelectorAll('.folderlist > .frow[data-folder-id]')].map(h => h.dataset.folderId)))()",
+      "expected": "[\\\"22222222-7477-4774-8774-747747747747\\\",\\\"11111111-7477-4774-8774-747747747747\\\"]",
+      "timeout_ms": 4000,
+      "note": "Read AFTER the drop, so it is the snapshot the native handler wrote back through atrium_core_reorder_folder - not the DOM the drag left behind."
+    },
+    {
+      "type": "relaunch",
+      "note": "Cmd+Q and start again against the same staged file, the way relaunch-file-readback does it. Cmd+Q rather than a kill, because the shutdown save in PostMainMessageLoopRun is part of the write path this question is about."
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval_until",
+      "id": "order-after-restart",
+      "target": "/sidebar",
+      "expression": "(() => JSON.stringify([...document.querySelectorAll('.folderlist > .frow[data-folder-id]')].map(h => h.dataset.folderId)))()",
+      "expected": "[\\\"22222222-7477-4774-8774-747747747747\\\",\\\"11111111-7477-4774-8774-747747747747\\\"]",
+      "timeout_ms": 8000,
+      "note": "Read from a document the relaunch built, so it is the persisted order rather than anything the drag left in memory."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "baseline-order",
+      "expected": "\"[\\\"11111111-7477-4774-8774-747747747747\\\",\\\"22222222-7477-4774-8774-747747747747\\\"]\"",
+      "desc": "News before Sports, the fixture's groups order"
+    },
+    {
+      "type": "eval_equals",
+      "id": "draggable-check",
+      "expected": "\"both draggable\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "drag",
+      "expected": "\"dragged News onto Sports lower half, indicator shown\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "order-after",
+      "expected": "[\\\"22222222-7477-4774-8774-747747747747\\\",\\\"11111111-7477-4774-8774-747747747747\\\"]",
+      "desc": "Sports before News after the drop, read back from the snapshot the native handler persisted"
+    },
+    {
+      "type": "eval_equals",
+      "id": "order-after-restart",
+      "expected": "[\\\"22222222-7477-4774-8774-747747747747\\\",\\\"11111111-7477-4774-8774-747747747747\\\"]",
+      "desc": "The reordered folders survive a real quit and relaunch"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

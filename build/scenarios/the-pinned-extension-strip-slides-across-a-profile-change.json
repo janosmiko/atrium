@@ -1,0 +1,138 @@
+{
+  "name": "the-pinned-extension-strip-slides-across-a-profile-change",
+  "description": "The extension strip half of favourites-slide-across-a-profile-change. The pinned strip sits beside the rail exactly as the pinned favourites grid does, and it has to move by the same mechanism: inside one profile the pins are identical and the strip stands still, and across a profile change the outgoing strip travels off with its own pane while the incoming profile's pane carries its own tiles in.\n\nWHY THE PINS ARE SEEDED FROM THE PAGE. No extension is installed on the VM snapshot, so every real push is an empty list and a run against it would pass on a build that draws nothing at all. The two pushes below are the same call the browser makes, one per profile, and they carry the profile id the browser now sends with it. Seeding is the only way to give the two profiles DIFFERENT pins, which is the whole subject.\n\nWHY AN OBSERVER AND NOT A READ AFTER THE FACT. The slide lasts only as long as the animation, and the strip's inline transform is cleared again once the rail is at rest. A read taken after the settle sees the finished state and cannot say whether the strip ever moved.\n\nWHAT SURVIVES THE SWITCH. Landing on the other profile, the browser pushes that profile's own (empty) pins and replaces the seed for it, so the strip on screen ends up bare. The profile the rail LEFT keeps its seeded pins, and its two panes are the ones that now draw tiles of their own - that is the state the last read measures.\n\nThe fixture's first two spaces share a profile and the third does not. This run starts on the SECOND space, so the single chord below crosses the boundary.",
+  "fixture": "three-spaces-two-profiles.json",
+  "startup_space": "3ab00002-0000-4000-8000-000000000002",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "started-on-the-second-space",
+      "target": "long-page.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/long-page.html",
+      "timeout_ms": 20000,
+      "note": "GATE: the run really starts on the second space, whose neighbour is the other profile. Without it a run that came up on the first space would cycle WITHIN one profile and prove the opposite of what this scenario claims."
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "activate",
+      "note": "an ssh-launched Atrium is not frontmost on a clean snapshot, and the chord below would land in Finder"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "seed-two-profiles",
+      "target": "/sidebar",
+      "expression": "(() => { const panes = [...document.querySelectorAll('.railpane')]; const ids = [...new Set(panes.map((p) => p.dataset.profileId).filter(Boolean))]; if (ids.length !== 2) { return 'profiles:' + ids.length; } const strip = document.querySelector('body > .exs-row'); if (!strip) { return 'no strip'; } const active = strip.dataset.profileId || ''; const other = ids.find((i) => i !== active); if (!other) { return 'active profile is not a pane profile'; } const act = (id) => [{id: 'ext-' + id, name: 'Ext ' + id, actionTitle: 'Ext ' + id, visible: true, hasPopup: false, pinned: true}]; window.atriumSetSidebarExtensions(act(other), other); window.atriumSetSidebarExtensions(act(active), active); return active === ids[0] ? 'seeded, active is the first profile' : 'seeded, active is ' + active; })()",
+      "note": "the browser's own push, once per profile, the other one first - the page reads the LAST push as the active profile"
+    },
+    {
+      "type": "eval",
+      "id": "strip-before",
+      "target": "/sidebar",
+      "expression": "(() => { const strip = document.querySelector('body > .exs-row'); const ids = [...strip.querySelectorAll('.exs-chip')].map((c) => c.dataset.extensionId); return ids.join(',') === 'ext-' + (strip.dataset.profileId || '') ? 'the active profile\\u2019s own pin' : (ids.join(',') || 'none'); })()",
+      "note": "THE CONTROL: the seed reached the strip. A 'none' here means no tile was drawn at all and every read below would be meaningless."
+    },
+    {
+      "type": "eval",
+      "id": "watch-the-slide",
+      "target": "/sidebar",
+      "expression": "(() => { const strip = document.querySelector('body > .exs-row'); if (!strip) { return 'no strip'; } window.__stripSlid = Boolean(strip.style.transform); new MutationObserver(() => { if (strip.style.transform) { window.__stripSlid = true; } }).observe(strip, {attributes: true, attributeFilter: ['style']}); window.__copyMax = 0; window.__copySeen = []; const tick = () => { const copies = [...document.querySelectorAll('.railpane')].filter((p) => p.querySelector('.exs-row .exs-chip')); if (copies.length > window.__copyMax) { window.__copyMax = copies.length; window.__copySeen = [...new Set(copies.map((p) => p.dataset.profileId))]; } window.__copyRaf = requestAnimationFrame(tick); }; window.__copyRaf = requestAnimationFrame(tick); return 'watching'; })()",
+      "note": "records whether the strip ever carried an inline transform, and the most pane copies ever on the rail at once. Both last only as long as the crossing: the swipe writes the transform per frame and clears it at rest, and the browser re-pushes the profiles' real pins afterwards, which on a snapshot with no extension installed is an empty list."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "into the third space, which belongs to the other profile"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 1 -> 2",
+      "timeout_ms": 8000,
+      "note": "gate the setup: the document really moved, and from the second space to the third rather than from anywhere else"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "past the glide, the spring and the rebuild the switch posts"
+    },
+    {
+      "type": "eval",
+      "id": "slid-then-settled",
+      "target": "/sidebar",
+      "expression": "(() => { const strip = document.querySelector('body > .exs-row'); const resting = strip.style.transform ? 'still moving' : 'settled'; return (window.__stripSlid ? 'slid ' : 'never slid ') + 'and ' + resting; })()",
+      "note": "BOTH HALVES. The strip must have travelled with its pane during the animation AND have been let go once the rail is at rest, or it stays parked off the sidebar edge."
+    },
+    {
+      "type": "eval",
+      "id": "copies-after",
+      "target": "/sidebar",
+      "expression": "(() => { cancelAnimationFrame(window.__copyRaf); const strip = document.querySelector('body > .exs-row'); const now = strip.dataset.profileId || ''; return window.__copyMax === 2 && window.__copySeen.length === 1 && window.__copySeen[0] !== now ? 'both panes of the other profile carried their own' : JSON.stringify([window.__copySeen, window.__copyMax, now]); })()",
+      "note": "the high-water mark the sampler saw, not a read at rest: the rail is rebuilt with whichever pins the page holds AT THAT MOMENT, and the browser's own push for each profile lands afterwards with the real (empty) list this snapshot has"
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the third space, for the eye: the tiles under a strip that belongs to the profile now showing"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window throughout",
+      "label": "one-window-still"
+    },
+    {
+      "type": "eval_equals",
+      "id": "seed-two-profiles",
+      "expected": "\"seeded, active is the first profile\"",
+      "desc": "the setup gate: two profiles are on the rail, the strip named one of them, and both got a pin of their own. Any other answer means the seed never landed and the rest of the run measures nothing."
+    },
+    {
+      "type": "eval_equals",
+      "id": "strip-before",
+      "expected": "\"the active profile’s own pin\"",
+      "desc": "THE CONTROL: the strip draws the pin of the profile it was pushed for, so the reads below are about a strip that exists"
+    },
+    {
+      "type": "eval_equals",
+      "id": "watch-the-slide",
+      "expected": "\"watching\"",
+      "desc": "the observer was really installed, so the read below is a measurement rather than an untouched initial value"
+    },
+    {
+      "type": "eval_equals",
+      "id": "slid-then-settled",
+      "expected": "\"slid and settled\"",
+      "desc": "THE CLAIM. 'never slid' means the strip stayed put across a profile change, which leaves the outgoing profile's pins sitting over another profile's rows. 'still moving' means it was never let go and stays parked off the edge."
+    },
+    {
+      "type": "eval_equals",
+      "id": "copies-after",
+      "expected": "\"both panes of the other profile carried their own\"",
+      "desc": "the incoming and outgoing strips are per pane, the way the favourites are: without a copy in the pane there is nothing to slide in and the gesture shows a blank lane"
+    },
+    {
+      "type": "vlog",
+      "label": "the-rail-really-crossed-the-boundary",
+      "pattern": "Atrium: active space 1 -> 2",
+      "note": "the setup gate again as a graded assertion, so a run whose chord never landed fails here rather than passing on a sidebar that never moved"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

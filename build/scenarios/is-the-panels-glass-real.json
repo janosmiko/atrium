@@ -1,0 +1,129 @@
+{
+  "name": "is-the-panels-glass-real",
+  "description": "And it re-opens a question already answered for every other surface. The reveal panel is a child NSWindow and installs an NSVisualEffectView with behind-window blending. Four attempts established that a CHILD window does not sample its parent's content: material in the child came back opaque, material in the parent came back sharp, and the only thing seen to frost Chromium output was a TOP-LEVEL window - macOS's own notification banners.\n\nThe panel was built after that finding and nobody checked it against a test pattern. If its material contributes nothing, the child window is being paid for with hit-testing, window commands, contents handover and a tracker race, and buying a plain translucent wash that an in-window view could draw.\n\nThe reading is the one used for every other surface: a 40px checkerboard of two saturated colours behind the panel. A real frost turns those edges to mush. No frost leaves them crisp.\n\nThe pattern reaches the window through the SPACE's own tab, not through `open -a`. An external link opens a LITTLE window here - the log named it, 'external link opened a little window' - and a little window has no sidebar, so the reveal strip stayed on the main window behind it and the collapse chord had nothing to toggle.",
+  "fixture": "checkerboard.spaces.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "tab-opened",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.row'); if (!r) return 'no-row'; r.click(); return 'clicked'; })()",
+      "note": "The space's own tab is cold at launch, so the row has to be pressed for the pattern to paint in the MAIN window."
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "collapse-pressed",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbtoggle'); if (!b) return 'no-button'; b.click(); return 'clicked'; })()",
+      "note": "The row's own Hide button, not Cmd+S. The chord dies whenever an HTML surface holds first responder - the log names the responder as the sidebar's own render widget on both earlier runs, and the pane stayed docked at 244 through each of them. That is a real defect and it has its own task; this reading must not wait on it."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar toggle requested from the chrome row",
+      "timeout_ms": 8000,
+      "note": "A collapse that never ran leaves the pane docked, and a panel read over a docked pane says nothing about glass."
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the collapse animation finishes before anything is read"
+    },
+    {
+      "type": "eval",
+      "id": "checkerboard-painted",
+      "target": "checkerboard",
+      "expression": "document.readyState"
+    },
+    {
+      "type": "capture",
+      "id": "page-alone",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the checkerboard with no panel over it - the control for what its edges look like unfrosted"
+    },
+    {
+      "type": "move",
+      "x": 300,
+      "y": 400,
+      "note": "Park well inside the page first. The arming strip is 32pt wide measured from the window's CONTENT edge, and the window sits about 8pt from the screen edge, so x=3 was on the desktop and no reveal ever fired - the log's only edge-reveal line came at teardown."
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "move",
+      "x": 20,
+      "y": 400,
+      "note": "Cross INTO the strip from outside it. A tracking area fires mouseEntered on the crossing, so two points that are both already inside it fire nothing."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "timeout_ms": 20000,
+      "note": "the gate: the panel is genuinely up before anything is read off it"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "the slide finishes, so the capture is of a settled panel rather than a moving one"
+    },
+    {
+      "type": "capture",
+      "id": "panel-over-page",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the panel over the same checkerboard. This frame is the answer and it is read by eye."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "checkerboard-painted",
+      "expected": "\"complete\"",
+      "label": "the-pattern-was-really-on-screen",
+      "desc": "A frame read over a page that never loaded says nothing about frost."
+    },
+    {
+      "type": "theme_changed",
+      "before": "page-alone",
+      "after": "panel-over-page",
+      "region": [
+        40,
+        300,
+        200,
+        200
+      ],
+      "min_delta": 40,
+      "label": "the-panel-covers-the-page-rather-than-showing-it",
+      "desc": "The panel draws its own surface in CSS, translucent, so the page reads through it and the rows stay legible. Measured region means: checkerboard alone 127,127,169 - the opaque fill that preceded it 219,222,229, a distance near 145 - a see-through panel 131,130,170, a distance near 5. A wash at .72 lands near 103, so 40 separates a drawn surface from no surface with room on both sides."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "DCHECK failed",
+      "label": "no-dcheck-fired"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

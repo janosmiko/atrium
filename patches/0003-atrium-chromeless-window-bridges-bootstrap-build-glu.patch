@@ -1,0 +1,382 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 23 Jul 2026 13:17:58 +0200
+Subject: [PATCH 003/154] atrium: chromeless window, bridges, bootstrap, build
+ glue
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/app/chrome_main_delegate.cc            |  8 ++
+ chrome/browser/app_controller_mac.mm          | 10 +++
+ chrome/browser/chrome_browser_main.cc         |  2 +
+ chrome/browser/ui/BUILD.gn                    | 82 +++++++++++++++++++
+ chrome/browser/ui/browser.cc                  | 51 ++++++++++++
+ .../internal/browser_window_features.cc       | 23 ++++++
+ .../ui/views/frame/browser_window_factory.cc  | 18 ++++
+ chrome/test/BUILD.gn                          |  1 +
+ 8 files changed, 195 insertions(+)
+
+diff --git a/chrome/app/chrome_main_delegate.cc b/chrome/app/chrome_main_delegate.cc
+index df8f9455d224f..5ab16ad8ed025 100644
+--- a/chrome/app/chrome_main_delegate.cc
++++ b/chrome/app/chrome_main_delegate.cc
+@@ -136,6 +136,7 @@
+ #include "chrome/browser/mac/code_sign_clone_manager.h"
+ #include "chrome/browser/mac/relauncher.h"
+ #include "chrome/browser/shell_integration.h"
++#include "chrome/browser/ui/atrium/atrium_main_extra_parts.h"
+ #include "components/crash/core/common/objc_zombie.h"
+ #include "ui/base/l10n/l10n_util_mac.h"
+ #endif
+@@ -1347,6 +1348,13 @@ void ChromeMainDelegate::PreSandboxStartup() {
+ #if BUILDFLAG(IS_MAC)
+   InitMacCrashReporter(command_line, process_type);
+   SetUpInstallerPreferences(command_line);
++
++  // Default --user-data-dir/--no-first-run/--no-default-browser-
++  // check for a bundled Atrium build, before InitializeUserDataDir() below
++  // reads --user-data-dir off the command line - see
++  // atrium::ApplyDefaultLaunchSwitches()'s doc for why this can't instead be
++  // a chrome_browser_main_extra_parts hook.
++  atrium::ApplyDefaultLaunchSwitches();
+ #endif
+ 
+   // Initialize the user data dir for any process type that needs it.
+diff --git a/chrome/browser/app_controller_mac.mm b/chrome/browser/app_controller_mac.mm
+index 442f1d33080b2..15662c668c8a3 100644
+--- a/chrome/browser/app_controller_mac.mm
++++ b/chrome/browser/app_controller_mac.mm
+@@ -70,6 +70,7 @@
+ #include "chrome/browser/shortcuts/chrome_webloc_file.h"
+ #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
+ #include "chrome/browser/task_manager/task_manager_metrics_recorder.h"
++#include "chrome/browser/ui/atrium/atrium_dock_reopen_hook.h"
+ #include "chrome/browser/ui/browser.h"
+ #include "chrome/browser/ui/browser_command_controller.h"
+ #include "chrome/browser/ui/browser_commands.h"
+@@ -1866,6 +1867,15 @@ class AppControllerProfileObserver : public ProfileAttributesStorage::Observer,
+     }
+   }
+ 
++  // Atrium: a reopen the stock focus branch above didn't handle
++  // must re-enter the Atrium chrome layer, not the stock profile picker /
++  // CreateBrowser below (both open sidebar-less stock UI - and the picker
++  // would list Atrium's internal per-space profiles). No-op false on a
++  // vanilla/degraded run - see atrium_dock_reopen_hook.h.
++  if (atrium::HandleDockReopen()) {
++    return NO;
++  }
++
+   base::FilePath lastProfilePath = GetStartupProfilePathMac();
+   DCHECK_NE(lastProfilePath, ProfileManager::GetSystemProfilePath());
+ 
+diff --git a/chrome/browser/chrome_browser_main.cc b/chrome/browser/chrome_browser_main.cc
+index a32949ed044f1..84f35e4b70a79 100644
+--- a/chrome/browser/chrome_browser_main.cc
++++ b/chrome/browser/chrome_browser_main.cc
+@@ -223,6 +223,7 @@
+ #include <Security/Security.h>
+ 
+ #include "chrome/browser/mac/chrome_browser_main_extra_parts_mac.h"
++#include "chrome/browser/ui/atrium/atrium_main_extra_parts.h"
+ #include "chrome/browser/ui/cocoa/keystone_infobar_delegate.h"
+ #include "chrome/browser/ui/ui_features.h"
+ 
+@@ -777,6 +778,7 @@ std::unique_ptr<content::BrowserMainParts> ChromeBrowserMainParts::Create(
+ 
+ #if BUILDFLAG(IS_MAC)
+   main_parts->AddParts(std::make_unique<ChromeBrowserMainExtraPartsMac>());
++  main_parts->AddParts(std::make_unique<atrium::AtriumMainExtraParts>());
+ #endif
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 017a8c3ff755f..bf352460b257b 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -612,6 +612,17 @@ static_library("ui") {
+     "//chrome/browser/translate:impl",
+     "//chrome/browser/trusted_vault",
+     "//chrome/browser/trusted_vault:impl",
++    "//chrome/browser/ui/atrium:capture_math",
++    "//chrome/browser/ui/atrium:capture_overlay_math",
++    "//chrome/browser/ui/atrium:cdp_response",
++    "//chrome/browser/ui/atrium:devtools_card_corners",
++    "//chrome/browser/ui/atrium:devtools_pane_selection",
++    "//chrome/browser/ui/atrium:extension_actions_json",
++    "//chrome/browser/ui/atrium:extension_popup_watchdog_policy",
++    "//chrome/browser/ui/atrium:little_marker",
++    "//chrome/browser/ui/atrium:routing_navigation_decision",
++    "//chrome/browser/ui/atrium:slot_presentation_table",
++    "//chrome/browser/ui/atrium:status_bubble_color_math",
+     "//chrome/browser/ui/autofill",
+     "//chrome/browser/ui/autofill:impl",
+     "//chrome/browser/ui/autofill/payments",
+@@ -3449,6 +3460,58 @@ static_library("ui") {
+ 
+   if (is_mac) {
+     sources += [
++      "atrium/atrium_autocomplete_bridge.h",
++      "atrium/atrium_autocomplete_bridge.mm",
++      "atrium/atrium_autofill_bubble_handler.h",
++      "atrium/atrium_autofill_bubble_handler.mm",
++      "atrium/atrium_bridge.h",
++      "atrium/atrium_browser_controller.h",
++      "atrium/atrium_browser_controller.mm",
++      "atrium/atrium_browser_window.h",
++      "atrium/atrium_browser_window.mm",
++      "atrium/atrium_capture.cc",
++      "atrium/atrium_capture.h",
++      "atrium/atrium_capture_overlay_widget.h",
++      "atrium/atrium_capture_overlay_widget.mm",
++      "atrium/atrium_command_bar_widget.h",
++      "atrium/atrium_command_bar_widget.mm",
++      "atrium/atrium_command_dispatcher_delegate.h",
++      "atrium/atrium_command_dispatcher_delegate.mm",
++      "atrium/atrium_dock_reopen_hook.h",
++      "atrium/atrium_dock_reopen_hook.mm",
++      "atrium/atrium_extension_bridge.h",
++      "atrium/atrium_extension_bridge.mm",
++      "atrium/atrium_extension_pill_widget.h",
++      "atrium/atrium_extension_pill_widget.mm",
++      "atrium/atrium_extension_popup_host.h",
++      "atrium/atrium_extension_popup_host.mm",
++      "atrium/atrium_fedcm_anchor_hook.h",
++      "atrium/atrium_fedcm_anchor_hook.mm",
++      "atrium/atrium_link_copy_format.h",
++      "atrium/atrium_main_extra_parts.h",
++      "atrium/atrium_main_extra_parts.mm",
++      "atrium/atrium_native_hotkey_map.h",
++      "atrium/atrium_native_hotkey_map.mm",
++      "atrium/atrium_peek_intercept.h",
++      "atrium/atrium_peek_intercept.mm",
++      "atrium/atrium_peek_navigation_throttle.cc",
++      "atrium/atrium_peek_navigation_throttle.h",
++      "atrium/atrium_peek_widget.h",
++      "atrium/atrium_peek_widget.mm",
++      "atrium/atrium_profile_bootstrap.h",
++      "atrium/atrium_profile_bootstrap.mm",
++      "atrium/atrium_routing_navigation_throttle.cc",
++      "atrium/atrium_routing_navigation_throttle.h",
++      "atrium/atrium_settings_menu_hook.h",
++      "atrium/atrium_settings_menu_hook.mm",
++      "atrium/atrium_sidebar_overlay_widget.h",
++      "atrium/atrium_sidebar_overlay_widget.mm",
++      "atrium/atrium_status_bubble_hook.h",
++      "atrium/atrium_status_bubble_hook.mm",
++      "atrium/atrium_traffic_routing.h",
++      "atrium/atrium_traffic_routing.mm",
++      "atrium/atrium_ui_bridge.h",
++      "atrium/atrium_ui_bridge.mm",
+       "browser_commands_mac.h",
+       "browser_commands_mac.mm",
+       "browser_mac.cc",
+@@ -3499,6 +3562,7 @@ static_library("ui") {
+       "//components/remote_cocoa/app_shim:features",
+       "//components/remote_cocoa/browser",
+       "//device/fido/strings:strings_grit",
++      "//extensions/common",
+       "//extensions/components/native_app_window",
+       "//ui/accelerated_widget_mac",
+     ]
+@@ -3510,6 +3574,24 @@ static_library("ui") {
+     ]
+   }
+ 
++  # atrium_feature_check is compiled on every platform (like
++  # webui_browser::IsWebUIBrowserEnabled()), unlike the rest of atrium/ above
++  # which is mac-only, so read_anything's shutdown guard can query it without
++  # a mac-only build dependency. It returns false everywhere Atrium never
++  # creates a BrowserWindow.
++  #
++  # atrium_devtools_bridge joins it for the same reason -
++  # chrome/browser/devtools's stock seams (devtools_window.cc,
++  # devtools_window_views.cc) call it on every platform; its non-mac stub
++  # (guarded #if !BUILDFLAG(IS_MAC) inside the .cc) is a no-op everywhere
++  # Atrium never creates a BrowserWindow.
++  sources += [
++    "atrium/atrium_devtools_bridge.cc",
++    "atrium/atrium_devtools_bridge.h",
++    "atrium/atrium_feature_check.cc",
++    "atrium/atrium_feature_check.h",
++  ]
++
+   if (is_win) {
+     assert(toolkit_views)
+     assert(use_aura)
+diff --git a/chrome/browser/ui/browser.cc b/chrome/browser/ui/browser.cc
+index 0777bf71430c8..622a8c0f64303 100644
+--- a/chrome/browser/ui/browser.cc
++++ b/chrome/browser/ui/browser.cc
+@@ -292,6 +292,10 @@
+ #endif
+ 
+ #if BUILDFLAG(IS_MAC)
++#include "chrome/browser/ui/atrium/atrium_peek_intercept.h"
++#include "chrome/browser/ui/atrium/atrium_status_bubble_hook.h"
++#include "chrome/browser/ui/atrium/atrium_traffic_routing.h"
++#include "chrome/browser/ui/atrium/atrium_ui_bridge.h"
+ #include "ui/display/display.h"
+ #include "ui/display/screen.h"
+ #include "ui/display/types/display_constants.h"
+@@ -1513,6 +1517,32 @@ WebContents* Browser::OpenURLFromTab(
+     }
+   }
+ 
++#if BUILDFLAG(IS_MAC)
++  // Peek mode (2026-07-10 plan, Q1): shift+click on Mac maps to
++  // NEW_WINDOW (ui/base/window_open_disposition_utils.cc's
++  // DispositionFromClick) - intercept it here, before a real window/tab is
++  // created, and show the target in a floating preview widget instead.
++  // started_from_context_menu excludes "Open Link in New Window" (also
++  // NEW_WINDOW) so an explicit user choice is never swallowed;
++  // is_renderer_initiated excludes any browser-initiated NEW_WINDOW open.
++  // peek_connected() is the real dlsym'd fourth ABI-group gate (Task 2) -
++  // same AND-gate shape as every other optional group here. A dylib missing
++  // any of the four peek exports leaves this false and shift+click falls
++  // through to stock NEW_WINDOW behavior below.
++  if (params.disposition == WindowOpenDisposition::NEW_WINDOW &&
++      params.is_renderer_initiated && !params.started_from_context_menu &&
++      atrium::UIBridge::Get()->connected() &&
++      atrium::UIBridge::Get()->peek_connected() &&
++      atrium::MaybeOpenPeek(this, source, params.url, params.referrer)) {
++    return source;  // No new WebContents/window created on this path.
++  }
++  // Auto-peek for a plain (unmodified) cross-site link click from a
++  // pinned/favorited tab (M2, 2026-07-14 plan) is NOT hooked here: a plain
++  // click never emits the OpenURL IPC that reaches this method (see the
++  // plan's "INTERCEPT RE-ADJUDICATION"), so it lives in
++  // atrium_peek_navigation_throttle instead.
++#endif  // BUILDFLAG(IS_MAC)
++
+   NavigateParams nav_params(this, params.url, params.transition);
+   nav_params.FillNavigateParamsFromOpenURLParams(params);
+   nav_params.source_contents = source;
+@@ -1684,6 +1714,21 @@ content::WebContents* Browser::AddNewContents(
+     }
+   }
+ 
++#if BUILDFLAG(IS_MAC)
++  // Traffic routing Hook 2 (window.open, 2026-07-10 plan Task 4): the
++  // renderer already pre-created `new_contents` and started its initial
++  // load before Chromium reaches this point - Hook 1 (chrome::Navigate(),
++  // browser_navigator.cc) never sees a window.open's URL at all, so this is
++  // the only place that can catch it. A cross-profile match destroys
++  // `new_contents` and reopens the URL on the target profile's controller
++  // instead of ever inserting it into this Browser's strip; a same-profile
++  // match or a non-match falls through unchanged.
++  if (atrium::MaybeRerouteNewContents(this, source, new_contents,
++                                      target_url)) {
++    return nullptr;
++  }
++#endif  // BUILDFLAG(IS_MAC)
++
+   return chrome::AddWebContents(this, source, std::move(new_contents),
+                                 target_url, disposition, window_features,
+                                 window_action, user_gesture);
+@@ -1737,6 +1782,12 @@ void Browser::SetContentsBounds(WebContents* source, const gfx::Rect& bounds) {
+ }
+ 
+ void Browser::UpdateTargetURL(WebContents* source, const GURL& url) {
++#if BUILDFLAG(IS_MAC)
++  // AtriumBrowserWindow::GetStatusBubbles() stays stubbed
++  // (returns {}, see atrium_status_bubble_hook.h's doc), so the loop below is
++  // always a no-op for Atrium - this is the real seam instead.
++  atrium::MaybeUpdateStatusBubbleURL(this, source, url);
++#endif  // BUILDFLAG(IS_MAC)
+   std::vector<StatusBubble*> status_bubbles = GetStatusBubbles();
+   for (StatusBubble* status_bubble : status_bubbles) {
+     StatusBubbleViews* status_bubble_views =
+diff --git a/chrome/browser/ui/browser_window/internal/browser_window_features.cc b/chrome/browser/ui/browser_window/internal/browser_window_features.cc
+index 4913c63016ccc..0ab887d1ada99 100644
+--- a/chrome/browser/ui/browser_window/internal/browser_window_features.cc
++++ b/chrome/browser/ui/browser_window/internal/browser_window_features.cc
+@@ -47,6 +47,7 @@
+ #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
+ #include "chrome/browser/ui/ai_overlay_dialog/ai_overlay_dialog_controller.h"
+ #include "chrome/browser/ui/animation/browser_animation_controller.h"
++#include "chrome/browser/ui/atrium/atrium_feature_check.h"
+ #include "chrome/browser/ui/bookmarks/bookmark_bar_controller.h"
+ #include "chrome/browser/ui/bookmarks/bookmarks_service_feature.h"
+ #include "chrome/browser/ui/breadcrumb_manager_browser_agent.h"
+@@ -1065,6 +1066,28 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
+     }
+   }
+ 
++  // Atrium: AtriumBrowserWindow is not a BrowserView, so
++  // InitPostBrowserViewConstruction (which Init()s the impl for normal
++  // windows) never runs for Atrium-backed (type-normal) windows -- other
++  // window types in an Atrium-connected process (DevTools, popups, apps,
++  // app-popups, picture-in-picture) still get real BrowserViews and are
++  // Init'd there as usual. Mirror the window factory's gate exactly
++  // (browser_window_factory.cc) so this only fires for the windows that
++  // actually get an AtriumBrowserWindow. Init the impl here with the live
++  // Atrium widget's root view so
++  // BrowserElementsViews::GetPrimaryWindowWidget()/GetContext() return the
++  // real widget/context and tab-modal dialogs stop crashing.
++  if (atrium::IsAtriumBrowserWindowEnabled() && browser->is_type_normal()) {
++    if (auto* const provider =
++            browser_elements_->AsA<BrowserElementsViewsImpl>()) {
++      if (views::Widget* const widget =
++              views::Widget::GetWidgetForNativeWindow(
++                  browser->window()->GetNativeWindow())) {
++        provider->Init(widget->GetRootView());
++      }
++    }
++  }
++
+   // Initialize post-window dependent embedder features last.
+   embedder_browser_window_features_->InitPostWindowConstruction(browser);
+ }
+diff --git a/chrome/browser/ui/views/frame/browser_window_factory.cc b/chrome/browser/ui/views/frame/browser_window_factory.cc
+index 326b2b5254350..b92bf6cc20348 100644
+--- a/chrome/browser/ui/views/frame/browser_window_factory.cc
++++ b/chrome/browser/ui/views/frame/browser_window_factory.cc
+@@ -17,6 +17,12 @@
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/views/widget/widget.h"
+ 
++#if BUILDFLAG(IS_MAC)
++#include "chrome/browser/ui/atrium/atrium_browser_window.h"
++#include "chrome/browser/ui/atrium/atrium_little_marker.h"
++#include "chrome/browser/ui/atrium/atrium_ui_bridge.h"
++#endif  // BUILDFLAG(IS_MAC)
++
+ #if defined(USE_AURA)
+ #include "ui/aura/client/aura_constants.h"
+ #include "ui/aura/window.h"
+@@ -33,6 +39,18 @@ std::unique_ptr<BrowserWindow, BrowserWindowDeleter>
+ BrowserWindow::CreateBrowserWindow(Browser* browser,
+                                    bool user_gesture,
+                                    bool in_tab_dragging) {
++#if BUILDFLAG(IS_MAC)
++  if (atrium::UIBridge::Get()->connected() && browser->is_type_normal()) {
++    // Little Atrium: BrowserController::CreateLittleWindow
++    // brackets its own Browser::Create() call with this marker (Browser has
++    // no SupportsUserData/UnownedUserDataHost slot cheap enough to stamp
++    // before this factory runs) - see atrium_little_marker.h's doc.
++    return std::unique_ptr<BrowserWindow, BrowserWindowDeleter>(
++        new atrium::AtriumBrowserWindow(browser,
++                                         atrium::CreatingLittleBrowser()));
++  }
++#endif  // BUILDFLAG(IS_MAC)
++
+   if (webui_browser::IsWebUIBrowserEnabled() && browser->is_type_normal()) {
+     return std::unique_ptr<BrowserWindow, BrowserWindowDeleter>(
+         new WebUIBrowserWindow(browser));
+diff --git a/chrome/test/BUILD.gn b/chrome/test/BUILD.gn
+index 9e2dc913343f7..0da42d37c5955 100644
+--- a/chrome/test/BUILD.gn
++++ b/chrome/test/BUILD.gn
+@@ -6747,6 +6747,7 @@ test("unit_tests") {
+       "//chrome/browser/apps/app_shim:unit_tests",
+       "//chrome/browser/mac:unit_tests",
+       "//chrome/browser/renderer_host:history_swiper",
++      "//chrome/browser/ui/atrium:unit_tests",
+       "//chrome/common/notifications",
+       "//chrome/common/safe_browsing:archive_analyzer_results",
+       "//chrome/common/safe_browsing:disk_image_type_sniffer_mac",

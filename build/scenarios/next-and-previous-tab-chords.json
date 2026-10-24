@@ -1,0 +1,144 @@
+{
+  "name": "next-and-previous-tab-chords",
+  "description": "All six chords the core ships for nextTab and previousTab, pressed in turn against three plain rows in one space. nextTab is cmd+opt+down, cmd+j and cmd+shift+], previousTab is cmd+opt+up, cmd+k and cmd+shift+[. Only cmd+shift+] had ever been pressed by a scenario, so the other five were unproven end to end.\n\nEvery cycle chord is fenced by cmd+shift+right. This space is the only one in the fixture, so nextSpace can never move anything and always logs a decline line, which turns the run log into a fence-post list: the hotkey line between two fences belongs to the chord between them, and a chord that produced no line at all is visible as an empty gap rather than shifting every later line onto the wrong chord.\n\nAll three rows are LOCAL urls. The VM has DNS but no outbound HTTPS.",
+  "fixture": "next-and-previous-tab-chords.spaces.json",
+  "startup_space": "9ab00901-0000-4000-8000-000000000901",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the window finish first paint and the sidebar announce itself"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "fence 1"
+    },
+    { "type": "settle", "ms": 800 },
+    {
+      "type": "key",
+      "combo": "cmd+opt+down",
+      "note": "nextTab, the compiled-in default"
+    },
+    { "type": "settle", "ms": 2500 },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "fence 2"
+    },
+    { "type": "settle", "ms": 800 },
+    {
+      "type": "key",
+      "combo": "cmd+opt+up",
+      "note": "previousTab, the compiled-in default"
+    },
+    { "type": "settle", "ms": 2500 },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "fence 3"
+    },
+    { "type": "settle", "ms": 800 },
+    {
+      "type": "key",
+      "combo": "cmd+j",
+      "note": "nextTab, seeded from the core's table"
+    },
+    { "type": "settle", "ms": 2500 },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "fence 4"
+    },
+    { "type": "settle", "ms": 800 },
+    {
+      "type": "key",
+      "combo": "cmd+k",
+      "note": "previousTab, seeded from the core's table"
+    },
+    { "type": "settle", "ms": 2500 },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "fence 5"
+    },
+    { "type": "settle", "ms": 800 },
+    {
+      "type": "key",
+      "combo": "cmd+shift+]",
+      "note": "nextTab, the chord a sibling scenario already proved"
+    },
+    { "type": "settle", "ms": 2500 },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "fence 6"
+    },
+    { "type": "settle", "ms": 800 },
+    {
+      "type": "key",
+      "combo": "cmd+shift+[",
+      "note": "previousTab, the bracket chord"
+    },
+    { "type": "settle", "ms": 2500 },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "fence 7"
+    },
+    { "type": "settle", "ms": 1200 }
+  ],
+  "assertions": [
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: hotkey nextSpace declined",
+      "min": 7,
+      "max": 7,
+      "label": "every-fence-reached-the-app",
+      "desc": "The fences themselves. Seven presses, seven lines - anything less and the gaps between them no longer identify which chord a cycle line belongs to, so the counts below would be read against a shifted list."
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: hotkey nextTab fired",
+      "min": 3,
+      "max": 3,
+      "label": "all-three-next-tab-chords-fired",
+      "desc": "THE assertion for nextTab. cmd+opt+down, cmd+j and cmd+shift+] each has to reach the window AND move a row; a chord swallowed before the app and one that reached a cycle with nowhere to go both fail this."
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: hotkey previousTab fired",
+      "min": 3,
+      "max": 3,
+      "label": "all-three-previous-tab-chords-fired",
+      "desc": "The same for previousTab: cmd+opt+up, cmd+k and cmd+shift+[."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "Atrium: hotkey (nextTab|previousTab) declined",
+      "label": "no-cycle-chord-was-declined",
+      "desc": "Separates the two ways the count above can fall short. A decline line names its reason in the log, so a run that fails here says whether the edit gate or the walk itself turned the key away."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "label": "still-one-window",
+      "desc": "Liveness, and a guard against a chord reaching something that opens a window."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 22 Sep 2026 17:14:36 +0200
+Subject: [PATCH 145/154] chore(branding): set CrProductDirName so app data
+ lands under Atrium
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/app/app-Info.plist | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/app/app-Info.plist b/chrome/app/app-Info.plist
+index 6fada0a2b1a1f..2a52fe12c46b8 100644
+--- a/chrome/app/app-Info.plist
++++ b/chrome/app/app-Info.plist
+@@ -159,6 +159,8 @@
+ 	<string>${CHROMIUM_SHORT_NAME}</string>
+ 	<key>CFBundlePackageType</key>
+ 	<string>APPL</string>
++	<key>CrProductDirName</key>
++	<string>${CHROMIUM_SHORT_NAME}</string>
+ 	<key>CFBundleSignature</key>
+ 	<string>${CHROMIUM_CREATOR}</string>
+ 	<key>NSAppleScriptEnabled</key>

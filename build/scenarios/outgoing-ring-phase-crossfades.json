@@ -1,0 +1,92 @@
+{
+  "name": "outgoing-ring-phase-crossfades",
+  "description": "A rAF trace across the waiting-to-receiving crossing, driven directly through window.atriumTabLoading/atriumLoadPhase rather than a real network load, so the crossing lands at a known moment instead of whenever a fixture page happens to finish. A still capture cannot see a one-frame opacity drop, so every frame's .brdr::before/::after opacity is logged for the 1.5s around the push, and the script itself decides whether the outgoing (::after) value passed through an intermediate frame or jumped straight to 0.",
+  "fixture": "lab-compare.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "pick-tab",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.tabrow.sel[data-tab-id]') || document.querySelector('.tabrow[data-tab-id]'); if (!row) { return 'no row'; } window.__ringTabId = row.dataset.tabId; return window.__ringTabId; })()",
+      "note": "the id atriumLoadPhase gates on: findActiveTab must agree, so the selected row is picked first"
+    },
+    {
+      "type": "eval",
+      "id": "start-loading",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumTabLoading(window.__ringTabId, true); return 'started'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 700,
+      "note": "ringpulse (1.3s) is well into its cycle, matching the description's own trace, which caught phase 1 mid-pulse at before=0 after=0.45"
+    },
+    {
+      "type": "eval",
+      "id": "arm-crossing-sampler",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.tabrow[data-tab-id=\"' + window.__ringTabId + '\"]'); if (!row) { return 'row gone'; } const b = row.querySelector('.brdr'); if (!b) { return 'no brdr'; } window.__crossLog = []; const t0 = performance.now(); const two = (v) => Number(v).toFixed(2); const tick = () => { const be = two(getComputedStyle(b, '::before').opacity); const af = two(getComputedStyle(b, '::after').opacity); const cls = [...row.classList].filter((c) => c !== 'tabrow' && c !== 'row').join('.'); window.__crossLog.push({t: performance.now() - t0, before: be, after: af, cls}); if (performance.now() - t0 < 1500) { requestAnimationFrame(tick); } }; requestAnimationFrame(tick); return 'armed'; })()"
+    },
+    {
+      "type": "eval",
+      "id": "push-receiving",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumLoadPhase(window.__ringTabId, 'receiving', 0.5); return 'pushed'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 1700
+    },
+    {
+      "type": "eval",
+      "id": "crossing-trace",
+      "target": "/sidebar",
+      "expression": "(window.__crossLog || []).map((r) => Math.round(r.t) + 'ms before=' + r.before + ' after=' + r.after + ' [' + r.cls + ']').join(' | ')",
+      "note": "THE MEASUREMENT: every frame's opacity either side of the phase push"
+    },
+    {
+      "type": "eval",
+      "id": "outgoing-faded-not-jumped",
+      "target": "/sidebar",
+      "expression": "(() => { const log = window.__crossLog || []; const receivingIdx = log.findIndex((r) => r.cls.includes('receiving')); if (receivingIdx < 1) { return 'no crossing seen'; } const preAfter = Number(log[receivingIdx - 1].after); const firstAfter = Number(log[receivingIdx].after); if (!(preAfter > 0.05)) { return 'nothing to fade from (' + preAfter + ')'; } if (firstAfter <= 0.02) { return 'jumped (0 intermediate frames)'; } let steps = 0; for (let i = receivingIdx + 1; i < log.length; i++) { const v = Number(log[i].after); if (v <= 0) { break; } if (v < firstAfter - 0.02) { steps++; } } return steps >= 1 ? 'faded' : 'jumped (' + steps + ' intermediate frames)'; })()",
+      "note": "The receiving class's own first sampled frame is the fade's real starting point, since the pulse may still be rising when the push lands - at least one frame strictly between that value and 0 means the .25s transition ran, and a first frame already at 0 means it snapped before the sampler could see it move"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "outgoing-faded-not-jumped",
+      "expected": "\"faded\"",
+      "desc": "The outgoing ::after opacity steps down over the transition rather than disappearing in one frame"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

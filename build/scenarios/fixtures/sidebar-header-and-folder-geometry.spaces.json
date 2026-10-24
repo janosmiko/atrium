@@ -1,0 +1,51 @@
+{
+  "spaces": [
+    {
+      "id": "74774774-7477-4774-8774-747747747747",
+      "name": "Header Test",
+      "emoji": "🗂",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?g1",
+          "title": "Grouped One",
+          "groupID": "11111111-7477-4774-8774-747747747747"
+        },
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?g2",
+          "title": "Grouped Two",
+          "groupID": "22222222-7477-4774-8774-747747747747"
+        },
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?plain1",
+          "title": "Plain One"
+        },
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?plain2",
+          "title": "Plain Two"
+        }
+      ],
+      "groups": [
+        {
+          "id": "11111111-7477-4774-8774-747747747747",
+          "name": "News",
+          "collapsed": false
+        },
+        {
+          "id": "22222222-7477-4774-8774-747747747747",
+          "name": "Sports",
+          "collapsed": false
+        }
+      ]
+    }
+  ],
+  "favorites": [],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "74774774-7477-4774-8774-747747747747"
+  }
+}

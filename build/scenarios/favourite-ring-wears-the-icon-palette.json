@@ -1,0 +1,99 @@
+{
+  "name": "favourite-ring-wears-the-icon-palette",
+  "description": "A favourite whose favicon carries several colours rings in all of them: the ring is a conic gradient with each colour at the angle it sits in the icon, the way the Microsoft and Google marks read. The fixture's icon is four quadrants, red top-left, green top-right, blue bottom-left, yellow bottom-right, on the same Dark space as the single-colour ring scenario. The tile is clicked so it selects, then the ring element's ::after is read: its background must be the palette gradient and its border must have stepped aside. The sibling favourite-ring-wears-the-icon-colour-in-glass proves a single red icon keeps the plain border.",
+  "fixture": "favourite-ring-four-colours.spaces.json",
+  "settings": "page-tint-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "dark-page",
+      "target": "example-domain.html?ring",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/example-domain.html?ring",
+      "timeout_ms": 25000
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "click",
+      "x": 40,
+      "y": 121,
+      "note": "the only favourite tile, at a sibling scenario's coordinates. The click OPENS and CLAIMS the tab, which is what selects the tile."
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "the favourite has no live tab, so the click opens and claims one. The page spins for 3s, so this outlasts the load and the icon fetch"
+    },
+    {
+      "type": "capture",
+      "id": "selected-tile"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "click",
+      "x": 140,
+      "y": 225,
+      "note": "the Example tab row, so a push follows"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "click",
+      "x": 40,
+      "y": 121,
+      "note": "the tile again, drawn from the icon the first visit stored"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "ring-palette",
+      "target": "/sidebar",
+      "expression": "(() => { const t = document.querySelector('.fav.sel'); if (!t) { return 'no selected tile'; } if (!t.classList.contains('palette')) { return 'no palette class'; } const grad = t.style.getPropertyValue('--ringgrad'); const stops = (grad.match(/rgb\\([^)]*\\) -?\\d+deg/g) || []).length; const after = getComputedStyle(t.querySelector(':scope > .brdr'), '::after'); if (!after.backgroundImage.startsWith('conic-gradient')) { return 'border only: ' + after.backgroundImage; } if (after.borderTopColor !== 'rgba(0, 0, 0, 0)') { return 'border still painted: ' + after.borderTopColor; } return stops === 6 ? 'four colours around the ring' : 'stops ' + stops + ' ' + grad; })()",
+      "note": "The tile's first open fetches the site's root favicon.ico before the page's own PNG lands, so the icon in the database is the PNG only after that load. A second visit draws the tile from the PNG.",
+      "expected": "four colours around the ring",
+      "timeout_ms": 15000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "ring-palette",
+      "expected": "four colours around the ring",
+      "desc": "THE MEASUREMENT: the selected tile's ring is the icon's four colours as a gradient, not one border colour"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

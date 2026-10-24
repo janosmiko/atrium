@@ -1,0 +1,89 @@
+{
+  "name": "quit-panel-corners-are-transparent",
+  "description": "the hold-to-quit panel's rounded card was reported sitting inside a rectangular window whose corner pixels were not fully transparent - first read as opaque white, then (after that was ruled out) as a faint lighter wedge just outside the border radius, traced to ConfirmQuitFrameView's layer shadow: no shadowPath (so Core Animation's derived silhouette fuzzes past the rounded rect) and a shadowColor tied to style.ink, which is near-white in dark mode and lightens instead of darkens.\n\nWHY THE PAGE IS SOLID RED, and it is the whole method. hold-cmd-q-panel runs over the harness's white example page, and opaque WHITE corners over a white page are invisible - which is why the defect could be reported from a screenshot and still not show up in a passing capture. Over peek-scrim-red.html the two answers are as far apart as they can be: a transparent corner reads red, an opaque or lightened one reads paler.\n\nWHERE THE PROBES SIT. The panel is 350x70, centred over the content card. The corner probe sits in the shadow band just outside the rounded curve (measured off a real capture: pure red until x=393, then a flat plateau at x=394-401 before the curve's own antialiasing starts around x=402); the control probe is the card's own middle. Reading BOTH is what separates 'the corner is transparent' from 'the panel never drew at all' - a run with no panel would leave the corner red and the middle red too.\n\nWHY THE MID FRAME. The panel lives only while the chord is held, so a graded frame taken after the capture settles has no panel in it - a corner probe on such a frame reads the page and PASSES vacuously. key_during_capture's own '_mid' capture id names the frame chosen from inside the hold (lib/mid_frame.py), which is what the region_mean probes below read instead.\n\nWHY max_mean IS NOT ZERO-TOLERANCE. overlay.css's --ov-shadow is a real, intentional soft shadow that every overlay card casts a few pixels past its own rounded corner - that is not the bug. A region_mean probe on a small red-channel-dominant patch (255,0,0 = mean 85.0) tolerates the shadow's own legitimate, low-opacity DARKENING (measured 88.5 pre-fix, R drops a few points, G/B stay near 0) while still failing a LIGHTENING wedge or a solid paint (either pushes G/B up and the mean well past 100).",
+  "fixture": "quit-panel-over-red.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "settings": "confirm-quit-on.settings.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "red-page-up",
+      "target": "peek-scrim-red.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-scrim-red.html",
+      "timeout_ms": 25000,
+      "note": "GATE: the red page really committed. The original scenario waited on a vlog naming its own fixture's host, which this fixture replaces - and a chord fired before the app settled showed no panel at all."
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key_during_capture",
+      "combo": "cmd+q",
+      "capture_id": "hold-cmd-q-panel",
+      "duration_ms": 2000,
+      "fps": 20,
+      "key_delay_ms": 400,
+      "mid_at_ms": 800,
+      "note": "the panel: paper surface, ink, and the shortcut as keycaps followed by 'to Quit'. Released at 400ms, safely under the ~500ms commit mark, so the panel dismisses instead of the app quitting. mid_at_ms=800 (not 600): two real runs' visible-panel windows measured at 615-944ms and 657-1042ms - 600ms lands before the panel shows in the second, 800ms sits inside both with margin."
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "let the panel's fade-out finish before the run ends"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "the browser window is still there - the release beat the quit. The HUD itself is far below min_area, so it cannot pad this count"
+    },
+    {
+      "type": "vlog",
+      "label": "confirm-to-quit-is-armed",
+      "pattern": "Atrium: confirm-to-quit is now on",
+      "note": "the gate this scenario is about was actually on for this launch, so the panel that appeared is the confirm-to-quit HUD and not some other window"
+    },
+    {
+      "type": "region_mean",
+      "capture": "hold-cmd-q-panel_mid",
+      "x": 500,
+      "y": 210,
+      "w": 10,
+      "h": 10,
+      "min_mean": 150,
+      "max_mean": 256,
+      "label": "the-card-is-painted",
+      "desc": "THE CONTROL: the card's own middle, well inside the rounded rect. --ov-paper is near-white, so this reads light and confirms the mid frame actually caught the held panel - without this, an absent panel would leave the corner probe below vacuously passing on plain red."
+    },
+    {
+      "type": "region_mean",
+      "capture": "hold-cmd-q-panel_mid",
+      "x": 395,
+      "y": 187,
+      "w": 5,
+      "h": 5,
+      "min_mean": 0,
+      "max_mean": 95,
+      "min_r": 250,
+      "max_g": 20,
+      "max_b": 20,
+      "label": "the-corner-is-not-a-wedge",
+      "desc": "the band just outside the panel's top-left rounded corner, over pure red (255,0,0 in this pipeline, verified against four plain-page patches in the same frame). The mean alone cannot fail on the defect: the old dark shadow wedge read 88.5 and a clean corner reads 91.6, because macOS 26's window server draws a 1-2px rim light around every window's alpha shape (a thin arc 2-3px outside the card, extending past the window bounds - no in-process drawing can reach there) which lifts G/B to ~10 in this patch. The channels separate the states: a darkening wedge drops R to ~243 (fails min_r 250, clean R is 254.7), an added light fill lifts G/B past 20 (the rim sits at 10), and the panel's own paint would push the mean far past 95. The former 86 ceiling assumed no rim and rejected the clean state."
+    }
+  ]
+}

@@ -1,0 +1,234 @@
+{
+  "name": "incognito-window-wears-the-dark-tint",
+  "description": "An incognito window must read as incognito at a glance, so its sidebar wears one fixed dark tint whatever space theme is live. The tint reaches the document as --atrium-space-tint (PushOverlayTheme) and the ink the rows draw with as --atrium-ink, so both are read out of the live surface rather than off a screenshot - a computed property is a value, and a pixel of it under the glass is not.\n\nWHY THE REGULAR WINDOW IS READ FIRST. atrium::kIncognitoTint is 20 18 26 and every shipped tint is darker than mid-grey too, so 'the incognito sidebar is dark' says nothing on its own. The control is the same property in the same build, read from the window next door: 15 43 70, the oceanBlue the fixture's startup space carries.\n\nWHY PAGE TINT IS ON AND THE INCOGNITO WINDOW LOADS A RED PAGE. With chromePageTint on, the chrome drifts toward the page's colour, and the core resolves that drift over the ACTIVE SPACE's tint - the window next door's colour, mixed with what this window is showing. An incognito window has no base to hand the core, so it refuses the drift and stays flat. The refusal writes its own line, which is the only observable it has: the drift lands in the edge band, painted natively, and never reaches the sidebar document at all.\n\nWHY THE SPACE SWITCH IS AT THE END. The claim is independence, not darkness. The regular window is brought back to the front and switched to the Teal space (sunsetOrange, 90 46 13), which pushes a new tint down the same path the incognito window shares - and the incognito reading must not move. Without this half a build that simply never pushed a tint into the second window would pass.\n\nHOW THE TWO SIDEBARS ARE TOLD APART. Both carry chrome://atrium/sidebar, so the incognito one names itself with a #incognito fragment (see incognito-window-has-no-spaces.json). cdp-eval matches an exact path first, so '/sidebar' picks the fragmentless regular one and never the incognito sibling.\n\nWHY THE WINDOW IS MOVED BEFORE THE CLICK. Every Atrium window opens at pos=0,30, so the two overlap exactly and a click at a fixed point names no particular surface (move_window's own note in vm-scenario.sh). Moving the frontmost - the incognito one - clear of x=400 leaves the regular window's sidebar band alone at x 0..280.",
+  "cannot_pass": "RUN TWICE, 2026-08-30, 9/13 then 13/14. The second run passed everything except the navigation gate, and that gate was asking for a line that cannot exist: 'Atrium: tab N url ...' comes from TabEventForwarder, and BrowserController::OnTabAdded returns at its !PersistsTabs() guard before attaching one, so no incognito tab ever logs its URL - by design, since not recording them is the point. Four tabs settled it: 1 and 4 (regular) logged a url, 2 and 3 ('off the record') did not, while the same burst carried 'URL to scan: http://127.0.0.1:8000/light-tint-red.html', 'Skip redirection: unsupported in incognito', 'tab 3 added' and 'page tint held for the load'. The page HAD loaded and only the observer was missing. The gate now reads that page's own DOM. STILL UNPROVEN: that cdp-eval can see an off-the-record page target at all - every document this scenario has successfully read so far is a chrome surface, not a web page in an OTR profile. If /json/list withholds it, red-page-live is the assertion that will say so. NOT RE-RUN since that change. The autocomplete theory was checked and ruled out: the field logged 'query length 41' with 'completion 0', so nothing was appended and nothing needed deleting.\n\nFROM THE EARLIER RUNS, now fixed: the ink read 0 0 0 because at the shipped 0.55 glass this VM's light appearance base is 242, which composited #14121A to about #78777B - white clears only 4.43 there, so InkForBackdrop answered black and the window did not look incognito either. The constant is painted opaque now, and the second run read 255 255 255. Cmd+Shift+N also opens on a new tab page with NO command bar, so an earlier version typed 41 characters into a page, and Cmd+T plus a gate on the palette's own field fixed that. What those runs settled for good: the tint reads 20 18 26 in the incognito window and 15 43 70 / 90 46 13 in the regular one across the switch, the ink reads 255 255 255, the two windows really stand at pos 0,30 and 400,120, and the sampler refusal fires. The click at 140,620 does reach the regular window, because the space switch after it landed there and nowhere else, and the var() substitution sidebar.css does (--atrium-ink resolves to --atrium-glass-ink) computes to a bare triplet, because the failing read was the triplet '0 0 0' and the passing one was '255 255 255'.\n\nWHAT NO ASSERTION HERE COVERS: the edge band's pixels. The page drift lands in the glow, which AtriumAmbilightBackground paints natively and no document exposes, so the DOM reads below cannot see it and a region_mean over a derived band could not separate a red glow from a dark one by channel average anyway. The refusal is asserted through its log line instead, and the band itself is unmeasured.",
+  "fixture": "page-tint-two-spaces.spaces.json",
+  "settings": "page-tint-on.settings.json",
+  "startup_space": "437a0001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "regular-tint",
+      "target": "/sidebar",
+      "expression": "getComputedStyle(document.documentElement).getPropertyValue('--atrium-space-tint').trim().split(/\\s+/).join(' ')",
+      "note": "THE CONTROL, read while this is still the only sidebar document. Without it 'the incognito sidebar is dark' is a claim about every space tint too."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+n",
+      "note": "THE VARIABLE"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "Cmd+Shift+N opens the incognito window on its own new tab page with NO command bar up - the 2026-08-30 run's log carries not one command-bar line, and typing into that window went nowhere. Cmd+T opens the bar explicitly, in the window that chord just made frontmost."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000,
+      "note": "the bar is really up, so the text below lands in a field rather than on a page"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/light-tint-red.html",
+      "note": "pure red #FF0000, and a page neither space in this fixture owns - so the gate below names this window's load and nothing else"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "bar-took-the-url",
+      "target": "/commandbar",
+      "expression": "((document.querySelector('.cbinput') || {}).value || 'empty').slice(0, 12)",
+      "expected": "http://127.0",
+      "timeout_ms": 20000,
+      "note": "The keystrokes landed IN the palette's field, which is the precondition the 2026-08-30 run lost silently - the text went to a page and the only symptom was a navigation that never happened. Sliced to a prefix because inline autocomplete may append a completion. Same gate and selector as command-bar-focus-on-empty-start.json, which learned that a caret and document.hasFocus() both survive a window that is not key, so only the field's value proves delivery."
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "commits the URL and closes the bar, which also clears the window the later click has to reach"
+    },
+    {
+      "type": "eval_until",
+      "id": "red-page-live",
+      "target": "/light-tint-red.html",
+      "expression": "((document.querySelector('meta[name=theme-color]') || {}).content || 'none')",
+      "expected": "#FF0000",
+      "timeout_ms": 20000,
+      "note": "READ THE PAGE, NOT THE LOG. 'Atrium: tab N url ...' can never appear for this tab: BrowserController::OnTabAdded returns at the !PersistsTabs() guard BEFORE it attaches the TabEventForwarder that emits that line, so an incognito tab has no forwarder and its URL is never logged - which is the point, not a gap to close. The 2026-08-30 run proves it, tabs 1 and 4 (regular) logged a url and tabs 2 and 3 (both 'off the record') never did, while the same burst carried 'URL to scan: http://127.0.0.1:8000/light-tint-red.html' and 'tab 3 added'. So the navigation is gated on the page's own DOM instead, and on the theme-color rather than the title, because the colour is what the drift would have had to work with."
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "eval_until",
+      "id": "incognito-drawn",
+      "target": "sidebar#incognito",
+      "expression": "document.querySelector('.sbroot.drawn') ? 'drawn' : 'waiting'",
+      "expected": "drawn",
+      "timeout_ms": 20000,
+      "note": "the class apply() sets after a push, so the reads below land on a rendered sidebar rather than a loaded document"
+    },
+    {
+      "type": "eval",
+      "id": "incognito-tint",
+      "target": "sidebar#incognito",
+      "expression": "getComputedStyle(document.documentElement).getPropertyValue('--atrium-space-tint').trim().split(/\\s+/).join(' ')"
+    },
+    {
+      "type": "eval",
+      "id": "incognito-ink",
+      "target": "sidebar#incognito",
+      "expression": "(() => { const r = document.querySelector('#atrium-root'); if (!r) { return 'no root'; } return getComputedStyle(r).getPropertyValue('--atrium-ink').trim().split(/\\s+/).join(' '); })()",
+      "note": "the token every row's --fg reads through, graded off the tint by the unchanged InkForBackdrop path"
+    },
+    {
+      "type": "move_window",
+      "x": 400,
+      "y": 120,
+      "note": "move the FRONTMOST window - the incognito one - clear of the regular window behind it. Both open at pos=0,30 and their sidebars share one x band, so the click below would otherwise name no particular surface."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "click",
+      "x": 140,
+      "y": 620,
+      "note": "into the REGULAR window's sidebar (x 0..280 at the fixture's sidebarWidth 280, still at pos 0,30) to make it key, so the space chord below reaches it and not the incognito window, which has no spaces to cycle"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "nextSpace, the shipped default: Crimson (oceanBlue) -> Teal (sunsetOrange). This is the push that must reach one window and not the other."
+    },
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "the tint crossfade is 300ms and the space settle is the slow half, so both are long done here"
+    },
+    {
+      "type": "eval",
+      "id": "regular-tint-after",
+      "target": "/sidebar",
+      "expression": "getComputedStyle(document.documentElement).getPropertyValue('--atrium-space-tint').trim().split(/\\s+/).join(' ')",
+      "note": "the switch really happened, which is what makes the unchanged reading below mean something"
+    },
+    {
+      "type": "eval",
+      "id": "incognito-tint-after",
+      "target": "sidebar#incognito",
+      "expression": "getComputedStyle(document.documentElement).getPropertyValue('--atrium-space-tint').trim().split(/\\s+/).join(' ')"
+    },
+    {
+      "type": "eval",
+      "id": "incognito-ink-after",
+      "target": "sidebar#incognito",
+      "expression": "(() => { const r = document.querySelector('#atrium-root'); if (!r) { return 'no root'; } return getComputedStyle(r).getPropertyValue('--atrium-ink').trim().split(/\\s+/).join(' '); })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "desc": "sanity: both windows really rendered, so the two readings come from two surfaces"
+    },
+    {
+      "type": "eval_equals",
+      "id": "regular-tint",
+      "expected": "\"15 43 70\"",
+      "desc": "THE CONTROL: an ordinary window carries its space's own tint (oceanBlue #0F2B46)"
+    },
+    {
+      "type": "eval_equals",
+      "id": "incognito-drawn",
+      "expected": "drawn",
+      "desc": "the second window built and rendered a sidebar of its own"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bar-took-the-url",
+      "expected": "http://127.0",
+      "desc": "the URL reached the palette's own field, so a page that fails to load below is a navigation failure and not a lost keystroke"
+    },
+    {
+      "type": "eval_equals",
+      "id": "red-page-live",
+      "expected": "#FF0000",
+      "desc": "the strongly coloured page really committed IN the incognito window, so the drift had something to drift toward"
+    },
+    {
+      "type": "eval_equals",
+      "id": "incognito-tint",
+      "expected": "\"20 18 26\"",
+      "desc": "THE MEASUREMENT: the incognito sidebar wears kIncognitoTint #14121A, not the space's oceanBlue"
+    },
+    {
+      "type": "eval_equals",
+      "id": "incognito-ink",
+      "expected": "\"255 255 255\"",
+      "desc": "and its ink is white, graded off that tint by the same path every dark preset uses"
+    },
+    {
+      "type": "eval_equals",
+      "id": "regular-tint-after",
+      "expected": "\"90 46 13\"",
+      "desc": "the space switch landed on the regular window (sunsetOrange #5A2E0D), so the reading below is a real independence check"
+    },
+    {
+      "type": "eval_equals",
+      "id": "incognito-tint-after",
+      "expected": "\"20 18 26\"",
+      "desc": "THE SECOND MEASUREMENT: the switch did not repaint the incognito window with the new space's colour"
+    },
+    {
+      "type": "eval_equals",
+      "id": "incognito-ink-after",
+      "expected": "\"255 255 255\"",
+      "desc": "and its ink did not move either"
+    },
+    {
+      "type": "vlog",
+      "label": "sampler-refused",
+      "pattern": "Atrium: ambilight sampler refused, window is off the record",
+      "desc": "the page drift reached the incognito window and was refused there, rather than the page never loading at all. Only an off-the-record window writes this line, and page tint is on for both windows."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly with the incognito window open"
+    }
+  ]
+}

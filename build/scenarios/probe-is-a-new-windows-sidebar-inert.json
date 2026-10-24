@@ -1,0 +1,110 @@
+{
+  "name": "probe-is-a-new-windows-sidebar-inert",
+  "description": "DIAGNOSTIC, not a behaviour contract. Clicks the COLD row in a Cmd+N window's sidebar instead of the elsewhere row, to answer one question: does that sidebar respond to ANY click?\n\nWhy it is worth a run. The elsewhere-row click has logged nothing across four runs - not the move, not the cold path, and not ActivateSidebarTab's own 'not activated' line, which every branch of that method emits. The coordinate has been measured twice off the run's own frames (pixcmp puts the row's ink at y=500, the click goes to 503) and the window position is now gated by window_moved, so neither explains it.\n\nA cold row takes a completely different route - sidebarColdTabClicked, no cross-window lookup, no tab id. If that logs nothing either, the sidebar of a window opened by Cmd+N is inert and the defect is not in the cross-window path at all. If it logs, the two routes differ and the elsewhere branch is where to look.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: window 1's startup tab committed, so there is a live tab for window 2 to find"
+    },
+    {
+      "type": "settle",
+      "ms": 8000,
+      "note": "same settle sidebar-row-click uses - the sidebar model arrives a beat after the tab"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+n",
+      "note": "window 2: a fresh window slot with zero tabs of its own, on the same space and profile"
+    },
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "the window builds and its sidebar renders the space's rows"
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "Cmd+N opens the window with its command bar up - measured on the 2026-08-18 frame, a white input box centred over the page. It sits over the sidebar's click target and swallowed the first attempt, which logged nothing at all. cmdn-window-slot dismisses it the same way before its own click"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "move_window",
+      "x": 300,
+      "y": 120,
+      "note": "move the FRONTMOST window clear of the one behind it. This is the gate the scenario was missing. Both windows open at pos=0,30, so their sidebars share one x band and render rows at the same y - a click at a fixed point named no particular surface. Resizing was tried first and does not help: it moves the content card and leaves the sidebars stacked. Moving does. After this, window 2's sidebar starts at x=300 and window 1's is still at x=0, so the two are distinguishable in the frame and in the click."
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "before-move",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "window 2's sidebar before the click. Its rows are all live in window 1, so each should draw with the .elsewhere treatment rather than as cold"
+    },
+    {
+      "type": "click",
+      "x": 410,
+      "y": 470,
+      "note": "the COLD row, measured off the sibling scenario's own frame on 2026-08-18: window 2's sidebar shows the cold row's ink at y=470 (variance 1276) and the elsewhere row's at y=500 (variance 163), in the x band 310-470"
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "the detach, the freeze capture and the insert all happen here; the capture is a surface round trip"
+    },
+    {
+      "type": "capture",
+      "id": "after-move",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "window 2 showing the page it took"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "window_moved",
+      "x": 300,
+      "y": 120,
+      "tolerance": 16,
+      "note": "the click's target surface is where this scenario assumes it is"
+    },
+    {
+      "type": "vlog",
+      "label": "the-new-windows-sidebar-answers-a-click",
+      "pattern": "Atrium: cold sidebar row opening",
+      "note": "THE WHOLE QUESTION. A cold row's route is sidebarColdTabClicked, which shares nothing with the elsewhere branch beyond the click listener itself. This line appearing means the listener lives and the fault is in that branch; its absence means the sidebar of a Cmd+N window handles no clicks at all"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

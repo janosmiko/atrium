@@ -1,0 +1,82 @@
+name: Release build stage
+
+# One link of the chain in release-build.yml. It resumes ninja from the
+# previous checkpoint and stops before the 6 hour job limit.
+
+on:
+  workflow_call:
+    inputs:
+      stage:
+        description: This stage number, 1 or higher
+        type: number
+        required: true
+      prev_stage:
+        description: Stage whose checkpoint to resume. An expression cannot do stage - 1.
+        type: number
+        required: true
+      target:
+        description: ninja target
+        type: string
+        required: true
+      stage_minutes:
+        description: Minutes of ninja time, 0 for the automatic budget
+        type: number
+        required: true
+    outputs:
+      status:
+        description: running if the build needs another stage, finished when it is done
+        value: ${{ jobs.build.outputs.status }}
+      app_digest:
+        description: SHA-256 of the uploaded app artifact, empty when no app was uploaded
+        value: ${{ jobs.build.outputs.app_digest }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 355
+    outputs:
+      status: ${{ steps.build.outputs.status }}
+      app_digest: ${{ steps.upload_app.outputs.artifact-digest }}
+    steps:
+      # The script measures its ninja budget from here.
+      - name: Record job start
+        run: echo "JOB_START_EPOCH=$(date +%s)" >>"$GITHUB_ENV"
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: ckpt-${{ inputs.prev_stage }}
+          path: ${{ runner.temp }}/ckpt
+
+      - name: Build
+        id: build
+        env:
+          TARGET: ${{ inputs.target }}
+          STAGE_MINUTES: ${{ inputs.stage_minutes }}
+          CKPT_DIR: ${{ runner.temp }}/ckpt
+        run: build/scripts/ci-release.sh build
+
+      - name: Upload checkpoint
+        if: steps.build.outputs.status == 'running'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: ckpt-${{ inputs.stage }}
+          path: ${{ runner.temp }}/ckpt/ckpt.tar.zst
+          retention-days: 2
+          compression-level: 0
+          overwrite: true
+
+      - name: Upload app
+        id: upload_app
+        if: steps.build.outputs.status == 'finished' && inputs.target == 'chrome'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: atrium-macos-arm64
+          path: ${{ runner.temp }}/release/*.zip
+          retention-days: 7

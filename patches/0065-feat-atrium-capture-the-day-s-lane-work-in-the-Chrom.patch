@@ -1,0 +1,419 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Fri, 14 Aug 2026 21:06:00 +0200
+Subject: [PATCH 065/154] feat(atrium): capture the day's lane work in the
+ Chromium checkout
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+165 files from many parallel lanes lived only in this working tree, so every UAT
+task's evidence rested on a state nobody else could reproduce and the patch
+series could not regenerate. This captures them as one stack.
+
+Surfaces that became real rather than merely built:
+- The Courtyard: a full-window activatable widget hosting a /courtyard page,
+  with room cards, click to enter, cross-space tab drag and the two read-only
+  lenses. It reused atrium_core_move_tab_to_space rather than adding an ABI verb.
+- Pinch to the Courtyard, recognised once in the browser process for both the
+  magnify and ctrl+wheel paths. Surface JS was the wrong home: swipe.js already
+  owns the wheel and ignores ctrlKey, and a pinch over a page body reaches no
+  surface WebContents.
+- The sidebar address bar. Bare words go through the real omnibox path,
+  AutocompleteInput plus FixupURL, not a hand-rolled heuristic.
+- Both sidebar context menus, in the lab's full ordering, with entries whose
+  actions do not exist yet visibly disabled rather than inert.
+- The AI backends: Ollama and a BYOK custom endpoint, both on Chromium's own
+  network stack with redirects refused. The custom endpoint's SSRF guard runs
+  before any ResourceRequest exists, so refusal is strictly pre-connect, and the
+  keychain key reaches one Authorization header and no log. Ollama is exempt on
+  purpose, because reaching your own machine is the point of it.
+
+Thirteen built-but-unwired paths were found and fixed while doing this, always
+the same shape: a mechanism built, a test calling it directly, no production
+caller, every gate green, feature dead. SetBackdropTint had no caller so the AI
+panel's ink never followed a space switch. SummarizeViaOllama had none. A
+handler was registered nowhere, which crashes the browser at startup. A data
+push ran before its receiver mounted and was dropped, so no non-default Overview
+section could show data.
+
+Gates at the time of this commit: cpp-test 450/450, webui-test 995/995, all
+three drift guards green, ABI at 24 with both pinned tests current.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/BUILD.gn                               |  1 +
+ chrome/app/chrome_command_ids.h               |  8 ++++
+ .../render_view_context_menu.cc               | 31 +++++++++++++
+ .../render_view_context_menu_browsertest.cc   | 21 +++++++++
+ chrome/browser/ui/BUILD.gn                    | 28 ++++++++++++
+ .../ui/browser_window/internal/BUILD.gn       |  9 ++++
+ .../internal/profile_browser_collection.cc    |  3 +-
+ .../profile_browser_collection_unittest.cc    | 45 +++++++++++++++++++
+ .../public/profile_browser_collection.h       |  3 +-
+ tools/gritsettings/resource_ids.spec          |  2 +-
+ 10 files changed, 148 insertions(+), 3 deletions(-)
+ create mode 100644 chrome/browser/ui/browser_window/internal/profile_browser_collection_unittest.cc
+
+diff --git a/chrome/BUILD.gn b/chrome/BUILD.gn
+index 973a46b2a34bb..bc8f87a55fb21 100644
+--- a/chrome/BUILD.gn
++++ b/chrome/BUILD.gn
+@@ -536,6 +536,7 @@ if (is_win) {
+       ":chrome_versioned_bundle_data",
+       "//base/allocator:early_zone_registration_apple",
+       "//build:branding_buildflags",
++      "//chrome/browser/ui/atrium:atrium_ai_fm_helper_bundle_data",
+       "//chrome/common:buildflags",
+       "//chrome/common:version_header",
+     ]
+diff --git a/chrome/app/chrome_command_ids.h b/chrome/app/chrome_command_ids.h
+index 3bdb2131ef0e2..e11971f0a83aa 100644
+--- a/chrome/app/chrome_command_ids.h
++++ b/chrome/app/chrome_command_ids.h
+@@ -637,6 +637,14 @@
+ // NOTE: The last valid command value is 57343 (0xDFFF)
+ // See http://msdn.microsoft.com/en-us/library/t2zechd4(VS.71).aspx
+ 
++// Atrium's own page-context commands. 55000 sits above Chrome's highest
++// (IDC_OMNIBOX_CONTEXT_SMART_TAB_SHARING, 54020) and below
++// IDC_FIRST_UNBOUNDED_MENU, so a rebase that adds Chrome commands does not
++// collide with these.
++#define IDC_ATRIUM_CONTEXT_FIRST 55000
++#define IDC_ATRIUM_CONTEXT_HIGHLIGHT 55000
++#define IDC_ATRIUM_CONTEXT_LAST 55100
++
+ // Starting command id for menus showing an arbitrarily high (variable) number
+ // of menu items. Currently, this includes the recent tabs and bookmarks menus.
+ // While command ids passed to Windows functions must not be higher than
+diff --git a/chrome/browser/renderer_context_menu/render_view_context_menu.cc b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+index 4d34131165ff1..1021d237c2066 100644
+--- a/chrome/browser/renderer_context_menu/render_view_context_menu.cc
++++ b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+@@ -1559,6 +1559,16 @@ void RenderViewContextMenu::InitMenu() {
+       AppendReadAnythingItem();
+     }
+   }
++
++  // ATRIUM: Highlight, on a selection of three or more
++  // characters. Appended last so it never displaces a stock item's position,
++  // and gated here rather than in ExecuteCommand so a too-short selection
++  // shows no item at all.
++  if (atrium::IsAtriumBrowserWindowEnabled() &&
++      params_.selection_text.length() >= 3u) {
++    menu_model_.AddSeparator(ui::NORMAL_SEPARATOR);
++    menu_model_.AddItem(IDC_ATRIUM_CONTEXT_HIGHLIGHT, u"Highlight");
++  }
+ }
+ 
+ Profile* RenderViewContextMenu::GetProfile() const {
+@@ -1626,6 +1636,13 @@ std::u16string RenderViewContextMenu::GetImageSearchProviderName(
+ }
+ 
+ void RenderViewContextMenu::RecordUsedItem(int id) {
++  // ATRIUM: Atrium's own commands are not in Chrome's UMA enum,
++  // and the lookup below NOTREACHEDs rather than returning for an id it does
++  // not know. Nothing downstream logs this fork's usage anyway.
++  if (id >= IDC_ATRIUM_CONTEXT_FIRST && id <= IDC_ATRIUM_CONTEXT_LAST) {
++    return;
++  }
++
+   // Log general ID.
+ 
+   int enum_id =
+@@ -3342,6 +3359,11 @@ void RenderViewContextMenu::AppendLiveCaptionItem() {
+ // Menu delegate functions -----------------------------------------------------
+ 
+ bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {
++  // ATRIUM: the item is only appended for a long-enough
++  // selection, so reaching it at all means it is actionable.
++  if (id == IDC_ATRIUM_CONTEXT_HIGHLIGHT) {
++    return true;
++  }
+   // Disable context menu in locked fullscreen mode to prevent users from
+   // exiting this mode (the menu is not really disabled as the user can still
+   // open it, but all the individual context menu entries are disabled / greyed
+@@ -3785,6 +3807,15 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
+     return;
+   }
+ 
++  // ATRIUM: the selection is passed raw, not through
++  // PrintableSelectionText(), which elides long strings for a LABEL - an
++  // elided quote would never re-anchor.
++  if (id == IDC_ATRIUM_CONTEXT_HIGHLIGHT) {
++    atrium::HighlightSelectionInAtriumNotes(
++        GetBrowser(), base::UTF16ToUTF8(params_.selection_text));
++    return;
++  }
++
+   switch (id) {
+     case IDC_CONTENT_CONTEXT_OPENLINKNEWTAB: {
+       WindowOpenDisposition new_tab_disposition =
+diff --git a/chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc b/chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc
+index e4fc13fd881b9..cb275081bbef4 100644
+--- a/chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc
++++ b/chrome/browser/renderer_context_menu/render_view_context_menu_browsertest.cc
+@@ -1488,6 +1488,27 @@ IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest, ShowsToastOnLinkCopied) {
+   EXPECT_TRUE(browser()->GetFeatures().toast_controller()->IsShowingToast());
+ }
+ 
++// ATRIUM: Highlight appears only once the selection is
++// long enough, and executing it reaches Atrium's store.
++IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest, AtriumHighlightNeedsThreeChars) {
++  EXPECT_FALSE(CreateContextMenuForTextInWebContents(u"ab")->IsItemPresent(
++      IDC_ATRIUM_CONTEXT_HIGHLIGHT))
++      << "a two-character selection must offer no Highlight item";
++  EXPECT_TRUE(CreateContextMenuForTextInWebContents(u"abc")->IsItemPresent(
++      IDC_ATRIUM_CONTEXT_HIGHLIGHT))
++      << "a three-character selection must offer Highlight";
++}
++
++IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest, AtriumHighlightExecutes) {
++  auto menu = CreateContextMenuForTextInWebContents(u"a passage to keep");
++  ASSERT_TRUE(menu->IsItemPresent(IDC_ATRIUM_CONTEXT_HIGHLIGHT));
++  EXPECT_TRUE(menu->IsCommandIdEnabled(IDC_ATRIUM_CONTEXT_HIGHLIGHT));
++  // Mutation this pins: dropping the IDC_ATRIUM_CONTEXT_HIGHLIGHT case from
++  // ExecuteCommand leaves this hitting the switch's unhandled default, which
++  // NOTREACHEDs.
++  menu->ExecuteCommand(IDC_ATRIUM_CONTEXT_HIGHLIGHT, /*event_flags=*/0);
++}
++
+ IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest, ShowsToastOnImageCopied) {
+   content::ContextMenuParams params;
+   params.media_type = blink::mojom::ContextMenuDataMediaType::kCanvas;
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index ba68c37ce61a2..260e7af46da90 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -612,30 +612,44 @@ static_library("ui") {
+     "//chrome/browser/translate:impl",
+     "//chrome/browser/trusted_vault",
+     "//chrome/browser/trusted_vault:impl",
++    "//chrome/browser/ui/atrium:ai_backend_custom_endpoint",
++    "//chrome/browser/ui/atrium:ai_backend_ollama",
++    "//chrome/browser/ui/atrium:ai_route_decision",
++    "//chrome/browser/ui/atrium:ai_summarize_decision",
+     "//chrome/browser/ui/atrium:capture_math",
+     "//chrome/browser/ui/atrium:capture_overlay_math",
+     "//chrome/browser/ui/atrium:cdp_response",
+     "//chrome/browser/ui/atrium:confirm_to_quit",
+     "//chrome/browser/ui/atrium:corner_radius",
++    "//chrome/browser/ui/atrium:custom_endpoint_request_guard",
+     "//chrome/browser/ui/atrium:devtools_card_corners",
+     "//chrome/browser/ui/atrium:devtools_pane_selection",
++    "//chrome/browser/ui/atrium:downloads_overview",
+     "//chrome/browser/ui/atrium:drop_target_decision",
+     "//chrome/browser/ui/atrium:extension_actions_json",
+     "//chrome/browser/ui/atrium:bounded_icon_store",
+     "//chrome/browser/ui/atrium:edit_focus_gate",
+     "//chrome/browser/ui/atrium:external_link",
+     "//chrome/browser/ui/atrium:extension_popup_watchdog_policy",
++    "//chrome/browser/ui/atrium:hibernate_bridge",
+     "//chrome/browser/ui/atrium:little_marker",
++    "//chrome/browser/ui/atrium:little_window_registry",
++    "//chrome/browser/ui/atrium:memory_saver",
+     "//chrome/browser/ui/atrium:move_target_decision",
+     "//chrome/browser/ui/atrium:native_hotkey_defaults",
+     "//chrome/browser/ui/atrium:command_bar_matches",
+     "//chrome/browser/ui/atrium:tab_cycle",
+     "//chrome/browser/ui/atrium:tab_recency_bridge",
+     "//chrome/browser/ui/atrium:peek_decision",
++    "//chrome/browser/ui/atrium:pinch_gesture_decision",
+     "//chrome/browser/ui/atrium:restore_plan",
+     "//chrome/browser/ui/atrium:sidebar_drop_decision",
++    "//chrome/browser/ui/atrium:sidebar_move_execution_decision",
+     "//chrome/browser/ui/atrium:sidebar_snapshot_gate",
+     "//chrome/browser/ui/atrium:slot_presentation_table",
++    "//chrome/browser/ui/atrium:split_orientation_decision",
++    "//chrome/browser/ui/atrium:split_tree",
++    "//chrome/browser/ui/atrium:split_tree_layout",
+     "//chrome/browser/ui/atrium:status_bubble_color_math",
+     "//chrome/browser/ui/atrium:surface_key_route",
+     "//chrome/browser/ui/atrium:window_appearance",
+@@ -952,6 +966,7 @@ static_library("ui") {
+     "//services/device/public/cpp/bluetooth",
+     "//services/device/public/cpp/geolocation",
+     "//services/metrics/public/cpp:ukm_builders",
++    "//services/network/public/cpp",
+     "//services/network/public/mojom",
+     "//services/preferences/public/cpp",
+     "//services/preferences/public/cpp/tracked",
+@@ -3499,10 +3514,14 @@ static_library("ui") {
+       "atrium/atrium_fedcm_anchor_hook.h",
+       "atrium/atrium_fedcm_anchor_hook.cc",
+       "atrium/atrium_link_copy_format.h",
++      "atrium/atrium_marginalia_script.h",
++      "atrium/atrium_marginalia_script.cc",
+       "atrium/atrium_main_extra_parts.h",
+       "atrium/atrium_main_extra_parts.cc",
+       "atrium/atrium_peek_intercept.cc",
+       "atrium/atrium_peek_navigation_throttle.cc",
++      "atrium/atrium_pinch_gesture_decision.h",
++      "atrium/atrium_pinch_gesture_decision.cc",
+       "atrium/atrium_settings_window.cc",
+       "atrium/atrium_settings_source.cc",
+       "atrium/atrium_profile_bootstrap.h",
+@@ -3519,6 +3538,8 @@ static_library("ui") {
+       "atrium/atrium_window_platform_mac.mm",
+       "atrium/atrium_native_widget_mac.h",
+       "atrium/atrium_native_widget_mac.mm",
++      "atrium/atrium_pinch_gesture_monitor.h",
++      "atrium/atrium_pinch_gesture_monitor.mm",
+       "atrium/atrium_browser_window_mac.mm",
+       "atrium/atrium_accelerator_lookup.h",
+       "atrium/atrium_accelerator_lookup_mac.mm",
+@@ -3532,6 +3553,10 @@ static_library("ui") {
+       "atrium/atrium_command_dispatcher_delegate.mm",
+       "atrium/atrium_extension_pill_widget.h",
+       "atrium/atrium_extension_pill_widget.mm",
++      "atrium/atrium_overview_widget.h",
++      "atrium/atrium_overview_widget.mm",
++      "atrium/atrium_courtyard_widget.h",
++      "atrium/atrium_courtyard_widget.mm",
+       "atrium/atrium_extension_popup_host.h",
+       "atrium/atrium_native_hotkey_map.h",
+       "atrium/atrium_native_hotkey_map.mm",
+@@ -3543,6 +3568,8 @@ static_library("ui") {
+       "atrium/atrium_peek_navigation_throttle.h",
+       "atrium/atrium_settings_window.h",
+       "atrium/atrium_settings_source.h",
++      "atrium/atrium_custom_endpoint_keychain_mac.h",
++      "atrium/atrium_custom_endpoint_keychain_mac.mm",
+       "atrium/atrium_settings_menu_hook.h",
+       "atrium/atrium_settings_menu_hook.mm",
+       "atrium/atrium_peek_widget.h",
+@@ -3593,6 +3620,7 @@ static_library("ui") {
+       "//chrome/browser/enterprise/connectors/device_trust/key_management/core/mac",
+       "//chrome/browser/mac",
+       "//chrome/browser/renderer_host:delegate",
++      "//chrome/browser/ui/atrium:ai_backend_mac",
+       "//chrome/browser/ui/cocoa",
+       "//chrome/browser/updater",
+       "//chrome/browser/web_applications/extensions",
+diff --git a/chrome/browser/ui/browser_window/internal/BUILD.gn b/chrome/browser/ui/browser_window/internal/BUILD.gn
+index 80521c638abd5..9fb8ddf838026 100644
+--- a/chrome/browser/ui/browser_window/internal/BUILD.gn
++++ b/chrome/browser/ui/browser_window/internal/BUILD.gn
+@@ -16,6 +16,7 @@ source_set("internal") {
+     "//chrome/browser:browser_process",
+     "//chrome/browser:global_features",
+     "//chrome/browser/profiles:profile",
++    "//chrome/browser/ui/atrium:little_window_registry",
+     "//chrome/browser/ui/browser_window",
+     "//chrome/browser/ui/browser_window:create_browser_window",
+     "//components/sessions:session_id",
+@@ -200,6 +201,14 @@ source_set("unit_tests") {
+     "//testing/gtest",
+   ]
+ 
++  if (!is_android) {
++    sources += [ "profile_browser_collection_unittest.cc" ]
++    deps += [
++      "//chrome/browser/ui/atrium:little_window_registry",
++      "//chrome/test:test_support",
++    ]
++  }
++
+   if (is_android) {
+     sources += [
+       "android/android_base_window_unittest.cc",
+diff --git a/chrome/browser/ui/browser_window/internal/profile_browser_collection.cc b/chrome/browser/ui/browser_window/internal/profile_browser_collection.cc
+index 5329d73ade213..aee0235cc494e 100644
+--- a/chrome/browser/ui/browser_window/internal/profile_browser_collection.cc
++++ b/chrome/browser/ui/browser_window/internal/profile_browser_collection.cc
+@@ -7,6 +7,7 @@
+ #include "base/check_deref.h"
+ #include "build/build_config.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/ui/atrium/atrium_little_window_registry.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+ 
+@@ -33,7 +34,7 @@ BrowserWindowInterface* ProfileBrowserCollection::FindTabbedBrowser(
+ 
+   auto find = [&match, original](BrowserWindowInterface* browser) {
+     if (browser->GetType() != BrowserWindowInterface::TYPE_NORMAL ||
+-        browser->IsDeleteScheduled()) {
++        browser->IsDeleteScheduled() || atrium::IsLittleWindow(browser)) {
+       return true;
+     }
+     if (original && browser->GetProfile()->GetOriginalProfile() != original) {
+diff --git a/chrome/browser/ui/browser_window/internal/profile_browser_collection_unittest.cc b/chrome/browser/ui/browser_window/internal/profile_browser_collection_unittest.cc
+new file mode 100644
+index 0000000000000..16e549b12c2c1
+--- /dev/null
++++ b/chrome/browser/ui/browser_window/internal/profile_browser_collection_unittest.cc
+@@ -0,0 +1,45 @@
++// Copyright 2026 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
++
++#include "chrome/browser/ui/atrium/atrium_little_window_registry.h"
++#include "chrome/browser/ui/browser.h"
++#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
++#include "chrome/test/base/browser_with_test_window_test.h"
++#include "testing/gtest/include/gtest/gtest.h"
++
++using ProfileBrowserCollectionFindTabbedBrowserTest = BrowserWithTestWindowTest;
++
++// FindTabbedBrowser must exclude a little window even with
++// no normal window present.
++TEST_F(ProfileBrowserCollectionFindTabbedBrowserTest,
++       ExcludesALittleWindowWithNoNormalWindowPresent) {
++  // Close the fixture's default (non-little) browser so the profile's only
++  // window is the little one added below.
++  browser()->tab_strip_model()->CloseAllTabs();
++  browser()->GetFeatures().TearDownPreBrowserWindowDestruction();
++  std::unique_ptr<Browser> default_browser = release_browser();
++  default_browser.reset();
++
++  std::unique_ptr<Browser> little_browser =
++      CreateBrowser(profile(), Browser::TYPE_NORMAL, /*hosted_app=*/false);
++  atrium::RegisterLittleWindow(little_browser.get());
++
++  EXPECT_EQ(nullptr, ProfileBrowserCollection::GetForProfile(profile())
++                          ->FindTabbedBrowser());
++
++  atrium::UnregisterLittleWindow(little_browser.get());
++  little_browser->tab_strip_model()->CloseAllTabs();
++  little_browser->GetFeatures().TearDownPreBrowserWindowDestruction();
++}
++
++// Unit-level happy path: a normal, non-little window is
++// still found.
++TEST_F(ProfileBrowserCollectionFindTabbedBrowserTest,
++       StillFindsAnOrdinaryNormalWindow) {
++  EXPECT_EQ(browser(), ProfileBrowserCollection::GetForProfile(profile())
++                           ->FindTabbedBrowser()
++                           ->GetBrowserForMigrationOnly());
++}
+diff --git a/chrome/browser/ui/browser_window/public/profile_browser_collection.h b/chrome/browser/ui/browser_window/public/profile_browser_collection.h
+index 2614940f0116c..fb195c0fb4744 100644
+--- a/chrome/browser/ui/browser_window/public/profile_browser_collection.h
++++ b/chrome/browser/ui/browser_window/public/profile_browser_collection.h
+@@ -25,7 +25,8 @@ class ProfileBrowserCollection : public BrowserCollection {
+ 
+   // Returns the most recently activated tabbed browser (TYPE_NORMAL) matching
+   // this profile that is on the current workspace (on desktop), or nullptr if
+-  // no such browser exists. Browsers scheduled for deletion are excluded.
++  // no such browser exists. Browsers scheduled for deletion are excluded, as
++  // are Atrium "little" windows.
+   //
+   // If `match_original_profiles` is true, the search includes all browsers
+   // whose original profile matches this profile's original profile. This
+diff --git a/tools/gritsettings/resource_ids.spec b/tools/gritsettings/resource_ids.spec
+index 3d2d5aefb2b9b..c9c488f5019ff 100644
+--- a/tools/gritsettings/resource_ids.spec
++++ b/tools/gritsettings/resource_ids.spec
+@@ -1810,7 +1810,7 @@
+   # Atrium chrome layer. Placed at the end of this section so the
+   # real IDs land after the placeholder block and nothing downstream realigns.
+   "chrome/browser/resources/atrium/atrium_resources.grd": {
+-    "META": {"sizes": {"includes": [30]}},
++    "META": {"sizes": {"includes": [60]}},
+     "includes": [12020],
+   },
+ 

@@ -1,0 +1,84 @@
+{
+  "name": "folder-dwell-popover",
+  "description": "Constraint check: adding a plain-pointer-hover rowHover fill to the folder header must not disturb its existing ~400ms hover-peek dwell/popover, and the popover's own colors just changed underneath this work (it moved off the glass palette to systemSurfaceSecondaryForeground). Fixture has the folder COLLAPSED so the dwell actually arms (an expanded folder never starts it).\n\nThe half that can now be asserted: the fill. The old move to y=210 missed the folder header entirely - read off, the collapsed 'News' header occupied y 252..282 while y=210 fell in the gap above the first tab row, and the capture showed no fill and no popover. The header now sits 42px higher, at y 210..240, and the hover is at y=224.\n\nThe half that cannot: the popover. It does not exist in the surface under test. The dwell/popover was the SwiftUI arm's, and the HTML sidebar - the default surface, and what this scenario now captures - has no dwell timer and no popover element: no hit for dwell, popover or hover-peek anywhere in chrome/browser/resources/atrium/*.js or *.css, and none in chrome/browser/ui/atrium either. The only setTimeout in sidebar.js (:735) drains a queued snapshot after a fold settles. So there is no region to measure and no line to gate on, and an assertion here would be asserting the absence of a feature the port has not reached. The 900ms settle is kept anyway so the frame still shows a popover the day one exists.",
+  "fixture": "collapsed-folder.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "33333333-3333-3333-3333-333333333333",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "let the docked sidebar render at rest first"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 600,
+      "note": "park the pointer in blank page content so the rest frame is a known un-hovered baseline - otherwise it starts wherever the previous scenario left it"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "rest",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "baseline: collapsed folder header, nothing hovered"
+    },
+    {
+      "type": "move",
+      "x": 170,
+      "y": 224,
+      "note": "hover the collapsed folder header (News). Box measured at y 210..240 - collapsing the folder hides the member row but does not move the header, which sits at the same y as in the expanded fixtures. x=170 keeps the cursor 34px clear of the measured region"
+    },
+    {
+      "type": "settle",
+      "ms": 900,
+      "note": "past the ~400ms dwell - the fill shows immediately and a popover, if the HTML arm ever grows one, would be up by now"
+    },
+    {
+      "type": "capture",
+      "id": "dwell-popover",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "folder header hover fill; the popover half is not rendered by this surface, see the description"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "theme_changed",
+      "before": "rest",
+      "after": "dwell-popover",
+      "region": [
+        16,
+        214,
+        120,
+        20
+      ],
+      "min_delta": 3.0,
+      "desc": "a COLLAPSED folder header lights the same rowHover fill an expanded one does - the constraint under test, minus the popover this surface has no code for",
+      "note": "THRESHOLD, derived from a frame where the fill rendered. lit a header row from the same `move` action: region [12,194,190,22] went 106.3,125.6,141.8 -> 116.0,133.8,148.8, an effective white-alpha of 0.0635. That row was the .sechdrow, which carries opacity:.5 (sidebar.css:402); a .row.frow does not, so 0.127. This region reads 211.8,220.6,226.7 at rest, so a working fill lands at 0.127*(43.2,34.4,28.3) = 7.9. Floor is 0.00 - separate captures differ by exactly 0.00 over sidebar regions with no cursor in them. 3.0 is 2.6x under the signal. Re-measured against THIS palette rather than reusing the 14.55 the same fill read on the dark sidebar, which is a known mistake."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q actually quits (process gone)"
+    }
+  ]
+}

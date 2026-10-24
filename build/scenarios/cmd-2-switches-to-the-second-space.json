@@ -1,0 +1,95 @@
+{
+  "name": "cmd-2-switches-to-the-second-space",
+  "description": "Also in the same run - both chords are space moves and the fixture has three spaces to move between.\n\nWHAT THE REPORT WAS. Cmd+1..9 belonged to the favourite tiles. A tile slot with nothing in it makes ActivateFavoriteInSlot DECLINE, and the dispatcher then falls through to super, where Chromium's own select-tab-N activates a tab of the shared strip. The strip is shared across every space, so activating a tab that belongs elsewhere drags the window to that tab's space. One press, two meanings, and neither table said so - which is why the diagnosis had to come before the fix.\n\nWHY THE VLOG LINES ARE THE MEASUREMENT. 'hotkey goToSpace2 fired' comes from the dispatcher's own per-outcome logging: a chord that reached the map and was declined names its reason instead, and one that never arrived leaves no line at all. Chromium's select-tab-2 leaves none of the three. So the pair of lines separates 'the Atrium action ran' from 'the space actually moved', which SelectSpace logs at both ends.\n\nOPT+TAB IS THE SECOND HALF. The core has shipped opt+tab for nextSpace since the store was written and ParseCombo refused it on every launch, because it carries neither cmd nor ctrl. It is accepted now for a NAMED key only - a character chord like opt+a still stays with the page. Sending it here proves the relaxed rule survives real AppKit delivery and not just the parser, which a browsertest calling prePerformKeyEquivalent directly cannot show.",
+  "fixture": "space-cycle.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "a276b001-0000-0000-0000-000000000001",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [0-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+2",
+      "note": "The plain digit is the space now, not the second favourite tile"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "key",
+      "combo": "opt+tab",
+      "note": "from the second space, Arc's cycle chord moves on to the third"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: hotkey goToSpace2 fired",
+      "label": "the-digit-reached-the-space-action",
+      "desc": "Cmd+2 ran goToSpace2. Chromium's select-tab-2 leaves no such line, and neither does a declined chord."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: active space 0 -> 1",
+      "label": "the-window-moved-to-the-second-space",
+      "desc": "The rail actually moved. The line above says the action ran; this says it did something."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "Atrium: hotkey goToSidebarItem2 fired",
+      "label": "no-favourite-jump-behind-it",
+      "desc": "One press, one action. The tiles hold cmd+opt+2 now, so nothing here should reach them."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "Atrium: favourite slot 2 is tile",
+      "label": "no-tile-slot-resolved",
+      "desc": "The other half of the old double meaning - the window never even looked up a tile for this digit."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: hotkey nextSpace fired",
+      "label": "opt-tab-reached-the-cycle-action",
+      "desc": "the combo the map refused on every launch now binds AND arrives through real AppKit delivery."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: active space 1 -> 2",
+      "label": "opt-tab-cycled-forward",
+      "desc": "Opt+Tab moved the window on from the second space to the third."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "unparseable native hotkey combo for nextSpace",
+      "label": "no-dropped-default-combo",
+      "desc": "the WARNING. Every launch logged it and dropped opt+tab."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

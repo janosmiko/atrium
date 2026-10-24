@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "appIconVariant": "solarized-ink",
+  "animationsEnabled": true,
+  "startupBehavior": "restoreLastActive",
+  "downloadsDirectory": null,
+  "promptForDownload": false,
+  "sidebarPosition": "left",
+  "horizontalScrollOverride": "auto",
+  "archiveThreshold": "twelveHours",
+  "memorySaverThreshold": "never",
+  "importPromptShown": false,
+  "autoPipEnabled": true,
+  "confirmToQuitEnabled": false,
+  "glassOpacity": 0.55,
+  "opaqueSurround": false,
+  "surroundColor": null,
+  "chromePageTint": false,
+  "overlayAccent": "brand"
+}

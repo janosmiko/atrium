@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sat, 15 Aug 2026 17:52:33 +0200
+Subject: [PATCH 067/154] test(atrium): unit-test the space filter and the
+ claim ledger decision
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+atrium_browser_window.cc is 7905 lines and had no unit tests at all - only a
+browsertest touched it, so every check on it needed a full browser and the VM.
+
+Two extractions, chosen for logic where a wrong answer is silent rather than for
+ease. ReopenRowsForActiveSpace lifts the space filter that RestoreSidebarSlice ran
+inline; its JSON parsing was already tested but the filter that decides which rows
+reopen was not, and that filter is the one that put tabs in the wrong space.
+ClaimOwner, ApplyDetach and ApplyClaim lift the owner-versus-role comparison behind
+the stale-detach and double-claim guards.
+
+The claim mutation is the useful one: reverting ApplyDetach to compare full tags
+rather than owners reproduces the exact regression logged three times before,
+and the named test catches it.
+
+No behaviour change. Deliberately left in place: OnSurfaceMessage's dispatch, the
+AI panel's target resolution and ComputeAiRouteFacts - all need a live
+TabStripModel or do real file I/O, so they are correctly browsertests. The settings
+field readers are already pure but are thin lookups, not decisions, so extracting
+them would only pad the count.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 260e7af46da90..04ce7428eec92 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -619,6 +619,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:capture_math",
+     "//chrome/browser/ui/atrium:capture_overlay_math",
+     "//chrome/browser/ui/atrium:cdp_response",
++    "//chrome/browser/ui/atrium:claim_ledger_decision",
+     "//chrome/browser/ui/atrium:confirm_to_quit",
+     "//chrome/browser/ui/atrium:corner_radius",
+     "//chrome/browser/ui/atrium:custom_endpoint_request_guard",

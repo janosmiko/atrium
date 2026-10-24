@@ -1,0 +1,111 @@
+{
+  "name": "the-devbar-slides-away-on-scroll",
+  "description": "With the floating devbar up, a downward scroll over the page slides it away and an upward one brings it back. The wheel goes over CDP into the page widget host, since the VM cgevent scroll never reached the app. The devbar page's away class is the reading, and the window's own log names each move. The page is tall enough to scroll.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d"
+    },
+    {
+      "type": "eval_until",
+      "id": "bubble-up",
+      "target": "/devbar",
+      "expression": "String(document.querySelector('.devbar').classList.contains('away'))",
+      "expected": "false",
+      "timeout_ms": 8000,
+      "note": "THE CONTROL: the bar is up and not away."
+    },
+    {
+      "type": "cdp_wheel",
+      "target": "ambilight-split.html",
+      "x": 600,
+      "y": 400,
+      "dy": 240,
+      "steps": 6,
+      "note": "a downward wheel into the page over CDP, DOM sign: positive scrolls down. The VM cgevent scroll never reached the app as an NSEvent."
+    },
+    {
+      "type": "eval_until",
+      "id": "went-away",
+      "target": "/devbar",
+      "expression": "String(document.querySelector('.devbar').classList.contains('away'))",
+      "expected": "true",
+      "timeout_ms": 5000
+    },
+    {
+      "type": "cdp_wheel",
+      "target": "ambilight-split.html",
+      "x": 600,
+      "y": 400,
+      "dy": -240,
+      "steps": 6,
+      "note": "and back up. The VM cgevent scroll never reached the app as an NSEvent."
+    },
+    {
+      "type": "eval_until",
+      "id": "came-back",
+      "target": "/devbar",
+      "expression": "String(document.querySelector('.devbar').classList.contains('away'))",
+      "expected": "false",
+      "timeout_ms": 5000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bubble-up",
+      "expected": "false",
+      "desc": "THE CONTROL: the bar started up."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: devbar away",
+      "label": "the-window-slid-it-away",
+      "desc": "The downward scroll crossed the dead zone."
+    },
+    {
+      "type": "eval_equals",
+      "id": "went-away",
+      "expected": "true",
+      "desc": "The page slid the bar away."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: devbar back",
+      "label": "the-window-brought-it-back",
+      "desc": "The upward scroll brought it back."
+    },
+    {
+      "type": "eval_equals",
+      "id": "came-back",
+      "expected": "false",
+      "desc": "The bar is back."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

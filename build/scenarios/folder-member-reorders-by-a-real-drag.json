@@ -1,0 +1,177 @@
+{
+  "name": "folder-member-reorders-by-a-real-drag",
+  "description": "Real cgevent drags against the sidebar, with chrome.send and the drag events spied from the page. Every other drag scenario dispatches DragEvent objects itself, which skips the browser's input pipeline, so this one is the check that a hand on the mouse reaches the same code. First gesture: Work A dragged below Work B inside the pinned Work folder sends one sidebarFolderMemberReordered and the members swap. Second gesture: Pin One dragged below Pin Two after that rebuild still moves Pin One to the drop slot, so the drag survives apply()'s replaceChildren.\n\nScreen coordinates are the fixture's client rectangles plus the 30px the window sits below the screen top. The pinned rows are 36px tall at 37px pitch from client y 130, the same layout the pinned-items fixture draws.",
+  "fixture": "folder-member-reorder.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "layout",
+      "target": "/sidebar",
+      "expression": "(() => { const pane = document.querySelector('.railpane:not(.ovrailpane)'); if (!pane) { return 'no-pane'; } const title = (r) => (r.querySelector('.tl') || r).textContent.trim(); const at = (name) => { const el = [...pane.querySelectorAll('.tabrow, .frow')].find((r) => title(r) === name); return el ? Math.round(el.getBoundingClientRect().top) : -1; }; return ['Pin One', 'Work A', 'Work B', 'Pin Two'].map(at).join(','); })()",
+      "expected": "130,204,241,278",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "spy",
+      "target": "/sidebar",
+      "expression": "(() => { window.__reset = () => { window.__ev = []; window.__cs = []; window.__line = []; return 'reset'; }; window.__reset(); for (const t of ['dragstart','dragover','drop','dragend']) { document.addEventListener(t, () => { if (window.__ev[window.__ev.length-1] !== t) { window.__ev.push(t); } }, true); } document.addEventListener('dragstart', (e) => { const r = e.target.closest?.('.tabrow'); window.__home = r ? [...r.parentElement.children].indexOf(r) : -1; }, true); document.addEventListener('dragover', () => { const d = document.querySelector('.tabrow.dragging'); const v = d && [...d.parentElement.children].indexOf(d) !== window.__home ? 'moved' : 'rest'; if (window.__line[window.__line.length-1] !== v) { window.__line.push(v); } }, true); const orig = chrome.send.bind(chrome); chrome.send = (name, args) => { if (name === 'sidebarFolderMemberReordered' || name === 'sidebarPinnedReordered') { window.__cs.push([name, args]); } return orig(name, args); }; return 'spying'; })()"
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 252,
+      "x2": 113,
+      "y2": 298,
+      "steps": 40
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "member-events",
+      "target": "/sidebar",
+      "expression": "window.__ev.join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "member-sends",
+      "target": "/sidebar",
+      "expression": "window.__cs.map((c) => c[0] + ':' + c[1].join(',')).join(';')"
+    },
+    {
+      "type": "eval_until",
+      "id": "member-order",
+      "target": "/sidebar",
+      "expression": "(() => { const pane = document.querySelector('.railpane:not(.ovrailpane)'); const title = (r) => (r.querySelector('.tl') || r).textContent.trim(); const zone = pane.querySelector('.foldin[data-dropzone=\"pinned\"]'); return [...zone.children].filter((el) => el.matches('.tabrow, .frow')).map((el) => el.matches('.frow') ? 'F[' + [...el.nextElementSibling.querySelectorAll('.tabrow')].map(title).join('+') + ']' : title(el)).join(' | '); })()",
+      "expected": "Pin One | F[Work B+Work A] | Pin Two",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "reset",
+      "target": "/sidebar",
+      "expression": "window.__reset()"
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 178,
+      "x2": 113,
+      "y2": 336,
+      "steps": 40
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "pinned-events",
+      "target": "/sidebar",
+      "expression": "window.__ev.join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "preview-after-rebuild",
+      "target": "/sidebar",
+      "expression": "window.__line.includes('moved') ? 'moved' : window.__line.join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "pinned-sends",
+      "target": "/sidebar",
+      "expression": "window.__cs.map((c) => c[0] + ':' + c[1].join(',')).join(';')"
+    },
+    {
+      "type": "eval_until",
+      "id": "pinned-order",
+      "target": "/sidebar",
+      "expression": "(() => { const pane = document.querySelector('.railpane:not(.ovrailpane)'); const title = (r) => (r.querySelector('.tl') || r).textContent.trim(); const zone = pane.querySelector('.foldin[data-dropzone=\"pinned\"]'); return [...zone.children].filter((el) => el.matches('.tabrow, .frow')).map((el) => el.matches('.frow') ? 'F[' + [...el.nextElementSibling.querySelectorAll('.tabrow')].map(title).join('+') + ']' : title(el)).join(' | '); })()",
+      "expected": "F[Work B+Work A] | Pin Two | Pin One",
+      "timeout_ms": 8000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "layout",
+      "expected": "130,204,241,278",
+      "desc": "gates the drags: the rows sit where the screen coordinates below assume"
+    },
+    {
+      "type": "eval_equals",
+      "id": "spy",
+      "expected": "\"spying\"",
+      "desc": "the spies installed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "member-events",
+      "expected": "\"dragstart,dragover,drop,dragend\"",
+      "desc": "a real mouse drag reaches every drag event, drop included"
+    },
+    {
+      "type": "eval_equals",
+      "id": "member-sends",
+      "expected": "\"sidebarFolderMemberReordered:11111111-1010-4010-8010-101010101010,0,1\"",
+      "desc": "THE MEASUREMENT: one message, member 0 to post-removal position 1"
+    },
+    {
+      "type": "eval_equals",
+      "id": "member-order",
+      "expected": "Pin One | F[Work B+Work A] | Pin Two",
+      "desc": "the browser applied it and pushed the swapped folder back"
+    },
+    {
+      "type": "eval_equals",
+      "id": "preview-after-rebuild",
+      "expected": "\"moved\"",
+      "desc": "the dragged row moves to the drop slot on a drag AFTER a rebuild"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pinned-events",
+      "expected": "\"dragstart,dragover,drop,dragend\"",
+      "desc": "the second real drag completes too"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pinned-sends",
+      "expected": "\"sidebarPinnedReordered:0,2\"",
+      "desc": "blast radius: the pinned reorder still sends its one message"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pinned-order",
+      "expected": "F[Work B+Work A] | Pin Two | Pin One",
+      "desc": "and lands"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

@@ -1,0 +1,156 @@
+{
+  "name": "courtyard-ground-is-glass",
+  "description": "The Courtyard ground is glass over the window's own NSVisualEffectView backdrop, not a fill. While it is open the browser window hides the sidebar slot, the pane container and root_view_'s painted background, so what shows through the ground is the blurred desktop wallpaper, like Launchpad. Escape puts all three back.\n\nForked from courtyard-reads-the-light-overlay-tokens, which already knows how to reach the Courtyard: the entry is the SPACE menu, so the right-click lands on empty sidebar space below the rows, not on a row.\n\nTHE THREE READINGS, and why none of them alone is the claim. The alpha eval says the ground's own colour is translucent, which a page can be while the browser still paints something opaque behind it. The first pixels_changed says the content region really changed when the Courtyard came up. The second says it changed back on Escape, which is the half a one-way check cannot see - a build that hides the views and never restores them passes everything else here.\n\nThe region sits inside the page card, away from the sidebar column (x < 240) and the window edges. alpha.html is a flat dark slate, which would sink a region_stable reading but not these two: both compares cross between that slate and a pale ground over the desktop, so every pixel in the region moves.\n\nThe courtyard-open capture is the screenshot of the glass. The VM desktop carries a blue-grey gradient wallpaper, which is what has to read through the ground.",
+  "fixture": "canvas.spaces.json",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "rows-are-up",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.row').length > 0)",
+      "expected": "true",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "capture",
+      "id": "before-courtyard",
+      "duration_ms": 400,
+      "fps": 10,
+      "note": "the sidebar and the page as the window normally paints them - the baseline both pixel compares below read against"
+    },
+    {
+      "type": "rightclick",
+      "x": 110,
+      "y": 620,
+      "note": "EMPTY SPACE below the rows, not a row. Courtyard lives on the space menu; the row menu's ten items do not include it."
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "open-courtyard",
+      "target": "/sidebar",
+      "expression": "(() => { const item = [...document.querySelectorAll('.ctxitem')].find((b) => b.textContent === 'Courtyard'); if (!item) { return 'no Courtyard item among: ' + [...document.querySelectorAll('.ctxitem')].map((b) => b.textContent).join(' | '); } item.click(); return 'clicked ' + item.textContent; })()",
+      "note": "the whole menu is logged on a miss, which is what named the wrong menu on the sibling scenario's first run"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval_until",
+      "id": "courtyard-is-up",
+      "target": "/courtyard",
+      "expression": "String(!!document.querySelector('.courtwrap'))",
+      "expected": "true",
+      "timeout_ms": 10000,
+      "note": "GATE: without the ground element the alpha reading below is vacuous"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: courtyard hid sidebar, pane and root background",
+      "timeout_ms": 10000,
+      "note": "GATE on the native half. The page can be up and correct while the browser still paints the sidebar, the pane and the root background behind it, which is the failing state."
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the relayout and the repaint land before the frame is taken"
+    },
+    {
+      "type": "eval",
+      "id": "ground-colour",
+      "target": "/courtyard",
+      "expression": "getComputedStyle(document.querySelector('.courtwrap')).backgroundColor",
+      "note": "DIAGNOSTIC: the resolved value, so an alpha failure below can be read rather than guessed at"
+    },
+    {
+      "type": "eval",
+      "id": "ground-is-translucent",
+      "target": "/courtyard",
+      "expression": "(() => { const c = getComputedStyle(document.querySelector('.courtwrap')).backgroundColor; const m = c.match(/[0-9.]+/g); if (!m || m.length < 3) { return 'unparsed: ' + c; } return String(m.length >= 4 && Number(m[3]) < 1); })()",
+      "note": "color-mix with transparent resolves to a four-component value, rgba(...) or color(srgb ... / a). Three components means an opaque ground, which is the state this task replaces."
+    },
+    {
+      "type": "capture",
+      "id": "courtyard-open",
+      "duration_ms": 600,
+      "fps": 10,
+      "note": "The screenshot: the rooms over the blurred desktop, with no sidebar column and no page card behind them"
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "vlog": "Atrium: courtyard restored sidebar, pane and root background",
+      "note": "the page's own Escape handler sends courtyardDismiss, which hides the widget - the same path a card click takes"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "capture",
+      "id": "after-escape",
+      "duration_ms": 400,
+      "fps": 10,
+      "note": "the window with its sidebar, page and root background handed back"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "courtyard-is-up",
+      "expected": "true",
+      "desc": "GATE: the Courtyard ground exists, so the alpha reading looked at it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "ground-is-translucent",
+      "expected": "\"true\"",
+      "desc": ".courtwrap resolves with an alpha below 1, so the ground is a wash rather than a fill. Opaque --ov-ground gives three components and reads false."
+    },
+    {
+      "type": "pixels_changed",
+      "before": "before-courtyard",
+      "after": "courtyard-open",
+      "region": [400, 300, 400, 300],
+      "min_changed_pct": 40.0,
+      "label": "the-page-left-the-content-region",
+      "desc": "The banded page card gave way to the glass ground over the desktop. Bar at 40% because the whole region changes surface here - the fixture page's bands are high-variance, so a partial reading would mean the pane never went."
+    },
+    {
+      "type": "pixels_changed",
+      "before": "courtyard-open",
+      "after": "after-escape",
+      "region": [400, 300, 400, 300],
+      "min_changed_pct": 40.0,
+      "label": "escape-brought-the-page-back",
+      "desc": "A build that hides the sidebar and the pane and never restores them passes every other check here. Same region and bar as above, read the other way."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "liveness, and a check that the Courtyard's own child window is not left standing as a second real window"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

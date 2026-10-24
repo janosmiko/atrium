@@ -1,0 +1,88 @@
+{
+  "name": "cmd-shift-w-closes-a-window-with-live-tabs",
+  "description": "The close path that DRAINS tabs first, which the tabless scenarios never walk. Widget::CloseWithReason MOVES the synchronous close override, so a window with tabs closes in two passes: the first runs Atrium's handler and calls Browser::OnWindowClosing, then TabStripEmpty posts a second Close that finds the override spent and lands in AtriumClientView instead. That second pass has to be let through, and a version of this code that re-posted a user-initiated close there instead spun forever - which is what the close-request count below pins.",
+  "fixture": "two-tabs.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the startup space's one restored tab commit and the sidebar draw both rows"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "cold-row-click",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.row.tabrow:not(.active)'); if (!r) return 'no-cold-row'; r.click(); return 'clicked'; })()",
+      "note": "SECOND LIVE TAB. An Atrium strip holds one live tab per restore, so the space's other row is cold; clicking a cold row reopens its tab. Both rows carry the same title in this fixture, so the ACTIVE class picks the cold one, not the text."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab 2 added",
+      "timeout_ms": 10000,
+      "note": "GATES THE WHOLE SCENARIO. Without a second live tab this is the one-tab case wearing a two-tab label. Id 2 rather than [0-9]+ on purpose: this fixture restores exactly one tab at startup (id 1), so a wildcard would match that and pass before the click ever landed."
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+w",
+      "note": "THE MEASUREMENT: close a window whose strip has to drain first"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "two tabs to close, then the posted second pass"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "cold-row-click",
+      "expected": "\"clicked\"",
+      "note": "the probe found a cold row and pressed it, rather than reporting no-cold-row and leaving the gate above to time out with no explanation"
+    },
+    {
+      "type": "vlog",
+      "label": "chord-reached-the-window",
+      "pattern": "Atrium: user-initiated window close requested",
+      "note": "separates 'the window is still standing' from 'the chord never arrived'"
+    },
+    {
+      "type": "vlog_count",
+      "label": "the-close-ran-once",
+      "pattern": "Atrium: user-initiated window close requested",
+      "max": 1,
+      "note": "THE REGRESSION GUARD for the two-pass path. A commit pass that re-enters AtriumClientView and posts another user-initiated close never terminates, and every lap writes this line - so the loop shows up here as a count, long before it shows up as a hung app."
+    },
+    {
+      "type": "vlog",
+      "label": "user-initiated-close-taken",
+      "pattern": "Atrium: user-initiated close beats the last-tab-out keep-open",
+      "note": "the first pass took the user-initiated branch"
+    },
+    {
+      "type": "vlog_after",
+      "label": "browser-keep-alive-released",
+      "after_pattern": "Atrium: user-initiated window close requested",
+      "pattern": "KeepAlives=\\[APP_CONTROLLER \\(1\\)\\]",
+      "note": "THE WINDOW IS GONE, and gone through the Browser: the registry only loses BROWSER when Browser::OnWindowClosing runs. vlog_after, not vlog: the same line appears at launch before the browser registers."
+    },
+    {
+      "type": "quit",
+      "desc": "LIVENESS: the app is still responsive rather than spinning on a close it cannot finish, and Cmd+Q still ends it"
+    }
+  ]
+}

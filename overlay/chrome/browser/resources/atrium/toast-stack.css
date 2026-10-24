@@ -1,0 +1,200 @@
+/* Copyright 2026 The Atrium Authors */
+
+/* Layout only. Surface, ink, border and shadow come from overlay.css. The
+   per-toast accent stays: each card sets --ctc from the caller's color. */
+
+.toasts {
+  /* How far a card paints outside its own border box - the accent ring below.
+     Declared here so the widget can be padded by it: toast-surface.js reads it
+     off this box, and a card clipped at the widget edge loses that ring and
+     its corner antialiasing. */
+  --ct-ring: 1px;
+  position: absolute;
+  top: 44px;
+  right: 14px;
+  z-index: 56;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.toasts.left {
+  right: auto;
+  left: 14px;
+  align-items: flex-start;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  max-width: 360px;
+  font-size: 13px;
+  border-radius: var(--ov-radius-card);
+  /* No drop shadow here: the widget is sized to the stack, so
+     a shadow painted here has nowhere to fall and is clipped into a box at
+     the window edge. toast-surface.js reads --ov-shadow-tight (below, via
+     .shadow-probe) and pushes it to AtriumOverlayShadowLayer instead. */
+  box-shadow: 0 0 0 var(--ct-ring) color-mix(in srgb, var(--ctc, var(--ov-accent)) 45%, transparent);
+  animation: atrium-toast-peekin .22s ease-out;
+}
+
+/* Measurement only, off-screen - see toast-surface.js. .toast itself no
+   longer carries a shadow, so this is the one place --ov-shadow-tight's
+   resolved value (light/dark/native-chrome) can still be read. */
+.toast.shadow-probe {
+  box-shadow: var(--ov-shadow-tight);
+}
+
+.toast .cti {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--ov-radius-swatch);
+  display: grid;
+  place-items: center;
+  background: var(--ctc, var(--ov-accent));
+  color: white;
+}
+
+.toast .ctl {
+  font-weight: 600;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toast .ctu {
+  color: var(--ov-mute);
+  font-size: 12px;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toast .ctk {
+  margin-inline-start: 4px;
+}
+
+.toast .ctcl {
+  flex: none;
+  padding: 0;
+  margin-inline-start: 4px;
+  opacity: .6;
+}
+
+.toast .ctcl:hover {
+  opacity: 1;
+}
+
+.toast.bye {
+  /* .25s is BYE_MS in toast-stack.js: the card is removed as the fade ends. */
+  animation: atrium-toast-peekfade .25s ease reverse forwards;
+}
+
+@keyframes atrium-toast-peekin {
+  from { opacity: 0; transform: scale(.93) translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes atrium-toast-peekfade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* On its own widget the stack has no window corner to inset from: the WIDGET
+   is placed in the corner instead, and the 44/14 insets above would push most
+   of the card outside its own surface. Not 0 either - the ring needs this much
+   room outside the card to survive the widget's edge. */
+.toastroot .toasts {
+  top: var(--ct-ring);
+  right: var(--ct-ring);
+  left: auto;
+}
+
+/* The widget resizes a round trip after the page lays out, so a card wider
+   than the stale viewport overflows the start side. Anchored against the
+   widget's own edge that reads as a negative offset. */
+.toastroot .toasts.left {
+  right: auto;
+  left: var(--ct-ring);
+}
+
+/* toast-surface.js now elides a hovered URL itself, keeping both ends
+   - a fixed max-width here would just re-truncate its result from
+   the end. overflow/ellipsis stay as a safety net for a rounding slip. */
+.toastroot .toast .ctl {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A card with no .cti is a status line (a hovered URL), not a notification:
+   This shrinks it to the text's own height instead of the 48px a
+   confirmation card needs for its icon. :not(:has(.cti)) rather than a new
+   class - icon presence is already the signal a caller means
+   "confirmation" vs "status line". max-width:none lets it grow to the width
+   toast-surface.js already fit the text to. */
+.toastroot .toast:not(:has(.cti)) {
+  padding: 4px 12px;
+  max-width: none;
+  border-radius: var(--ov-radius-compact);
+  /* .ov-card gives every card a 1px border. On a dark surround the ink at 12%
+     reads as a light rim around the status strip. Transparent keeps the box
+     the same size without drawing the rim. */
+  border-color: transparent;
+}
+
+/* a status line carries no accent ring. It sets no --ctc, so the
+   ring fell back to --ov-accent and drew a hard light outline no other overlay
+   surface has. The probe is excluded because it is the one place
+   --ov-shadow-tight can still be read, and it carries no .cti either. */
+.toast:not(:has(.cti)):not(.shadow-probe) {
+  box-shadow: none;
+}
+
+/* The outset goes with the paint. toast-surface.js reads --ct-ring off this
+   box and pads the widget by it, so a box holding no ring would otherwise sit
+   a ring in from the pane corner with nothing drawn in the gap. */
+.toasts:not(:has(.cti)) {
+  --ct-ring: 0px;
+}
+
+/* What a held modifier will do with the hovered link. Quieter than the url
+   itself, which is the thing being read. */
+.toastroot .toast:not(:has(.cti)) .cthint {
+  color: var(--ov-mute);
+  font-size: 12px;
+  white-space: nowrap;
+  flex: none;
+}
+
+/* No modifier held. Without this the flex gap ahead of it still spends 10px
+   on a box with nothing in it. */
+.toastroot .toast .cthint:empty {
+  display: none;
+}
+
+/* Belt and suspenders: a hover card's .ctu is always empty, so nothing should
+   show, but this rules the possibility out rather than trusting an empty
+   block to collapse to zero on its own. */
+.toastroot .toast:not(:has(.cti)) .ctu {
+  display: none;
+}
+
+/* Archivo's own "normal" line-height measured close to 2x the font-size in
+   the VM - 12px padding plus one line still read 40px, only 8px under a
+   confirmation card. Pinned tighter, the way sidebar.css's own row labels
+   are, rather than trusting the font's default metric.
+
+   The base .toast .ctl max-width:220px is freed on the CARD, but
+   it stays on the LABEL itself - so an elided fit past 220px still
+   clipped inside .ctl's own box. Freed here too. */
+.toastroot .toast:not(:has(.cti)) .ctl {
+  line-height: 1.2;
+  max-width: none;
+}

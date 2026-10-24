@@ -1,0 +1,74 @@
+{
+  "name": "a-typed-url-lands-in-its-rule-s-space",
+  "description": "Traffic routing, rebuilt on the Rust core. A rule maps routing3-target.html to the 'Work' space; the run starts on 'Personal'. Typing that URL and pressing Return must land the page in Work rather than in the space that was showing.\n\nThe typed URL is the case worth pinning first: it carries no user gesture, no renderer initiator and no PAGE_TRANSITION_LINK, so it is exactly what a throttle copied from the peek throttle's gates would silently skip.\n\nBoth spaces share the Default profile on purpose. The cross-profile path reopens through a second controller and is worth its own scenario - this one proves the decision reaches an open, and a failure here cannot be blamed on profile bootstrapping.",
+  "fixture": "fixture-routing3-spaces.json",
+  "routing": "fixture-routing-throttle-rules.json",
+  "serve_fixtures": true,
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the Personal space render"
+    },
+    {
+      "type": "activate",
+      "note": "an ssh-launched Atrium is not frontmost, so every key would otherwise land in Finder"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+l",
+      "note": "the address bar - a typed navigation, which is the case this pins"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/routing3-target.html"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the throttle cancel, the posted reopen run, and the space switch settle"
+    },
+    {
+      "type": "eval_until",
+      "id": "routed-page",
+      "target": "routing3-target.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/routing3-target.html",
+      "timeout_ms": 8000,
+      "note": "the routed page, read from the page itself"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "routed-into-the-rules-space",
+      "pattern": "Atrium: routed http://127\\.0\\.0\\.1 into space 22222222-2222-2222-2222-222222222222",
+      "note": "the whole chain in one line: the rule matched, the space id resolved to a slot, and a tab was opened there. The line no longer carries the routed URL; the target space id is this run's only rule match, so it still names the one route under test."
+    },
+    {
+      "type": "eval_equals",
+      "id": "routed-page",
+      "expected": "http://127.0.0.1:8000/routing3-target.html",
+      "label": "the-page-actually-loaded",
+      "note": "a routed navigation that cancels and never reopens would satisfy the line above on its own - this is the presence assertion beside it"
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 23 Jul 2026 21:55:29 +0200
+Subject: [PATCH 013/154] atrium: org.atrium.Atrium bundle id + Atrium Safe
+ Storage keychain
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+MAC_BUNDLE_ID was still org.chromium.Chromium, so CFBundleIdentifier and
+the os_crypt safe-storage keychain item both fell through to the Chromium
+name. Set the bundle id to org.atrium.Atrium and rename the non-official
+safe-storage service/account strings to Atrium so the keychain prompt and
+stored item are branded. Renaming the service regenerates the encryption
+key, resetting previously stored cookies/passwords once (accepted).
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/app/theme/chromium/BRANDING                  | 2 +-
+ components/os_crypt/common/keychain_password_mac.mm | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/chrome/app/theme/chromium/BRANDING b/chrome/app/theme/chromium/BRANDING
+index 4f2db953fe0d0..e054b01478ab8 100644
+--- a/chrome/app/theme/chromium/BRANDING
++++ b/chrome/app/theme/chromium/BRANDING
+@@ -5,6 +5,6 @@ PRODUCT_SHORTNAME=Atrium
+ PRODUCT_INSTALLER_FULLNAME=Atrium Installer
+ PRODUCT_INSTALLER_SHORTNAME=Atrium Installer
+ COPYRIGHT=Copyright @LASTCHANGE_YEAR@ The Chromium Authors. All rights reserved.
+-MAC_BUNDLE_ID=org.chromium.Chromium
++MAC_BUNDLE_ID=org.atrium.Atrium
+ MAC_CREATOR_CODE=Cr24
+ MAC_TEAM_ID=
+diff --git a/components/os_crypt/common/keychain_password_mac.mm b/components/os_crypt/common/keychain_password_mac.mm
+index f240dc22ee391..5afcde0f283f8 100644
+--- a/components/os_crypt/common/keychain_password_mac.mm
++++ b/components/os_crypt/common/keychain_password_mac.mm
+@@ -38,8 +38,8 @@ namespace {
+ const char kDefaultServiceName[] = "Chrome Safe Storage";
+ const char kDefaultAccountName[] = "Chrome";
+ #else
+-const char kDefaultServiceName[] = "Chromium Safe Storage";
+-const char kDefaultAccountName[] = "Chromium";
++const char kDefaultServiceName[] = "Atrium Safe Storage";
++const char kDefaultAccountName[] = "Atrium";
+ #endif
+ 
+ // These values are persisted to logs. Entries should not be renumbered and

@@ -1,0 +1,74 @@
+{
+  "name": "an-open-ai-panel-marks-its-tab-row",
+  "description": "The AI panel is its own route, so the row marker only appears if the panel's report reaches the browser and the browser pushes it into the sidebar. Opens the panel with the hotkey, reads which sidebar row carries .aimark, then closes the panel and reads again.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "wait_vlog", "pattern": "Atrium: sidebar rows drawn [1-9]", "timeout_ms": 20000 },
+    {
+      "type": "eval_until",
+      "id": "panel-built",
+      "target": "/ai-panel",
+      "expression": "String(!!document.querySelector('.aichatinput'))",
+      "expected": "true",
+      "timeout_ms": 10000
+    },
+    { "type": "activate" },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "marked-before",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.tabrow.aimark').length)"
+    },
+    {
+      "type": "eval",
+      "id": "open",
+      "target": "/ai-panel",
+      "expression": "(() => { document.dispatchEvent(new KeyboardEvent('keydown', {key: '`'})); return String(document.getElementById('atrium-root').classList.contains('aipopen')); })()"
+    },
+    { "type": "settle", "ms": 2000, "note": "the report goes panel to browser to sidebar" },
+    {
+      "type": "eval",
+      "id": "marked-open",
+      "target": "/sidebar",
+      "expression": "[...document.querySelectorAll('.tabrow.aimark')].map((r) => r.dataset.tabId).join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "marks-the-active-row",
+      "target": "/sidebar",
+      "expression": "(() => { const m = document.querySelector('.tabrow.aimark'); const s = document.querySelector('.tabrow.sel'); return m && s && m === s ? 'same-row' : 'm=' + (m?.dataset.tabId ?? 'none') + ' sel=' + (s?.dataset.tabId ?? 'none'); })()"
+    },
+    {
+      "type": "eval",
+      "id": "marker-paints",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.tabrow.aimark'); if (!row) return 'no-row'; const s = getComputedStyle(row, '::after'); return s.content === 'none' ? 'unpainted' : 'w=' + s.width; })()"
+    },
+    { "type": "capture", "id": "row-marked", "duration_ms": 300, "fps": 10 },
+    {
+      "type": "eval",
+      "id": "close",
+      "target": "/ai-panel",
+      "expression": "(() => { document.querySelector('[data-ai-panel-close]').click(); return String(document.getElementById('atrium-root').classList.contains('aipopen')); })()"
+    },
+    { "type": "settle", "ms": 2000 },
+    {
+      "type": "eval",
+      "id": "marked-closed",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.tabrow.aimark').length)"
+    }
+  ],
+  "assertions": [
+    { "type": "eval_equals", "id": "open", "expected": "\"true\"", "desc": "setup: the hotkey opened the panel" },
+    { "type": "eval_equals", "id": "marked-before", "expected": "\"0\"", "desc": "no row is marked while the panel is closed" },
+    { "type": "eval_changed", "before": "marked-before", "after": "marked-open", "desc": "Opening the panel marks a row" },
+    { "type": "eval_equals", "id": "close", "expected": "\"false\"", "desc": "setup: the close button closed the panel" },
+    { "type": "eval_equals", "id": "marked-closed", "expected": "\"0\"", "desc": "Closing the panel clears the marker" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

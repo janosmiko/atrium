@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 21 Sep 2026 08:17:01 +0200
+Subject: [PATCH 139/154] fix(media): round the mini player frame so no square
+ line shows
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../app_shim/native_widget_ns_window_bridge.mm           | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/components/remote_cocoa/app_shim/native_widget_ns_window_bridge.mm b/components/remote_cocoa/app_shim/native_widget_ns_window_bridge.mm
+index 9c5e0d4f8185b..70aa9dabfa3ba 100644
+--- a/components/remote_cocoa/app_shim/native_widget_ns_window_bridge.mm
++++ b/components/remote_cocoa/app_shim/native_widget_ns_window_bridge.mm
+@@ -821,6 +821,15 @@ void NativeWidgetNSWindowBridge::CreateContentView(
+   // After setContentView: the frame view is the content view's superview, so
+   // the frame's corner radius is readable.
+   UpdateContentCornerMask(target_fullscreen_state());
++  if (corner_radius) {
++    // macOS 27 strokes the window outline on the frame view's rectangle, which
++    // left a square black line around the rounded content. Round the frame too.
++    NSView* frame_view = [bridged_view_ superview];
++    [frame_view setWantsLayer:YES];
++    frame_view.layer.cornerRadius = *corner_radius;
++    frame_view.layer.masksToBounds = YES;
++    [window_ invalidateShadow];
++  }
+ }
+ 
+ // Atrium: translucent windows (liquid-glass browser window) paint their own

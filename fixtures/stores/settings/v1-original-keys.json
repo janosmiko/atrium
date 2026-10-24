@@ -1,0 +1,6 @@
+{
+  "appIconVariant" : "solarized-ink",
+  "animationsEnabled" : true,
+  "schemaVersion" : 1,
+  "startupBehavior" : "restoreLastActive"
+}

@@ -1,0 +1,126 @@
+{
+  "name": "row-menu-names-the-pin-hotkey",
+  "description": "Pin Tab and Unpin Tab carry actionId pinToggleTab and render the keys it is bound to, in a real menu.\n\nWHY A VM RUN AND NOT ONLY THE UNIT TESTS. sidebar-space-menu-test.mjs drives openMenu through a DOM shim and can prove the render path, but it calls setBindings itself. It therefore cannot see whether the registry is ever populated in the product, and that is the half that was broken: openMenu already called bindingFor(item.actionId) for every item and no item anywhere set actionId, so the .ctxkey branch had been dead code the whole time while two shim tests using a made-up action stayed green. The chain this run exercises instead is the whole one - atrium_native_hotkey_defaults.cc binds pinToggleTab to cmd+d, SidebarBindingsScript pushes a glyph map into the document, hint-triggers.js stores it, and openMenu reads it back.\n\nTHE MENU IS OPENED BY A DISPATCHED EVENT, NOT A COORDINATE. row-menu-native-look.json right-clicks at 110,339, a number measured off one build of one layout, and those have drifted repeatedly. Dispatching contextmenu on the row element itself asks for the same menu without depending on where the row happens to sit.\n\nWHAT IS ASSERTED AND WHAT IS ONLY LOGGED. The keycap text is logged rather than pinned to a literal, because the glyph the native side sends is its business and this task is not about which symbol cmd+d becomes. What is asserted is that Pin Tab has keycaps at all, that they are not empty, and that an item with no binding still has none - which is the difference between the path working and the path being dead. A run where the registry never arrived would give Pin Tab zero caps and pass nothing.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "both rows into the sidebar, and the bindings script runs after the document is up"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "a-tab-row-exists",
+      "target": "/sidebar",
+      "expression": "String(!!document.querySelector('[data-dropzone=\"tabs\"] .row'))",
+      "expected": "true",
+      "timeout_ms": 10000,
+      "note": "GATE: the row the menu is opened on. Without it the dispatch below is a no-op and every reading is vacuous."
+    },
+    {
+      "type": "eval",
+      "id": "open-the-row-menu",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('[data-dropzone=\"tabs\"] .row'); row.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: 40, clientY: 40})); return 'dispatched on ' + row.className; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval_until",
+      "id": "menu-is-open",
+      "target": "/sidebar",
+      "expression": "String(!!document.querySelector('.ctxmenu'))",
+      "expected": "true",
+      "timeout_ms": 4000,
+      "note": "GATE: an absent menu would leave every count below at zero, which must not read as a pass"
+    },
+    {
+      "type": "eval",
+      "id": "menu-labels",
+      "target": "/sidebar",
+      "expression": "[...document.querySelectorAll('.ctxitem')].map((el) => el.textContent).join(' | ')",
+      "note": "logged so a failure names the menu that was actually open, not just a missing keycap"
+    },
+    {
+      "type": "eval",
+      "id": "pin-item-cap-count",
+      "target": "/sidebar",
+      "expression": "(() => { const el = [...document.querySelectorAll('.ctxitem')].find((n) => n.textContent.startsWith('Pin Tab')); return el ? String(el.querySelectorAll('.ov-key').length) : 'no Pin Tab item'; })()"
+    },
+    {
+      "type": "eval",
+      "id": "pin-item-cap-text",
+      "target": "/sidebar",
+      "expression": "(() => { const el = [...document.querySelectorAll('.ctxitem')].find((n) => n.textContent.startsWith('Pin Tab')); if (!el) { return 'no Pin Tab item'; } return [...el.querySelectorAll('.ov-key')].map((k) => k.textContent).join('') || '(no caps)'; })()",
+      "note": "DIAGNOSTIC: which glyphs the native side actually sent. Not asserted against a literal - the symbol cmd+d becomes belongs to the hotkey map, not to this task."
+    },
+    {
+      "type": "eval",
+      "id": "pin-item-caps-are-not-blank",
+      "target": "/sidebar",
+      "expression": "(() => { const el = [...document.querySelectorAll('.ctxitem')].find((n) => n.textContent.startsWith('Pin Tab')); if (!el) { return 'no Pin Tab item'; } const caps = [...el.querySelectorAll('.ov-key')]; return String(caps.length > 0 && caps.every((k) => k.textContent.trim().length > 0)); })()",
+      "note": "an empty keycap span would satisfy a count on its own, so the text is checked here too"
+    },
+    {
+      "type": "eval",
+      "id": "close-tab-has-no-cap",
+      "target": "/sidebar",
+      "expression": "(() => { const el = [...document.querySelectorAll('.ctxitem')].find((n) => n.textContent.startsWith('Close Tab')); if (!el) { return 'no Close Tab item'; } return String(el.querySelectorAll('.ov-key').length === 0); })()"
+    },
+    {
+      "type": "key",
+      "combo": "escape"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "menu-is-open",
+      "expected": "true",
+      "desc": "GATE: the row menu really opened, so the readings below looked at a menu"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pin-item-caps-are-not-blank",
+      "expected": "\"true\"",
+      "desc": "Pin Tab renders at least one keycap and every one carries a glyph. Reads false when the item has no actionId, and also when the bindings registry never arrived - both are the defect this task is about."
+    },
+    {
+      "type": "eval_equals",
+      "id": "close-tab-has-no-cap",
+      "expected": "\"true\"",
+      "desc": "an item with no binding renders with no keycap span. Paired with the assertion above, this is what separates 'the binding was read' from 'every item got a chip'."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

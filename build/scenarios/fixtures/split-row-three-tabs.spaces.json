@@ -1,0 +1,35 @@
+{
+  "spaces": [
+    {
+      "id": "67310001-0000-4000-8000-000000000031",
+      "name": "Three",
+      "emoji": "🔢",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135132.0,
+          "url": "http://dl.localhost:8000/panel-legibility-type.html",
+          "title": "Type"
+        },
+        {
+          "lastActiveAt": 805135131.0,
+          "url": "http://dl.localhost:8000/checkerboard.html",
+          "title": "Checkerboard"
+        },
+        {
+          "lastActiveAt": 805135130.0,
+          "url": "http://dl.localhost:8000/example-domain.html",
+          "title": "Example"
+        }
+      ]
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 260,
+    "schemaVersion": 1,
+    "activeSpaceID": "67310001-0000-4000-8000-000000000031"
+  }
+}

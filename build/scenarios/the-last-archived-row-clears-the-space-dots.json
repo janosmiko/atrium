@@ -1,0 +1,48 @@
+{
+  "name": "the-last-archived-row-clears-the-space-dots",
+  "description": "The space-dots bar is absolute at the foot of the sidebar and draws over every pane, so the Overview pane has to reserve room for it the way a space pane does. Forty archived entries fill the list past the bottom of the pane, then the list is scrolled to its end and the last row's box is compared with the bar's. A pane reserving too little reports how many pixels of the row the bar covers.",
+  "fixture": "a-long-archived-list.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "wait_vlog", "pattern": "Atrium: sidebar rows drawn [1-9]", "timeout_ms": 20000 },
+    { "type": "activate" },
+    { "type": "settle", "ms": 1200 },
+    { "type": "key", "combo": "cmd+shift+a", "note": "openArchive pages the rail to the Overview pane on the Archived section" },
+    { "type": "settle", "ms": 2500, "note": "the pane glides in and the section asks for its data" },
+    {
+      "type": "eval",
+      "id": "rows-drawn",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.ovrailpane .ovlist .dlrow').length)"
+    },
+    {
+      "type": "eval",
+      "id": "scrolled",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = document.querySelectorAll('.ovrailpane .ovlist .dlrow'); if (!rows.length) return 'no-rows'; let el = rows[rows.length - 1].parentElement; while (el && el.scrollHeight <= el.clientHeight) { el = el.parentElement; } if (!el || !el.closest('.ovrailpane')) return 'nothing-scrolls'; el.scrollTop = el.scrollHeight; return 'scrolled-' + el.className.split(' ')[0]; })()"
+    },
+    { "type": "settle", "ms": 600 },
+    {
+      "type": "eval",
+      "id": "last-row-vs-dots",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = document.querySelectorAll('.ovrailpane .ovlist .dlrow'); const dots = document.querySelector('.spacedots'); if (!rows.length || !dots) return 'nothing-to-measure'; const last = rows[rows.length - 1].getBoundingClientRect(); const bar = dots.getBoundingClientRect(); return last.bottom <= bar.top ? 'clear' : 'under-by-' + Math.round(last.bottom - bar.top); })()"
+    },
+    {
+      "type": "eval",
+      "id": "last-row-takes-the-click",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = document.querySelectorAll('.ovrailpane .ovlist .dlrow'); if (!rows.length) return 'no-rows'; const r = rows[rows.length - 1].getBoundingClientRect(); const hit = document.elementFromPoint(r.left + 8, r.bottom - 4); return hit && rows[rows.length - 1].contains(hit) ? 'row-takes-it' : 'covered-by-' + (hit ? hit.className : 'nothing'); })()"
+    },
+    { "type": "capture", "id": "archived-end", "duration_ms": 300, "fps": 10 }
+  ],
+  "assertions": [
+    { "type": "eval_equals", "id": "scrolled", "expected": "\"scrolled-ovpane\"", "desc": "setup: the section overflows the pane and the pane is what scrolls it" },
+    { "type": "eval_equals", "id": "rows-drawn", "expected": "\"40\"", "desc": "setup: every archived entry in the fixture is on screen" },
+    { "type": "eval_equals", "id": "last-row-vs-dots", "expected": "\"clear\"", "desc": "The last row of a full Archived list ends above the dots bar" },
+    { "type": "eval_equals", "id": "last-row-takes-the-click", "expected": "\"row-takes-it\"", "desc": "The foot of that row is the row, not the bar over it" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly with the Overview pane on screen" }
+  ]
+}

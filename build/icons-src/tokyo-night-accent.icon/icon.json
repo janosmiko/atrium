@@ -1,0 +1,41 @@
+{
+  "color-space-for-untagged-svg-colors": "display-p3",
+  "fill": {
+    "linear-gradient": [
+      "extended-srgb:0.52941,0.67059,0.97255,1.00000",
+      "extended-srgb:0.30980,0.41176,0.63137,1.00000"
+    ]
+  },
+  "groups": [
+    {
+      "hidden": false,
+      "layers": [
+        {
+          "glass": false,
+          "hidden": false,
+          "image-name": "mark.svg",
+          "name": "mark"
+        },
+        {
+          "glass": false,
+          "hidden": false,
+          "image-name": "wash.svg",
+          "name": "wash"
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0.5
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "macOS"
+    ]
+  }
+}

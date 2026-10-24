@@ -1,0 +1,111 @@
+{
+  "name": "the-copy-confirmation-sits-in-the-window-corner",
+  "description": "The reported defect: a Link copied card appeared in the SIDEBAR's upper right, not the window's. It was hosted on the sidebar's own document, where .toasts's top and right resolve against that narrow column - no CSS could fix it, because a card in the sidebar's WebContents cannot paint outside it.\n\nThe check targets the card's ELEMENT on the window surface rather than a pixel region, and that is deliberate: a pixel probe in the window's corner would pass on anything light-coloured that happened to be there. This reads the card off the /toast document and then compares that widget's own geometry against the window's.\n\nWHY THE WIDGET'S SIZE IS THE MEASUREMENT. The toast widget is sized to the STACK, not to the window - a toast carries a close button so it cannot decline the mouse the way the hint overlay can, and a widget only as large as its cards is not over the page when there are none. So its viewport should be a small card-sized box, not the 1024x680 window. A window-spanning surface would be the earlier defect again, in a new place.\n\nThe window's own width is read from the sidebar document, which spans it, so the comparison uses a measured number rather than a constant that drifts.",
+  "fixture": "cmdf-swallowed.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+c",
+      "note": "copies the active tab's link, which is what raises the confirmation"
+    },
+    {
+      "type": "eval_until",
+      "id": "card-is-on-the-toast-surface",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? t.textContent : 'no card'; })()",
+      "expected": "Link copied",
+      "timeout_ms": 8000,
+      "note": "The element itself, on the window-level surface."
+    },
+    {
+      "type": "eval",
+      "id": "the-card-is-inside-its-widget",
+      "target": "/toast",
+      "expression": "(() => { const c = document.querySelector('.toasts .toast'); if (!c) { return 'no card'; } const r = c.getBoundingClientRect(); return String(r.left >= -1 && r.top >= -1 && r.right <= window.innerWidth + 1 && r.bottom <= window.innerHeight + 1); })()",
+      "note": "Placed immediately after the card is seen, NOT at the end of the run: a confirmation dismisses itself after CONFIRM_MS, 1400ms, and an earlier version of this scenario asked several evals later and got 'no card'. Every reading of a transient card has to happen inside its own lifetime."
+    },
+    {
+      "type": "eval",
+      "id": "toast-viewport",
+      "target": "/toast",
+      "expression": "String(window.innerWidth) + 'x' + String(window.innerHeight)",
+      "note": "the widget's own box. Sized to the stack, so this should be card-sized rather than window-sized."
+    },
+    {
+      "type": "eval",
+      "id": "card-box",
+      "target": "/toast",
+      "expression": "(() => { const c = document.querySelector('.toasts .toast'); if (!c) { return 'no card'; } const r = c.getBoundingClientRect(); return Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height); })()",
+      "note": "Diagnostic that became an assertion. It read -24,44 166x48 inside a 171x48 widget - the stack still applied its window-corner insets of top 44 and right 14 inside its own surface, so most of the card was clipped outside it. The card was on the right surface and unreadable."
+    },
+    {
+      "type": "eval",
+      "id": "window-width",
+      "target": "/sidebar",
+      "expression": "String(window.screen ? window.screen.width : 0) + ' sidebar=' + String(window.innerWidth)",
+      "note": "the sidebar's own width, which is the column the card used to be trapped in"
+    },
+    {
+      "type": "eval",
+      "id": "the-widget-is-not-window-sized",
+      "target": "/toast",
+      "expression": "String(window.innerWidth > 0 && window.innerWidth < 700)",
+      "note": "a stack-sized widget, not a window-spanning one. 700 is well above any card and well below the 1024 window, so this fails loudly if the surface ever grows to span the window - which would be a dead band in a new place."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "card-is-on-the-toast-surface",
+      "expected": "Link copied",
+      "desc": "The confirmation card exists on the window-level toast surface, read as an element rather than as pixels"
+    },
+    {
+      "type": "eval_equals",
+      "id": "the-widget-is-not-window-sized",
+      "expected": "\"true\"",
+      "desc": "the widget is sized to its stack. A window-spanning toast surface would swallow page clicks everywhere it covers, since a toast has a close button and cannot decline the mouse."
+    },
+    {
+      "type": "eval_equals",
+      "id": "the-card-is-inside-its-widget",
+      "expected": "\"true\"",
+      "desc": "the card fits within its own surface. The widget is sized to the stack, so any inset the stack keeps for a window corner pushes the card out of the very widget that is meant to show it - which is how it first read, at -24,44 in a 171x48 box."
+    },
+    {
+      "type": "vlog",
+      "label": "the-confirmation-was-raised",
+      "pattern": "Atrium: confirmation shown \\(text=Link copied",
+      "note": "the one line every confirmation shares, so the reading above is tied to a real raise"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "themes": {
+    "22222222-2222-2222-2222-222222222222": {
+      "name": "Presenter Gradient",
+      "stops": [
+        {"x": 0.2, "y": 0.25, "color": "#C0455F", "alpha": 1.0},
+        {"x": 0.8, "y": 0.8, "color": "#1B2A55", "alpha": 1.0}
+      ],
+      "opacity": 1.0,
+      "effects": {"grain": 0.2, "vignette": 0.2, "frost": 0, "warmth": 0},
+      "darkAdaptation": 0.4,
+      "version": 1,
+      "nightShiftEnabled": false,
+      "ambientEnabled": false
+    }
+  }
+}

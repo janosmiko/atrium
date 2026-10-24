@@ -1,0 +1,242 @@
+{
+  "name": "reload-chords",
+  "description": "the four reload strengths, driven as real chords at a page that can say which one it got.\n\nWHAT THE PAGE MEASURES. reload-probe.html reads three things on every load. `loads` is a localStorage counter, so it survives an ordinary reload and resets only when the site's data is cleared. `cookie` is 'kept' when the page found its own cookie already set and 'fresh' when it had to set it again, which is the same signal read the other way round. `css` is the verdict on its own stylesheet, taken from PerformanceResourceTiming: transferSize 0 is a cache hit, transferSize below encodedBodySize is a 304 that moved headers only, and transferSize at or above encodedBodySize is the body coming back over the wire. The harness serves the fixtures with python3 -m http.server, which sends Last-Modified and no Cache-Control, so an ordinary reload revalidates and only a cache-bypassing one refetches. The verdict is therefore a byte-threshold-free read: nothing here depends on how big the stylesheet happens to be.\n\nWHY A REAL CHORD AND NOT atriumSetNavModifiers. A sibling scenario drives the sidebar button's modifier ladder through the JS receiver because a HELD modifier state has to persist across a redraw and cgevent cannot hold and release cleanly. These are one-shot presses, which send_combo does deliver - a sibling scenario already presses cmd+r this way - so the keyboard path itself is what is under test here, not a simulation of it.\n\nTHE RED THIS RECORDED, measured on the build of 2026-09-07. Atrium's core hotkey table ships no reload action, so all four chords fall through to whatever Chromium's own menu binds: accelerators_cocoa.mm binds Cmd+R to IDC_RELOAD and Cmd+Shift+R to IDC_RELOAD_BYPASSING_CACHE, and nothing at all binds Cmd+Option+R or Cmd+Option+Shift+R. The counter went 1, 2, 3, 3 - Cmd+R reloaded and served the stylesheet from cache, Cmd+Shift+R reloaded and refetched it, and the last two chords did nothing whatever.\n\nVACUITY GUARD, once per rung. A chord that never arrives leaves the previous load's verdict in window.probe, and 'network' left over from Cmd+Shift+R is indistinguishable from 'network' earned by Cmd+Option+R. The loads counter is the only read that tells those apart, which is why every rung has one - the first version of this scenario did not, and it scored rungs 3 and 4 as passing on a page nobody had reloaded.",
+  "fixture": "reload-probe.spaces.json",
+  "startup_space": "96296296-9629-4629-8629-962962962962",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "reload-probe.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/reload-probe.html",
+      "timeout_ms": 20000,
+      "note": "GATE: the probe really committed as the startup tab before any chord is pressed"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "activate",
+      "note": "an ssh-launched Atrium is not frontmost on a clean snapshot, and every chord below would land in Finder"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "probe-startup-loads",
+      "target": "reload-probe.html",
+      "expression": "String(window.probe && window.probe.loads)",
+      "expected": "1",
+      "timeout_ms": 8000,
+      "note": "BASELINE: first load of a clean profile, so the counter starts at 1 and every later read is against a known floor"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+r",
+      "note": "RUNG 1, the plain reload"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "eval_until",
+      "id": "cmd-r-loads",
+      "target": "reload-probe.html",
+      "expression": "String(window.probe && window.probe.loads)",
+      "expected": "2",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval_until",
+      "id": "cmd-r-css",
+      "target": "reload-probe.html",
+      "expression": "String(window.probe && window.probe.css)",
+      "expected": "cache",
+      "timeout_ms": 8000,
+      "note": "ReloadType::NORMAL revalidates the main resource only, so the stylesheet is served straight from cache and transfers nothing"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+r",
+      "note": "RUNG 2, past the cache"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "eval_until",
+      "id": "cmd-shift-r-loads",
+      "target": "reload-probe.html",
+      "expression": "String(window.probe && window.probe.loads)",
+      "expected": "3",
+      "timeout_ms": 8000,
+      "note": "VACUITY GUARD for this rung: a chord that never reloaded leaves the previous load's verdict standing, which reads exactly like a correct answer"
+    },
+    {
+      "type": "eval_until",
+      "id": "cmd-shift-r-css",
+      "target": "reload-probe.html",
+      "expression": "String(window.probe && window.probe.css)",
+      "expected": "network",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval_until",
+      "id": "cmd-shift-r-cookie",
+      "target": "reload-probe.html",
+      "expression": "String(window.probe && window.probe.cookie)",
+      "expected": "kept",
+      "timeout_ms": 8000,
+      "note": "a hard reload is not a site-data wipe - the cookie has to survive this rung, or rung 4 proves nothing"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+opt+r",
+      "note": "RUNG 3, empty the cache and hard reload"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "eval_until",
+      "id": "cmd-opt-r-loads",
+      "target": "reload-probe.html",
+      "expression": "String(window.probe && window.probe.loads)",
+      "expected": "4",
+      "timeout_ms": 8000,
+      "note": "VACUITY GUARD, and the one that records the reported bug: on today's build Cmd+Option+R is bound to nothing and this stays at 3"
+    },
+    {
+      "type": "eval_until",
+      "id": "cmd-opt-r-css",
+      "target": "reload-probe.html",
+      "expression": "String(window.probe && window.probe.css)",
+      "expected": "network",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval_until",
+      "id": "cmd-opt-r-cookie",
+      "target": "reload-probe.html",
+      "expression": "String(window.probe && window.probe.cookie)",
+      "expected": "kept",
+      "timeout_ms": 8000,
+      "note": "emptying the HTTP cache is not emptying the site's storage, so the cookie stands here too"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+opt+shift+r",
+      "note": "RUNG 4, clear this site's cookies and site data, then hard reload"
+    },
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "the removal is asynchronous and the reload waits on its reply, so this rung settles longer than the three above"
+    },
+    {
+      "type": "eval_until",
+      "id": "cmd-opt-shift-r-cookie",
+      "target": "reload-probe.html",
+      "expression": "String(window.probe && window.probe.cookie)",
+      "expected": "fresh",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "eval_until",
+      "id": "cmd-opt-shift-r-loads",
+      "target": "reload-probe.html",
+      "expression": "String(window.probe && window.probe.loads)",
+      "expected": "1",
+      "timeout_ms": 10000,
+      "note": "localStorage went with the cookies, so the counter is back at its first-load value"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window throughout, so no chord opened or closed one",
+      "label": "one-window-still"
+    },
+    {
+      "type": "eval_equals",
+      "id": "probe-startup-loads",
+      "expected": "1",
+      "desc": "BASELINE: the probe loaded once on a clean profile"
+    },
+    {
+      "type": "eval_equals",
+      "id": "cmd-r-loads",
+      "expected": "2",
+      "desc": "THE VACUITY GUARD. Cmd+R reloaded the page it was pressed at. Every css read below is worthless if this fails, because an unpressed chord and a wrong reload look identical in the cache verdict."
+    },
+    {
+      "type": "eval_equals",
+      "id": "cmd-r-css",
+      "expected": "cache",
+      "desc": "AC: Cmd+R is the ordinary reload - it revalidates the page and serves the stylesheet from cache"
+    },
+    {
+      "type": "eval_equals",
+      "id": "cmd-shift-r-loads",
+      "expected": "3",
+      "desc": "VACUITY GUARD for rung 2: the chord reloaded the page, so the cache verdict beside it is this load's and not the last one's"
+    },
+    {
+      "type": "eval_equals",
+      "id": "cmd-shift-r-css",
+      "expected": "network",
+      "desc": "Cmd+Shift+R reloads past the cache, so the stylesheet body comes back over the wire"
+    },
+    {
+      "type": "eval_equals",
+      "id": "cmd-shift-r-cookie",
+      "expected": "kept",
+      "desc": "Cmd+Shift+R is a cache bypass and nothing more - the site's cookie is untouched"
+    },
+    {
+      "type": "eval_equals",
+      "id": "cmd-opt-r-loads",
+      "expected": "4",
+      "desc": "THE REPORTED BUG, stated as one number. On today's build Cmd+Option+R is bound to nothing at all and this reads 3 - the page never reloaded, and the cache verdict below is the previous chord's answer left standing."
+    },
+    {
+      "type": "eval_equals",
+      "id": "cmd-opt-r-css",
+      "expected": "network",
+      "desc": "Cmd+Option+R empties the cache and reloads, so the body is fetched again"
+    },
+    {
+      "type": "eval_equals",
+      "id": "cmd-opt-r-cookie",
+      "expected": "kept",
+      "desc": "Emptying the cache leaves the site's cookies alone, which is what separates rung 3 from rung 4"
+    },
+    {
+      "type": "eval_equals",
+      "id": "cmd-opt-shift-r-cookie",
+      "expected": "fresh",
+      "desc": "Cmd+Option+Shift+R cleared the site's cookies before reloading, so the page had to set its own again"
+    },
+    {
+      "type": "eval_equals",
+      "id": "cmd-opt-shift-r-loads",
+      "expected": "1",
+      "desc": "LocalStorage went with the cookies. Cookies alone would leave this counter climbing, so this is the half that proves the whole of the site's data went."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly after four reloads and a site-data removal"
+    }
+  ]
+}

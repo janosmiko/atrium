@@ -1,0 +1,107 @@
+{
+  "name": "the-floating-bar-draws-real-extension-icons",
+  "description": "Three parts of the Cmd+Shift+D swap. The floating bar renders its chips from the same module the sidebar strip uses, but it never got an icon scope, so extIconPath() returned an empty src and every chip drew the browser's broken-image glyph. The bar also appeared in one frame while the sidebar row slid away above it. And the sidebar strip used a flat four columns, so three pins stopped three quarters of the way across and a fifth sat alone under a full row.",
+  "fixture": "three-spaces-two-profiles.json",
+  "startup_space": "3ab00002-0000-4000-8000-000000000002",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "started-on-the-second-space",
+      "target": "long-page.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/long-page.html",
+      "timeout_ms": 20000
+    },
+    {"type": "settle", "ms": 2500},
+    {
+      "type": "activate",
+      "note": "an ssh-launched Atrium is not frontmost on a clean snapshot, and the chord below would land in Finder"
+    },
+    {"type": "settle", "ms": 1200},
+    {
+      "type": "eval",
+      "id": "seed-five-pins",
+      "target": "/sidebar",
+      "expression": "(() => { const strip = document.querySelector('body > .exs-row'); if (!strip) { return 'no strip'; } const active = strip.dataset.profileId || ''; const pins = [1,2,3,4,5].map((n) => ({id: 'ext-' + n, name: 'Ext ' + n, actionTitle: 'Ext ' + n, visible: true, hasPopup: false, pinned: true})); window.atriumSetSidebarExtensions(pins, active); return strip.querySelectorAll('.exs-chip').length === 5 ? 'five pins on the strip' : 'chips:' + strip.querySelectorAll('.exs-chip').length; })()"
+    },
+    {"type": "settle", "ms": 600},
+    {
+      "type": "eval",
+      "id": "five-split-three-and-two",
+      "target": "/sidebar",
+      "expression": "(() => { const strip = document.querySelector('body > .exs-row'); const cols = getComputedStyle(strip).gridTemplateColumns.split(' ').length; const tops = [...new Set([...strip.querySelectorAll('.exs-chip')].map((c) => Math.round(c.getBoundingClientRect().top)))]; return cols === 3 && tops.length === 2 ? 'three columns over two rows' : 'cols ' + cols + ' rows ' + tops.length; })()"
+    },
+    {
+      "type": "eval",
+      "id": "three-fill-the-width",
+      "target": "/sidebar",
+      "expression": "(() => { const strip = document.querySelector('body > .exs-row'); const active = strip.dataset.profileId || ''; window.atriumSetSidebarExtensions([1,2,3].map((n) => ({id: 'ext-' + n, name: 'Ext ' + n, actionTitle: 'Ext ' + n, visible: true, hasPopup: false, pinned: true})), active); const chips = [...strip.querySelectorAll('.exs-chip')]; const row = strip.getBoundingClientRect(); const span = chips[chips.length - 1].getBoundingClientRect().right - chips[0].getBoundingClientRect().left; return Math.abs(span - row.width) <= 1 ? 'three pins fill the row' : 'span ' + Math.round(span) + ' of ' + Math.round(row.width); })()"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d",
+      "note": "the bar comes up, and the window pushes it the icon scope with the pins"
+    },
+    {"type": "settle", "ms": 1500},
+    {
+      "type": "eval",
+      "id": "the-bar-drew-real-icons",
+      "target": "/devbar",
+      "expression": "(() => { window.atriumSetSidebarExtensions([{id: 'ext-1', name: 'Ext 1', actionTitle: 'Ext 1', visible: true, hasPopup: false, pinned: true}]); const icon = document.querySelector('.dvexts .crx-icon'); if (!icon) { return 'the push drew no chip'; } const p = new URL(icon.src, location.href).pathname; return /^\\/exticon\\/[^/]+\\/ext-1\\.png$/.test(p) ? 'the chip carries a scoped icon path' : 'path ' + (p || 'empty'); })()"
+    },
+    {
+      "type": "eval",
+      "id": "the-bar-descended",
+      "target": "/devbar",
+      "expression": "(() => { const bar = document.querySelector('.devbar'); return bar.classList.contains('descending') ? 'the bar descended' : 'it appeared at once'; })()"
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the floating bar with real extension icons on it, for the eye"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window throughout",
+      "label": "one-window-still"
+    },
+    {
+      "type": "eval_equals",
+      "id": "seed-five-pins",
+      "expected": "\"five pins on the strip\"",
+      "desc": "the setup gate: the reads below are about five real chips, not an empty row"
+    },
+    {
+      "type": "eval_equals",
+      "id": "five-split-three-and-two",
+      "expected": "\"three columns over two rows\"",
+      "desc": "THE CLAIM for the split. 'cols 4 rows 2' is the old flat grid, which leaves the fifth pin alone under a full row of four"
+    },
+    {
+      "type": "eval_equals",
+      "id": "three-fill-the-width",
+      "expected": "\"three pins fill the row\"",
+      "desc": "THE CLAIM for the width. A span of about three quarters of the row is the old grid holding a fourth column open for a pin that is not there"
+    },
+    {
+      "type": "eval_equals",
+      "id": "the-bar-drew-real-icons",
+      "expected": "\"the chip carries a scoped icon path\"",
+      "desc": "THE CLAIM for the icons. The VM has no real extension, so the pin goes in through the same entry point the window pushes to, and the scope it reads is the one the window really sent. 'path empty' means no scope arrived and the chip draws the broken-image glyph"
+    },
+    {
+      "type": "eval_equals",
+      "id": "the-bar-descended",
+      "expected": "\"the bar descended\"",
+      "desc": "the bar ran its entrance rather than appearing in one frame beside a sidebar row that slides"
+    }
+  ]
+}

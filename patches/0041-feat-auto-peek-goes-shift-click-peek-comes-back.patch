@@ -1,0 +1,115 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 13:41:28 +0200
+Subject: [PATCH 041/154] feat: auto-peek goes, shift+click peek comes back
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Peek had two triggers and the cut hit them differently.
+
+Auto-peek asked Swift one question - is this tab pinned or favourited - and
+nothing else could answer it. The throttle, ShouldAutoPeek and the posted
+open go. A follow-up rebuilds the trigger against the Rust core, which owns
+the spaces model now.
+
+Shift+click is the opposite. Its whole implementation is C++ and survived
+intact; the only thing stopping it was `connected() && peek_connected()` in
+Browser::OpenURLFromTab, which has been false since the cut. Dropping those
+two lines gives the feature back.
+
+atrium_peek_decision stays with its gtest suite. It is the Keyhole promise
+- a pinned page never navigates away - written as a testable
+rule, and the rebuild starts from it.
+
+Kept, and easy to sweep by mistake: the throttle's note that peek must never
+open synchronously from inside a throttle callback, because NavigationRequest
+re-enters. That is a constraint on the rebuild, not dylib behaviour, so it is
+recorded for that follow-up.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../browser/chrome_content_browser_client.cc  | 11 ----------
+ chrome/browser/ui/BUILD.gn                    |  2 --
+ chrome/browser/ui/browser.cc                  | 20 +++++++++----------
+ 3 files changed, 9 insertions(+), 24 deletions(-)
+
+diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
+index 904c6efe26037..356faf9cbdbe6 100644
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -599,7 +599,6 @@
+ #endif  // !BUILDFLAG(IS_ANDROID)
+ 
+ #if BUILDFLAG(IS_MAC)
+-#include "chrome/browser/ui/atrium/atrium_peek_navigation_throttle.h"
+ #endif  // BUILDFLAG(IS_MAC)
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+@@ -5665,16 +5664,6 @@ void ChromeContentBrowserClient::RemovePresentationObserver(
+ void ChromeContentBrowserClient::CreateThrottlesForNavigation(
+     content::NavigationThrottleRegistry& registry) {
+   CreateAndAddChromeThrottlesForNavigation(registry);
+-
+-#if BUILDFLAG(IS_MAC)
+-  // Atrium M2 auto-peek (2026-07-14 plan): a plain cross-site link click from
+-  // a pinned/favorited tab peeks instead of navigating in place. A throttle,
+-  // not an OpenURLFromTab hook, because a plain click never emits the OpenURL
+-  // IPC (see the plan's "INTERCEPT RE-ADJUDICATION"). No-op for a
+-  // vanilla/degraded dylib - MaybeCreateAndAdd only registers when the peek
+-  // ABI group is connected.
+-  atrium::AtriumPeekNavigationThrottle::MaybeCreateAndAdd(registry);
+-#endif  // BUILDFLAG(IS_MAC)
+ }
+ 
+ std::vector<std::unique_ptr<content::CommitDeferringCondition>>
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 37947b0f56276..d958b992d5b5e 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3493,8 +3493,6 @@ static_library("ui") {
+       "atrium/atrium_main_extra_parts.h",
+       "atrium/atrium_main_extra_parts.cc",
+       "atrium/atrium_peek_intercept.cc",
+-      "atrium/atrium_peek_navigation_throttle.cc",
+-      "atrium/atrium_peek_navigation_throttle.h",
+       "atrium/atrium_profile_bootstrap.h",
+       "atrium/atrium_profile_bootstrap.cc",
+       "atrium/atrium_status_bubble_hook.h",
+diff --git a/chrome/browser/ui/browser.cc b/chrome/browser/ui/browser.cc
+index a238181505c59..367aa897611aa 100644
+--- a/chrome/browser/ui/browser.cc
++++ b/chrome/browser/ui/browser.cc
+@@ -1524,22 +1524,20 @@ WebContents* Browser::OpenURLFromTab(
+   // started_from_context_menu excludes "Open Link in New Window" (also
+   // NEW_WINDOW) so an explicit user choice is never swallowed;
+   // is_renderer_initiated excludes any browser-initiated NEW_WINDOW open.
+-  // peek_connected() is the real dlsym'd fourth ABI-group gate (Task 2) -
+-  // same AND-gate shape as every other optional group here. A dylib missing
+-  // any of the four peek exports leaves this false and shift+click falls
+-  // through to stock NEW_WINDOW behavior below.
++  // This used to AND in connected() and peek_connected(), which
++  // asked the dylib whether a peek surface existed. Since the cut that is
++  // never, so shift+click fell through to a stock new window. The peek card
++  // itself is C++ and survived, so the gate goes and the feature returns.
+   if (params.disposition == WindowOpenDisposition::NEW_WINDOW &&
+       params.is_renderer_initiated && !params.started_from_context_menu &&
+-      atrium::UIBridge::Get()->connected() &&
+-      atrium::UIBridge::Get()->peek_connected() &&
+       atrium::MaybeOpenPeek(this, source, params.url, params.referrer)) {
+     return source;  // No new WebContents/window created on this path.
+   }
+-  // Auto-peek for a plain (unmodified) cross-site link click from a
+-  // pinned/favorited tab (M2, 2026-07-14 plan) is NOT hooked here: a plain
+-  // click never emits the OpenURL IPC that reaches this method (see the
+-  // plan's "INTERCEPT RE-ADJUDICATION"), so it lives in
+-  // atrium_peek_navigation_throttle instead.
++  // Auto-peek - a plain cross-site link click from a pinned or favourited tab
++  // - is not hooked here and never was: a plain click emits no OpenURL IPC.
++  // It lived in a navigation throttle, which the Swift cut deleted because only
++  // Swift could say whether the source tab was pinned. A follow-up rebuilds it
++  // against the Rust core.
+ #endif  // BUILDFLAG(IS_MAC)
+ 
+   NavigateParams nav_params(this, params.url, params.transition);

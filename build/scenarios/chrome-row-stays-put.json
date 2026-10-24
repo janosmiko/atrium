@@ -1,0 +1,129 @@
+{
+  "name": "chrome-row-stays-put",
+  "description": "The pinned chrome row and the address bar are sidebar-level, so a swipe moves the panes underneath them and leaves both where they are. This is the reported defect measured as pixels rather than as DOM: the address row used to be rendered once per rail pane, so the rail's own transform carried every copy off screen with the workspace. The rows region is asserted to CHANGE across the same pair, or a build that rendered no rail at all would satisfy the stability half on its own.",
+  "fixture": "presenter-startup.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "let the space and its tab render"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "capture",
+      "id": "rest",
+      "duration_ms": 800,
+      "fps": 10,
+      "note": "the baseline both stability assertions compare against. 800ms rather than a single frame: a short burst right after activate can still catch the window mid-paint, and the LAST frame is the one registered."
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 140,
+      "y": 320,
+      "dx": 90,
+      "phase_ms": 900,
+      "momentum_ms": 0,
+      "capture_id": "swipe",
+      "duration_ms": 2400,
+      "fps": 25,
+      "note": "A tracked scrub, no momentum tail. x is inside the 280px sidebar and y is well below the chrome row, so the gesture lands on the rail rather than on a control."
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "hide-both",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.sbnav'); const bar = document.querySelector('.urlrow'); if (!row || !bar) { return 'missing'; } row.style.visibility = 'hidden'; bar.style.visibility = 'hidden'; return 'hidden'; })()",
+      "note": "Calibrates the two regions below. A region_stable that looked at empty backdrop would pass whether or not the surface still drew anything there, so each band is measured again with its own control taken away."
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "capture",
+      "id": "hidden",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "pixels_changed",
+      "before": "rest",
+      "after": "swipe",
+      "region": [
+        10,
+        260,
+        260,
+        200
+      ],
+      "min_changed_pct": 10.0,
+      "desc": "the swipe really moved the panes - without this the stability assertions below would pass on a build that rendered no rail"
+    },
+    {
+      "type": "region_stable",
+      "before": "rest",
+      "after": "swipe",
+      "region": [
+        86,
+        41,
+        94,
+        18
+      ],
+      "max_delta": 3,
+      "desc": "the pinned chrome row's own footprint, the window's one caption hole"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hide-both",
+      "expected": "\"hidden\"",
+      "note": "The calibration below means nothing if the controls were never found."
+    },
+    {
+      "type": "pixels_changed",
+      "before": "swipe",
+      "after": "hidden",
+      "region": [
+        86,
+        41,
+        94,
+        18
+      ],
+      "min_changed_pct": 4.0,
+      "desc": "the chrome row is still IN its band after the swipe - taking it away changes the same pixels the assertion above found unchanged"
+    },
+    {
+      "type": "pixels_changed",
+      "before": "swipe",
+      "after": "hidden",
+      "region": [
+        14,
+        66,
+        250,
+        26
+      ],
+      "min_changed_pct": 20.0,
+      "desc": "the address bar is still IN its band after the swipe - the reported defect is this band sliding away with the workspace"
+    }
+  ]
+}

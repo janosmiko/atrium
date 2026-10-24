@@ -1,0 +1,112 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Wed, 9 Sep 2026 09:22:15 +0200
+Subject: [PATCH 125/154] fix(quit): the hold-to-quit HUD follows the overlay
+ theme and keeps its keycaps
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The HUD has no WebContents, so the overlay theme never reached it and
+it always mixed the brand crimson. The brand book themes now live in
+C++ too (atrium_overlay_themes.cc, pinned to the book by the node
+test), the window writes the chosen palette to local state whenever
+the theme is applied, and the HUD reads it back. In the native look
+the Cmd and Q caps kept no chip at all and read as plain words: they
+now draw in the ink at a low alpha.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn                               | 2 ++
+ chrome/browser/ui/cocoa/BUILD.gn                         | 1 +
+ chrome/browser/ui/cocoa/confirm_quit.cc                  | 3 +++
+ chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm | 6 ++++--
+ chrome/common/pref_names.h                               | 8 +++++++-
+ 5 files changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 162d48e7b9ae5..8146fd31c0881 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -620,7 +620,9 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:capture_overlay_math",
+     "//chrome/browser/ui/atrium:cdp_response",
+     "//chrome/browser/ui/atrium:claim_ledger_decision",
++    "//chrome/browser/ui/atrium:confirm_quit_panel_style",
+     "//chrome/browser/ui/atrium:confirm_to_quit",
++    "//chrome/browser/ui/atrium:overlay_themes",
+     "//chrome/browser/ui/atrium:corner_radius",
+     "//chrome/browser/ui/atrium:custom_endpoint_request_guard",
+     "//chrome/browser/ui/atrium:devtools_card_corners",
+diff --git a/chrome/browser/ui/cocoa/BUILD.gn b/chrome/browser/ui/cocoa/BUILD.gn
+index 2febcd63974db..df23b90082143 100644
+--- a/chrome/browser/ui/cocoa/BUILD.gn
++++ b/chrome/browser/ui/cocoa/BUILD.gn
+@@ -125,6 +125,7 @@ source_set("cocoa") {
+     "//chrome/browser:browser_process",
+     "//chrome/browser:chrome_browser_application_mac",
+     "//chrome/browser/ui/atrium:confirm_quit_panel_style",
++    "//chrome/browser/ui/atrium:confirm_to_quit",
+     "//chrome/browser:command_updater_impl",
+     "//chrome/browser:global_keyboard_shortcuts_mac",
+     "//chrome/browser:primitives",
+diff --git a/chrome/browser/ui/cocoa/confirm_quit.cc b/chrome/browser/ui/cocoa/confirm_quit.cc
+index 633c098197e7c..928fa03f1909b 100644
+--- a/chrome/browser/ui/cocoa/confirm_quit.cc
++++ b/chrome/browser/ui/cocoa/confirm_quit.cc
+@@ -37,6 +37,9 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
+   registry->RegisterIntegerPref(prefs::kAtriumConfirmQuitPanelSurroundColor,
+                                 -1);
+   registry->RegisterIntegerPref(prefs::kAtriumConfirmQuitPanelAccentColor, -1);
++  registry->RegisterIntegerPref(prefs::kAtriumConfirmQuitPanelInkColor, -1);
++  registry->RegisterIntegerPref(prefs::kAtriumConfirmQuitPanelPaperColor, -1);
++  registry->RegisterIntegerPref(prefs::kAtriumConfirmQuitPanelSoftColor, -1);
+ }
+ 
+ }  // namespace confirm_quit
+diff --git a/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm b/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
+index 0d8141b0d0158..a23c4595627f1 100644
+--- a/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
++++ b/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
+@@ -15,6 +15,7 @@
+ #include "chrome/browser/browser_process.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ui/atrium/atrium_confirm_quit_panel_style.h"
++#include "chrome/browser/ui/atrium/atrium_confirm_to_quit.h"
+ #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+ #include "chrome/browser/ui/cocoa/confirm_quit.h"
+ #include "chrome/common/pref_names.h"
+@@ -62,8 +63,9 @@ atrium::ConfirmQuitPanelStyle CurrentPanelStyle() {
+       surround_argb >= 0
+           ? std::make_optional(static_cast<SkColor>(surround_argb))
+           : std::nullopt;
+-  return atrium::ComputeConfirmQuitPanelStyle(dark, native, surround,
+-                                              std::nullopt);
++  return atrium::ComputeConfirmQuitPanelStyle(
++      dark, native, surround,
++      atrium::ConfirmQuitPanelThemeFromPrefs(*local_state));
+ }
+ 
+ }  // namespace
+diff --git a/chrome/common/pref_names.h b/chrome/common/pref_names.h
+index ec32b3aa0bdc2..6aa68ad013acb 100644
+--- a/chrome/common/pref_names.h
++++ b/chrome/common/pref_names.h
+@@ -406,9 +406,15 @@ inline constexpr char kAtriumConfirmQuitPanelNative[] =
+ inline constexpr char kAtriumConfirmQuitPanelSurroundColor[] =
+     "browser.atrium_confirm_quit_panel_surround_color";
+ 
+-// The live backdrop tint. -1 means AUTOMATIC (no tint has been pushed yet).
++// The chosen overlay theme's four colours. -1 means the brand fallback.
+ inline constexpr char kAtriumConfirmQuitPanelAccentColor[] =
+     "browser.atrium_confirm_quit_panel_accent_color";
++inline constexpr char kAtriumConfirmQuitPanelInkColor[] =
++    "browser.atrium_confirm_quit_panel_ink_color";
++inline constexpr char kAtriumConfirmQuitPanelPaperColor[] =
++    "browser.atrium_confirm_quit_panel_paper_color";
++inline constexpr char kAtriumConfirmQuitPanelSoftColor[] =
++    "browser.atrium_confirm_quit_panel_soft_color";
+ 
+ // Boolean that indicates whether the browser should show the toolbar when it's
+ // in fullscreen. Mac only.

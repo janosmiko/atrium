@@ -1,0 +1,96 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 23 Jul 2026 13:18:12 +0200
+Subject: [PATCH 007/154] atrium: traffic routing, navigation throttle, little
+ windows
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../browser/chrome_content_browser_client.cc  | 22 +++++++++++++++++++
+ .../browser/ui/navigator/browser_navigator.cc | 22 +++++++++++++++++++
+ 2 files changed, 44 insertions(+)
+
+diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
+index cbac8ed6171b7..e443fdb4830f5 100644
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -598,6 +598,11 @@
+ #include "third_party/blink/public/mojom/installedapp/related_application.mojom.h"
+ #endif  // !BUILDFLAG(IS_ANDROID)
+ 
++#if BUILDFLAG(IS_MAC)
++#include "chrome/browser/ui/atrium/atrium_peek_navigation_throttle.h"
++#include "chrome/browser/ui/atrium/atrium_routing_navigation_throttle.h"
++#endif  // BUILDFLAG(IS_MAC)
++
+ #if BUILDFLAG(IS_CHROMEOS)
+ #include "ash/constants/webui_url_constants.h"
+ #include "ash/shell.h"
+@@ -5661,6 +5666,23 @@ void ChromeContentBrowserClient::RemovePresentationObserver(
+ void ChromeContentBrowserClient::CreateThrottlesForNavigation(
+     content::NavigationThrottleRegistry& registry) {
+   CreateAndAddChromeThrottlesForNavigation(registry);
++
++#if BUILDFLAG(IS_MAC)
++  // Atrium M2 auto-peek (2026-07-14 plan): a plain cross-site link click from
++  // a pinned/favorited tab peeks instead of navigating in place. A throttle,
++  // not an OpenURLFromTab hook, because a plain click never emits the OpenURL
++  // IPC (see the plan's "INTERCEPT RE-ADJUDICATION"). No-op for a
++  // vanilla/degraded dylib - MaybeCreateAndAdd only registers when the peek
++  // ABI group is connected.
++  atrium::AtriumPeekNavigationThrottle::MaybeCreateAndAdd(registry);
++
++  // Traffic routing Hook 3: chrome::Navigate() (Hook 1) never sees
++  // a plain same-tab link click - it resolves via the renderer's own
++  // BeginNavigation. This throttle is the seam that does see it. No-op for
++  // a vanilla/degraded dylib or one with the routing group not connected -
++  // MaybeCreateAndAdd only registers when routing_connected().
++  atrium::AtriumRoutingNavigationThrottle::MaybeCreateAndAdd(registry);
++#endif  // BUILDFLAG(IS_MAC)
+ }
+ 
+ std::vector<std::unique_ptr<content::CommitDeferringCondition>>
+diff --git a/chrome/browser/ui/navigator/browser_navigator.cc b/chrome/browser/ui/navigator/browser_navigator.cc
+index 67fde190279e1..617d904dc944f 100644
+--- a/chrome/browser/ui/navigator/browser_navigator.cc
++++ b/chrome/browser/ui/navigator/browser_navigator.cc
+@@ -28,6 +28,9 @@
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/renderer_host/chrome_navigation_ui_data.h"
+ #include "chrome/browser/tab_contents/tab_util.h"
++#if BUILDFLAG(IS_MAC)
++#include "chrome/browser/ui/atrium/atrium_traffic_routing.h"
++#endif  // BUILDFLAG(IS_MAC)
+ #include "chrome/browser/ui/browser.h"
+ #include "chrome/browser/ui/browser_window.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+@@ -632,6 +635,25 @@ base::WeakPtr<content::NavigationHandle> Navigate(NavigateParams* params) {
+                                   ->GetActiveWebContents();
+   }
+ 
++#if BUILDFLAG(IS_MAC)
++  // Traffic routing Hook 1 (2026-07-10 plan, Task 3): after source_contents
++  // is resolved (a same-profile CURRENT_TAB reroute needs it, to decide
++  // whether the origin tab is fresh enough to close) but before
++  // GetBrowserAndTabForDisposition() below picks/creates the destination
++  // browser - a rerouted navigation must not have chrome's own disposition
++  // handling run first. atrium/atrium_traffic_routing.{h,mm} only build on
++  // Mac (chrome/browser/ui/BUILD.gn's is_mac source list, same footprint as
++  // every other atrium/ file this navigator.cc is otherwise untouched by),
++  // hence the guard. MaybeRerouteNavigation() returning true means it took
++  // over the navigation entirely (either handed off same-profile-passthrough
++  // to Swift's already-armed adoption record, or rerouted CURRENT_TAB
++  // itself) - cancel here with no NavigationHandle, the same contract as
++  // every other early-nullptr path in this function.
++  if (atrium::MaybeRerouteNavigation(params)) {
++    return nullptr;
++  }
++#endif  // BUILDFLAG(IS_MAC)
++
+   WebContents* contents_to_navigate_or_insert =
+       params->contents_to_insert.get();
+   if (params->switch_to_singleton_tab) {

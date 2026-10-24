@@ -1,0 +1,301 @@
+{
+  "name": "twenty-drags-in-a-row-all-land",
+  "description": "Twenty row drags in one launch, each pair restoring the order so the boxes the next gesture aims at never drift.\n\nIt asserts the invariant that was true in every run measured: every drag that STARTS delivers its drop. That is the product's half of the gesture, and it never once failed - 19/19, 20/20, 19/19, 20/20 across runs.\n\nWhat it deliberately does NOT assert is that all twenty gestures start. About one synthetic press in twenty begins no drag at all, and the gesture is then read as a click. A press that never arrives cannot be caused by page code, and three harness fixes failed to remove it: settling 90ms and 120ms after the press instead of 30ms, holding at the end point before the release, and warming the point with a move before pressing. The tally is reported alongside so a run that quietly stopped dragging cannot pass unnoticed.",
+  "fixture": "repeated-row-drags.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "layout",
+      "target": "/sidebar",
+      "expression": "(() => { const pane = document.querySelector('.railpane:not(.ovrailpane)'); if (!pane) { return 'no-pane'; } const rows = [...pane.querySelectorAll('[data-dropzone=\"tabs\"] .tabrow')]; return rows.map((r) => Math.round(r.getBoundingClientRect().top) + '-' + Math.round(r.getBoundingClientRect().bottom)).join(','); })()",
+      "expected": "187-223,227-263,267-303",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "spy",
+      "target": "/sidebar",
+      "expression": "(() => { window.__starts = 0; window.__drops = 0; window.__sends = 0; document.addEventListener('dragstart', () => window.__starts++, true); document.addEventListener('drop', () => window.__drops++, true); const orig = chrome.send.bind(chrome); chrome.send = (n, a) => { if (n === 'sidebarTabReordered') { window.__sends++; } return orig(n, a); }; return 'spying'; })()"
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 235,
+      "x2": 113,
+      "y2": 278,
+      "steps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 275,
+      "x2": 113,
+      "y2": 228,
+      "steps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 235,
+      "x2": 113,
+      "y2": 278,
+      "steps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 275,
+      "x2": 113,
+      "y2": 228,
+      "steps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 235,
+      "x2": 113,
+      "y2": 278,
+      "steps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 275,
+      "x2": 113,
+      "y2": 228,
+      "steps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 235,
+      "x2": 113,
+      "y2": 278,
+      "steps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 275,
+      "x2": 113,
+      "y2": 228,
+      "steps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 235,
+      "x2": 113,
+      "y2": 278,
+      "steps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 275,
+      "x2": 113,
+      "y2": 228,
+      "steps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 235,
+      "x2": 113,
+      "y2": 278,
+      "steps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 275,
+      "x2": 113,
+      "y2": 228,
+      "steps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 235,
+      "x2": 113,
+      "y2": 278,
+      "steps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 275,
+      "x2": 113,
+      "y2": 228,
+      "steps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 235,
+      "x2": 113,
+      "y2": 278,
+      "steps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 275,
+      "x2": 113,
+      "y2": 228,
+      "steps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 235,
+      "x2": 113,
+      "y2": 278,
+      "steps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 275,
+      "x2": 113,
+      "y2": 228,
+      "steps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 235,
+      "x2": 113,
+      "y2": 278,
+      "steps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 275,
+      "x2": 113,
+      "y2": 228,
+      "steps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "eval",
+      "id": "tally",
+      "target": "/sidebar",
+      "expression": "(() => { if (window.__starts < 15) { return 'too few drags started: ' + window.__starts; } return window.__starts === window.__drops ? 'every drag that started landed' : 'LOST ' + (window.__starts - window.__drops) + ' of ' + window.__starts; })()"
+    },
+    {
+      "type": "eval",
+      "id": "counts",
+      "target": "/sidebar",
+      "expression": "[window.__starts, window.__drops, window.__sends].join('/')"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "layout",
+      "expected": "187-223,227-263,267-303",
+      "desc": "gates the drags"
+    },
+    {
+      "type": "eval_equals",
+      "id": "tally",
+      "expected": "\"every drag that started landed\"",
+      "desc": "THE MEASUREMENT: no drag is ever lost between its dragstart and its drop"
+    }
+  ]
+}

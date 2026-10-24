@@ -1,0 +1,77 @@
+{
+  "name": "settings-native-swipe-feel-track",
+  "description": "With Native app view on, the Swipe feel presets drew as one solid accent block: the track read --ov-sel, which native mode sets to the solid accent, and only the two-option segmented rows re-tinted their track. The fix puts .settings-swipe-presets on the same native track rule as .settings-seg. This reads the computed background of both tracks in the real settings page and requires them to match, then presses Escape and requires the settings window to close (the delegate answers Escape when the search field is empty).",
+  "fixture": "space-cycle.spaces.json",
+  "startup_space": "a276b002-0000-0000-0000-000000000002",
+  "settings": "opaque-surround.settings.json",
+  "app_process": "Atrium",
+  "actions": [
+    {"type": "settle", "ms": 4000},
+    {"type": "activate"},
+    {"type": "settle", "ms": 1200},
+    {"type": "key", "combo": "cmd+comma"},
+    {"type": "settle", "ms": 6000},
+    {"type": "activate"},
+    {
+      "type": "eval",
+      "id": "html-classes",
+      "target": "/settings",
+      "expression": "document.documentElement.className"
+    },
+    {
+      "type": "eval",
+      "id": "tracks",
+      "target": "/settings",
+      "expression": "(() => { document.querySelector('.settings-rail-item[data-pane=\"general\"]').click(); const seg = document.querySelector('.settings-seg'); const a = seg ? getComputedStyle(seg).backgroundColor : 'no-seg'; document.querySelector('.settings-rail-item[data-pane=\"inputs\"]').click(); const sw = document.querySelector('.settings-swipe-presets'); const b = sw ? getComputedStyle(sw).backgroundColor : 'no-swipe'; return 'seg=' + a + ' swipe=' + b; })()"
+    },
+    {"type": "settle", "ms": 800},
+    {
+      "type": "eval",
+      "id": "tracks-equal",
+      "target": "/settings",
+      "expression": "(() => { const sw = document.querySelector('.settings-swipe-presets'); const probe = document.createElement('div'); probe.className = 'settings-seg'; sw.parentNode.appendChild(probe); const same = getComputedStyle(probe).backgroundColor === getComputedStyle(sw).backgroundColor; probe.remove(); return same; })()"
+    },
+    {
+      "type": "eval",
+      "id": "swipe-on-count",
+      "target": "/settings",
+      "expression": "document.querySelectorAll('.settings-swipe-preset.on').length"
+    },
+    {"type": "capture", "id": "inputs-native", "duration_ms": 400, "fps": 10},
+    {
+      "type": "eval",
+      "id": "search-empty",
+      "target": "/settings",
+      "expression": "document.querySelector('.settings-search-field').value"
+    },
+    {"type": "key", "combo": "escape"},
+    {"type": "settle", "ms": 2000}
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "label": "the-swipe-track-wears-the-seg-track-colour",
+      "id": "tracks-equal",
+      "expected": "true"
+    },
+    {
+      "type": "eval_equals",
+      "label": "one-preset-is-on",
+      "id": "swipe-on-count",
+      "expected": "1"
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-search-field-was-empty-before-escape",
+      "id": "search-empty",
+      "expected": "\"\""
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "Escape closed the settings window, only the browser window is left"
+    },
+    {"type": "quit", "desc": "Cmd+Q still quits cleanly"}
+  ]
+}

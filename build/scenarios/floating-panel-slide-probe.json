@@ -1,0 +1,114 @@
+{
+  "fixture": "floating-panel-tint.spaces.json",
+  "settings": "floating-panel-tint.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "name": "floating-panel-slide-probe",
+  "description": "Diagnostic. Captures the floating panel's slide-in and slide-out at 30fps so a person can check that the frost travels with the panel content instead of fading in place at the full panel rect, which read as a lighter ghost rectangle beside the sliding content.",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "tab-opened",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.row'); if (!r) return 'no-row'; r.click(); return 'clicked'; })()",
+      "note": "the space's tab is cold at launch, so the row has to be pressed for the white page to paint in the MAIN window"
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "collapse-pressed",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbtoggle'); if (!b) return 'no-button'; b.click(); return 'clicked'; })()",
+      "note": "the row's own Hide button, not Cmd+S - the chord dies whenever an HTML surface holds first responder (a sibling scenario's note)"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar toggle requested from the chrome row",
+      "timeout_ms": 8000,
+      "note": "a collapse that never ran leaves the pane docked, and a panel read over a docked pane says nothing"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "capture",
+      "id": "page-alone",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the white page with no panel over it - the control that says the region really is page, not chrome"
+    },
+    {
+      "type": "move",
+      "x": 300,
+      "y": 400,
+      "note": "park well inside the page first: the arming strip fires on the CROSSING, so two points already inside it fire nothing"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "move",
+      "x": 20,
+      "y": 400
+    },
+    {
+      "type": "capture",
+      "id": "revealing",
+      "duration_ms": 900,
+      "fps": 30,
+      "note": "started on the crossing, so the frames straddle the slide-in"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 400,
+      "note": "off the panel, so the debounce runs out and the panel dismisses"
+    },
+    {
+      "type": "capture",
+      "id": "dismissing",
+      "duration_ms": 1400,
+      "fps": 30
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "label": "the-panel-came-up"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

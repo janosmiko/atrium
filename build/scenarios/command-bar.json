@@ -1,0 +1,116 @@
+{
+  "name": "command-bar",
+  "description": "the command bar opens, takes typing, and closes, with nothing Swift behind it. Every gate is a line only the HTML palette can emit - the widget showing, the bridge receiving a query, the widget closing on a dismiss that came back from the page. The first run of this scenario found the real gap: Cmd+T declined because ExecuteNativeHotkeyAction still read command_bar_connected(), which the VM's stale Jul 7 stub reports as 0. Those gates are gone, and the no-swift-command-bar assertion below now pins that the palette runs with that group absent. The gate on 'Atrium: UI dylib groups' is gone: that line is written at the end of UIBridge's constructor, which returns early when no dylib resolves, so a dylib-free build never writes it. The gate was authored against a stale Jul 7 stub and measured the stub rather than the product. UIBridge is deleted, so no build can write it again.",
+  "fixture": "two-tabs.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "chromium_flags": "--vmodule=atrium_command_bar_widget=1,atrium_autocomplete_bridge=1",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "GATE: the app started and reached a committed page. Without it, a launch that died early would fail every assertion below and read as 'the palette is broken'."
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the reserved chrome context lands about 670ms after startup and the palette's WebContents needs it. Opening before that shows an empty scrim, which is fail-soft but would make this scenario measure the wrong thing."
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "the one trigger the task is about. It reaches AtriumBrowserWindow::OpenCommandBar through the existing 47-call-site path."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "let the /commandbar document load and announce itself"
+    },
+    {
+      "type": "type",
+      "text": "example"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar query length [1-9]",
+      "timeout_ms": 15000,
+      "note": "THE MEASUREMENT for typing. The length is logged, never the text - a query is browsing data. A non-zero length is what says the keystrokes reached the field, went out as chrome.send, and arrived at the warm AutocompleteController. The line carries no host pointer (it went with the ABI), and the query text is never logged - only its length, because a command bar query is a URL or a search term."
+    },
+    {
+      "type": "key",
+      "combo": "escape"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget closing",
+      "timeout_ms": 15000,
+      "note": "Escape is handled in the page and comes back as commandBarDismiss, so this line also says the outbound half of the message vocabulary works."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "the main path - type a query and press Enter - had never been exercised here. Escape was the only key this scenario tried, so the accept-on-Enter route (commandbar.js's accept()) shipped unmeasured."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/peek-target.html",
+      "note": "a URL distinct from both fixture tabs (example.com/org), so the resulting tab is unambiguous in the log"
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "THE MEASUREMENT for pressed straight after typing, with no settle in between, so the AutocompleteController's pass for this URL is still in flight and matches[] is still empty in the page - the exact race the bug report was about. A settle here would let the pass land first, and then even the old, unpatched accept() would already have a match to fire on: that would make this action pass whether or not the fix is present. Enter must open the typed destination, not silently no-op, and it must do so via the pendingAccept path this scenario is meant to cover."
+    },
+    {
+      "type": "eval_until",
+      "id": "typed-url-tab-page",
+      "target": "peek-target.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-target.html",
+      "timeout_ms": 15000,
+      "note": "proves Enter actually accepted a match and opened it as a new tab - the exact failure (Cmd+T opens the bar and Enter does nothing) would time this out"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "palette-took-key",
+      "pattern": "Atrium: command bar gained key",
+      "note": "the widget is activatable and the field can only take first responder once its window is key. Without this the bar could be visible and silently eat every keystroke, which is a state the Swift palette shipped in once."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "and the browser window is still there. The palette is a child window of it, so a crash while building the WebContents would take both."
+    },
+    {
+      "type": "quit",
+      "desc": "and it was responsive enough to quit on Cmd+Q"
+    }
+  ]
+}

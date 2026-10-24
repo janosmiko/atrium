@@ -1,0 +1,105 @@
+{
+  "name": "peek-scrim",
+  "description": "does the peek's dim scrim reach live web content, or only the corner notches where the backdrop shows through? ANSWERED 2026-08-08: it reaches the page. The parent is solid #ff0000 with nothing else on it, and a strip of it between the sidebar and the card reads 255,0,0 before and 166,0,0 with a peek open - a delta of 89, the 0x59 alpha the task predicted, with variance 0.0 on both frames. So no scrim code was needed. Three things had to be solved before it could measure anything, and each of them looked like the feature failing. A peek only opens for an http/https navigation whose eTLD+1 differs from the current page AND from a peek-eligible tab, so file:// fixtures - every other fixture here - cannot trigger one; serve_fixtures starts a local server and the parent links 127.0.0.1 to localhost, the cheapest cross-site pair. Eligibility comes from the FAVORITE entry rather than from pinning: a cold pinned row deliberately ignores clicks (sidebar.js - reopening it would quietly unpin it) and nothing restores a pinned tab at startup, so a pinned parent can never become the live tab. And the gate waited for 'Atrium: tab N url .../peek-target' for two sessions while the peek was opening perfectly well the whole time - a peek's contents are not a tab and emit 'Atrium: peek url ...' instead. The click coordinates and the sample region are both read off captured frames rather than derived; every time they were computed instead, they were wrong and reported nothing rather than an obvious error.",
+  "fixture": "peek-scrim.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "27027027-2702-4702-8702-270270270270",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the startup tab commit before navigating"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "peek-scrim-red.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-scrim-red.html",
+      "timeout_ms": 15000,
+      "note": "GATE: the red page really committed as the STARTUP tab. Navigating to it through Cmd+L was tried first and does not work here: the command bar opens and gains key, then the run log shows a dismiss op rather than a commit, which matches the known flakiness of committing the command bar through synthetic input. Making the page the startup tab removes the navigation step entirely."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the undimmed parent"
+    },
+    {
+      "type": "move",
+      "x": 338,
+      "y": 96,
+      "note": "Hover the link before pressing it. The click alone opened a peek on roughly half of the runs, with the page loaded and the link at exactly these coordinates in every captured frame - so the press was landing without the pointer having settled there. cgevent's move posts a plain mouseMoved with no button."
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "click",
+      "x": 338,
+      "y": 96,
+      "note": "the link, at coordinates READ OFF a captured frame rather than derived from assumed chrome widths. The first attempt clicked 300,120 from arithmetic (280px sidebar + 40px page padding) and landed just below the link: the sidebar is about 220px here, not 280, and the web pane starts at y=40. A plain click, because MaybeOpenPeek fires on the navigation itself rather than on a modifier."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: peek widget showing for parent",
+      "timeout_ms": 15000,
+      "note": "GATE: a peek really opened. It watches PeekWidget::Show's own line (atrium_peek_widget.mm:527), the sole writer of peek-opened state left in the tree - confirmed by VM run 2026-08-10."
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the open animation finish so the scrim is at full strength rather than mid-fade"
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the parent with a peek open over it"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "theme_changed",
+      "before": "before",
+      "after": "after",
+      "region": [
+        240,
+        400,
+        60,
+        150
+      ],
+      "desc": "THE MEASUREMENT, and it came back yes. A vertical strip of parent page between the sidebar's right edge near x=220 and the peek card's left edge near x=320, so it is entirely live web content - clear of the card and clear of the corner notches. Answer on 2026-08-08: 255,0,0 becomes 166,0,0, a delta of 89, which is the 0x59 alpha the task predicted. Variance is 0.0 on BOTH frames, which is the check that the strip really is flat red and the numbers mean what they say. Two other strips, the right margin and the bottom, give the identical reading, so the dimming is uniform across the parent rather than local. Earlier regions were wrong twice and each time reported nothing rather than an obvious error: y=900 on a 1024x768 frame is off the image, and 240,600,120,60 straddles the card's left edge, which shows up as a variance of 8246 against the 0.0 a solid page must give.",
+      "min_delta": 4.0
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits"
+    }
+  ]
+}

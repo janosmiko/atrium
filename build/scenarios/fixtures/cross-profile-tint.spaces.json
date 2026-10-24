@@ -1,0 +1,528 @@
+{
+ "spaces": [
+  {
+   "id": "13040000-0000-4000-8000-000000000001",
+   "name": "Personal",
+   "emoji": "P",
+   "tint": "#727479",
+   "tintStrength": 1,
+   "profileID": "Default",
+   "order": 0,
+   "pinnedCollapsed": false,
+   "groups": [],
+   "pinnedTabs": [],
+   "tabs": []
+  },
+  {
+   "id": "13040000-0000-4000-8000-000000000002",
+   "name": "New Space",
+   "emoji": "N",
+   "tint": "#332239",
+   "tintStrength": 1,
+   "profileID": "Default",
+   "order": 1,
+   "pinnedCollapsed": false,
+   "groups": [],
+   "pinnedTabs": [],
+   "tabs": []
+  },
+  {
+   "id": "13040000-0000-4000-8000-000000000003",
+   "name": "BPX",
+   "emoji": "B",
+   "tint": "atriumSolarized",
+   "tintStrength": 1,
+   "profileID": "Profile 1",
+   "order": 2,
+   "pinnedCollapsed": false,
+   "groups": [
+    {
+     "id": "13040000-0000-4000-9000-000000000030",
+     "name": "Folder 1",
+     "collapsed": true
+    },
+    {
+     "id": "13040000-0000-4000-9000-000000000031",
+     "name": "Folder 2",
+     "collapsed": true
+    }
+   ],
+   "pinnedTabs": [
+    {
+     "url": "http://dl.localhost:8000/dark-login.html",
+     "pinnedURL": "http://dl.localhost:8000/dark-login.html",
+     "title": "Dark Login",
+     "lastActiveAt": 812527537.7089839,
+     "groupID": "13040000-0000-4000-9000-000000000030"
+    },
+    {
+     "url": "http://dl.localhost:8000/icon-tint-orange.html?n=1",
+     "pinnedURL": "http://dl.localhost:8000/icon-tint-orange.html?n=1",
+     "title": "Pinned 2",
+     "lastActiveAt": 785425295.262459,
+     "groupID": "13040000-0000-4000-9000-000000000030"
+    },
+    {
+     "url": "http://dl.localhost:8000/icon-tint-blue.html?n=2",
+     "pinnedURL": "http://dl.localhost:8000/icon-tint-blue.html?n=2",
+     "title": "Pinned 3",
+     "lastActiveAt": 795419303.117442,
+     "groupID": "13040000-0000-4000-9000-000000000030"
+    },
+    {
+     "url": "http://dl.localhost:8000/four-colour-favicon.html?n=3",
+     "pinnedURL": "http://dl.localhost:8000/four-colour-favicon.html?n=3",
+     "title": "Pinned 4",
+     "lastActiveAt": 791722922.972017,
+     "groupID": "13040000-0000-4000-9000-000000000030"
+    },
+    {
+     "url": "http://dl.localhost:8000/example-domain.html?n=4",
+     "pinnedURL": "http://dl.localhost:8000/example-domain.html?n=4",
+     "title": "Pinned 5",
+     "lastActiveAt": 793613009.944945,
+     "groupID": "13040000-0000-4000-9000-000000000030"
+    },
+    {
+     "url": "http://dl.localhost:8000/peek-scrim-red.html?n=5",
+     "pinnedURL": "http://dl.localhost:8000/peek-scrim-red.html?n=5",
+     "title": "Pinned 6",
+     "lastActiveAt": 794751981.87147,
+     "groupID": "13040000-0000-4000-9000-000000000030"
+    },
+    {
+     "url": "http://dl.localhost:8000/example-domain-tall.html?n=6",
+     "pinnedURL": "http://dl.localhost:8000/example-domain-tall.html?n=6",
+     "title": "Pinned 7",
+     "lastActiveAt": 802586703.350579,
+     "groupID": "13040000-0000-4000-9000-000000000030"
+    },
+    {
+     "url": "http://dl.localhost:8000/favourite-links.html?n=7",
+     "pinnedURL": "http://dl.localhost:8000/favourite-links.html?n=7",
+     "title": "Pinned 8",
+     "lastActiveAt": 795373368.286185,
+     "groupID": "13040000-0000-4000-9000-000000000030"
+    },
+    {
+     "url": "http://dl.localhost:8000/light-tint-red.html?n=8",
+     "pinnedURL": "http://dl.localhost:8000/light-tint-red.html?n=8",
+     "title": "Pinned 9",
+     "lastActiveAt": 795619476.536567,
+     "groupID": "13040000-0000-4000-9000-000000000030"
+    },
+    {
+     "url": "http://dl.localhost:8000/solid-orange.html?n=9",
+     "pinnedURL": "http://dl.localhost:8000/solid-orange.html?n=9",
+     "title": "Pinned 10",
+     "lastActiveAt": 794485180.866046,
+     "groupID": "13040000-0000-4000-9000-000000000030"
+    },
+    {
+     "url": "http://dl.localhost:8000/brand-dark-red-icon.html?n=10",
+     "pinnedURL": "http://dl.localhost:8000/brand-dark-red-icon.html?n=10",
+     "title": "Pinned 11",
+     "lastActiveAt": 807723229.69051,
+     "groupID": "13040000-0000-4000-9000-000000000030"
+    },
+    {
+     "url": "http://dl.localhost:8000/icon-tint-white-one.html?n=11",
+     "pinnedURL": "http://dl.localhost:8000/icon-tint-white-one.html?n=11",
+     "title": "Pinned 12",
+     "lastActiveAt": 805176570.155373,
+     "groupID": "13040000-0000-4000-9000-000000000030"
+    },
+    {
+     "url": "http://dl.localhost:8000/favicon-page.html?n=12",
+     "pinnedURL": "http://dl.localhost:8000/favicon-page.html?n=12",
+     "title": "Pinned 13",
+     "lastActiveAt": 805224734.094852,
+     "groupID": "13040000-0000-4000-9000-000000000030"
+    },
+    {
+     "url": "http://dl.localhost:8000/icon-tint-orange.html?n=13",
+     "pinnedURL": "http://dl.localhost:8000/icon-tint-orange.html?n=13",
+     "title": "Pinned 14",
+     "lastActiveAt": 805224520.128187,
+     "groupID": "13040000-0000-4000-9000-000000000030"
+    },
+    {
+     "url": "http://dl.localhost:8000/icon-tint-blue.html?n=14",
+     "pinnedURL": "http://dl.localhost:8000/icon-tint-blue.html?n=14",
+     "title": "Pinned 15",
+     "lastActiveAt": 780891573.273683,
+     "groupID": "13040000-0000-4000-9000-000000000031"
+    },
+    {
+     "url": "http://dl.localhost:8000/four-colour-favicon.html?n=15",
+     "pinnedURL": "http://dl.localhost:8000/four-colour-favicon.html?n=15",
+     "title": "Pinned 16",
+     "lastActiveAt": 772571361.830707,
+     "groupID": "13040000-0000-4000-9000-000000000031"
+    },
+    {
+     "url": "http://dl.localhost:8000/example-domain.html?n=16",
+     "pinnedURL": "http://dl.localhost:8000/example-domain.html?n=16",
+     "title": "Pinned 17",
+     "lastActiveAt": 772515498.975071,
+     "groupID": "13040000-0000-4000-9000-000000000031"
+    },
+    {
+     "url": "http://dl.localhost:8000/peek-scrim-red.html?n=17",
+     "pinnedURL": "http://dl.localhost:8000/peek-scrim-red.html?n=17",
+     "title": "Pinned 18",
+     "lastActiveAt": 772515541.336491,
+     "groupID": "13040000-0000-4000-9000-000000000031"
+    },
+    {
+     "url": "http://dl.localhost:8000/example-domain-tall.html?n=18",
+     "pinnedURL": "http://dl.localhost:8000/example-domain-tall.html?n=18",
+     "title": "Pinned 19",
+     "lastActiveAt": 772543486.214989,
+     "groupID": "13040000-0000-4000-9000-000000000031"
+    },
+    {
+     "url": "http://dl.localhost:8000/favourite-links.html?n=19",
+     "pinnedURL": "http://dl.localhost:8000/favourite-links.html?n=19",
+     "title": "Pinned 20",
+     "lastActiveAt": 811069644.846392
+    }
+   ],
+   "tabs": []
+  },
+  {
+   "id": "13040000-0000-4000-8000-000000000004",
+   "name": "Eventim",
+   "emoji": "E",
+   "tint": "atriumSolarized",
+   "tintStrength": 1,
+   "profileID": "Profile 7",
+   "order": 3,
+   "pinnedCollapsed": false,
+   "groups": [],
+   "pinnedTabs": [
+    {
+     "url": "http://p7.localhost:8000/light-tint-red.html?n=20",
+     "pinnedURL": "http://p7.localhost:8000/light-tint-red.html?n=20",
+     "title": "Pinned 1",
+     "lastActiveAt": 812527539.209877
+    }
+   ],
+   "tabs": []
+  },
+  {
+   "id": "13040000-0000-4000-8000-000000000005",
+   "name": "Toptal",
+   "emoji": "T",
+   "tint": "atriumSolarized",
+   "tintStrength": 1,
+   "profileID": "Profile 9",
+   "order": 4,
+   "pinnedCollapsed": false,
+   "groups": [],
+   "pinnedTabs": [],
+   "tabs": []
+  },
+  {
+   "id": "13040000-0000-4000-8000-000000000006",
+   "name": "Timi",
+   "emoji": "T",
+   "tint": "atriumSolarized",
+   "tintStrength": 1,
+   "profileID": "Profile 8",
+   "order": 5,
+   "pinnedCollapsed": false,
+   "groups": [],
+   "pinnedTabs": [
+    {
+     "url": "http://p8.localhost:8000/solid-orange.html?n=21",
+     "pinnedURL": "http://p8.localhost:8000/solid-orange.html?n=21",
+     "title": "Pinned 1",
+     "lastActiveAt": 812495376.781008
+    },
+    {
+     "url": "http://p8.localhost:8000/brand-dark-red-icon.html?n=22",
+     "pinnedURL": "http://p8.localhost:8000/brand-dark-red-icon.html?n=22",
+     "title": "Pinned 2",
+     "lastActiveAt": 812043629.9147489
+    }
+   ],
+   "tabs": []
+  },
+  {
+   "id": "13040000-0000-4000-8000-000000000007",
+   "name": "New Space",
+   "emoji": "N",
+   "tint": "oceanBlue",
+   "tintStrength": 1,
+   "profileID": "Default",
+   "order": 6,
+   "pinnedCollapsed": false,
+   "groups": [],
+   "pinnedTabs": [],
+   "tabs": []
+  },
+  {
+   "id": "13040000-0000-4000-8000-000000000008",
+   "name": "BPX-IT",
+   "emoji": "B",
+   "tint": "oceanBlue",
+   "tintStrength": 1,
+   "profileID": "profile-3",
+   "order": 7,
+   "pinnedCollapsed": false,
+   "groups": [],
+   "pinnedTabs": [],
+   "tabs": []
+  }
+ ],
+ "favorites": [
+  {
+   "url": "http://dl.localhost:8000/icon-tint-white-one.html?n=23",
+   "title": "F1",
+   "profileID": "Profile 1"
+  },
+  {
+   "url": "http://dl.localhost:8000/favicon-page.html?n=24",
+   "title": "F2",
+   "profileID": "Profile 1"
+  },
+  {
+   "url": "http://dl.localhost:8000/icon-tint-orange.html?n=25",
+   "title": "F3",
+   "profileID": "Profile 1"
+  },
+  {
+   "url": "http://dl.localhost:8000/icon-tint-blue.html?n=26",
+   "title": "F4",
+   "profileID": "Profile 1"
+  },
+  {
+   "url": "http://dl.localhost:8000/four-colour-favicon.html?n=27",
+   "title": "F5",
+   "profileID": "Profile 1"
+  },
+  {
+   "url": "http://dl.localhost:8000/example-domain.html?n=28",
+   "title": "F6",
+   "profileID": "Profile 1"
+  },
+  {
+   "url": "http://dl.localhost:8000/peek-scrim-red.html?n=29",
+   "title": "F7",
+   "profileID": "Profile 1"
+  },
+  {
+   "url": "http://dl.localhost:8000/example-domain-tall.html?n=30",
+   "title": "F8",
+   "profileID": "Profile 1"
+  },
+  {
+   "url": "http://dl.localhost:8000/favourite-links.html?n=31",
+   "title": "F9",
+   "profileID": "Profile 1"
+  },
+  {
+   "url": "http://dl.localhost:8000/light-tint-red.html?n=32",
+   "title": "F10",
+   "profileID": "Profile 1"
+  },
+  {
+   "url": "http://dl.localhost:8000/solid-orange.html?n=33",
+   "title": "F11",
+   "profileID": "Profile 1"
+  },
+  {
+   "url": "http://dl.localhost:8000/brand-dark-red-icon.html?n=34",
+   "title": "F12",
+   "profileID": "Profile 1"
+  },
+  {
+   "url": "http://127.0.0.1:8000/icon-tint-white-one.html?n=35",
+   "title": "F13",
+   "profileID": "Default"
+  },
+  {
+   "url": "http://127.0.0.1:8000/favicon-page.html?n=36",
+   "title": "F14",
+   "profileID": "Default"
+  },
+  {
+   "url": "http://127.0.0.1:8000/icon-tint-orange.html?n=37",
+   "title": "F15",
+   "profileID": "Default"
+  },
+  {
+   "url": "http://127.0.0.1:8000/icon-tint-blue.html?n=38",
+   "title": "F16",
+   "profileID": "Default"
+  },
+  {
+   "url": "http://127.0.0.1:8000/four-colour-favicon.html?n=39",
+   "title": "F17",
+   "profileID": "Default"
+  },
+  {
+   "url": "http://127.0.0.1:8000/example-domain.html?n=40",
+   "title": "F18",
+   "profileID": "Default"
+  },
+  {
+   "url": "http://127.0.0.1:8000/peek-scrim-red.html?n=41",
+   "title": "F19",
+   "profileID": "Default"
+  },
+  {
+   "url": "http://127.0.0.1:8000/example-domain-tall.html?n=42",
+   "title": "F20",
+   "profileID": "Default"
+  },
+  {
+   "url": "http://127.0.0.1:8000/favourite-links.html?n=43",
+   "title": "F21",
+   "profileID": "Default"
+  },
+  {
+   "url": "http://127.0.0.1:8000/light-tint-red.html?n=44",
+   "title": "F22",
+   "profileID": "Default"
+  },
+  {
+   "url": "http://p2.localhost:8000/solid-orange.html?n=45",
+   "title": "F23",
+   "profileID": "Profile 2"
+  },
+  {
+   "url": "http://p2.localhost:8000/brand-dark-red-icon.html?n=46",
+   "title": "F24",
+   "profileID": "Profile 2"
+  },
+  {
+   "url": "http://p2.localhost:8000/icon-tint-white-one.html?n=47",
+   "title": "F25",
+   "profileID": "Profile 2"
+  },
+  {
+   "url": "http://p2.localhost:8000/favicon-page.html?n=48",
+   "title": "F26",
+   "profileID": "Profile 2"
+  },
+  {
+   "url": "http://p2.localhost:8000/icon-tint-orange.html?n=49",
+   "title": "F27",
+   "profileID": "Profile 2"
+  },
+  {
+   "url": "http://p2.localhost:8000/icon-tint-blue.html?n=50",
+   "title": "F28",
+   "profileID": "Profile 2"
+  },
+  {
+   "url": "http://p2.localhost:8000/four-colour-favicon.html?n=51",
+   "title": "F29",
+   "profileID": "Profile 2"
+  },
+  {
+   "url": "http://p2.localhost:8000/example-domain.html?n=52",
+   "title": "F30",
+   "profileID": "Profile 2"
+  },
+  {
+   "url": "http://p2.localhost:8000/peek-scrim-red.html?n=53",
+   "title": "F31",
+   "profileID": "Profile 2"
+  },
+  {
+   "url": "http://p7.localhost:8000/example-domain-tall.html?n=54",
+   "title": "F32",
+   "profileID": "Profile 7"
+  },
+  {
+   "url": "http://p7.localhost:8000/favourite-links.html?n=55",
+   "title": "F33",
+   "profileID": "Profile 7"
+  },
+  {
+   "url": "http://p7.localhost:8000/light-tint-red.html?n=56",
+   "title": "F34",
+   "profileID": "Profile 7"
+  },
+  {
+   "url": "http://p7.localhost:8000/solid-orange.html?n=57",
+   "title": "F35",
+   "profileID": "Profile 7"
+  },
+  {
+   "url": "http://p7.localhost:8000/brand-dark-red-icon.html?n=58",
+   "title": "F36",
+   "profileID": "Profile 7"
+  },
+  {
+   "url": "http://p7.localhost:8000/icon-tint-white-one.html?n=59",
+   "title": "F37",
+   "profileID": "Profile 7"
+  },
+  {
+   "url": "http://p7.localhost:8000/favicon-page.html?n=60",
+   "title": "F38",
+   "profileID": "Profile 7"
+  },
+  {
+   "url": "http://p7.localhost:8000/icon-tint-orange.html?n=61",
+   "title": "F39",
+   "profileID": "Profile 7"
+  },
+  {
+   "url": "http://p7.localhost:8000/icon-tint-blue.html?n=62",
+   "title": "F40",
+   "profileID": "Profile 7"
+  },
+  {
+   "url": "http://p7.localhost:8000/four-colour-favicon.html?n=63",
+   "title": "F41",
+   "profileID": "Profile 7"
+  },
+  {
+   "url": "http://p7.localhost:8000/example-domain.html?n=64",
+   "title": "F42",
+   "profileID": "Profile 7"
+  },
+  {
+   "url": "http://p7.localhost:8000/peek-scrim-red.html?n=65",
+   "title": "F43",
+   "profileID": "Profile 7"
+  }
+ ],
+ "profiles": [
+  {
+   "id": "Default",
+   "name": "Default"
+  },
+  {
+   "id": "Profile 1",
+   "name": "Profile 1"
+  },
+  {
+   "id": "Profile 7",
+   "name": "Profile 7"
+  },
+  {
+   "id": "Profile 9",
+   "name": "Profile 9"
+  },
+  {
+   "id": "Profile 8",
+   "name": "Profile 8"
+  },
+  {
+   "id": "profile-3",
+   "name": "profile-3"
+  }
+ ],
+ "appState": {
+  "sidebarWidth": 160,
+  "sidebarWidthMigrated": true,
+  "schemaVersion": 6,
+  "activeSpaceID": "13040000-0000-4000-8000-000000000001"
+ }
+}

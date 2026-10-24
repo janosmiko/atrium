@@ -1,0 +1,199 @@
+{
+  "name": "cmd-t-lists-open-tabs",
+  "description": "Cmd+T on a window with no favourites opened a blank list. The empty query could only produce favourite rows, and this fixture has none, so the palette showed nothing at all until a key was pressed.\n\nThe fixture holds two persisted tabs and session restore brings up ONE of them - the other is a cold row with no live id, which the palette must not offer because there is no tab to activate. So the scenario opens the second tab through the palette itself (the earlier path command-bar already proves works) and only then measures. That gives a window with two LIVE tabs and still no favourites, which is the state the task is about.\n\nThe second Cmd+T is deliberate. commandBarReady fires once per document, so before this change every open after the first came back blank even with the rows in place - the measurement here is the reopen, not the first show.\n\nThe palette orders the rows by the strip's own last-active stamp and leaves the ACTIVE tab out, so the tab the first Cmd+T opened - peek-target, which is what the window is showing - is no longer offered. Two live tabs, one of them active, means ONE row, and it is the restored 'Example Domain'. Asserting its title is what keeps the count assertion honest - a run where every eval handed back one stored value fails on a string read from a different query.\n\nWhat is NOT claimed: recency ORDER. Only one tab is offerable here, so nothing in this fixture can put two rows in the wrong order - atrium_command_bar_matches_unittest covers that. For the same reason the filtered count below no longer proves narrowing on its own, only that the palette answers the typed query with the row that matched.",
+  "fixture": "two-tabs.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "GATE: the restored tab has committed, so the sidebar model has one live row"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the reserved chrome context lands about 670ms after startup and the palette's WebContents needs it"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "the FIRST open, used only to open a second tab so the window has two live ones"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the /commandbar document commit and take the field"
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/peek-target.html"
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "eval_until",
+      "id": "second-tab-page",
+      "target": "peek-target.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-target.html",
+      "timeout_ms": 15000,
+      "note": "SETUP GATE: the window now holds two live tabs and no favourites"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "THE MEASUREMENT opens here - a reopen, on an empty field"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "the reset's empty query and the pass answering it land together"
+    },
+    {
+      "type": "capture",
+      "id": "palette-empty",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the one offerable tab row, on a field nobody has typed into"
+    },
+    {
+      "type": "eval",
+      "id": "tab-rows-empty-query",
+      "target": "/commandbar",
+      "expression": "String(document.querySelectorAll('.cbrow.cbtab').length)",
+      "note": "How many open tabs the palette offers before a key is pressed - the active one is not among them"
+    },
+    {
+      "type": "eval",
+      "id": "top-tab-row",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbrow.cbtab .cbtitle') || {}).textContent || 'no tab rows')",
+      "note": "what the first of them says, read through a different query than the count"
+    },
+    {
+      "type": "eval",
+      "id": "tab-row-icon",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbrow.cbtab .cbicon') || {}).tagName || 'none').toLowerCase()",
+      "note": "the row's icon slot holds the live tab's favicon, not the kind mark"
+    },
+    {
+      "type": "type",
+      "text": "example"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "the filtered pass lands with the autocomplete one"
+    },
+    {
+      "type": "capture",
+      "id": "palette-filtered",
+      "duration_ms": 300,
+      "fps": 20
+    },
+    {
+      "type": "eval",
+      "id": "tab-rows-filtered",
+      "target": "/commandbar",
+      "expression": "String(document.querySelectorAll('.cbrow.cbtab').length)",
+      "note": "'example' is in one title and in neither host, so one tab row survives"
+    },
+    {
+      "type": "eval",
+      "id": "top-tab-row-filtered",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbrow.cbtab .cbtitle') || {}).textContent || 'no tab rows')",
+      "note": "and it is the one that matched, which is also the row Return will take"
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "Accept the top row. It names the tab that is NOT active - peek-target is - so the activation is a real switch rather than a no-op"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "after-accept",
+      "duration_ms": 300,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "tab-rows-empty-query",
+      "expected": "\"1\"",
+      "desc": "AND the exclusion. Two live tabs, no favourites, empty field, and one row: the active tab is not somewhere to switch to. It also pins the cold row out - the sidebar draws three rows here, two persisted plus the one the palette opened, and a row with no live id has nothing to activate."
+    },
+    {
+      "type": "eval_equals",
+      "id": "top-tab-row",
+      "expected": "\"Example Domain\"",
+      "desc": "the row carries a real page title from the window's own strip, so the count above is not one of something else. It is the restored tab and NOT 'Peek Target 3', which the first Cmd+T opened and left active - the exclusion is what this string reads."
+    },
+    {
+      "type": "eval_equals",
+      "id": "tab-row-icon",
+      "expected": "\"img\"",
+      "desc": "the tab row draws the live favicon instead of the kind mark"
+    },
+    {
+      "type": "eval_equals",
+      "id": "tab-rows-filtered",
+      "expected": "\"1\"",
+      "desc": "The typed query keeps the row it matches. With one offerable tab this count cannot fall, so narrowing itself is on the unit tests - see the description."
+    },
+    {
+      "type": "eval_equals",
+      "id": "top-tab-row-filtered",
+      "expected": "\"Example Domain\"",
+      "desc": "and it kept the row that matched rather than the first one it had"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: sidebar row [0-9]+ activated",
+      "label": "tab-row-accept-activated-a-tab",
+      "desc": "Return on a tab row reached ActivateSidebarTab. Nothing at launch logs this - the line has one caller, the sidebar activate path, and session restore does not go through it."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

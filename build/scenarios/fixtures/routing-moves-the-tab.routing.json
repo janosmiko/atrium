@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "rules": [
+    { "id": "r1", "enabled": true, "matchType": "contains", "pattern": "corp.example", "targetSpaceID": "437a0001-0000-4000-8000-00000000ad01" }
+  ]
+}

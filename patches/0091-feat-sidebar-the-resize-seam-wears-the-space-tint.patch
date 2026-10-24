@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 30 Aug 2026 09:41:11 +0200
+Subject: [PATCH 091/154] feat(sidebar): the resize seam wears the space tint
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The grip drew a plain grey full-height hairline. It now paints a 4pt pill
+inset 18pt from the top and bottom, rounded, in the space tint mixed toward
+the overlay ink, at the alpha and radius the overlay design language sets. A
+space with no theme keeps the window foreground at that same weight.
+
+The colour is read at paint time rather than pushed, so the seam follows a
+tint crossfade without a second subscriber, and it grades against the glass
+composite the seam is actually drawn on rather than the raw tint - the old
+paint sat ten units off its own surface. A dead band holds the chosen arm
+across a fade, so a crossfade passing the equidistant point cannot flip the
+hue frame by frame.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 2fe938c707ecf..91ea480f28974 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -655,6 +655,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:sidebar_drop_decision",
+     "//chrome/browser/ui/atrium:sidebar_grip_bounds",
+     "//chrome/browser/ui/atrium:sidebar_move_execution_decision",
++    "//chrome/browser/ui/atrium:sidebar_seam_line",
+     "//chrome/browser/ui/atrium:sidebar_snapshot_gate",
+     "//chrome/browser/ui/atrium:slot_presentation_table",
+     "//chrome/browser/ui/atrium:split_orientation_decision",

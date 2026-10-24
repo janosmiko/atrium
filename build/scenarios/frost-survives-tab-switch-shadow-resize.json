@@ -1,0 +1,100 @@
+{
+  "name": "frost-survives-tab-switch-shadow-resize",
+  "description": "the production frost's four survival properties in one reveal - a tab switch (forces SortSubviews), the devbar's overlay shadow up at the same time (both are unassociated NSViews sharing contentView, so their overlap band near x=227..268 y=38..90 at this window's geometry is where a bad insertion order would show), and a window resize (the panel's own ApplyBounds/OnWidgetBoundsChanged tracking path). Analysis is offline pixcmp on the pulled frames, not JSON assertions - this is an investigative measurement, not yet a committed regression.",
+  "fixture": "frost-two-tabs.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {"type": "settle", "ms": 5000, "note": "first paint, and the tab's own type page loads"},
+    {"type": "activate"},
+    {"type": "settle", "ms": 1500},
+    {
+      "type": "eval",
+      "id": "tab-opened",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.row'); if (!r) return 'no-row'; r.click(); return 'clicked'; })()"
+    },
+    {"type": "settle", "ms": 5000},
+    {
+      "type": "eval",
+      "id": "collapse-pressed",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbtoggle'); if (!b) return 'no-button'; b.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar toggle requested from the chrome row",
+      "timeout_ms": 8000
+    },
+    {"type": "settle", "ms": 3000, "note": "the collapse animation finishes"},
+    {"type": "move", "x": 300, "y": 400, "note": "park inside the page first"},
+    {"type": "settle", "ms": 600},
+    {"type": "move", "x": 20, "y": 400, "note": "cross into the 32pt arming strip from outside it"},
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "timeout_ms": 20000
+    },
+    {"type": "settle", "ms": 2000, "note": "the slide finishes"},
+    {
+      "type": "capture",
+      "id": "panel-revealed",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "baseline: frost live over the type page, nothing else touched yet"
+    },
+    {"type": "key", "combo": "cmd+shift+d", "note": "toggle the devbar on - its shadow now shares contentView with the frost"},
+    {"type": "settle", "ms": 1500},
+    {
+      "type": "capture",
+      "id": "panel-and-devbar",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the overlap check: devbar shadow visible AND frost still blurring, at their shared boundary"
+    },
+    {
+      "type": "eval",
+      "id": "switch-to-tab-2",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelectorAll('.row')[1]; if (!r) return 'no-row'; r.click(); return 'clicked'; })()",
+      "note": "away from the type page - cmd+t in this app opens the command bar prompt, not a new tab, so switching by row click is the real mechanism"
+    },
+    {"type": "settle", "ms": 1500},
+    {
+      "type": "eval",
+      "id": "switch-to-tab-1",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelectorAll('.row')[0]; if (!r) return 'no-row'; r.click(); return 'clicked'; })()",
+      "note": "back to the type tab - a REAL tab switch, which triggers SortSubviews"
+    },
+    {"type": "settle", "ms": 1500},
+    {
+      "type": "capture",
+      "id": "panel-after-tab-switch",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "must read the same as panel-revealed if the frost held its rank"
+    },
+    {"type": "resize", "w": 800, "h": 560, "note": "shrink the window - a grow past the VM's 768-tall screen clamps silently, this fits. ApplyBounds/OnWidgetBoundsChanged must move the frost with the panel"},
+    {"type": "settle", "ms": 1500},
+    {
+      "type": "capture",
+      "id": "panel-after-resize",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the frost must track the panel's new height, not the old one"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

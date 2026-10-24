@@ -1,0 +1,25 @@
+{
+  "name": "close-then-restore-tab",
+  "description": "Measurement for IDC_CLOSE_TAB and IDC_RESTORE_TAB. Starts on a space WITH a restored tab (so no palette auto-opens), presses Cmd+W to close it - which leaves the window TABLESS - then Cmd+Shift+T on that now-tabless window, which is exactly the condition under test. Both commands reach AtriumBrowserWindow::ExecuteCommand's catch-all with no intercept, and both are routed through CommandTarget to the VISIBLE browser, so if that browser is tabless the no-selected-tab early return should swallow the restore the way it swallowed IDC_EXIT and IDC_CLOSE_WINDOW. The vlog assertion covers the close only: 'tab added' cannot be asserted here because startup emits it too, so whether the restore fired is read off the log's ordering by hand this round.",
+  "fixture": "presenter-startup.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {"type": "settle", "ms": 8000, "note": "let the space and its restored tab render; no palette expected"},
+    {"type": "activate", "note": "make Atrium frontmost before any synthetic chord"},
+    {"type": "settle", "ms": 1500, "note": "let the window come forward"},
+    {"type": "capture", "id": "before", "duration_ms": 400, "fps": 20, "note": "one window, one tab, no palette"},
+    {"type": "key", "combo": "cmd+w", "note": "IDC_CLOSE_TAB on a window that HAS a tab - expected to work, and it is what makes the window tabless for the next step"},
+    {"type": "settle", "ms": 3000, "note": "let the tab close and the sidebar update"},
+    {"type": "capture", "id": "tabless", "duration_ms": 400, "fps": 20, "note": "evidence of what the window looks like with its only tab gone"},
+    {"type": "key", "combo": "cmd+shift+t", "note": "IDC_RESTORE_TAB on the now-TABLESS window - the measurement"},
+    {"type": "settle", "ms": 3000, "note": "let any restored tab load and reach the sidebar"},
+    {"type": "capture", "id": "after", "duration_ms": 400, "fps": 20, "note": "evidence of whether the tab came back"}
+  ],
+  "assertions": [
+    {"type": "vlog", "label": "tab-closed", "pattern": "Atrium: tab [0-9]+ closed", "note": "proves Cmd+W actually took - startup never closes a tab, so this line can only come from it. Without it the restore step would be measuring nothing"},
+    {"type": "vlog", "label": "tab-restored", "pattern": "Atrium: tab 2 added", "note": "The earlier guard: the restored tab. The id is deliberate rather than [0-9]+ - this fixture restores exactly ONE tab at startup, which takes id 1, so id 2 can only be the Cmd+Shift+T restore. A generic pattern would match the startup tab and pass vacuously, which is precisely how a guard like that stays green over a live bug. Measured: absent before the IDC_RESTORE_TAB intercept, present after"}
+  ]
+}

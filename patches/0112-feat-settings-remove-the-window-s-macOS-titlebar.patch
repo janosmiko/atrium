@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 17:46:09 +0200
+Subject: [PATCH 112/154] feat(settings): remove the window's macOS titlebar
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Adds a chromeless style for the settings window (full-size content
+view, transparent titlebar, hidden title) while keeping the traffic
+lights and resize border. With no titlebar the WebView-filled window
+had no drag handle, so its ClientView now answers NonClientHitTest
+from the page's own -webkit-app-region regions, tracked through a
+WebContentsDelegate that also keeps the existing key-forwarding
+behavior.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index e68bb4ef13e6f..26d90e9a71610 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3615,6 +3615,8 @@ static_library("ui") {
+       "atrium/atrium_surface_key_route_mac.mm",
+       "atrium/atrium_surface_quit_route_mac.h",
+       "atrium/atrium_surface_quit_route_mac.mm",
++      "atrium/atrium_settings_titlebar_mac.h",
++      "atrium/atrium_settings_titlebar_mac.mm",
+       "atrium/atrium_peek_intercept.h",
+       "atrium/atrium_peek_navigation_throttle.h",
+       "atrium/atrium_settings_window.h",

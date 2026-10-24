@@ -1,0 +1,19 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Notification Permission Probe</title></head>
+<body style="font-family:sans-serif;padding:40px"><h1>Notification permission probe</h1>
+<p id="s">requesting notification permission...</p>
+<script>
+// Notification.requestPermission() resolves from Chromium's own permission
+// decision, unlike navigator.geolocation - no real location backend needed,
+// so this is the reliable one to automate in a VM with no GPS/network
+// location service.
+window.addEventListener('load', function(){
+  Notification.requestPermission().then(function(permission){
+    document.getElementById('s').textContent = permission;
+    if (permission === 'granted' && location.search.indexOf('granted=1') === -1) {
+      // The VM harness reads "Atrium: tab N url ..." vlog lines, not page
+      // text - navigating makes the PAGE'S OWN reaction to the grant visible.
+      location.href = 'http://127.0.0.1:8000/perm-notification-page.html?granted=1';
+    }
+  });
+});
+</script></body></html>

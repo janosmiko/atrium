@@ -1,0 +1,56 @@
+{
+  "name": "a-keyed-hint-stands-the-same-height-as-a-plain-one",
+  "description": "the hint card used to take the height of its tallest child, so a bubble carrying a keycap stood a few pixels taller than a text-only one beside it. This run brings up the floating address bar, hovers the copy link button to raise a keyed hint on the shared /hint overlay, measures it, then pushes a plain hint through the same document and measures that. The shim has no engine, so this is the only place the two boxes are really laid out.",
+  "fixture": "icon-tint-none.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "startup_space": "437b0002-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "wait_vlog", "pattern": "Atrium: sidebar rows drawn [1-9]", "timeout_ms": 20000 },
+    { "type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot" },
+    { "type": "settle", "ms": 1000 },
+    { "type": "key", "combo": "cmd+shift+d", "note": "Developer Mode: the floating address bar carries the copy link button" },
+    {
+      "type": "eval_until",
+      "id": "devbar-copy-ready",
+      "target": "/devbar",
+      "expression": "String(!!document.querySelector('.dvcopy'))",
+      "expected": "true",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "hover-devbar-copy",
+      "target": "/devbar",
+      "expression": "(() => { const b = document.querySelector('.dvcopy'); if (!b) { return 'no-button'; } b.dispatchEvent(new PointerEvent('pointerover', {bubbles: true})); return 'hovered'; })()"
+    },
+    { "type": "settle", "ms": 900, "note": "past HOVER_DELAY_MS (600ms) in hint-triggers.js" },
+    {
+      "type": "eval_until",
+      "id": "hint-keyed-up",
+      "target": "/hint",
+      "expression": "String([...document.querySelectorAll('.hint .hint-keys .ov-key')].length > 0)",
+      "expected": "true",
+      "timeout_ms": 6000,
+      "note": "the devbar route sends its hint through chrome.send to HintOverlayWidget's own /hint document"
+    },
+    {
+      "type": "eval",
+      "id": "heights",
+      "target": "/hint",
+      "expression": "(() => { const box = () => document.querySelector('.hint').getBoundingClientRect().height; const keyed = Math.round(box()); window.atriumShowHint({text: 'Copy URL'}); const plain = Math.round(box()); return keyed + '/' + plain; })()",
+      "note": "atriumShowHint is the push installHintOverlay wires, so the plain bubble is built by the same code path the native one is"
+    },
+    { "type": "capture", "id": "warm-up", "duration_ms": 300, "fps": 10, "note": "the first stream in a run can deliver no frames" },
+    { "type": "capture", "id": "hint-plain-height", "duration_ms": 300, "fps": 10 }
+  ],
+  "assertions": [
+    { "type": "ax_window_count", "expected": 1, "min_area": 200000, "desc": "sanity: one real window rendered" },
+    { "type": "eval_equals", "id": "devbar-copy-ready", "expected": "true", "desc": "setup: the devbar came up with its copy link button" },
+    { "type": "eval_equals", "id": "hover-devbar-copy", "expected": "\"hovered\"", "desc": "setup: the copy link button was found and hovered" },
+    { "type": "eval_equals", "id": "hint-keyed-up", "expected": "true", "desc": "setup: the raised hint carries a keycap" },
+    { "type": "eval_equals", "id": "heights", "expected": "\"35/35\"", "desc": "A keyed bubble and a plain one stand at the one card height" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

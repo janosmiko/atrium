@@ -1,0 +1,108 @@
+{
+  "name": "peek-open-close-animation-frames",
+  "description": "raw frame captures spanning the peek open and close transitions, for before/after comparison rather than a pass/fail number. Same fixture, gate and link coordinates as peek-dismiss-escape.json. The open capture starts immediately after the click (no settle) to catch as much of kPeekOpenDuration (0.24s) as SSH round-trip latency allows; the close capture uses key_during_capture on Escape, which backgrounds rapidcap and fires the key from inside one SSH session so the ~170ms kPeekDismissDuration window is not eaten by two separate round trips.",
+  "fixture": "peek-scrim.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "27027027-2702-4702-8702-270270270270",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the startup tab commit before navigating"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "peek-scrim-red.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-scrim-red.html",
+      "timeout_ms": 15000,
+      "note": "GATE: the red page really committed as the STARTUP tab"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "move",
+      "x": 338,
+      "y": 96,
+      "note": "hover the link before pressing it, same coordinates peek-dismiss-escape reads off a captured frame on this fixture"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "click",
+      "x": 338,
+      "y": 96,
+      "note": "opens the peek - THE MEASUREMENT starts on the very next action"
+    },
+    {
+      "type": "capture",
+      "id": "open-transition",
+      "duration_ms": 500,
+      "fps": 60,
+      "note": "raw frames spanning the open animation window, started with no settle in between so as little of it as possible is missed"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: peek widget showing for parent",
+      "timeout_ms": 15000,
+      "note": "post-hoc GATE: confirms the click really opened a peek, even though the capture above already ran"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the open animation and controls cluster fully settle before measuring the close"
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "key_during_capture was tried here first and never dismissed the peek at all (confirmed separately: plain key escape does, on the same build) - backgrounding rapidcap ahead of the keypress appears to disturb the peek's key focus, a probe-tooling quirk unrelated to the product. Sequential key-then-capture is the reliable path, at the cost of missing the earliest frames to round-trip latency."
+    },
+    {
+      "type": "capture",
+      "id": "close-transition",
+      "duration_ms": 500,
+      "fps": 60,
+      "note": "raw frames spanning the dismiss animation window"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: peek widget closing for parent",
+      "timeout_ms": 15000,
+      "note": "post-hoc GATE: confirms Escape really triggered PeekWidget::Close"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let any residual animation state settle before quitting"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits"
+    }
+  ]
+}

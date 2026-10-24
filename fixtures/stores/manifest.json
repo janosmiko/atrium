@@ -1,0 +1,88 @@
+{
+  "cases": [
+    {
+      "store": "spaces",
+      "input": "spaces/current.json",
+      "expected": "spaces/current.expected.json",
+      "note": "schema v4. A file at the current schema must come back byte-for-byte the same state."
+    },
+    {
+      "store": "spaces",
+      "input": "spaces/v2-with-epoch.json",
+      "expected": "spaces/v2-with-epoch.expected.json",
+      "note": "v2 -> v3 -> v4. Both bumps are version-only; windowSpaces and archiveTtl are optional, so nothing is backfilled."
+    },
+    {
+      "store": "spaces",
+      "input": "spaces/v1-original-keys.json",
+      "expected": "spaces/v1-original-keys.expected.json",
+      "note": "v1 -> v2 -> v3 -> v4 in one load. Carries only the keys v1 had, so it also proves every later field decodes when absent. archiveEpoch is stamped from the fixed migration clock."
+    },
+    {
+      "store": "settings",
+      "input": "settings/current.json",
+      "expected": "settings/current.expected.json",
+      "note": "schema v1, every field set."
+    },
+    {
+      "store": "settings",
+      "input": "settings/v1-memory-saver-never.json",
+      "expected": "settings/v1-memory-saver-never.expected.json",
+      "note": "A file from before memorySaverThreshold was split. The retired \"never\" spelling meant the feature is off, so it migrates to memorySaverEnabled false plus the default duration - without a schema bump, since every field added after v1 is optional."
+    },
+    {
+      "store": "settings",
+      "input": "settings/v1-original-keys.json",
+      "expected": "settings/v1-original-keys.expected.json",
+      "note": "A file from before the later fields existed. Each one must decode to its default rather than losing the whole file."
+    },
+    {
+      "store": "themes",
+      "input": "themes/current.json",
+      "expected": "themes/current.expected.json",
+      "note": "schema v1 with one per-space theme."
+    },
+    {
+      "store": "themes",
+      "input": "themes/v1-no-themes-key.json",
+      "expected": "themes/v1-no-themes-key.expected.json",
+      "note": "The themes key absent entirely, which is what a profile that never opened Theme Studio has."
+    },
+    {
+      "store": "hotkeys",
+      "input": "hotkeys/current.json",
+      "expected": "hotkeys/current.expected.json",
+      "note": "schema v2: the shipped defaults plus one rebind."
+    },
+    {
+      "store": "hotkeys",
+      "input": "hotkeys/v1-legacy.json",
+      "expected": "hotkeys/v1-legacy.expected.json",
+      "note": "v1 -> v2. A legacy file gets the one-time combo union, and an action written as an empty array stays unbound."
+    },
+    {
+      "store": "routing",
+      "input": "routing/current.json",
+      "expected": "routing/current.expected.json",
+      "note": "schema v1 with both match types and a disabled rule."
+    },
+    {
+      "store": "routing",
+      "input": "routing/v1-empty-rules.json",
+      "expected": "routing/v1-empty-rules.expected.json",
+      "note": "No rules at all, which is every profile that never opened the routing pane."
+    },
+    {
+      "store": "command-bar-selection-memory",
+      "input": "command-bar-selection-memory/current.json",
+      "expected": "command-bar-selection-memory/current.expected.json",
+      "note": "This store never carried a schemaVersion. One learned selection."
+    },
+    {
+      "store": "command-bar-selection-memory",
+      "input": "command-bar-selection-memory/empty.json",
+      "expected": "command-bar-selection-memory/empty.expected.json",
+      "note": "Nothing learned yet."
+    }
+  ]
+}

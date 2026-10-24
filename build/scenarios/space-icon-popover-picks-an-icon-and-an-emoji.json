@@ -1,0 +1,293 @@
+{
+  "name": "space-icon-popover-picks-an-icon-and-an-emoji",
+  "description": "Change Space Icon opens a native widget over the page, anchored beside the space dot, instead of an in-sidebar popover - the sidebar can be as narrow as kMinSidebarWidth (160px), too narrow for an 8-column grid, so this scenario runs at that width on purpose (superseding space-menu-cycles-the-space-icon.json).\n\nWork starts on the fixture's plain-letter fallback (emoji 'W', which is also the space name's own first letter, so the fallback after the trash step is visually the same glyph the fixture started on - the glyph is checked at every step, not only at the end, so a build that silently dropped a step still fails at the step it broke).\n\nTHE ICON STEP proves ph:<name> values reach the core and render back as the Phosphor glyph, not the literal 'ph:star' string - a regression a text-content-only check would miss.\n\nTHE EMOJI STEP proves the tab switch actually swaps the grid rather than just relabelling it - picking an emoji after an icon only works if the Icon tab's grid was really replaced.\n\nTHE RELAUNCH is the persistence gate: if sidebarSpaceIconSet('') never reached the core, or the core dropped an empty string instead of storing it, the cold start would still show a stale glyph (the emoji picked two steps earlier) rather than the letter fallback - a same-session-only check cannot tell those apart.\n\nTHE ESCAPE STEP runs last, after the widget has already proven it can open and commit three different kinds of value, so a focus-trap regression is isolated from the pick logic above it.\n\nEach open is checked two ways: wait_vlog gates on the widget actually showing (a cross-process fact the sidebar's own DOM cannot see), and a `vlog` assertion on the first open checks inside=1 full_size=1 - the widget rendered at its full 264px design width and landed fully inside the browser window rather than being squeezed to the 160px sidebar, which is the geometry claim that motivated running this at the minimum sidebar width in the first place.",
+  "fixture": "space-icon-picker.spaces.json",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "starts-on-w",
+      "target": "/sidebar",
+      "expression": "document.querySelector('.sdot.active .d')?.textContent || 'no glyph'",
+      "expected": "W",
+      "timeout_ms": 15000,
+      "note": "gate: the fixture's own letter fallback, before any pick"
+    },
+    {
+      "type": "rightclick",
+      "x": 110,
+      "y": 620,
+      "note": "EMPTY SPACE below the row, which opens the space menu"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "open-for-icon",
+      "target": "/sidebar",
+      "expression": "(() => { const item = [...document.querySelectorAll('.ctxitem')].find((b) => b.textContent === 'Change Space Icon'); if (!item) { return 'no item'; } item.click(); return 'clicked'; })()",
+      "note": "Change Space Icon now opens the native /spaceicon widget rather than an in-sidebar popover, so this can only report the click - not the open"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: space icon picker showing",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "eval_until",
+      "id": "widget-rendered",
+      "target": "/spaceicon",
+      "expression": "document.querySelector('.spicon-cell') ? 'ready' : 'no cell'",
+      "expected": "ready",
+      "timeout_ms": 10000,
+      "note": "THE GATE. 'no cell' means the widget showed an empty document, which is a route or a grd problem, not a placement one."
+    },
+    {
+      "type": "eval",
+      "id": "pick-icon",
+      "target": "/spaceicon",
+      "expression": "(() => { const tab = document.querySelector('.spicon-seg .settings-seg-option[data-tab=\"icon\"]'); if (!tab) { return 'no-icon-tab'; } tab.click(); const cell = document.querySelector('.spicon-grid .spicon-cell'); if (!cell) { return 'no-cell'; } const name = cell.firstElementChild?.dataset?.icon || ''; cell.click(); return name; })()",
+      "note": "switches to the Icon tab, then picks the grid's first cell (PHOSPHOR_NAMES[0] is 'star')"
+    },
+    {
+      "type": "eval_until",
+      "id": "icon-applied",
+      "target": "/sidebar",
+      "expression": "document.querySelector('.sdot.active .d svg')?.dataset.icon || 'no-svg'",
+      "expected": "star",
+      "timeout_ms": 8000,
+      "note": "the dot renders the Phosphor svg, not the literal 'ph:star' string"
+    },
+    {
+      "type": "rightclick",
+      "x": 110,
+      "y": 620
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "open-for-emoji",
+      "target": "/sidebar",
+      "expression": "(() => { const item = [...document.querySelectorAll('.ctxitem')].find((b) => b.textContent === 'Change Space Icon'); if (!item) { return 'no item'; } item.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: space icon picker showing",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "eval_until",
+      "id": "widget-rendered-for-emoji",
+      "target": "/spaceicon",
+      "expression": "document.querySelector('.spicon-cell') ? 'ready' : 'no cell'",
+      "expected": "ready",
+      "timeout_ms": 10000,
+      "note": "reopening for an icon value starts the widget on the Icon tab"
+    },
+    {
+      "type": "eval",
+      "id": "pick-emoji",
+      "target": "/spaceicon",
+      "expression": "(() => { const tab = document.querySelector('.spicon-seg .settings-seg-option[data-tab=\"emoji\"]'); if (!tab) { return 'no-emoji-tab'; } tab.click(); const cell = document.querySelector('.spicon-grid .spicon-cell'); if (!cell) { return 'no-cell'; } const glyph = cell.textContent; cell.click(); return glyph; })()",
+      "note": "switches to Emoji, picks the first cell (EMOJI[0] is the grinning face)"
+    },
+    {
+      "type": "eval_until",
+      "id": "emoji-applied",
+      "target": "/sidebar",
+      "expression": "document.querySelector('.sdot.active .d')?.textContent || 'no glyph'",
+      "expected": "😀",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "rightclick",
+      "x": 110,
+      "y": 620
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "open-for-trash",
+      "target": "/sidebar",
+      "expression": "(() => { const item = [...document.querySelectorAll('.ctxitem')].find((b) => b.textContent === 'Change Space Icon'); if (!item) { return 'no item'; } item.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: space icon picker showing",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "eval_until",
+      "id": "widget-rendered-for-trash",
+      "target": "/spaceicon",
+      "expression": "document.querySelector('.spicon-cell') ? 'ready' : 'no cell'",
+      "expected": "ready",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "eval",
+      "id": "trash",
+      "target": "/spaceicon",
+      "expression": "(() => { const trash = document.querySelector('.spicon-trash'); if (!trash) { return 'no-trash'; } trash.click(); return 'clicked'; })()",
+      "note": "the trash button clears back to '', which spaceGlyph renders as the space name's first letter"
+    },
+    {
+      "type": "eval_until",
+      "id": "cleared-to-letter",
+      "target": "/sidebar",
+      "expression": "document.querySelector('.sdot.active .d')?.textContent || 'no glyph'",
+      "expected": "W",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "relaunch",
+      "note": "cold start on the file the trash click just wrote. If the clear never reached the core, or the core dropped the empty string, the dot would come back showing the emoji from the earlier pick instead of the letter fallback"
+    },
+    {
+      "type": "eval_until",
+      "id": "survives-relaunch",
+      "target": "/sidebar",
+      "expression": "document.querySelector('.sdot.active .d')?.textContent || 'no glyph'",
+      "expected": "W",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "rightclick",
+      "x": 110,
+      "y": 620
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "reopen-for-escape",
+      "target": "/sidebar",
+      "expression": "(() => { const item = [...document.querySelectorAll('.ctxitem')].find((b) => b.textContent === 'Change Space Icon'); if (!item) { return 'no item'; } item.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: space icon picker showing",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "eval_until",
+      "id": "widget-rendered-for-escape",
+      "target": "/spaceicon",
+      "expression": "document.querySelector('.spicon-cell') ? 'ready' : 'no cell'",
+      "expected": "ready",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "key",
+      "combo": "escape"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: space icon picker closing",
+      "timeout_ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "focus-returns",
+      "target": "/sidebar",
+      "expression": "document.activeElement?.classList.contains('sdot') ? 'on the dot' : (document.activeElement?.className || 'nothing focused')"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "starts-on-w",
+      "expected": "W"
+    },
+    {
+      "type": "eval_equals",
+      "id": "open-for-icon",
+      "expected": "\"clicked\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "widget-rendered",
+      "expected": "ready"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: space icon picker showing.*inside=1 full_size=1",
+      "label": "first-open-placed-inside-at-full-size",
+      "desc": "at sidebarWidth 160 the widget rendered at its full 264px design width and fit entirely inside the browser window, rather than being squeezed to the sidebar's own width"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pick-icon",
+      "expected": "\"star\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "icon-applied",
+      "expected": "star"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pick-emoji",
+      "expected": "\"😀\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "emoji-applied",
+      "expected": "😀"
+    },
+    {
+      "type": "eval_equals",
+      "id": "trash",
+      "expected": "\"clicked\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "cleared-to-letter",
+      "expected": "W"
+    },
+    {
+      "type": "eval_equals",
+      "id": "survives-relaunch",
+      "expected": "W"
+    },
+    {
+      "type": "eval_equals",
+      "id": "reopen-for-escape",
+      "expected": "\"clicked\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "focus-returns",
+      "expected": "\"on the dot\""
+    }
+  ]
+}

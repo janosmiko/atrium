@@ -1,0 +1,57 @@
+{
+  "name": "a-thin-red-header-lights-the-top-of-the-band",
+  "description": "A white page with a red header five percent tall and a purple block in its left middle. The old strip reader saw the white margin and read the header as pink. The area reader weights colour over white, so the top edge mean comes out red-dominant and the left run carries the purple block as well as the header, which the window logs as a varied run.",
+  "fixture": "ambilight-header.spaces.json",
+  "settings": "icon-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: ambilight edges .* left-run varied",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "header",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: ambilight edges .* T=#[89A-F][0-9A-F][0-7][0-9A-F][0-7][0-9A-F]",
+      "label": "the-top-edge-reads-red",
+      "desc": "The top half of the page is white but for the header, and the top mean still comes out with red over 0x80 and green and blue under it."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: ambilight edges .* left-run varied",
+      "label": "the-left-run-carries-the-header-and-the-block",
+      "desc": "The left run's top segment holds the header and its bottom segment holds white, so the ends differ."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

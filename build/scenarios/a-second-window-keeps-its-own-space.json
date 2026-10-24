@@ -1,0 +1,180 @@
+{
+  "name": "a-second-window-keeps-its-own-space",
+  "fixture": "two-windows-two-spaces.spaces.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "description": "A second window moves to another space of the same profile, then to a space of another profile, and the first window stays on its own space. All windows shared one active space, so a switch in one window moved the rail of every other window. Alpha and Charlie belong to the Default profile and Bravo to the Second profile.",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-committed",
+      "target": "example-domain.html",
+      "expression": "location.search",
+      "expected": "?alpha",
+      "timeout_ms": 20000,
+      "note": "gate: the app is up on Alpha's own tab"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "eval",
+      "id": "mark-first",
+      "target": "/sidebar",
+      "expression": "(() => { history.replaceState(null, '', '#first'); return 'marked'; })()",
+      "note": "gives the first window's sidebar its own target, because both sidebars share one url"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+n"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: Cmd\\+N opened window-slot .* for host",
+      "timeout_ms": 8000,
+      "note": "gate: a second window exists"
+    },
+    {
+      "type": "settle",
+      "ms": 8000,
+      "note": "the new window opens its palette, and an Escape before the palette has key does nothing"
+    },
+    {
+      "type": "key",
+      "combo": "escape"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "click",
+      "x": 900,
+      "y": 660,
+      "note": "a press on the palette's scrim, because Escape alone is unreliable here"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget closing",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "the second window moves into Charlie's space, of the same profile"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 0 -> 1",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "second-on-charlie",
+      "target": "/sidebar",
+      "expression": "(() => location.hash === '#first' ? 'first-window' : document.querySelector('[data-active-space]').dataset.activeSpace)()"
+    },
+    {
+      "type": "eval",
+      "id": "push-first-after-charlie",
+      "target": "/sidebar#first",
+      "expression": "(() => { chrome.send('sidebarReady'); return 'pushed'; })()",
+      "note": "a fresh push to the first window, so a stale rail cannot hide a moved space"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "first-after-charlie",
+      "target": "/sidebar#first",
+      "expression": "document.querySelector('[data-active-space]').dataset.activeSpace"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "the second window moves into Bravo's space, of the Second profile"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 1 -> 2",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "second-on-bravo",
+      "target": "/sidebar",
+      "expression": "(() => location.hash === '#first' ? 'first-window' : document.querySelector('[data-active-space]').dataset.activeSpace)()"
+    },
+    {
+      "type": "eval",
+      "id": "push-first-after-bravo",
+      "target": "/sidebar#first",
+      "expression": "(() => { chrome.send('sidebarReady'); return 'pushed'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "first-after-bravo",
+      "target": "/sidebar#first",
+      "expression": "document.querySelector('[data-active-space]').dataset.activeSpace"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "second-on-charlie",
+      "expected": "\"1\"",
+      "desc": "gate: the second window shows Charlie"
+    },
+    {
+      "type": "eval_equals",
+      "id": "first-after-charlie",
+      "expected": "\"0\"",
+      "desc": "THE MEASUREMENT: the first window stays on Alpha after a switch in the second window"
+    },
+    {
+      "type": "eval_equals",
+      "id": "second-on-bravo",
+      "expected": "\"2\"",
+      "desc": "gate: the second window shows Bravo, of the other profile"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: in-window swap, host .* slot [1-9]",
+      "label": "the-second-window-swapped",
+      "desc": "the second window shows the Second profile's strip"
+    },
+    {
+      "type": "eval_equals",
+      "id": "first-after-bravo",
+      "expected": "\"0\"",
+      "desc": "THE MEASUREMENT: the first window stays on Alpha after a switch to another profile in the second window"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

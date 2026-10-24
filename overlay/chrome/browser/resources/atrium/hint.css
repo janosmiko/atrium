@@ -1,0 +1,45 @@
+/* Copyright 2026 The Atrium Authors */
+
+/* Position only. Surface, ink and font come from overlay.css's .ov-card. */
+
+/* The /hint route is a full-window overlay widget (HintOverlayWidget), not an
+   embedded sidebar bubble - an opaque body would repaint square over the
+   rounded .ov-card's own corner clip. Same rule as peek-controls.css. */
+html, body {
+  background: transparent;
+  margin: 0;
+}
+
+.hint {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+  max-width: calc(100vw - 16px);
+  white-space: nowrap;
+  font-size: 12px;
+  /* Mouse hints are compact floating surfaces, not pills. This intentionally
+     overrides .ov-hint's generic capsule shape. */
+  border-radius: var(--ov-radius-compact);
+}
+
+.hint-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.hint-at {
+  left: var(--hint-left);
+  top: var(--hint-top);
+}
+
+.hint-top-right {
+  top: 44px;
+  right: 14px;
+}
+
+.hint-bottom-center {
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+}

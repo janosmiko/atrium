@@ -1,0 +1,20 @@
+/* Copyright 2026 The Atrium Authors */
+
+/* Ported from the lab's flyRow/flySnooze arc (swipe-lab.html:2247-2273).
+   --dx/--dy are set per row by archive-fly.js. */
+@keyframes archivefly {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  32% {
+    transform:
+      translate(calc(var(--dx) * .18), calc(var(--dy) * .12 - 16px))
+      scale(.94);
+    opacity: .96;
+  }
+  100% { transform: translate(var(--dx), var(--dy)) scale(.05); opacity: .3; }
+}
+
+.archivefly {
+  z-index: 60;
+  pointer-events: none;
+  animation: archivefly .56s cubic-bezier(.32, .72, .35, 1) forwards;
+}

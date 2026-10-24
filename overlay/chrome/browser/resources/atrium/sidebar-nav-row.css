@@ -1,0 +1,291 @@
+/* Copyright 2026 The Atrium Authors */
+
+/* Fixed rather than a sibling in flow, the same reason .crx-row is: it sits
+   over the traffic-light band that #atrium-root.sbroot's panes already reserve,
+   instead of pushing the tab list down. */
+
+/* The geometry is not free. AtriumClientView::NonClientHitTest carves exactly
+   one caption hole for this row, x 82..196 and y under kTitlebarHeight (40) -
+   a control outside it starts a window drag and never receives the click. */
+.sbnav {
+  position: fixed;
+  top: var(--atrium-traffic-light-band-inset, 9px);
+  left: var(--atrium-traffic-light-clearance, 86px);
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  z-index: 5;
+  color: var(--fg, rgba(255, 255, 255, .92));
+}
+
+/* only while the sidebar floats. Docked, the real system buttons are
+   in front and the row keeps its clearance for them. */
+.sbnav .sbtd {
+  display: none;
+}
+
+.atrium-sidebar-floating .sbnav {
+  left: var(--atrium-traffic-light-band-inset, 9px);
+}
+
+.atrium-sidebar-floating .sbnav .sbtd {
+  display: flex;
+  align-items: center;
+  /* Gap, not pitch, so the dot centres land the pitch the real lights keep. */
+  gap: calc(var(--atrium-traffic-light-dot-pitch, 23px) -
+            var(--atrium-traffic-light-dot-size, 14px));
+  /* The gap to the nav buttons that the 86px clearance used to provide. */
+  margin-right: 10px;
+}
+
+/* Sized from the real AppKit lights the docked window shows, so the two states
+   do not step. The top highlight and dark rim copy the macOS 26+
+   glass lights, so the dots do not look flat beside the native ones. */
+.sbnav .td {
+  width: var(--atrium-traffic-light-dot-size, 14px);
+  height: var(--atrium-traffic-light-dot-size, 14px);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  flex: none;
+  background-image: radial-gradient(circle at 50% 28%,
+                                    rgb(255 255 255 / .38),
+                                    rgb(255 255 255 / 0) 62%);
+  box-shadow: inset 0 0 0 .5px rgb(0 0 0 / .2),
+              inset 0 -1px 2px rgb(0 0 0 / .14);
+}
+
+.sbnav .td.close {
+  background-color: #ff5f57;
+}
+
+.sbnav .td.min {
+  background-color: #febc2e;
+}
+
+.sbnav .td.zoom {
+  background-color: #28c840;
+}
+
+.sbnav .nb {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  /* Every control here draws an SVG now. This reaches only the
+     overflow button's ⋯, which sets its own size below. */
+  font: 17px/1 var(--sans, system-ui, -apple-system, sans-serif);
+  opacity: .65;
+  cursor: default;
+  transition: background-color .12s, color .12s;
+}
+
+/* A literal, not --washc: that token is scoped to .fav, and this row lives
+   outside #atrium-root entirely. */
+.sbnav .nb:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, .12);
+}
+
+/* white ink and a white hover wash are the defaults above because
+   installSidebarNavRow puts this row OUTSIDE #atrium-root, so the ink block on
+   #atrium-root.sbroot never reaches it and --fg falls back to white. Docked
+   that goes unnoticed over dark glass. Floating, the panel paints its own wash
+   at a .96 floor - rgb(219 222 229), set in sidebar.css beside the floor - and
+   white on that is no ink at all. Dark keeps the defaults: the floating wash
+   there is rgb(42 42 44). */
+html.atrium-sidebar-floating:not(.atrium-native-chrome) .sbnav {
+  color: rgb(28 28 30 / .92);
+}
+
+html.atrium-sidebar-floating:not(.atrium-native-chrome) .sbnav .nb:hover {
+  background: rgb(28 28 30 / .10);
+}
+
+@media (prefers-color-scheme: dark) {
+  html.atrium-sidebar-floating:not(.atrium-native-chrome) .sbnav {
+    color: rgba(255, 255, 255, .92);
+  }
+
+  html.atrium-sidebar-floating:not(.atrium-native-chrome) .sbnav .nb:hover {
+    background: rgba(255, 255, 255, .12);
+  }
+}
+
+/* A mouse click on macOS leaves focus on the button, and the UA's default
+   ring has nothing here to clear it once the pointer moves on - it would
+   otherwise sit on the icon until something else takes focus.
+   :focus-visible only matches a keyboard-driven focus, so Tab still gets a
+   ring while a click gets none. */
+.sbnav .nb:focus {
+  outline: none;
+}
+
+.sbnav .nb:focus-visible {
+  outline: 2px solid var(--accent, #7aa2ff);
+  outline-offset: 1px;
+}
+
+/* The lab's own glyph wrapper (swipe-lab.html:62-63): svg display:block kills
+   the baseline offset so the spin axis sits on the visual centre. */
+.sbnav .nb .g {
+  display: inline-block;
+}
+
+.sbnav .nb .g svg {
+  display: block;
+}
+
+/* .g's own content swaps on the spot (useVariants), so the fade is a
+   separate ghost span holding the outgoing glyph - .g fades IN from behind
+   .entering while the ghost fades out and is discarded. Both sit absolutely
+   over the button's own 22px box, so neither shifts the layout. */
+.sbnav .nb .g.gswap,
+.sbnav .nb .gl.ghost {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  transition: opacity .12s ease;
+}
+
+.sbnav .nb .g.gswap.entering {
+  opacity: 0;
+}
+
+.sbnav .nb .gl.ghost.out {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sbnav .nb {
+    transition: none;
+  }
+
+  .sbnav .nb .g.gswap,
+  .sbnav .nb .gl.ghost {
+    transition: none;
+  }
+}
+
+.sbnav .nb .g.nudgeL {
+  animation: navnudgeL .3s ease;
+}
+
+.sbnav .nb .g.nudgeR {
+  animation: navnudgeR .3s ease;
+}
+
+@keyframes navnudgeL {
+  40% { transform: translateX(-3px); }
+}
+
+@keyframes navnudgeR {
+  40% { transform: translateX(3px); }
+}
+
+.sbnav .nb.sbreload .g.spin {
+  animation: reloadspin .45s cubic-bezier(.3, .7, .3, 1);
+}
+
+@keyframes reloadspin {
+  from { transform: rotate(0); }
+  to { transform: rotate(360deg); }
+}
+
+/* The lab's severity ladder for its reload modes (swipe-lab.html:69-72), here
+   on all three controls: colour AND glyph both move, so the wider function is
+   never a same-shape-different-tint near-miss of the plain one. Literals
+   rather than --accent, which is scoped to #atrium-root. */
+
+/* A translucent wash reads under 2:1 against a light sidebar tint, so the
+   plate is filled instead - its contrast against the ink on top then stops
+   depending on the tint underneath. */
+.sbnav[data-mod="option"] .nb.sbback,
+.sbnav[data-mod="option"] .nb.sbfwd,
+.sbnav[data-mod="option"] .nb.sbreload {
+  opacity: 1;
+  color: #6b4700;
+  background: #e2a648;
+  font-weight: 600;
+}
+
+.sbnav[data-mod="cmdshift"] .nb.sbback,
+.sbnav[data-mod="cmdshift"] .nb.sbfwd,
+.sbnav[data-mod="cmdshift"] .nb.sbreload {
+  opacity: 1;
+  color: #701400;
+  background: #ff5f57;
+  font-weight: 600;
+}
+
+/* A lightened plate rather than a stronger wash - the plate is opaque now,
+   so hover has nothing to fade in from. */
+.sbnav[data-mod="option"] .nb:hover {
+  background: color-mix(in srgb, #e2a648 85%, white);
+}
+
+.sbnav[data-mod="cmdshift"] .nb:hover {
+  background: color-mix(in srgb, #ff5f57 85%, white);
+}
+
+/* Greyed and inert, the ladder .ctxitem:disabled uses in sidebar.css. The
+   modifier states are listed too: they set opacity 1 on the same buttons, and
+   a direction with nowhere to go must stay dead under a held chord. */
+.sbnav .nb.navdim,
+.sbnav .nb.navdim:hover,
+.sbnav[data-mod="option"] .nb.navdim,
+.sbnav[data-mod="cmdshift"] .nb.navdim {
+  opacity: .3;
+  color: inherit;
+  background: transparent;
+}
+
+/* The lab's own anchor for its right-aligned group (swipe-lab.html:58).
+   .sbnav now spans to the row's own right edge (the `right` above) so this
+   has room to push back/forward/reload against it. `first` moves to whichever
+   control is leftmost once the narrow-row collapse sheds the ones before it. */
+.sbnav .nb.first {
+  margin-left: auto;
+}
+
+/* display:none, not visibility: a hidden button must give its slot AND its
+   flex gap back, which is the whole point of the collapse. */
+.sbnav .nb.navgone {
+  display: none;
+}
+
+/* Narrower than a nav button on purpose: an overflow button the same 22px as
+   the button it replaces would free no room at the first step. */
+.sbnav .nb.sbmore {
+  width: 16px;
+  font-size: 13px;
+}
+
+/* .ctxmenu carries the panel look (sidebar.css). .sbnav is position: fixed, so
+   it is the containing block and the menu hangs under the overflow button.
+   32, not 28: the row starts 9px down, and anything above kTitlebarHeight (40)
+   is caption - a click there starts a window drag instead of picking an item. */
+.sbnav .navmenu {
+  top: 32px;
+  right: 0;
+}
+
+/* The floating address row is a z-index 5 sibling later in the tree, so at an
+   equal z-index it paints over this bar - and this bar's own z-index opens a
+   stacking context, which traps .ctxmenu's 50 inside it. Lifted only while a
+   menu is open, so the resting order in the band does not move. */
+.sbnav:has(.navmenu) {
+  z-index: 6;
+}

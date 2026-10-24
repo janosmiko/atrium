@@ -1,0 +1,26 @@
+{
+  "name": "archive-hotkey-toggles-the-overview-shut",
+  "description": "A second Cmd+Shift+A closes the Overview and returns the rail to the space it left, also after a section switch. The run starts on Writing, the second space, so a return to pane 0's neighbour cannot pass by accident.",
+  "fixture": "lab-compare.spaces.json",
+  "startup_space": "1ab00002-0000-4000-8000-000000000002",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {"type": "wait_vlog", "pattern": "Atrium: sidebar rows drawn [1-9]", "timeout_ms": 20000},
+    {"type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot"},
+    {"type": "settle", "ms": 1200},
+    {"type": "eval", "id": "pane-before", "target": "/sidebar", "expression": "String(window.__swipeDebug().spaceIndex)", "note": "recorded: Writing is pane 2, Overview holds pane 0"},
+    {"type": "key", "combo": "cmd+shift+a", "note": "the first press opens the Overview at Archived"},
+    {"type": "wait_vlog", "pattern": "Atrium: overview pane entered", "timeout_ms": 8000},
+    {"type": "eval_until", "id": "archived-shown", "target": "/sidebar", "expression": "document.querySelector('.ovbtn.on')?.dataset.ovsec || 'none'", "expected": "archived", "timeout_ms": 5000},
+    {"type": "eval", "id": "switch-section", "target": "/sidebar", "expression": "(() => { const b = document.querySelector('.ovbtn[data-ovsec=\"downloads\"]'); if (!b) { return 'no downloads button'; } b.click(); return b.classList.contains('on') ? 'downloads' : 'not switched'; })()", "expected": "downloads", "note": "The user moves to another section before the second press"},
+    {"type": "key", "combo": "cmd+shift+a", "note": "THE MEASUREMENT: the second press closes the Overview"},
+    {"type": "wait_vlog", "pattern": "Atrium: overview pane left", "timeout_ms": 8000},
+    {"type": "eval_until", "id": "pane-after", "target": "/sidebar", "expression": "(() => { const d = window.__swipeDebug(); return d.running ? 'gliding' : String(d.spaceIndex); })()", "expected": "2", "timeout_ms": 5000, "note": "the rail settles back on Writing, not on Reading"}
+  ],
+  "assertions": [
+    {"type": "vlog_after", "label": "second-press-left-the-overview", "pattern": "Atrium: overview pane left", "after_pattern": "Atrium: overview pane entered"},
+    {"type": "vlog_count", "label": "second-press-did-not-reselect-archived", "pattern": "Atrium: overview section selected archived", "max": 1, "desc": "before the fix the second press only selected Archived again and the rail stayed on the Overview"},
+    {"type": "quit", "desc": "Cmd+Q still quits cleanly after the round trip"}
+  ]
+}

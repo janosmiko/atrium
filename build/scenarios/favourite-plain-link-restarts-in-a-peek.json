@@ -1,0 +1,138 @@
+{
+  "name": "favourite-plain-link-restarts-in-a-peek",
+  "description": "An off-site link clicked in a favourite's tab is cancelled by the peek throttle and reopened in a fresh WebContents, so the page starts a renderer before it asks for the page. The run log now carries one line per step: the cancel, the load start, the card, the first paint. The stamps on those lines are the measurement the task asks for. Same fixture and prelude as favourite-off-site-link-opens-a-peek, and the click lands on the PLAIN link below the target=_blank one.",
+  "fixture": "favourite-off-site-link.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "applies-before",
+      "target": "/sidebar",
+      "expression": "String(window.__atriumApplyCount || 0)",
+      "note": "sidebar rebuilds so far. Read again once the favourite's tab has landed: the difference is the rebuild count for one tab open"
+    },
+    {
+      "type": "click",
+      "x": 40,
+      "y": 121,
+      "note": "the only favourite tile, at a sibling scenario's coordinates. This click OPENS and CLAIMS the tab."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: favourite claimed tab",
+      "timeout_ms": 20000,
+      "note": "VACUITY GUARD: no claim, nothing below is about a favourite's tab"
+    },
+    {
+      "type": "eval_until",
+      "id": "landed",
+      "target": "favourite-links.html",
+      "expression": "location.pathname",
+      "expected": "/favourite-links.html",
+      "timeout_ms": 20000,
+      "note": "the meta refresh moved the tab off the stored URL"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "applies-after",
+      "target": "/sidebar",
+      "expression": "String(window.__atriumApplyCount || 0)"
+    },
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "let the card open"
+    },
+    {
+      "type": "eval",
+      "id": "plain-rect",
+      "target": "favourite-links.html",
+      "expression": "(() => { const b = document.getElementById('plain').getBoundingClientRect(); return JSON.stringify([Math.round(b.x + b.width / 2), Math.round(b.y + b.height / 2)]); })()",
+      "note": "page-space centre of the plain link, to correct the click below when it misses (screen = page + 280,+35 on this VM)"
+    },
+    {
+      "type": "click",
+      "x": 480,
+      "y": 480,
+      "note": "THE MEASUREMENT: the plain off-site link. plain-rect read page-space [394,445] on the 2026-09-10 run, so screen y is 480"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: peek first paint",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "desc": "the browser window AND the card"
+    },
+    {
+      "type": "eval_equals",
+      "id": "landed",
+      "expected": "/favourite-links.html",
+      "desc": "VACUITY GUARD: the claimed tab left the stored URL before the click"
+    },
+    {
+      "type": "vlog",
+      "label": "the-throttle-cancelled",
+      "pattern": "Atrium: peek intercept cancelled the navigation to http://dl\\.localhost",
+      "desc": "the plain link went through the throttle, not through OpenURLFromTab"
+    },
+    {
+      "type": "vlog_after",
+      "label": "load-after-cancel",
+      "pattern": "Atrium: peek load started for http://dl\\.localhost",
+      "after_pattern": "Atrium: peek intercept cancelled the navigation to http://dl\\.localhost",
+      "desc": "THE MEASUREMENT: the reopen's LoadURL, stamped after the cancel"
+    },
+    {
+      "type": "vlog_after",
+      "label": "card-after-load",
+      "pattern": "Atrium: peek widget showing for parent",
+      "after_pattern": "Atrium: peek load started for http://dl\\.localhost",
+      "desc": "the card follows the load start"
+    },
+    {
+      "type": "vlog_after",
+      "label": "paint-after-card",
+      "pattern": "Atrium: peek first paint",
+      "after_pattern": "Atrium: peek widget showing for parent",
+      "desc": "the page is visible only at its first paint"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-tab-took-the-link",
+      "pattern": "Atrium: tab [0-9]+ url http://dl\\.localhost",
+      "desc": "neither the favourite's tab nor a new one navigated to the target"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

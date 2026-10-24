@@ -1,0 +1,60 @@
+{
+  "name": "light-tint-gets-a-glow",
+  "description": "Both spaces carry the light custom tint #F0F4F8. Space Red holds a solid #FF0000 page, space Empty holds nothing, so the band beside the card shows the glow in one and the bare space tint in the other. Graded against a fixed white ink the core refuses every shift off a light base and answers the base itself, and the two bands then read the same colour - the delta below is zero and this scenario fails. It passes only when the ink handed to the core is the black one the sidebar already draws on this tint.\n\nModelled on a sibling scenario, which measures the same band across the same space chord. Its spaces are darkly tinted, so it passes either way.",
+  "fixture": "light-tint-and-an-empty-space.spaces.json",
+  "settings": "icon-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "light-tint-red.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/light-tint-red.html",
+      "timeout_ms": 20000
+    },
+    { "type": "settle", "ms": 2500 },
+    { "type": "activate" },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: ambilight edges",
+      "timeout_ms": 15000
+    },
+    { "type": "settle", "ms": 1500 },
+    { "type": "capture", "id": "on-red", "duration_ms": 400, "fps": 20 },
+    { "type": "key", "combo": "cmd+shift+right" },
+    { "type": "settle", "ms": 3000 },
+    { "type": "capture", "id": "on-empty", "duration_ms": 400, "fps": 20 }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: glass ink black",
+      "label": "the-light-tint-draws-black-ink",
+      "desc": "The sidebar reads black on this tint, so black is the ink the core has to grade the drift against."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: active space 0 -> 1 ",
+      "label": "the-chord-left-the-space",
+      "desc": "THE CONTROL: the second capture is a different space, not a second look at the first."
+    },
+    {
+      "type": "theme_changed",
+      "before": "on-red",
+      "after": "on-empty",
+      "region": [206, 460, 16, 100],
+      "min_delta": 5,
+      "label": "the-light-tint-has-a-glow-to-lose",
+      "desc": "THE MEASUREMENT: the band beside the card carries the red page over the light space tint, and drops back to the bare tint on the empty space. A core that answered the base for every shift paints the same tint in both captures and reads 0 here."
+    },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

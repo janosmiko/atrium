@@ -1,0 +1,88 @@
+{
+  "actions" : {
+    "closeSplitPane" : [
+      "shift+ctrl+-"
+    ],
+    "editCurrentURL" : [
+      "cmd+l"
+    ],
+    "goToSpace1" : [
+      "cmd+1"
+    ],
+    "goToSpace2" : [
+      "cmd+2"
+    ],
+    "goToSpace3" : [
+      "cmd+3"
+    ],
+    "goToSpace4" : [
+      "cmd+4"
+    ],
+    "goToSpace5" : [
+      "cmd+5"
+    ],
+    "goToSpace6" : [
+      "cmd+6"
+    ],
+    "goToSpace7" : [
+      "cmd+7"
+    ],
+    "goToSpace8" : [
+      "cmd+8"
+    ],
+    "goToSpace9" : [
+      "cmd+9"
+    ],
+    "littleWindow" : [
+      "cmd+opt+n"
+    ],
+    "nextSpace" : [
+      "opt+tab",
+      "cmd+opt+right",
+      "opt+ctrl+right",
+      "cmd+shift+right"
+    ],
+    "nextTab" : [
+      "cmd+shift+]"
+    ],
+    "openArchive" : [
+      "cmd+shift+a"
+    ],
+    "openCommandBar" : [
+      "cmd+t"
+    ],
+    "pinToggleTab" : [
+      "cmd+d"
+    ],
+    "previousSpace" : [
+      "shift+opt+tab",
+      "cmd+opt+left",
+      "opt+ctrl+left",
+      "cmd+shift+left"
+    ],
+    "previousTab" : [
+      "cmd+opt+up",
+      "cmd+k",
+      "cmd+shift+["
+    ],
+    "splitWithNextTab" : [
+      "shift+ctrl+right"
+    ],
+    "splitWithPreviousTab" : [
+      "shift+ctrl+left"
+    ],
+    "toggleDeveloperMode" : [
+      "opt+ctrl+d"
+    ],
+    "toggleOverview" : [
+      "cmd+shift+o"
+    ],
+    "toggleSidebar" : [
+      "cmd+s"
+    ],
+    "toggleSplitOrientation" : [
+      "shift+ctrl+\\"
+    ]
+  },
+  "schemaVersion" : 2
+}

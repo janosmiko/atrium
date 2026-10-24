@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Video With Sound</title>
+<style>body{margin:0;background:#101014}video{width:100%;height:100vh}</style>
+</head>
+<body>
+<video id="video" src="bear-1280x720.webm" loop playsinline></video>
+<script>
+const video = document.getElementById('video');
+video.volume = 1;
+video.play();
+window.atriumPipState = () =>
+  document.pictureInPictureElement ? 'pip' : 'in-tab';
+</script>
+</body>
+</html>

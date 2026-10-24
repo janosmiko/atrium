@@ -1,0 +1,106 @@
+{
+  "name": "the-address-field-fills-as-a-page-loads",
+  "description": "The 3px bar over the content card is gone. The docked address field carries the load instead, as a fill layer behind the URL text. Two reads on one Cmd+R: mid-load the fill is up and spans part of the field, and after the load it has faded to nothing. A width read alone would pass a build that leaves the plate up forever, so the second read is the one that proves the fade. The classifier accepts both live phases, because the wait before the first byte is a phase of its own and its width is the full field.",
+  "fixture": "staged-load.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "the fixture spins for 3s, so this outlasts the first load"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "idle-field-is-clear",
+      "target": "/sidebar",
+      "expression": "(() => { const el = document.querySelector('.urlrow .loadfill'); if (!el) { return 'no fill'; } return el.classList.contains('waiting') || el.classList.contains('receiving') ? 'still filling ' + el.className : 'clear'; })()",
+      "note": "THE CONTROL: nothing is loading, so nothing fills. Without it a plate that is always up would pass the mid-load read."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+r"
+    },
+    {
+      "type": "settle",
+      "ms": 900,
+      "note": "well inside the fixture's 3s hold"
+    },
+    {
+      "type": "eval",
+      "id": "mid-load-field-fills",
+      "target": "/sidebar",
+      "expression": "(() => { const el = document.querySelector('.urlrow .loadfill'); if (!el) { return 'no fill'; } const row = el.parentElement; const w = parseFloat(getComputedStyle(el).width); const full = parseFloat(getComputedStyle(row).width); if (!full) { return 'no field'; } const live = el.classList.contains('waiting') || el.classList.contains('receiving'); if (!live) { return 'idle ' + el.className; } const pct = w / full; return pct > 0.02 && pct <= 1.001 ? 'filling' : 'off ' + pct.toFixed(2); })()"
+    },
+    {
+      "type": "eval",
+      "id": "mid-load-phase-seen",
+      "target": "/sidebar",
+      "expression": "(() => { const el = document.querySelector('.urlrow .loadfill'); return el ? (el.className.split(' ').slice(1).join(',') || 'none') : 'no fill'; })()",
+      "note": "RECORDED, NOT ASSERTED: which of the two live phases the fixture actually reaches. If this always reads 'waiting' the fixture never streams and its subresource list needs to grow, which is a fixture fix and not an assertion fix."
+    },
+    {
+      "type": "capture",
+      "id": "field-mid-load"
+    },
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "the hold ends, the fill completes, and the 260ms fade runs out"
+    },
+    {
+      "type": "eval",
+      "id": "after-load-field-fades",
+      "target": "/sidebar",
+      "expression": "(() => { const el = document.querySelector('.urlrow .loadfill'); if (!el) { return 'no fill'; } const o = parseFloat(getComputedStyle(el).opacity); const live = el.classList.contains('waiting') || el.classList.contains('receiving'); return !live && o < 0.02 ? 'faded' : 'still showing ' + el.className + ' ' + o.toFixed(2); })()",
+      "note": "Not keyed to the 'done' class: a snapshot push that lands after the load rebuilds the row, and buildUrlRow replays only a LIVE phase onto the new fill, so the layer is often bare by this read. Bare and 'done' both sit at opacity 0 while the two live phases sit at .08 or more, so the invisibility read is what separates them."
+    },
+    {
+      "type": "capture",
+      "id": "field-after-load"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "idle-field-is-clear",
+      "expected": "\"clear\"",
+      "desc": "THE CONTROL: an idle field carries no live phase, so the mid-load read below means the load put it there."
+    },
+    {
+      "type": "eval_equals",
+      "id": "mid-load-field-fills",
+      "expected": "\"filling\"",
+      "desc": "THE MEASUREMENT: mid-load the field carries a live phase and a fill wider than nothing. 'no fill' means the layer was never built, 'idle' means the push never reached the sidebar document."
+    },
+    {
+      "type": "eval_equals",
+      "id": "after-load-field-fades",
+      "expected": "\"faded\"",
+      "desc": "the fill hands back to the plain field once the page arrives, rather than staying up. A plate left up carries a live phase and at least .08 opacity, so this read still catches it. This is what the old bar's 260ms fade did."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

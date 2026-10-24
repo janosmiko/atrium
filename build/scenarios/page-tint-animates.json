@@ -1,0 +1,93 @@
+{
+  "name": "page-tint-animates",
+  "description": "The half a before/after pair cannot answer: the drift ANIMATES rather than jumping. Two captures either side of a settle look identical whether the colour eased across or snapped on the first frame. key_during_capture fires the tab switch from inside one capture burst and registers the mid-transition frame beside the settled one, so the two can be compared. If the tint eased, the middle of the transition is neither the colour it left nor the colour it lands on.",
+  "fixture": "page-tint.spaces.json",
+  "settings": "page-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 10,
+      "note": "the crimson page's chrome, at rest"
+    },
+    {
+      "type": "key_during_capture",
+      "combo": "cmd+k",
+      "capture_id": "switch",
+      "duration_ms": 1600,
+      "fps": 30,
+      "key_delay_ms": 300,
+      "mid_at_ms": 700,
+      "note": "previousTab. cmd+shift+] is nextTab in the hotkeys store but moved no tab when sent, even once the harness learned the bracket key - worth its own look. With two tabs, previous and next reach the same place."
+    },
+    {
+      "type": "eval_until",
+      "id": "teal-page",
+      "target": "theme-color-teal.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/theme-color-teal.html",
+      "timeout_ms": 8000,
+      "note": "the teal page committed, read from the page itself"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "teal-page",
+      "expected": "http://127.0.0.1:8000/theme-color-teal.html",
+      "label": "the-switch-really-happened",
+      "desc": "THE CONTROL: the teal page committed. Without it every assertion below could pass on a window that never changed tab."
+    },
+    {
+      "type": "theme_changed",
+      "before": "before",
+      "after": "switch",
+      "region": [
+        10,
+        460,
+        60,
+        100
+      ],
+      "min_delta": 4,
+      "desc": "the drift reached the new colour by the end of the burst"
+    },
+    {
+      "type": "theme_changed",
+      "before": "before",
+      "after": "switch_mid",
+      "region": [
+        10,
+        460,
+        60,
+        100
+      ],
+      "min_delta": 2,
+      "desc": "THE MEASUREMENT: the colour had already left where it started by the midpoint. An eased drift is somewhere in between at 400ms after the switch; a jump is still sitting on the old colour until the instant it lands, which is what this catches.",
+      "note": "The partner assertion above proves it reaches the new colour. This one proves it did not get there in one step. Both are needed: either alone passes for a jump."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

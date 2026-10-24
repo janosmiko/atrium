@@ -1,0 +1,45 @@
+{
+  "name": "an-idle-page-leaves-no-orphan-surfaces",
+  "description": "Five idle minutes with a page open must log zero \"Old/orphaned temporary reference\" lines. Viz writes that line (surface_manager.cc, ExpireOldTemporaryReferences) when a frame sink submits a surface with a new LocalSurfaceId and no embedder ever references it within 10 to 20 seconds - the surface leaks a temporary reference and viz drops it. WHAT THIS GUARDS: Atrium's own surfaces. The sidebar, the command bar, the pill, the devbar, the AI panel and the tab pane are all top-level WebContents in views::Widgets Atrium owns, and every one of them has to end up embedded in a compositor that actually draws. A change that leaves one attached to a widget that never draws, or that resizes a surface behind a hidden widget, starts printing this line and this scenario turns red. WHAT IT DOES NOT GUARD: page content. A cross-origin iframe the page itself keeps re-laying-out while its embedder never paints it produces the same line, and that is upstream Chromium behaviour on real web content, not something Atrium decides - measured 2026-09-05: a fixture with cross-site iframes under transform/content-visibility that hides them from paint printed 62 of these lines in 75 seconds, while the whole existing scenario corpus (1055 recorded runs, 73 million run-log lines) printed none. So the fixture here is deliberately a plain single-origin page with no iframes: the only frame sinks in the run are the ones Atrium put there. The line is a DLOG, so it exists only because the dev build sets DCHECK_ALWAYS_ON. An official build compiles it out and this scenario would prove nothing against one.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the startup space's tab commit"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 15000,
+      "note": "GATE: a page really committed. Without it a launch that never reached a page would idle for five minutes and pass on an empty log, which is the one way a vlog_absent assertion goes green while measuring nothing. Either host counts - two-tabs.spaces.json carries both and lastActiveAt, not file order, picks the starting one."
+    },
+    {
+      "type": "settle",
+      "ms": 300000,
+      "note": "Five idle minutes, the window the task asks for. The expiry timer runs every 10 seconds and needs a reference to survive two ticks, so this covers about 30 chances to print the line."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog_absent",
+      "pattern": "Old/orphaned temporary reference",
+      "label": "no-orphan-surface",
+      "desc": "THE ASSERTION. Listed before quit on purpose: the run log is pulled once before assertions run, so this reads the idle period and not the teardown. Shutdown destroys every surface widget at once and a temporary reference outstanding at that moment is a different, uninteresting thing."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "the app was still alive and showing its window for those five minutes, so the clean log above is a statement about a running browser rather than a dead one"
+    },
+    {
+      "type": "quit",
+      "desc": "and it was still responsive enough to quit on Cmd+Q"
+    }
+  ]
+}

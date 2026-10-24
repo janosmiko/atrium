@@ -1,0 +1,151 @@
+{
+  "name": "hint-fits-at-the-minimum-sidebar-width",
+  "description": "the hint stays fully visible with the sidebar at its narrowest. 160 is the floor SetSidebarWidth clamps to, matching SpacesStore.sidebarWidthRange, so this fixture asks for exactly that.\n\nA narrow sidebar is the hardest case for the bubble, not the easiest. hint.js place() puts the bubble beside its anchor and clamps against the hint document's width, so the narrower the sidebar the further past its edge the bubble has to reach, and the more of it depends on the widget spanning the whole window rather than the sidebar's own column. While the old widget was live the widget held a rect 176px too wide and shifted 88px off the leading edge, and the navigation buttons are the controls that sit at the smallest x of all.\n\nThe sidebar's own document width is read and logged rather than assumed. It measures 160x680 here, so the fixture field does take effect.\n\nWHAT A 160px SIDEBAR DOES TO THE NAVIGATION BUTTONS. They collapse. The first run of this scenario logged 'hovered nb sbtoggle navgone at 0,0': the button carries a navgone class and has no box at all, so the hover landed on a hidden element and the bubble anchored at the window's own corner. That is why the overhang here is driven by an explicit atriumShowHint call rather than by the hover, and why the short bubble the hover produces is only logged. A 97px bubble anchored at x=8 ends at 105 and has no reason to cross 160, which an earlier version of this scenario wrongly asserted it would.",
+  "fixture": "hint-min-sidebar.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "the hint widget builds its WebContents off the reserved chrome context"
+    },
+    {
+      "type": "eval",
+      "id": "sidebar-width",
+      "target": "/sidebar",
+      "expression": "String(window.innerWidth) + 'x' + String(window.innerHeight)",
+      "note": "what the run actually used, logged because the fixture's request and the measured width have already disagreed once"
+    },
+    {
+      "type": "eval",
+      "id": "hover-a-nav-button",
+      "target": "/sidebar",
+      "expression": "(() => { const nb = document.querySelector('.sbnav .nb'); if (!nb) { return 'no nav button'; } const r = nb.getBoundingClientRect(); nb.dispatchEvent(new PointerEvent('pointerover', {bubbles: true})); nb.dispatchEvent(new PointerEvent('pointermove', {bubbles: true})); return 'hovered ' + nb.className + ' at ' + Math.round(r.left) + ',' + Math.round(r.top); })()",
+      "note": "pointerover, not pointerenter: installHover listens on document.body and pointerenter does not bubble"
+    },
+    {
+      "type": "settle",
+      "ms": 1400,
+      "note": "past HOVER_DELAY_MS, which is 600"
+    },
+    {
+      "type": "eval_until",
+      "id": "hint-appeared",
+      "target": "/hint",
+      "expression": "String(!!document.querySelector('.hint') && document.querySelector('.hint').getBoundingClientRect().width > 0)",
+      "expected": "true",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "eval",
+      "id": "hint-geometry",
+      "target": "/hint",
+      "expression": "(() => { const b = document.querySelector('.hint'); if (!b) { return 'no bubble'; } const r = b.getBoundingClientRect(); return Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height) + ' in ' + window.innerWidth + 'x' + window.innerHeight; })()",
+      "note": "the bubble's box beside the viewport it was clamped against, so a failure names the overflow rather than only reporting false"
+    },
+    {
+      "type": "eval_until",
+      "id": "hint-is-fully-visible",
+      "target": "/hint",
+      "expression": "(() => { const b = document.querySelector('.hint'); if (!b) { return 'no bubble'; } const r = b.getBoundingClientRect(); return String(r.left >= 0 && r.top >= 0 && r.width > 0 && r.right <= window.innerWidth && r.bottom <= window.innerHeight); })()",
+      "expected": "true",
+      "timeout_ms": 4000
+    },
+    {
+      "type": "eval",
+      "id": "short-hint-box",
+      "target": "/hint",
+      "expression": "(() => { const b = document.querySelector('.hint'); if (!b) { return 'no bubble'; } const r = b.getBoundingClientRect(); return Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height); })()",
+      "note": "logged, not asserted on for overhang. A short bubble beside a leading-edge control has no reason to cross the sidebar's edge, and an earlier version of this scenario wrongly demanded that it did. The overhang belongs to the long hint below."
+    },
+    {
+      "type": "eval",
+      "id": "overhang-bubble",
+      "target": "/hint",
+      "expression": "(() => { window.atriumShowHint({text: 'Hold to open in a peek, or shift click to split it', keys: 'shift+click', anchor: {left: 130, top: 300, width: 24, height: 24}, ttlMs: 12000}); const b = document.querySelector('.hint'); if (!b) { return 'no bubble'; } const r = b.getBoundingClientRect(); return Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height); })()",
+      "note": "anchored just inside a 160px sidebar, with text too long to fit. Its box goes into the log so the pixel probes below can be placed from a measurement."
+    },
+    {
+      "type": "eval_until",
+      "id": "overhang-fits-and-clears-the-sidebar",
+      "target": "/hint",
+      "expression": "(() => { const b = document.querySelector('.hint'); if (!b) { return 'no bubble'; } const r = b.getBoundingClientRect(); return String(r.left >= 0 && r.right > 160 && r.right <= window.innerWidth); })()",
+      "expected": "true",
+      "timeout_ms": 4000
+    },
+    {
+      "type": "settle",
+      "ms": 700
+    },
+    {
+      "type": "capture",
+      "id": "overhanging-hint",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "for the question of whether the page covers any of the bubble. Bounds cannot answer that, only a pixel can. This fixture loads brand-dark-red-icon.html because the sibling scenario's page was too light to tell card from page: the two read 201 and 224, which is nothing."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint-appeared",
+      "expected": "true",
+      "desc": "a navigation button's hover puts a bubble up with the sidebar at its narrowest"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint-is-fully-visible",
+      "expected": "true",
+      "desc": "Every edge of the bubble is inside the window at the minimum sidebar width"
+    },
+    {
+      "type": "eval_equals",
+      "id": "overhang-fits-and-clears-the-sidebar",
+      "expected": "true",
+      "desc": "A hint too long for a 160px sidebar reaches past its edge and still stops inside the window"
+    },
+    {
+      "type": "region_mean",
+      "capture": "overhanging-hint",
+      "x": 300,
+      "y": 375,
+      "w": 8,
+      "h": 8,
+      "min_mean": 90,
+      "max_mean": 256,
+      "label": "the-bubble-covers-the-page-past-the-sidebar",
+      "desc": "The bubble's own surface, past a 160px sidebar, so over the web card. Bounds cannot answer whether the page covers it, only a pixel can. Over this dark page the card reads light and bare page reads near 16, so the two separate cleanly, unlike the sibling scenario where a white page and a near-white card read 224 and 201. The bubble measured 130,332 333x37 in its document and the window's content starts at screen y=30, which puts its band at 362..399: an earlier version of this probe sat at y=345, above it, and read the page at 16.2 while appearing to pass a 0..256 bound."
+    },
+    {
+      "type": "region_mean",
+      "capture": "overhanging-hint",
+      "x": 300,
+      "y": 430,
+      "w": 8,
+      "h": 8,
+      "min_mean": 0,
+      "max_mean": 256,
+      "label": "diag-page-below-the-overhang",
+      "desc": "DIAGNOSTIC: the same column below the bubble, bare dark page. The pair is what gives the reading above meaning."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

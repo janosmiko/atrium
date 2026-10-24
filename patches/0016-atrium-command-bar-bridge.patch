@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sat, 25 Jul 2026 09:48:32 +0200
+Subject: [PATCH 016/154] atrium: command-bar bridge
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+260.1: widen the match payload additively - deletable, inline_autocompletion,
+fill_into_edit, allowed_to_be_default_match, contents/description
+classifications, favicon/image url, stripped_destination_url. 260.9: forward
+intermediate AutocompleteController passes as provisional-vs-final envelopes
+with a query generation so Swift's typing gate can drop stale passes. 260.8:
+thread an open reason (kNewTab/kEditCurrentURL) through a controller latch
+into the show path, with a cmd+l native hotkey. ABI additions are append-only.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 7912a01e6ea5b..205b3838feda3 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3474,6 +3474,7 @@ static_library("ui") {
+       "atrium/atrium_capture.h",
+       "atrium/atrium_capture_overlay_widget.h",
+       "atrium/atrium_capture_overlay_widget.mm",
++      "atrium/atrium_command_bar_open_reason.h",
+       "atrium/atrium_command_bar_widget.h",
+       "atrium/atrium_command_bar_widget.mm",
+       "atrium/atrium_command_dispatcher_delegate.h",

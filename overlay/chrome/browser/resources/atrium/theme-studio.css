@@ -1,0 +1,312 @@
+/* Copyright 2026 The Atrium Authors */
+
+/* Theme Studio: the settings-pane ThemeSpec editor. Reuses
+   settings.css's own tokens rather than inventing colours. */
+
+.theme-studio {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 320px;
+}
+
+.theme-studio-header {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.theme-studio-title {
+  color: var(--ov-mute);
+  font-size: 12px;
+}
+
+.theme-studio-space-name {
+  color: var(--ov-fg);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.theme-studio-canvas-wrap {
+  aspect-ratio: 192 / 108;
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-row);
+  cursor: crosshair;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.theme-studio-canvas {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.theme-studio-dots {
+  inset: 0;
+  position: absolute;
+}
+
+.theme-studio-dot {
+  background: var(--ov-paper);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgb(0 0 0 / .5);
+  cursor: grab;
+  height: 14px;
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 14px;
+}
+
+.theme-studio-dot.selected {
+  box-shadow: 0 0 0 2px var(--theme-studio-accent, var(--ov-accent)), 0 1px 4px rgb(0 0 0 / .5);
+}
+
+.theme-studio-hint {
+  color: var(--ov-mute);
+  font-size: 10.5px;
+  margin: 0;
+  text-align: center;
+}
+
+.theme-studio-row {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.theme-studio-preset-list,
+.theme-studio-swatch-list {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.theme-studio-preset {
+  appearance: none;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: default;
+  height: 18px;
+  padding: 0;
+  width: 18px;
+}
+
+.theme-studio-preset.active {
+  border-color: var(--theme-studio-accent, var(--ov-accent));
+}
+
+.theme-studio-preset:focus-visible,
+.theme-studio-randomize:focus-visible,
+.theme-studio-swatch:focus-visible,
+.theme-studio-add-stop:focus-visible,
+.theme-studio-remove-stop:focus-visible,
+.theme-studio-toggle:focus-visible,
+.theme-studio-save:focus-visible,
+.theme-studio-remove:focus-visible {
+  outline: 2px solid var(--ov-accent);
+  outline-offset: 2px;
+}
+
+.theme-studio-randomize {
+  appearance: none;
+  background: var(--ov-sel);
+  border: 0;
+  border-radius: 50%;
+  color: var(--ov-fg);
+  cursor: default;
+  font-size: 11px;
+  height: 18px;
+  line-height: 18px;
+  padding: 0;
+  width: 18px;
+}
+
+.theme-studio-swatch {
+  appearance: none;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: default;
+  height: 22px;
+  padding: 0;
+  width: 22px;
+}
+
+.theme-studio-swatch.selected {
+  border-color: var(--theme-studio-accent, var(--ov-accent));
+}
+
+.theme-studio-add-stop,
+.theme-studio-remove-stop {
+  appearance: none;
+  background: none;
+  border: 1px dashed var(--ov-border);
+  border-radius: 50%;
+  color: var(--ov-mute);
+  cursor: default;
+  font: 700 12px var(--ov-font);
+  height: 22px;
+  line-height: 1;
+  padding: 0;
+  width: 22px;
+}
+
+.theme-studio-add-stop:disabled {
+  opacity: .4;
+}
+
+.theme-studio-slider {
+  accent-color: var(--ov-accent);
+  flex: 1;
+}
+
+.theme-studio-toggle {
+  align-items: center;
+  appearance: none;
+  background: color-mix(in srgb, var(--ov-fg) 20%, transparent);
+  border: 0;
+  border-radius: 999px;
+  box-sizing: border-box;
+  cursor: default;
+  display: inline-flex;
+  height: 22px;
+  padding: 2px;
+  transition: background var(--ov-expand-ms) var(--ov-ease);
+  width: 38px;
+}
+
+.theme-studio-toggle::after {
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgb(var(--ov-ink) / .28);
+  content: '';
+  display: block;
+  height: 18px;
+  transition: transform var(--ov-expand-ms) var(--ov-ease);
+  width: 18px;
+}
+
+.theme-studio-toggle[aria-pressed="true"] {
+  background: var(--ov-accent);
+}
+
+.theme-studio-toggle[aria-pressed="true"]::after {
+  transform: translateX(16px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-studio-toggle,
+  .theme-studio-toggle::after {
+    transition: none;
+  }
+}
+
+.theme-studio-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.theme-studio-save,
+.theme-studio-remove {
+  appearance: none;
+  border-radius: var(--ov-radius-row);
+  cursor: default;
+  font: 500 12.5px var(--ov-font);
+  padding: 5px 11px;
+}
+
+.theme-studio-save {
+  background: var(--ov-accent);
+  border: 1px solid var(--ov-accent);
+  color: var(--ov-accent-ink);
+}
+
+.theme-studio-remove {
+  background: var(--ov-danger-paper);
+  border: 1px solid var(--ov-danger);
+  color: var(--ov-danger);
+}
+
+/* ---------- theme-picker.js: the floating hue-ring/SV-square picker ---------- */
+
+.theme-picker {
+  background: var(--ov-paper);
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-card);
+  box-shadow: 0 18px 50px rgb(0 0 0 / .35);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  position: fixed;
+  z-index: 40;
+}
+
+/* The `display: flex` above is an author rule, so it beats the UA sheet's
+   [hidden] and theme-picker.js's `root.hidden = true` paints nothing out. In
+   the /theme window the unopened picker then lands at the viewport origin and
+   covers the card. */
+.theme-picker[hidden] {
+  display: none;
+}
+
+.theme-picker-canvas {
+  cursor: crosshair;
+  display: block;
+  height: 190px;
+  touch-action: none;
+  width: 190px;
+}
+
+.theme-picker-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.theme-picker-row label {
+  color: var(--ov-mute);
+  font-size: 10px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.theme-picker-alpha {
+  accent-color: var(--ov-accent);
+  flex: 1;
+}
+
+.theme-picker-alpha-value {
+  color: var(--ov-mute);
+  font-variant-numeric: tabular-nums;
+  min-width: 32px;
+  text-align: end;
+}
+
+.theme-picker-swatch {
+  background-image: repeating-conic-gradient(#333 0 25%, #555 0 50%);
+  background-size: 10px 10px;
+  border: 1px solid var(--ov-border);
+  border-radius: 7px;
+  flex: none;
+  height: 26px;
+  width: 26px;
+}
+
+.theme-picker-hex {
+  background: var(--ov-ground);
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-anchor);
+  color: var(--ov-fg);
+  flex: 1;
+  font: inherit;
+  padding: 5px 8px;
+}

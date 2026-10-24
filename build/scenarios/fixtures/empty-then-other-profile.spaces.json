@@ -1,0 +1,59 @@
+{
+  "spaces": [
+    {
+      "id": "12640001-0000-4000-8000-000000000001",
+      "name": "Personal",
+      "emoji": "A",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135200.0,
+          "url": "http://127.0.0.1:8000/long-page.html?space1",
+          "title": "Space One Page"
+        }
+      ],
+      "groups": []
+    },
+    {
+      "id": "12640002-0000-4000-8000-000000000002",
+      "name": "New Space",
+      "emoji": "B",
+      "tint": "sunsetCoral",
+      "profileID": "Default",
+      "order": 1,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "12640003-0000-4000-8000-000000000003",
+      "name": "BPX",
+      "emoji": "C",
+      "tint": "meadowGreen",
+      "profileID": "Second",
+      "order": 2,
+      "pinnedTabs": [
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?bpx1",
+          "title": "BPX Pinned One"
+        },
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?bpx2",
+          "title": "BPX Pinned Two"
+        }
+      ],
+      "tabs": [],
+      "groups": []
+    }
+  ],
+  "favorites": [],
+  "archived": [],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "12640001-0000-4000-8000-000000000001"
+  }
+}

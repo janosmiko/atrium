@@ -1,0 +1,12 @@
+{
+  "version": 10,
+  "engines": [
+    {"id": "fixture-google", "_name": "Google", "_isConfigEngine": true, "_metaData": {"order": 1}},
+    {"id": "fixture-docs", "_name": "Docs", "_loadPath": "[user]", "_metaData": {"alias": "docs", "order": 2}, "_urls": [{"template": "https://docs.example.test/search?q={searchTerms}", "rels": [], "params": []}]},
+    {"id": "fixture-wiki", "_name": "Wiki", "_loadPath": "[user]", "_metaData": {"order": 3}, "_urls": [{"type": "application/x-suggestions+json", "template": "https://wiki.example.test/suggest?q={searchTerms}"}, {"type": "text/html", "template": "https://wiki.example.test/w", "params": [{"name": "search", "value": "{searchTerms}"}]}]},
+    {"id": "fixture-poster", "_name": "Poster", "_loadPath": "[user]", "_metaData": {"alias": "post"}, "_urls": [{"template": "https://post.example.test/find", "method": "POST", "params": [{"name": "q", "value": "{searchTerms}"}]}]},
+    {"id": "fixture-plain", "_name": "Plain", "_loadPath": "[user]", "_metaData": {"alias": "plain"}, "_urls": [{"template": "http://plain.example.test/?q={searchTerms}"}]},
+    {"id": "fixture-old", "_name": "Old", "_isAppProvided": true, "_urls": [{"template": "https://old.example.test/?q={searchTerms}"}]}
+  ],
+  "metaData": {"useSavedOrder": true, "defaultEngineId": "fixture-docs"}
+}

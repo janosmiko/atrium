@@ -1,0 +1,170 @@
+{
+  "name": "a-row-dropped-on-the-right-edge-opens-a-split",
+  "description": "A real cgevent drag of one sidebar row onto the RIGHT quarter of another. Every other split scenario reaches a split through the command bar or a link menu, so this is the check that a hand on the mouse in the row list gets there too. Both rows are cold at launch and are clicked live first, because a split needs two live pages and a cold row carries no tab id.\n\nWhat it measures: the side band paints on the target row while the pointer is in its right quarter and the reorder line stays down, the drop sends one sidebarTabSplit naming both tabs and the side, and the window opens the split with the dragged page on the right.\n\nScreen coordinates are the sidebar's client rectangles plus the 30px the window sits below the screen top.",
+  "fixture": "frost-two-tabs.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "wake-first",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 2) { return 'rows ' + rows.length; } rows[0].click(); return 'clicked'; })()",
+      "note": "Both rows are cold at launch, and a cold row has no tab for a pane to show."
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "wake-second",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 2) { return 'rows ' + rows.length; } rows[1].click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval_until",
+      "id": "layout",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 2) { return 'rows ' + rows.length; } return rows.slice(0, 2).map((r) => { const b = r.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.right), Math.round(b.top), Math.round(b.bottom), r.dataset.tabId ? 'live' : 'cold'].join(':'); }).join(','); })()",
+      "expected": "8:258:187:223:live,8:258:227:263:live",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "spy",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; window.__targetId = rows[0].dataset.tabId; window.__dragId = rows[1].dataset.tabId; window.__cs = []; window.__hint = []; document.addEventListener('dragover', (e) => { const row = document.querySelector('.dropsplit'); const line = document.querySelector('.dropline'); window.__hint.push((row ? row.dataset.splitSide : 'noside') + '/' + (line ? (line.hidden ? 'hidden' : 'shown') : 'noline')); }, true); const orig = chrome.send.bind(chrome); chrome.send = (name, args) => { if (name === 'sidebarTabSplit' || name === 'sidebarTabReordered') { const named = args.map((a) => a === window.__dragId ? 'dragged' : a === window.__targetId ? 'target' : a); window.__cs.push(name + ':' + named.join(',')); } return orig(name, args); }; return 'spying'; })()"
+    },
+    {
+      "type": "drag",
+      "x1": 113,
+      "y1": 275,
+      "x2": 235,
+      "y2": 233,
+      "steps": 40,
+      "note": "The window sits 30 below the screen top, so this is client y 203 - four fifths of the way down row 0 is 216, and everything past that belongs to the reorder line."
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "eval",
+      "id": "hint",
+      "target": "/sidebar",
+      "expression": "window.__hint[window.__hint.length - 1] || 'no dragover'"
+    },
+    {
+      "type": "eval",
+      "id": "line-with-side",
+      "target": "/sidebar",
+      "expression": "String(window.__hint.filter((v) => !v.startsWith('noside') && v.endsWith('/shown')).length)"
+    },
+    {
+      "type": "eval",
+      "id": "sends",
+      "target": "/sidebar",
+      "expression": "window.__cs.join(';')"
+    },
+    {
+      "type": "eval",
+      "id": "hint-cleared",
+      "target": "/sidebar",
+      "expression": "document.querySelector('.dropsplit') ? 'still marked' : 'cleared'"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "wake-first",
+      "expected": "\"clicked\"",
+      "desc": "the first row went live"
+    },
+    {
+      "type": "eval_equals",
+      "id": "wake-second",
+      "expected": "\"clicked\"",
+      "desc": "and the second, so both carry a tab id"
+    },
+    {
+      "type": "eval_equals",
+      "id": "layout",
+      "expected": "8:258:187:223:live,8:258:227:263:live",
+      "desc": "gates the drag: the rows are live and sit where the screen coordinates below assume"
+    },
+    {
+      "type": "eval_equals",
+      "id": "spy",
+      "expected": "\"spying\"",
+      "desc": "the spies installed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint",
+      "expected": "\"right/noline\"",
+      "desc": "the pointer's last stop in the right quarter marked the target row, with no reorder line up"
+    },
+    {
+      "type": "eval_equals",
+      "id": "line-with-side",
+      "expected": "\"0\"",
+      "desc": "no dragover ever showed a side band and the reorder line at once"
+    },
+    {
+      "type": "eval_equals",
+      "id": "sends",
+      "expected": "\"sidebarTabSplit:dragged,target,right\"",
+      "desc": "THE MEASUREMENT: one sidebarTabSplit naming the dragged tab, the row dropped on and the side - and no reorder"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint-cleared",
+      "expected": "\"cleared\"",
+      "desc": "the affordance did not outlive the gesture"
+    },
+    {
+      "type": "vlog",
+      "label": "the-window-opened-the-split",
+      "pattern": "Atrium: sidebar split tab [0-9]+ right of tab [0-9]+"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "the-insert-was-not-refused",
+      "pattern": "Atrium: InsertPaneFromDrop",
+      "desc": "every way the pane insert declines logs one of these, so silence is the split really opening"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "the-handler-did-not-decline",
+      "pattern": "sidebarTabSplit dropped",
+      "desc": "the already-split, foreign-space and pane-refused guards all log this prefix"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

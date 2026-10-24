@@ -1,0 +1,302 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 3 Aug 2026 11:33:40 +0200
+Subject: [PATCH 023/154] atrium: P0 - chrome://atrium.top-chrome host and
+ reserved context
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+First step of the SwiftUI-to-WebUI migration (decision-1). Registers the host,
+the resource pipeline, the reserved BrowserContext every chrome surface will
+render in, and crash recovery for the shared renderer. Renders nothing real yet.
+
+## The host
+
+AtriumUI derives from content::WebUIController, not TopChromeWebUIController.
+The latter would work - passing enable_chrome_send=true does grant chrome.send,
+as OmniboxPopupUI does - but it derives from ui::MojoWebUIController, which sets
+kMojoWebUi unconditionally (ui/webui/mojo_web_ui_controller.cc:14-16). The
+transport decision is chrome.send, so Mojo bindings would be unused privilege on
+a page that already holds browser-level reach. What the base class contributes
+is the zoom pin and the display disposition; both are replicated.
+
+Resources are a hand-written .grd: build_webui asserts static_js_files == [] and
+so cannot carry plain JS. The data source is CreateAndAdd + AddResourcePaths +
+SetDefaultResource and nothing else - deliberately NOT
+webui::SetupWebUIDataSource, which calls OverrideContentSecurityPolicy(ScriptSrc)
+and installs a non-empty trusted-types allowlist. Both would undo the chosen
+option A. The raw defaults leave trusted-types empty, so createPolicy() throws.
+
+The .top-chrome suffix is functional: it is what makes
+ChromeRenderWidgetHostViewMacDelegate return kWhenInActiveApp, so clicks land on
+an inactive window without a focusing first click. Zero Atrium lines needed.
+
+## The reserved context
+
+Every chrome WebContents renders in the system profile's OTR context. Atrium
+binds one BrowserController per profile per slot, so per-presenter contexts
+would mean one chrome renderer per profile; one reserved context collapses the
+layer to a single renderer regardless of window or profile count.
+
+CreateChromeContents always passes the shared SiteInstance explicitly, which
+bypasses the IsSuitableHost policy walk and the random-existing-host choice - so
+no process-limit or site-isolation heuristic can split the chrome layer.
+
+The keep-alive goes on GetOriginalProfile(): ScopedProfileKeepAlive does not
+support OTR profiles. TryAcquire rather than the constructor, because
+ProfileManager refuses one on a profile already at refcount zero; if it returns
+null the context stays unset and the UI stays disabled rather than racing
+teardown.
+
+IsWebUIEnabled compares against that context, and null (before async creation
+completes) never equals a real context - so the UI is disabled until ready,
+which is the correct fail-closed direction and why it must not CHECK.
+
+## Crash recovery
+
+One renderer for the whole chrome layer means one crash takes down the sidebar,
+command bar, peek, pill and settings together, so recovery is not optional the
+way it is for a dismissible bubble. AtriumChromeContentsObserver reloads the
+route. Deliberately unlike upstream, whose WebUIContentsWrapper closes the UI
+(webui_contents_wrapper.cc:285-288) - correct for a bubble the user can reopen,
+wrong for window furniture. Capped at 3 reloads/minute: a renderer that crashes
+on load would otherwise loop forever and bury the original crash.
+
+## Upstream test-list entries
+
+Registering any WebUIConfig breaks three upstream browsertests, which enumerate
+every registered config regardless of IsWebUIEnabled. Entries added to
+webui_urls_for_test.cc (kChromeUntestedUrls, same posture as
+webui-toolbar.top-chrome), enums.xml (WebUIUrlHashes) and histograms.xml
+(WebUIHost). The hash value was read out of the test's own failure message
+rather than computed.
+
+## Verified
+
+Build clean. Zero resource-ID drift - the diff against default_resource_ids is
+one added block, nothing realigned. The resource map carries SOURCE paths
+("../../chrome/browser/resources/atrium/atrium.html"), not gen/ paths, so the
+load_webui_from_disk reload loop works for this grd. Host registered and
+rendered disabled from a user profile, confirmed over CDP. Reserved context
+creation confirmed by log, with a control line proving INFO was visible.
+
+browser_tests: all five green - the three upstream tests above plus
+AtriumUIBrowserTest.UserProfileCannotReachTheChromeUI and
+ContextAbsentWithoutTheDylib.
+
+The first version of UserProfileCannotReachTheChromeUI asserted the wrong
+things: that the navigation must fail, and that no top-chrome process exists.
+Both are proxies, and both are wrong - an error page legitimately commits at the
+requested URL, and RenderProcessFlags::kForTopChromeWebUI is set from the
+lexical host, not from whether a controller was created. It now asserts the
+actual property: GetWebUI() is null and the frame carries no bindings.
+
+Not yet proven: that the UI is ENABLED inside the reserved context. That needs a
+WebContents created there, which arrives with the first real surface (P1).
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../profiles/keep_alive/profile_keep_alive_types.cc   |  2 ++
+ .../profiles/keep_alive/profile_keep_alive_types.h    | 10 +++++++++-
+ chrome/browser/resources/BUILD.gn                     |  1 +
+ chrome/browser/ui/BUILD.gn                            |  4 ++++
+ chrome/browser/ui/webui/chrome_web_ui_configs.cc      |  2 ++
+ chrome/browser/ui/webui/webui_urls_for_test.cc        |  1 +
+ chrome/chrome_paks.gni                                |  1 +
+ chrome/common/webui_url_constants.h                   | 11 +++++++++++
+ chrome/test/BUILD.gn                                  |  1 +
+ tools/gritsettings/resource_ids.spec                  |  7 +++++++
+ tools/metrics/histograms/metadata/page/histograms.xml |  1 +
+ tools/metrics/histograms/metadata/ui/enums.xml        |  1 +
+ 12 files changed, 41 insertions(+), 1 deletion(-)
+
+diff --git a/chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc b/chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc
+index d1fa5678a61ad..158efd679fee2 100644
+--- a/chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc
++++ b/chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc
+@@ -91,6 +91,8 @@ std::ostream& operator<<(std::ostream& out,
+       return out << "kWebAppDatabaseCorruptionRecovery";
+     case ProfileKeepAliveOrigin::kAtriumSpace:
+       return out << "kAtriumSpace";
++    case ProfileKeepAliveOrigin::kAtriumChromeWebUI:
++      return out << "kAtriumChromeWebUI";
+   }
+   NOTREACHED();
+ }
+diff --git a/chrome/browser/profiles/keep_alive/profile_keep_alive_types.h b/chrome/browser/profiles/keep_alive/profile_keep_alive_types.h
+index 3143632370279..6d248ab845785 100644
+--- a/chrome/browser/profiles/keep_alive/profile_keep_alive_types.h
++++ b/chrome/browser/profiles/keep_alive/profile_keep_alive_types.h
+@@ -191,7 +191,15 @@ enum class ProfileKeepAliveOrigin {
+   // m2b-research.md Q4).
+   kAtriumSpace = 45,
+ 
+-  kMaxValue = kAtriumSpace,
++  // Atrium-local addition (not upstream, not in enums.xml): pins the reserved
++  // chrome-layer BrowserContext alive. Every chrome surface - sidebar, command
++  // bar, peek, pill, settings - renders in one WebContents family in the system
++  // profile's OTR context, so that context must outlive any individual window.
++  // Acquired on GetOriginalProfile(): ScopedProfileKeepAlive does not support
++  // OTR profiles and DCHECKs if handed one.
++  kAtriumChromeWebUI = 46,
++
++  kMaxValue = kAtriumChromeWebUI,
+ };
+ // LINT.ThenChange(/tools/metrics/histograms/metadata/profile/enums.xml)
+ 
+diff --git a/chrome/browser/resources/BUILD.gn b/chrome/browser/resources/BUILD.gn
+index 11c3e254f558b..4091e4ed65a44 100644
+--- a/chrome/browser/resources/BUILD.gn
++++ b/chrome/browser/resources/BUILD.gn
+@@ -53,6 +53,7 @@ group("resources") {
+       "access_code_cast:resources",
+       "actor_overlay:resources",
+       "app_service_internals:resources",
++      "atrium:resources",
+       "autofill_ml_internals:resources",
+       "bookmarks:resources",
+       "certificate_manager:resources",
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index bf62c173ffe71..a30b75d1707b1 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -1694,6 +1694,8 @@ static_library("ui") {
+       "//chrome/browser/ui/webui/ai_overlay_dialog",
+       "//chrome/browser/ui/webui/ai_overlay_dialog:mojo_bindings",
+       "//chrome/browser/ui/webui/app_service_internals:mojo_bindings",
++      "//chrome/browser/ui/atrium:chrome_context",
++      "//chrome/browser/ui/webui/atrium",
+       "//chrome/browser/ui/webui/bookmarks",
+       "//chrome/browser/ui/webui/customize_buttons:mojo_bindings",
+       "//chrome/browser/ui/webui/data_sharing:impl",
+@@ -3478,6 +3480,8 @@ static_library("ui") {
+       "atrium/atrium_command_bar_open_reason.h",
+       "atrium/atrium_command_bar_widget.h",
+       "atrium/atrium_command_bar_widget.mm",
++      "atrium/atrium_chrome_contents_observer.h",
++      "atrium/atrium_chrome_contents_observer.mm",
+       "atrium/atrium_command_dispatcher_delegate.h",
+       "atrium/atrium_command_dispatcher_delegate.mm",
+       "atrium/atrium_dock_reopen_hook.h",
+diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
+index 184305a45acc2..09eb4e486efe0 100644
+--- a/chrome/browser/ui/webui/chrome_web_ui_configs.cc
++++ b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
+@@ -83,6 +83,7 @@
+ #include "chrome/browser/ui/tabs/tab_group_home/tab_group_home_ui.h"
+ #include "chrome/browser/ui/webui/content_annotator_internals/content_annotator_internals_ui.h"
+ #include "chrome/browser/ui/webui/personal_context/personal_context_notice_ui.h"
++#include "chrome/browser/ui/webui/atrium/atrium_ui.h"
+ #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_ui.h"
+ #include "chrome/browser/ui/webui_browser/webui_browser_ui.h"
+ #if !BUILDFLAG(IS_CHROMEOS)
+@@ -400,6 +401,7 @@ void RegisterChromeWebUIConfigs() {
+   map.AddWebUIConfig(std::make_unique<WebUIBrowserUIConfig>());
+   map.AddWebUIConfig(std::make_unique<WebuiGalleryUIConfig>());
+   map.AddWebUIConfig(std::make_unique<WebUIJsErrorUIConfig>());
++  map.AddWebUIConfig(std::make_unique<AtriumUIConfig>());
+   map.AddWebUIConfig(std::make_unique<WebUIToolbarConfig>());
+ #endif  // BUILDFLAG(IS_ANDROID)
+ 
+diff --git a/chrome/browser/ui/webui/webui_urls_for_test.cc b/chrome/browser/ui/webui/webui_urls_for_test.cc
+index fa7cae1db205d..dc10e4c69e051 100644
+--- a/chrome/browser/ui/webui/webui_urls_for_test.cc
++++ b/chrome/browser/ui/webui/webui_urls_for_test.cc
+@@ -299,6 +299,7 @@ base::span<const std::string_view> GetUntestedChromeUrlsForTest() {
+       "chrome://accessibility",
+ #endif
+ #if BUILDFLAG(ENABLE_DICE_SUPPORT)
++      "chrome://atrium.top-chrome",
+       "chrome://cross-device-signin-qr-bubble",
+ #endif
+       "chrome://app-settings",
+diff --git a/chrome/chrome_paks.gni b/chrome/chrome_paks.gni
+index 2bd694fc07dfd..29cbfb70f0227 100644
+--- a/chrome/chrome_paks.gni
++++ b/chrome/chrome_paks.gni
+@@ -216,6 +216,7 @@ template("chrome_extra_paks") {
+         "$root_gen_dir/chrome/access_code_cast_resources.pak",
+         "$root_gen_dir/chrome/actor_overlay_resources.pak",
+         "$root_gen_dir/chrome/app_service_internals_resources.pak",
++        "$root_gen_dir/chrome/atrium_resources.pak",
+         "$root_gen_dir/chrome/autofill_ml_internals_resources.pak",
+         "$root_gen_dir/chrome/bookmarks_resources.pak",
+         "$root_gen_dir/chrome/browser/actor/resources/actor_browser_resources.pak",
+diff --git a/chrome/common/webui_url_constants.h b/chrome/common/webui_url_constants.h
+index 497865b22520b..04afb7d538f8a 100644
+--- a/chrome/common/webui_url_constants.h
++++ b/chrome/common/webui_url_constants.h
+@@ -56,6 +56,17 @@ inline constexpr char kChromeUIAppsWithDeprecationDialogURL[] =
+     "chrome://apps?showDeletionDialog=";
+ inline constexpr char kChromeUIAppsWithForceInstalledDeprecationDialogURL[] =
+     "chrome://apps?showForceInstallDialog=";
++// Atrium chrome layer (decision-1). One origin, five path routes. The
++// .top-chrome suffix is functional, not cosmetic: it is what grants
++// click-through on an inactive window via
++// ChromeRenderWidgetHostViewMacDelegate.
++inline constexpr char kChromeUIAtriumHost[] = "atrium.top-chrome";
++inline constexpr char kChromeUIAtriumURL[] = "chrome://atrium.top-chrome/";
++inline constexpr char kChromeUIAtriumSidebarPath[] = "/sidebar";
++inline constexpr char kChromeUIAtriumCommandBarPath[] = "/commandbar";
++inline constexpr char kChromeUIAtriumPeekPath[] = "/peek";
++inline constexpr char kChromeUIAtriumPillPath[] = "/pill";
++inline constexpr char kChromeUIAtriumSettingsPath[] = "/settings";
+ inline constexpr char kChromeUIAutofillAiPath[] = "/enhancedAutofill";
+ inline constexpr char kChromeUIAutofillPath[] = "/autofill";
+ inline constexpr char kChromeUIAutofillInternalsHost[] = "autofill-internals";
+diff --git a/chrome/test/BUILD.gn b/chrome/test/BUILD.gn
+index 0da42d37c5955..69c816d673b06 100644
+--- a/chrome/test/BUILD.gn
++++ b/chrome/test/BUILD.gn
+@@ -2656,6 +2656,7 @@ if (!is_android) {
+       "//chrome/browser/ui/webui:webui_util",
+       "//chrome/browser/ui/webui/ai_overlay_dialog:browser_tests",
+       "//chrome/browser/ui/webui/app_service_internals:browser_tests",
++      "//chrome/browser/ui/webui/atrium:browser_tests",
+       "//chrome/browser/ui/webui/autofill_and_password_manager_internals:browser_tests",
+       "//chrome/browser/ui/webui/autofill_ml_internals:browser_tests",
+       "//chrome/browser/ui/webui/bookmarks",
+diff --git a/tools/gritsettings/resource_ids.spec b/tools/gritsettings/resource_ids.spec
+index e1f3030f0c0cc..b0f961a49004b 100644
+--- a/tools/gritsettings/resource_ids.spec
++++ b/tools/gritsettings/resource_ids.spec
+@@ -1807,6 +1807,13 @@
+     "includes": [12000],
+   },
+ 
++  # Atrium chrome layer. Placed at the end of this section so the
++  # real IDs land after the placeholder block and nothing downstream realigns.
++  "chrome/browser/resources/atrium/atrium_resources.grd": {
++    "META": {"sizes": {"includes": [20]}},
++    "includes": [12020],
++  },
++
+   # END "everything else" section.
+   # Everything but chrome/, components/, content/, and ios/
+ 
+diff --git a/tools/metrics/histograms/metadata/page/histograms.xml b/tools/metrics/histograms/metadata/page/histograms.xml
+index 74ad88f57c042..5e5f84137bdb4 100644
+--- a/tools/metrics/histograms/metadata/page/histograms.xml
++++ b/tools/metrics/histograms/metadata/page/histograms.xml
+@@ -374,6 +374,7 @@ chromium-metrics-reviews@google.com.
+ <variants name="WebUIHost">
+   <variant name=""/>
+   <variant name=".access-code-cast"/>
++  <variant name=".atrium.top-chrome"/>
+   <variant name=".accessibility"/>
+   <variant name=".accessory-update"/>
+   <variant name=".account-manager-error"/>
+diff --git a/tools/metrics/histograms/metadata/ui/enums.xml b/tools/metrics/histograms/metadata/ui/enums.xml
+index f61c47251904e..87c0b1d9a738a 100644
+--- a/tools/metrics/histograms/metadata/ui/enums.xml
++++ b/tools/metrics/histograms/metadata/ui/enums.xml
+@@ -882,6 +882,7 @@ chromium-metrics-reviews@google.com.
+   <int value="-90956977" label="chrome://dns/"/>
+   <int value="-89853739" label="chrome://thumbnails/"/>
+   <int value="-88246682" label="chrome://uithreadhang/"/>
++  <int value="-69602629" label="chrome://atrium.top-chrome/"/>
+   <int value="-68100096" label="chrome://welcome-win10/"/>
+   <int value="-58745346" label="chrome://network-errors/"/>
+   <int value="-42737706" label="chrome://extensions-frame/"/>

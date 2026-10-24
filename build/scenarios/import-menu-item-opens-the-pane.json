@@ -1,0 +1,57 @@
+{
+  "name": "import-menu-item-opens-the-pane",
+  "description": "The app menu's Import Bookmarks and Settings item opens the Atrium settings window on the import pane.\n\nDriven by two real clicks - the Atrium menu, then the Import item - at coordinates read off a captured frame. The menu is the stock app menu, so its geometry is Chromium's, not ours.\n\nThe click assertion was measured ABSENT on a run that opened the menu and stopped there, so it cannot pass on the menu merely appearing.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "import_arc_dir": "fixtures/import/arc/basic",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the app is up"
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate",
+      "note": "Atrium frontmost, so its menu bar is the one on screen"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "click",
+      "x": 76,
+      "y": 14,
+      "note": "the Atrium menu in the menu bar"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the menu drop"
+    },
+    {
+      "type": "capture",
+      "id": "menu",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "MEASUREMENT: the open menu, for reading the Import item's coordinate"
+    },
+    {"type": "click", "x": 150, "y": 142, "note": "the Import Bookmarks and Settings item, at a coordinate read off the measurement frame. The row has no icon, so its text starts left of the Settings text"},
+    {"type": "wait_vlog", "pattern": "Atrium: settings surface ready", "timeout_ms": 15000},
+    {"type": "wait_vlog", "pattern": "Atrium: import arc previewed", "timeout_ms": 10000},
+    {"type": "capture", "id": "after", "duration_ms": 400, "fps": 20}
+  ],
+  "assertions": [
+    {"type": "vlog", "label": "the-item-was-retargeted-at-startup", "pattern": "Atrium: import menu item retargeted"},
+    {"type": "vlog", "label": "the-item-was-clicked", "pattern": "Atrium: import menu item claimed", "note": "absent on the measurement run, so only the click emits it"},
+    {"type": "vlog", "label": "the-pane-asked-for-its-preview", "pattern": "Atrium: import arc previewed"}
+  ]
+}

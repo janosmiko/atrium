@@ -1,0 +1,55 @@
+{
+  "name": "cross-profile-favourites-get-their-icons",
+  "description": "Two spaces on two profiles, each with favourites on real origins. The app launches on the Default space, whose tiles resolve through the site fetch under the Default presenter. Cmd+2 then moves to the Profile 1 space. Its favourites were already asked under Default, but the second profile draws its own grid and reads its own icon scope, so the report 'a lot of favourite favicons are missing in BPX and Eventim' is about what this switch shows.\n\nThe visible-tiles eval names every favourite tile that is actually on screen after the switch, with whether its icon loaded, which is the evidence the report needs.",
+  "fixture": "two-profile-favourites.spaces.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "settle", "ms": 3000 },
+    { "type": "activate" },
+    { "type": "wait_vlog", "pattern": "Atrium: favicon backfill starting", "timeout_ms": 15000 },
+    {
+      "type": "eval_until",
+      "id": "personal-tiles-ok",
+      "target": "/sidebar",
+      "expression": "(() => { const vis = [...document.querySelectorAll('.fav')].filter(f => { const r = f.getBoundingClientRect(); return r.width > 0 && getComputedStyle(f).visibility !== 'hidden' && r.left >= 0 && r.right <= innerWidth; }); return String(vis.length > 0 && vis.every(f => f.querySelector('.fvimg.ok'))); })()",
+      "expected": "true",
+      "timeout_ms": 30000,
+      "note": "the startup space's own tiles paint under its own presenter"
+    },
+    { "type": "settle", "ms": 1000 },
+    { "type": "key", "combo": "cmd+2", "note": "to the Profile 1 space" },
+    { "type": "settle", "ms": 4000 },
+    {
+      "type": "eval",
+      "id": "visible-tiles-after-switch",
+      "target": "/sidebar",
+      "expression": "(() => { return [...document.querySelectorAll('.fav')].filter(f => { const r = f.getBoundingClientRect(); return r.width > 0 && getComputedStyle(f).visibility !== 'hidden' && r.left >= 0 && r.right <= innerWidth; }).map(f => { const i = f.querySelector('.fvimg'); const grid = f.parentElement; const where = grid.parentElement && grid.parentElement.classList.contains('railpane') ? 'pane' : 'pinned'; return (f.dataset.favId || '?').replace(/^https:\\/\\//, '').slice(0, 24) + '@' + where + '=' + (i ? (i.classList.contains('ok') ? 'ok' : 'img') : 'none'); }).join(' ') || 'no visible tiles'; })()",
+      "note": "recorded: every tile on screen after the switch, which grid it belongs to, and whether its icon loaded"
+    },
+    {
+      "type": "eval",
+      "id": "root-classes-after-switch",
+      "target": "/sidebar",
+      "expression": "document.getElementById('atrium-root').className + ' | pinned grid profile=' + (document.querySelector('#atrium-root > .favgrid')?.dataset.profileId || 'none') + ' | pinned tiles=' + document.querySelectorAll('#atrium-root > .favgrid .fav').length + ' | scope=' + (document.querySelector('#atrium-root > .favgrid .fvimg')?.src || 'no img').replace(/.*urlicon\\/([0-9A-F]{8}).*/, '$1')",
+      "note": "recorded: the root's gate classes, which profile the pinned grid was drawn for, and the scope its images ask"
+    },
+    {
+      "type": "eval_until",
+      "id": "bpx-tiles-ok",
+      "target": "/sidebar",
+      "expression": "(() => { const vis = [...document.querySelectorAll('.fav')].filter(f => { const r = f.getBoundingClientRect(); return r.width > 0 && getComputedStyle(f).visibility !== 'hidden' && r.left >= 0 && r.right <= innerWidth; }); const ids = new Set(vis.map(f => f.dataset.favId)); return String(ids.size >= 5 && vis.every(f => f.querySelector('.fvimg.ok'))); })()",
+      "expected": "true",
+      "timeout_ms": 30000,
+      "note": "the five Profile 1 favourites are on screen with their icons"
+    },
+    { "type": "capture", "id": "after-switch", "duration_ms": 300, "fps": 20 }
+  ],
+  "assertions": [
+    { "type": "ax_window_count", "expected": 1, "min_area": 200000, "desc": "sanity: one real window rendered" },
+    { "type": "eval_equals", "id": "personal-tiles-ok", "expected": "true", "desc": "the startup space's tiles paint" },
+    { "type": "eval_equals", "id": "bpx-tiles-ok", "expected": "true", "desc": "the second profile's tiles paint after the switch" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "name": "tabs-list-scrolls-a-wheel-one-to-one",
+  "description": "a vertical swipe over the sidebar scrolls the tab list far more slowly than a native list. Reading the code ruled out every layer the page owns - the swipe controller returns early on vertical intent (swipe.js), the overscroll model declines a delta unless the list is already at an edge (overscroll.js delta()), and .scrollzone is a plain overflow-y:auto with no scroll-behavior. So the page either scrolls a wheel one pixel per pixel or it does not, and that is the fact this scenario establishes.\n\nWHAT IT SETTLES. A wheel of a known size goes in and the zone's own scrollTop says how far it moved. One-to-one means the page is faithful and the slowness lives upstream, in whatever delta macOS hands this surface - which no scenario can see, since a synthetic wheel carries whatever it is given. A ratio well under one means the page swallows part of every gesture, and then the defect is here.\n\nEither answer is worth having. The current guess is upstream, and this is what makes it a finding rather than a guess.\n\nWHY THE LIST IS SEEDED TALL. A zone with nothing to scroll returns 0 whatever arrives, so the fixture carries enough tabs to overflow the zone several times over. The gate below proves the overflow before any wheel is sent.",
+  "fixture": "tabs-list-scrolls-a-wheel-one-to-one.json",
+  "startup_space": "4ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the sidebar draws its rows"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "zone-overflows",
+      "target": "/sidebar",
+      "expression": "(() => { const z = document.querySelector('.scrollzone'); if (!z) { return 'no zone'; } return z.scrollHeight > z.clientHeight + 200 ? 'overflows by ' + (z.scrollHeight - z.clientHeight) : 'too short: ' + z.scrollHeight + ' vs ' + z.clientHeight; })()",
+      "note": "GATE: the list is genuinely taller than its zone, with room to spare. A zone with nothing to scroll answers 0 to every wheel and the measurement below would read as a total failure."
+    },
+    {
+      "type": "eval",
+      "id": "park-at-top",
+      "target": "/sidebar",
+      "expression": "(() => { const z = document.querySelector('.scrollzone'); z.scrollTop = 0; window.__before = z.scrollTop; return 'at ' + window.__before; })()",
+      "note": "start from a known place, and away from the bottom edge so the rubber band has no claim on the wheel"
+    },
+    {
+      "type": "cdp_wheel",
+      "target": "/sidebar",
+      "x": 110,
+      "y": 400,
+      "dy": 300,
+      "note": "300px of wheel into the middle of the row list, clear of the favourites grid above it"
+    },
+    {
+      "type": "settle",
+      "ms": 900,
+      "note": "past any smoothing the compositor applies to a single wheel"
+    },
+    {
+      "type": "eval",
+      "id": "moved-by",
+      "target": "/sidebar",
+      "expression": "(() => { const z = document.querySelector('.scrollzone'); const moved = z.scrollTop - (window.__before || 0); if (moved <= 0) { return 'did not move'; } const ratio = moved / 300; return ratio >= 0.9 ? 'one to one' : 'only ' + Math.round(ratio * 100) + ' percent'; })()",
+      "note": "THE MEASUREMENT. Reported as a ratio rather than a pixel count, because the answer that matters is whether the page keeps what it is given."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window throughout",
+      "label": "one-window-still"
+    },
+    {
+      "type": "eval_equals",
+      "id": "park-at-top",
+      "expected": "\"at 0\"",
+      "desc": "the run starts from the top, so the measurement below is a whole wheel's worth of travel"
+    },
+    {
+      "type": "eval_equals",
+      "id": "moved-by",
+      "expected": "\"one to one\"",
+      "desc": "THE FINDING. One to one means the page is faithful and the reported slowness comes from the delta macOS hands this surface, which is upstream of anything here. 'only N percent' means the page swallows part of every gesture and the defect is in the sidebar after all. 'did not move' means the wheel never reached the zone, which is a harness fault rather than either answer."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

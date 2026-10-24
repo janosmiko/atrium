@@ -1,0 +1,62 @@
+{
+  "name": "swipe-blends-the-backdrop-under-the-finger",
+  "description": "A trackpad swipe between two spaces moves the window backdrop with the finger and lands it with the pane. Before this, the backdrop kept the outgoing space's colour until the switch landed and then cross-faded over 300 ms, so the colour arrived after the swipe. The fix wires swipe.js to the window's scrub blend: the swipe stages the neighbour's theme when the rail first moves toward it, streams a weight per frame through the settle, and ends with a commit that promotes the staged picture. The switch that lands mid-settle leaves the backdrop to the scrub instead of starting its own fade. The gesture and the fixture are a sibling scenario's, copied rather than invented, because that scenario commits a swipe every run. The proof is in the controller's own log lines: the stage, the switch, and the promotion, in that order, with no drop - plus the same before/after tint check a sibling scenario makes, so the colour really is the other space's at the end.",
+  "fixture": "space-cycle.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "a276b001-0000-0000-0000-000000000001",
+  "app_process": "Atrium",
+  "actions": [
+    {"type": "settle", "ms": 3500, "note": "let the first space render"},
+    {"type": "activate", "note": "an ssh-launched Atrium is not frontmost, so the gesture would land in Finder"},
+    {"type": "settle", "ms": 800},
+    {"type": "capture", "id": "before", "duration_ms": 400, "fps": 20, "note": "the first space's tint"},
+    {
+      "type": "scroll_during_capture",
+      "x": 100,
+      "y": 200,
+      "dx": -45,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "during",
+      "duration_ms": 260,
+      "fps": 25,
+      "note": "A sibling scenario's gesture. Negative dx travels toward the next space."
+    },
+    {"type": "settle", "ms": 3000, "note": "longer than the settle spring and every push this surface makes"},
+    {"type": "capture", "id": "after", "duration_ms": 400, "fps": 20}
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-swipe-staged-the-neighbour",
+      "pattern": "Atrium: space scrub staged toward 1",
+      "note": "the first frame the rail moved toward space 1 staged its backdrop"
+    },
+    {
+      "type": "vlog",
+      "label": "the-switch-happened",
+      "pattern": "Atrium: active space 0 -> 1 "
+    },
+    {
+      "type": "vlog_after",
+      "label": "the-scrub-outlived-the-switch",
+      "pattern": "Atrium: space scrub promoted",
+      "after_pattern": "Atrium: active space 0 -> 1 ",
+      "note": "the switch lands mid-settle and the scrub finishes the blend after it. A promotion logged BEFORE the switch means the switch started its own cross-fade on top, which is the second fade this scenario exists to rule out."
+    },
+    {
+      "type": "vlog_absent",
+      "label": "the-scrub-was-not-dropped",
+      "pattern": "Atrium: space scrub dropped",
+      "note": "a committed swipe promotes. A drop here means the end arrived as a cancel and the backdrop snapped back before the switch's fade replaced it."
+    },
+    {
+      "type": "theme_changed",
+      "before": "before",
+      "after": "after",
+      "region": "16,250,180,120",
+      "min_delta": 6,
+      "note": "the visible tint really is the other space's at the end"
+    }
+  ]
+}

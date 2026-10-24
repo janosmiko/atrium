@@ -1,0 +1,115 @@
+{
+  "name": "ai-panel-summary-formats-markdown",
+  "description": "The summary pane rendered its text flat, so a model reply arrived as raw ** and * - reported with a screenshot of an IMDb summary on 2026-09-13. The node suite pins the nodes; only a real window can say whether the elements those nodes become are readable in a panel this narrow, which is what the measurements below are for. The summary is pushed through atriumSetAiPanelSummary rather than asked for, because the probe VM has Apple Intelligence off and no model can answer here.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "eval_until",
+      "id": "panel-built",
+      "target": "/ai-panel",
+      "expression": "String(!!document.querySelector('.aichatinput'))",
+      "expected": "true",
+      "timeout_ms": 10000,
+      "note": "setup gate: the panel is on and has its chat field"
+    },
+    {
+      "type": "eval",
+      "id": "open-and-push",
+      "target": "/ai-panel",
+      "expression": "(() => { document.dispatchEvent(new KeyboardEvent('keydown', {key: '`'})); window.atriumSetAiPanelSummary(1, '# Jared Leto\\n\\n**Career Summary**\\n\\n* Born in *Bossier City*, Louisiana\\n* Founded Thirty Seconds to Mars in 1998\\n* Won an Oscar for `Dallas Buyers Club`'); return document.querySelectorAll('.aisum li').length; })()",
+      "note": "pushes a summary through the real receiver, the way the browser does"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval",
+      "id": "markers-gone",
+      "target": "/ai-panel",
+      "expression": "String(!document.querySelector('.aisum').textContent.includes('*'))"
+    },
+    {
+      "type": "eval",
+      "id": "fits-the-panel",
+      "target": "/ai-panel",
+      "expression": "(() => { const s = document.querySelector('.aisum'); return String(s.scrollWidth <= s.clientWidth); })()",
+      "note": "the one the user sees: a list indent or a long heading that overflows makes the pane scroll sideways"
+    },
+    {
+      "type": "eval",
+      "id": "heading-scale",
+      "target": "/ai-panel",
+      "expression": "(() => { const h = document.querySelector('.aisum h1'); const body = parseFloat(getComputedStyle(document.querySelector('.aisum')).fontSize); return String(Math.round(parseFloat(getComputedStyle(h).fontSize) / body * 100) / 100); })()",
+      "note": "a UA default h1 is 2em, which is absurd in a 210px pane. Reported as a ratio so the number does not move with the panel's base size."
+    },
+    {
+      "type": "eval",
+      "id": "list-indent",
+      "target": "/ai-panel",
+      "expression": "(() => { const ul = document.querySelector('.aisum ul'); return String(Math.round(parseFloat(getComputedStyle(ul).paddingInlineStart))); })()",
+      "note": "the UA default is 40px, which eats a fifth of the panel"
+    },
+    {
+      "type": "capture",
+      "id": "summary",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the pane as the user sees it"
+    },
+    {
+      "type": "eval",
+      "id": "injection-is-inert",
+      "target": "/ai-panel",
+      "expression": "(() => { window.__xss = 0; document.dispatchEvent(new KeyboardEvent('keydown', {key: '`'})); document.dispatchEvent(new KeyboardEvent('keydown', {key: '`'})); const hostile = '<img src=x onerror=\"window.__xss=1\"> <script>window.__xss=2<\\/script> [go](javascript:window.__xss=3) [ok](https://example.com/)'; for (let id = 1; id <= 8; id++) { window.atriumSetAiPanelSummary(id, hostile); } const s = document.querySelector('.aisum'); return JSON.stringify({fired: window.__xss, img: !!s.querySelector('img'), script: !!s.querySelector('script'), anchors: s.querySelectorAll('a').length, href: s.querySelector('a') ? s.querySelector('a').getAttribute('href') : null, shown: s.textContent.includes('<img src=x')}); })()",
+      "note": "The security review flagged renderMarkdown as an XSS sink. The node suite pins this against a DOM shim, which cannot prove what Blink does with the same string. This runs it in the real renderer, with the real CSP and Trusted Types in force. The panel is closed and reopened first, because the backend DELETES a request id as it resolves it - after the summary above there is nothing outstanding, and a push against a spent id renders nothing. Two earlier attempts failed this way, and the all-false result read exactly like a pass. The safe link rides in the same string so a zero anchor count cannot pass by the renderer simply being inert."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "liveness"
+    },
+    {
+      "type": "eval_equals",
+      "id": "open-and-push",
+      "expected": "3",
+      "label": "the-bullets-became-a-real-list",
+      "desc": "Three list items, not one paragraph of asterisks. This is the defect itself."
+    },
+    {
+      "type": "eval_equals",
+      "id": "markers-gone",
+      "expected": "\"true\"",
+      "label": "no-raw-markers-are-left-on-screen",
+      "desc": "Expected with quotes: an eval action stores its result JSON-encoded, so a bare true can never match."
+    },
+    {
+      "type": "eval_equals",
+      "id": "fits-the-panel",
+      "expected": "\"true\"",
+      "label": "the-summary-does-not-scroll-sideways",
+      "desc": "What formatting is FOR. Nodes can be correct while the panel is unreadable, and the node suite cannot see that. Expected with quotes: an eval action stores its result JSON-encoded, so a bare true can never match."
+    },
+    {
+      "type": "eval_equals",
+      "id": "injection-is-inert",
+      "expected": "\"{\\\"fired\\\":0,\\\"img\\\":false,\\\"script\\\":false,\\\"anchors\\\":1,\\\"href\\\":\\\"https://example.com/\\\",\\\"shown\\\":true}\"",
+      "label": "a-hostile-summary-builds-no-markup-in-a-real-renderer",
+      "desc": "A page summary is built from text an attacker controls, whichever model produced it. fired=0 says no handler ran, img and script false say no element was built, anchors=1 with the https href says the safe link still works so the zero is not vacuous, and shown=true says the markup is on screen as readable text instead."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

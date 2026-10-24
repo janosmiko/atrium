@@ -1,0 +1,142 @@
+{
+  "spaces": [
+    {
+      "id": "27027027-2702-4702-8702-270270270270",
+      "name": "Band",
+      "emoji": "\ud83d\udfe5",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135223.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row0",
+          "title": "Row 00 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135201.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row1",
+          "title": "Row 01 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135202.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row2",
+          "title": "Row 02 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135203.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row3",
+          "title": "Row 03 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135204.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row4",
+          "title": "Row 04 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135205.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row5",
+          "title": "Row 05 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135206.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row6",
+          "title": "Row 06 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135207.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row7",
+          "title": "Row 07 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135208.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row8",
+          "title": "Row 08 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135209.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row9",
+          "title": "Row 09 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135210.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row10",
+          "title": "Row 10 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135211.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row11",
+          "title": "Row 11 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135212.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row12",
+          "title": "Row 12 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135213.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row13",
+          "title": "Row 13 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135214.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row14",
+          "title": "Row 14 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135215.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row15",
+          "title": "Row 15 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135216.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row16",
+          "title": "Row 16 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135217.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row17",
+          "title": "Row 17 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135218.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row18",
+          "title": "Row 18 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135219.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row19",
+          "title": "Row 19 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135220.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row20",
+          "title": "Row 20 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135221.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row21",
+          "title": "Row 21 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135222.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row22",
+          "title": "Row 22 - a title long enough to render"
+        },
+        {
+          "lastActiveAt": 805135200.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html#row23",
+          "title": "Row 23 - a title long enough to render"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "favorites": [],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "27027027-2702-4702-8702-270270270270"
+  }
+}

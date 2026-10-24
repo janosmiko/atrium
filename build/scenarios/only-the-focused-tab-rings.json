@@ -1,0 +1,128 @@
+{
+  "name": "only-the-focused-tab-rings",
+  "description": "Reported: click a favourite while another tab is still loading and both rings run. The ring belongs to the focused tab, so a click on a second favourite has to take the first one's ring away at once, before any push comes back. Favourite 'Slow' points at a page that spins for three seconds, which is the only way to hold a load open here - the harness serves its fixtures with python3 -m http.server and has no delay route. The tiles are clicked through the DOM by title rather than by coordinate: 38 scenarios already click rows by pixel and a sidebar size change retargets every one of them silently. 'A rings' is asserted BEFORE the switch, so 'A clear' after it cannot pass by nothing having rung in the first place.",
+  "fixture": "two-favourites.spaces.json",
+  "settings": "page-tint-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "favicon-page.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/favicon-page.html",
+      "timeout_ms": 25000
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "tiles",
+      "target": "/sidebar",
+      "expression": "[...document.querySelectorAll('.fav')].map((c) => c.title).join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "click-a",
+      "target": "/sidebar",
+      "expression": "(() => { const t = [...document.querySelectorAll('.fav')].find((c) => c.title === 'Slow'); if (!t) { return 'no tile'; } t.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 700,
+      "note": "inside the fixture's 3s spin, so A's load is still open"
+    },
+    {
+      "type": "eval",
+      "id": "ring-on-a",
+      "target": "/sidebar",
+      "expression": "(() => { const keys = [...document.querySelectorAll('.loading')].map((el) => el.dataset.favId || el.dataset.url || el.dataset.tabId || '?'); if (keys.some((k) => k.indexOf('slow-load-3s') >= 0)) { return 'A rings'; } return keys.length ? 'not A: ' + keys.join(',') : 'no ring at all'; })()"
+    },
+    {
+      "type": "eval",
+      "id": "click-b",
+      "target": "/sidebar",
+      "expression": "(() => { const t = [...document.querySelectorAll('.fav')].find((c) => c.title === 'Brand'); if (!t) { return 'no tile'; } t.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 300,
+      "note": "A is still spinning, and B's own ring is inside its one-turn minimum"
+    },
+    {
+      "type": "eval",
+      "id": "rings-after-switch",
+      "target": "/sidebar",
+      "expression": "(() => { const keys = [...document.querySelectorAll('.loading')].map((el) => el.dataset.favId || el.dataset.url || el.dataset.tabId || '?'); return keys.some((k) => k.indexOf('slow-load-3s') >= 0) ? 'A still rings' : 'A clear'; })()"
+    },
+    {
+      "type": "eval",
+      "id": "only-b",
+      "target": "/sidebar",
+      "expression": "(() => { const keys = [...document.querySelectorAll('.loading')].map((el) => el.dataset.favId || el.dataset.url || el.dataset.tabId || '?'); const stray = keys.filter((k) => k.indexOf('brand-dark-red-icon') < 0); return stray.length ? 'also ' + stray.join(',') : 'only B'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let A's spin finish before the quit"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "tiles",
+      "expected": "\"Slow,Brand\"",
+      "desc": "gates the setup: both favourites drew, in the order the clicks below assume"
+    },
+    {
+      "type": "eval_equals",
+      "id": "click-a",
+      "expected": "\"clicked\"",
+      "desc": "gates the setup: the first tile took the click"
+    },
+    {
+      "type": "eval_equals",
+      "id": "ring-on-a",
+      "expected": "\"A rings\"",
+      "desc": "gates the measurement: A really was loading with its ring up when B was clicked. Without this, 'A clear' below passes hardest when the ring never runs at all."
+    },
+    {
+      "type": "eval_equals",
+      "id": "click-b",
+      "expected": "\"clicked\"",
+      "desc": "gates the measurement: the second tile took the click"
+    },
+    {
+      "type": "eval_equals",
+      "id": "rings-after-switch",
+      "expected": "\"A clear\"",
+      "desc": "THE MEASUREMENT: the click on B took A's ring away while A was still loading. 'A still rings' is the reported bug."
+    },
+    {
+      "type": "eval_equals",
+      "id": "only-b",
+      "expected": "\"only B\"",
+      "desc": "Nothing outside the focused favourite carries a ring, so A's ongoing background load draws none"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

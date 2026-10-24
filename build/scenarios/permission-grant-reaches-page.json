@@ -1,0 +1,199 @@
+{
+  "name": "permission-grant-reaches-page",
+  "description": "perm-notification-page.html auto-calls Notification.requestPermission() on load. Clicking Allow on the /permsheet sheet answers it. The scenario asserts the PAGE itself observed the grant - the page navigates to its own URL with ?granted=1 only from inside requestPermission's resolved-'granted' branch, so the tab-url vlog line that follows is the page's own reaction, not merely proof the browser survived (perm-page-survives.json's bar). Notification, not geolocation: requestPermission resolves from Chromium's own decision with no OS location backend needed, which a headless VM does not have. The scenario clicks .psallow rather than pressing Return: Enter-grants were dropped entirely (2026-08-19), so the sheet only grants through the button. The click itself is deferred with setTimeout rather than run inline, so the eval's CDP reply leaves before Allow tears down the sheet's own WebContents out from under the eval that triggered it.",
+  "fixture": "space-cycle.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "a276b002-0000-0000-0000-000000000002",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the sidebar render"
+    },
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "favicon-page.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/favicon-page.html",
+      "timeout_ms": 20000,
+      "note": "GATE: the startup space's tab committed. A bare settle raced it - when the commit lands after cmd+t it takes the key back and the command bar loses every keystroke"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "the bar's own WebContents needs longer than the widget takes to show - at 800ms it dropped the first 14 keystrokes and searched Google for the tail"
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/perm-notification-page.html"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar query length 49",
+      "timeout_ms": 10000,
+      "note": "GATE: the whole URL reached the bar. A short read here means keystrokes were dropped, which otherwise commits as a search and fails four gates later with no hint why"
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "eval_until",
+      "id": "perm-page",
+      "target": "perm-notification-page.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/perm-notification-page.html",
+      "timeout_ms": 10000,
+      "note": "GATE: the permission-requesting page committed as its own tab, before the sheet can have shown for it"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: permission sheet showing",
+      "timeout_ms": 10000,
+      "note": "GATE: the sheet actually opened for this request - the first half of the round trip"
+    },
+    {
+      "type": "settle",
+      "ms": 800,
+      "note": "let the sheet's WebContents commit and take keyboard focus"
+    },
+    {
+      "type": "capture",
+      "id": "sheet-visible",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the sheet over the page"
+    },
+    {
+      "type": "eval",
+      "id": "sheet-tint",
+      "target": "/permsheet",
+      "expression": "getComputedStyle(document.documentElement).getPropertyValue('--atrium-space-tint').trim()",
+      "note": "AC: the push landed in the sheet's own document, not only the sidebar's - startup space carries tint atriumSolarized (#12282E)"
+    },
+    {
+      "type": "eval",
+      "id": "allow-bg",
+      "target": "/permsheet",
+      "expression": "getComputedStyle(document.querySelector('.psallow')).backgroundColor",
+      "note": "AC: the Allow button wears the overlay accent (overlayAccent defaults to 'brand', which pins every overlay surface to the crimson accent rather than the live space tint - sheet-tint above still proves the tint itself reached the document)"
+    },
+    {
+      "type": "eval",
+      "id": "pscard-class",
+      "target": "/permsheet",
+      "expression": "String(document.querySelector('.pscard').classList.contains('ov-card'))"
+    },
+    {
+      "type": "eval",
+      "id": "allow-click",
+      "target": "/permsheet",
+      "expression": "(setTimeout(() => document.querySelector('.psallow').click(), 50), 'queued')",
+      "note": "the sheet grants through the Allow button, not Enter - this eval sits well past the settle 800ms above, clearing the browser's 500ms activation guard. The click is deferred 50ms so the CDP reply for this eval leaves before Allow tears down the sheet's WebContents - the other half of the round trip"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: permission sheet allowed",
+      "timeout_ms": 10000,
+      "note": "GATE: the browser side saw Allow before looking for the page's reaction to it"
+    },
+    {
+      "type": "eval_until",
+      "id": "granted-page",
+      "target": "perm-notification-page.html?granted=1",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/perm-notification-page.html?granted=1",
+      "timeout_ms": 10000,
+      "note": "THE MEASUREMENT: the page's own JS only navigates here from inside requestPermission's 'granted' branch - this can only resolve if the grant actually reached the page, not merely that the browser stayed up"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "final-state",
+      "duration_ms": 400,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "sheet-tint",
+      "expected": "\"18 40 46\"",
+      "desc": "the permission sheet document carries the startup space's tint (atriumSolarized #12282E)"
+    },
+    {
+      "type": "eval_equals",
+      "id": "allow-bg",
+      "expected": "\"rgb(176, 58, 72)\"",
+      "desc": "the Allow button paints the default brand accent, not the space tint"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pscard-class",
+      "expected": "\"true\"",
+      "desc": "the sheet card wears the shared overlay card class"
+    },
+    {
+      "type": "eval_equals",
+      "id": "allow-click",
+      "expected": "\"queued\"",
+      "desc": "the deferred click was scheduled on .psallow"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: permission sheet showing",
+      "label": "sheet-shown",
+      "desc": "the sheet opened for the notification request instead of silence"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: permission sheet allowed",
+      "label": "sheet-allowed",
+      "desc": "the sheet reported Allow back to the browser"
+    },
+    {
+      "type": "eval_equals",
+      "id": "granted-page",
+      "expected": "http://127.0.0.1:8000/perm-notification-page.html?granted=1",
+      "label": "page-observed-grant",
+      "desc": "THE MEASUREMENT: the page's own requestPermission().then callback fired with 'granted' and navigated - proof the grant reached the page, not just that nothing crashed"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "process still alive and showing exactly one window"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sat, 29 Aug 2026 23:21:55 +0200
+Subject: [PATCH 085/154] feat(loading): build the load phase push script
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 75abf3e7ea55f..9c3dd2f400fe8 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3520,6 +3520,8 @@ static_library("ui") {
+       "atrium/atrium_fedcm_anchor_hook.h",
+       "atrium/atrium_fedcm_anchor_hook.cc",
+       "atrium/atrium_link_copy_format.h",
++      "atrium/atrium_load_phase_script.h",
++      "atrium/atrium_load_phase_script.cc",
+       "atrium/atrium_marginalia_script.h",
+       "atrium/atrium_marginalia_script.cc",
+       "atrium/atrium_main_extra_parts.h",

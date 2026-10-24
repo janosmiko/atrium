@@ -1,0 +1,83 @@
+/* Copyright 2026 The Atrium Authors */
+
+.notesroot {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #F4F1E8;
+  color: #3A362B;
+  font: 13px/1.7 -apple-system, sans-serif;
+}
+
+.notes-title {
+  flex: none;
+  padding: 10px 14px 8px;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.notes-pad {
+  flex: 1;
+  padding: 12px 16px;
+  outline: none;
+  overflow-y: auto;
+}
+
+.notes-pad h1 { font-size: 19px; font-weight: 700; margin: 10px 0 6px; }
+.notes-pad h2 { font-size: 16px; font-weight: 700; margin: 9px 0 5px; }
+.notes-pad h3 { font-size: 13.5px; font-weight: 700; margin: 8px 0 4px; }
+.notes-pad ul, .notes-pad ol { margin: 0 0 6px; padding-left: 20px; }
+.notes-pad li { margin: 2px 0; }
+.notes-pad blockquote {
+  border-left: 3px solid #D8CFA9;
+  margin: 6px 0;
+  padding: 2px 10px;
+  color: #6B6450;
+  font-style: italic;
+}
+.notes-pad code {
+  background: #E9E3D2;
+  border-radius: 4px;
+  padding: 0 4px;
+  font: 12px monospace;
+  color: #4A4433;
+}
+
+.notes-cards {
+  flex: none;
+  max-height: 45%;
+  overflow-y: auto;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 8px 12px 12px;
+}
+
+.mcard {
+  background: #FBF9F2;
+  border: 1px solid #E3DCC6;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+
+.mcard .mquote {
+  border-left: 3px solid #E0A33C;
+  margin: 0 0 6px;
+  padding: 0 8px;
+  color: #6B6450;
+  font-style: italic;
+}
+
+.mcard .mnote {
+  outline: none;
+  min-height: 18px;
+  color: #3A362B;
+}
+
+.mcard.mflash {
+  animation: mflash 900ms ease-out;
+}
+
+@keyframes mflash {
+  from { background: #F6E2B8; }
+  to { background: #FBF9F2; }
+}

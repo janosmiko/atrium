@@ -1,0 +1,192 @@
+{
+  "name": "settings-search-finds-a-row",
+  "description": "The settings search field sits above the rail (settings.js's renderSettings) and reaches into PANE_ROWS, not just the nine pane titles. A query lands on a result list under the field rather than a filtered rail, so the rail's roving tabindex keeps working while the field holds text. Choosing a result switches pane and marks the row. Escape clears the field before it does anything to the window - typed here for real through CDP, not a synthetic dispatchEvent, since that is the one behaviour the node suite cannot exercise (its keydown is dispatched by the test itself, never a trusted event).",
+  "fixture": "presenter-startup.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the browser window finish first paint"
+    },
+    {
+      "type": "activate",
+      "note": "Atrium MUST be frontmost or cmd+comma opens Finder Settings instead"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "open Settings; its menu item is not reachable from a scenario"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "window opens on General - renderSettings(root, PANES[0].id)"
+    },
+    {
+      "type": "eval",
+      "id": "field-above-rail",
+      "target": "/settings",
+      "expression": "(() => { const col = document.querySelector('.settings-sidebar'); const kids = [...col.children]; return kids[1].classList.contains('settings-search') && kids[2].classList.contains('settings-rail'); })()",
+      "note": "The field's own column, ahead of the rail - kids[0] is the window's drag strip, above both"
+    },
+    {
+      "type": "eval",
+      "id": "type-glass",
+      "target": "/settings",
+      "expression": "(() => { const f = document.querySelector('.settings-search-field'); f.focus(); f.value = 'glass opacity'; f.dispatchEvent(new Event('input', {bubbles: true})); return document.querySelectorAll('.settings-search-result').length; })()",
+      "note": "A row on the Appearance pane, found from the General pane the window opened on"
+    },
+    {
+      "type": "capture",
+      "id": "results",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the result list under the field, General still the rail's own selection"
+    },
+    {
+      "type": "eval",
+      "id": "click-result",
+      "target": "/settings",
+      "expression": "(() => { document.querySelector('.settings-search-result').click(); return document.querySelector('.settings-body').dataset.pane; })()",
+      "note": "Choosing the result switches the pane"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "renderSettings() rebuilds the tree synchronously - slack for the ssh/eval round trip"
+    },
+    {
+      "type": "capture",
+      "id": "found",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "Evidence: Appearance on screen with the chosen row briefly lit"
+    },
+    {
+      "type": "eval",
+      "id": "row-marked",
+      "target": "/settings",
+      "expression": "(() => document.querySelector('.settings-row[data-key=\"glassOpacity\"]')?.classList.contains('found'))()",
+      "note": "The row itself carries the mark, not just the pane switch"
+    },
+    {
+      "type": "eval",
+      "id": "field-value-after-choice",
+      "target": "/settings",
+      "expression": "document.querySelector('.settings-search-field').value",
+      "note": "the query is untouched by choosing a result - only Escape clears it"
+    },
+    {
+      "type": "eval",
+      "id": "rail-intact",
+      "target": "/settings",
+      "expression": "(() => { const items = [...document.querySelectorAll('.settings-rail-item')]; return items.length + ':' + items.filter((i) => i.tabIndex === 0).length; })()",
+      "note": "Every rail item still rendered, and the roving tabindex still names exactly one of them the Tab stop, with the field holding text"
+    },
+    {
+      "type": "eval",
+      "id": "refocus-field",
+      "target": "/settings",
+      "expression": "(() => { const f = document.querySelector('.settings-search-field'); f.value = ''; f.dispatchEvent(new Event('input', {bubbles: true})); f.focus(); return document.activeElement === f; })()",
+      "note": "a clean field, refocused, ahead of the real keystrokes below"
+    },
+    {
+      "type": "type",
+      "text": "ollama"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval",
+      "id": "typed-for-real",
+      "target": "/settings",
+      "expression": "document.querySelector('.settings-search-field').value",
+      "note": "confirms the CDP keystrokes actually landed in the field before Escape is measured against them"
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "THE MEASUREMENT - a real, trusted keydown, not a scenario-side dispatchEvent"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "field-value-after-escape",
+      "target": "/settings",
+      "expression": "document.querySelector('.settings-search-field').value",
+      "note": "Escape cleared the field"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "note": "the browser window AND the settings window - Escape must not have closed it"
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-field-sits-above-the-rail",
+      "id": "field-above-rail",
+      "expected": "true"
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-query-finds-the-glass-opacity-row",
+      "id": "type-glass",
+      "expected": "1"
+    },
+    {
+      "type": "eval_equals",
+      "label": "choosing-the-result-switches-to-appearance",
+      "id": "click-result",
+      "expected": "\"appearance\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-chosen-row-is-marked",
+      "id": "row-marked",
+      "expected": "true"
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-query-survives-choosing-a-result",
+      "id": "field-value-after-choice",
+      "expected": "\"glass opacity\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-rail-keeps-every-item-and-one-tab-stop",
+      "id": "rail-intact",
+      "expected": "\"9:1\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-field-took-real-keystrokes",
+      "id": "typed-for-real",
+      "expected": "\"ollama\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "escape-cleared-the-field",
+      "id": "field-value-after-escape",
+      "expected": "\"\""
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits with the settings window open"
+    }
+  ]
+}

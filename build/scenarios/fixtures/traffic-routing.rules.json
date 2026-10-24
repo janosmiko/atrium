@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "rules": [
+    {
+      "id": "c0000001-0000-0000-0000-000000000001",
+      "enabled": true,
+      "matchType": "contains",
+      "pattern": "corp.example",
+      "targetSpaceID": "22222222-2222-2222-2222-222222222222"
+    }
+  ]
+}

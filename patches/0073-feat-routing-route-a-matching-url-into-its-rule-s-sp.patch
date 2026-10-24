@@ -1,0 +1,76 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Wed, 19 Aug 2026 00:11:01 +0200
+Subject: [PATCH 073/154] feat(routing): route a matching url into its rule's
+ space
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+ONE throttle, where the feature used to have three hooks. A chrome::Navigate
+hook, a window.open hook and a renderer-initiated link hook existed because
+Swift needed three entry points, not because the problem has three cases: all
+three are navigations, and a throttle sees every browser-mediated one. The peek
+throttle already proved that layer works for a same-tab link click.
+
+Its gates are deliberately looser than the peek throttle's. No user gesture, no
+renderer initiator, no PAGE_TRANSITION_LINK - a typed URL carries none of those
+and is the case routing exists for. Copying those gates would have skipped it
+silently, which is why the scenario pins the typed case first.
+
+The open lives on BrowserController, not in the throttle: it needs browser_,
+which nothing outside that class can reach, and the same-profile and
+cross-profile cases differ only in which controller answers - a split the
+throttle has no business knowing. Same profile switches space and opens in
+place. A different profile cannot, because a WebContents is bound to its
+creating BrowserContext, so it reopens through that profile's controller.
+
+Never opened synchronously from inside the throttle callback - that re-enters
+the navigation machinery - so it posts the reopen and cancels silently, leaving
+no error page. The reopen runs under the bypass, or two rules pointing at each
+other's spaces would bounce one tab forever.
+
+A rule naming a space that no longer exists routes nothing. Every miss and every
+failed lookup PROCEEDs: routing is an enhancement, and a url it cannot place
+must still open where it was going.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/chrome_content_browser_client.cc | 2 ++
+ chrome/browser/ui/BUILD.gn                      | 2 ++
+ 2 files changed, 4 insertions(+)
+
+diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
+index 71154cffec88c..0e4a11ed39e17 100644
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -182,6 +182,7 @@
+ #include "chrome/browser/translate/translate_service.h"
+ #if BUILDFLAG(IS_MAC)
+ #include "chrome/browser/ui/atrium/atrium_peek_navigation_throttle.h"
++#include "chrome/browser/ui/atrium/atrium_routing_navigation_throttle.h"
+ #endif
+ #include "chrome/browser/ui/blocked_content/blocked_window_params.h"
+ #include "chrome/browser/ui/blocked_content/chrome_popup_navigation_delegate.h"
+@@ -5671,6 +5672,7 @@ void ChromeContentBrowserClient::CreateThrottlesForNavigation(
+   // Auto-peek. An off-site link click from a pinned or favourited
+   // tab opens the Keyhole instead of navigating that tab away.
+   atrium::AtriumPeekNavigationThrottle::MaybeCreateAndAdd(registry);
++  atrium::AtriumRoutingNavigationThrottle::MaybeCreateAndAdd(registry);
+ #endif
+ }
+ 
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index fd91ab3983a9e..2d272af79b6b3 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3526,6 +3526,8 @@ static_library("ui") {
+       "atrium/atrium_settings_window.cc",
+       "atrium/atrium_hex_color.cc",
+       "atrium/atrium_settings_source.cc",
++      "atrium/atrium_routing_navigation_throttle.cc",
++      "atrium/atrium_routing_navigation_throttle.h",
+       "atrium/atrium_traffic_routing.cc",
+       "atrium/atrium_traffic_routing.h",
+       "atrium/atrium_profile_bootstrap.h",

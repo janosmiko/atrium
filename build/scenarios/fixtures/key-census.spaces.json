@@ -1,0 +1,25 @@
+{
+  "spaces": [
+    {
+      "id": "42200001-0000-0000-0000-000000000001",
+      "name": "Census",
+      "emoji": "⌨️",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "url": "http://127.0.0.1:8000/key-census.html",
+          "title": "ATRIUM422-ready"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 200,
+    "schemaVersion": 1,
+    "activeSpaceID": "42200001-0000-0000-0000-000000000001"
+  }
+}

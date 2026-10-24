@@ -1,0 +1,41 @@
+{
+  "name": "labcmp-lab",
+  "description": "the REFERENCE half of the side-by-side. Opens docs/lab/swipe-lab.html as an ordinary page in Atrium, so the lab and the implementation are drawn by one renderer at one size with one set of fonts. Anything that survives that comparison is behaviour, not rendering. This scenario captures only; it asserts nothing, because the lab is the thing being compared against rather than a thing under test. Its partner is labcmp-impl.",
+  "fixture": "lab-compare.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the lab is 367KB of self-contained HTML and paints its whole UI on load"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "capture",
+      "id": "rest",
+      "duration_ms": 600,
+      "fps": 10,
+      "note": "the lab at rest: its sidebar, its tab rows, its dots bar"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered, so the capture has something in it"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

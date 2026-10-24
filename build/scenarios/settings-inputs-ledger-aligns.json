@@ -1,0 +1,83 @@
+{
+  "name": "settings-inputs-ledger-aligns",
+  "description": "the Inputs pane's shortcut ledger. Opens Settings, selects the Inputs pane by its rail id, and reads the ledger DOM the hotkeys pane redress produced: rows at '.hotkey-ledger > .settings-row[data-action]', a bound row's combo drawn as '.combo kbd.key' spans (settings.js comboKeycaps). Uses the same fixture and cmd+comma / '.settings-rail-item[data-pane]' pattern settings-cmd-comma.json already proved for this rail.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so the app is up"
+    },
+    {"type": "settle", "ms": 4000},
+    {"type": "activate", "note": "Atrium must be frontmost or cmd+comma opens Finder Settings instead"},
+    {"type": "settle", "ms": 1000},
+    {"type": "key", "combo": "cmd+comma", "note": "open Settings"},
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings surface ready",
+      "timeout_ms": 15000
+    },
+    {"type": "settle", "ms": 2000, "note": "let PushSettings and PushHotkeys' thread-pool reads land"},
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: hotkeys pushed",
+      "timeout_ms": 8000,
+      "note": "the ledger's data source loaded before the pane is asked to read it"
+    },
+    {
+      "type": "eval",
+      "id": "open-inputs-pane",
+      "target": "/settings",
+      "expression": "(() => { const item = document.querySelector('.settings-rail-item[data-pane=\"inputs\"]'); if (!item) { return 'no inputs rail item'; } item.click(); return 'clicked'; })()"
+    },
+    {"type": "settle", "ms": 2000, "note": "renderInputs is a synchronous DOM rebuild, slack for the ssh/eval round trip"},
+    {
+      "type": "capture",
+      "id": "inputs",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence: keycaps in one aligned ledger column"
+    },
+    {
+      "type": "eval",
+      "id": "ledger-has-rows",
+      "target": "/settings",
+      "expression": "String(document.querySelectorAll('.hotkey-ledger > .settings-row[data-action]').length > 0)"
+    },
+    {
+      "type": "eval",
+      "id": "ledger-has-keycap",
+      "target": "/settings",
+      "expression": "String(!!document.querySelector('.settings-row[data-action] .combo kbd.key'))"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "ledger-has-rows",
+      "expected": "\"true\"",
+      "desc": "the ledger lists at least one action row"
+    },
+    {
+      "type": "eval_equals",
+      "id": "ledger-has-keycap",
+      "expected": "\"true\"",
+      "desc": "a bound row draws its combo as keycap spans, not plain text"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "desc": "the browser window and the settings window"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

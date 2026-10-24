@@ -1,0 +1,278 @@
+{
+  "name": "theme-popover-from-a-space-dot",
+  "description": "The Theme Studio as a movable child window off a space dot. Right-click the dot for the active space, pick Change Theme, and the /theme route opens in its own widget above the sidebar and the page. The studio evals target /theme; the menu evals still target /sidebar.\n\nWHY THE MENU AND THE PICK GO THROUGH eval RATHER THAN cgevent: the dots sit at the bottom of a 280px strip, so a screen coordinate for one is a number this scenario has never measured and would silently retarget the moment a row height changes. The contextmenu event is dispatched on the dot itself and travels through installRowMenu's real listener, so the branch under test is the product's, and the item is found by its own label rather than by a position in the menu.\n\nTHE EDIT IS THE OPACITY SLIDER at 0.92 - a step multiple, distinct from the fixture's 0.3, and not an integer, so file_value.py's type check cannot be satisfied by an int/float coincidence. 'Atrium: theme preview applied' is BrowserController::PreviewSpaceTheme's own line, so the preview reaching the window behind is read from the browser rather than inferred from a repaint.\n\nPERSISTENCE IS ASSERTED TWICE, because the two answers are different: file_contains on themes.json says the bytes were written, and reopening the popover says the core hands the saved value back to the studio. The fixture stages 0.3 there, so neither can pass against a build that wrote nothing - file_value.py refuses an expected value the staged copy already held.\n\nTHE 'after' CAPTURE IS TAKEN WITH THE POPOVER CLOSED, so the theme_changed region compares the window's own backdrop rather than a card sitting on top of it. THE 'before-drag' AND 'popover' CAPTURES ARE THE TWO FRAMES THAT SHOW THE STUDIO OPEN, before and after the header drag.",
+  "fixture": "theme-popover.spaces.json",
+  "themes": "theme-popover.themes.json",
+  "startup_space": "77777777-7777-7777-7777-777777777777",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url https://example\\.com",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so the app and the fixture are live"
+    },
+    { "type": "settle", "ms": 3000 },
+    { "type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot" },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 500,
+      "fps": 20,
+      "note": "the window's own backdrop, the fixture's opacity-0.3 gradient, before any studio edit"
+    },
+    {
+      "type": "eval",
+      "id": "open-menu",
+      "target": "/sidebar",
+      "expression": "(() => { const dot = [...document.querySelectorAll('.sdot')].find((d) => d.dataset.spaceIndex === '0'); if (!dot) return 'no-dot'; const r = dot.getBoundingClientRect(); dot.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, clientX: r.left + 4, clientY: r.top + 4})); return [...document.querySelectorAll('.ctxitem')].map((b) => b.textContent).join(','); })()",
+      "note": "the dot's own context menu, opened through installRowMenu's real listener and read back by label"
+    },
+    { "type": "settle", "ms": 500 },
+    {
+      "type": "eval",
+      "id": "pick-theme",
+      "target": "/sidebar",
+      "expression": "(() => { const item = [...document.querySelectorAll('.ctxitem')].find((b) => b.textContent === 'Change Theme'); if (!item) return 'no-item'; item.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: theme studio popover opened for space 0",
+      "timeout_ms": 10000,
+      "note": "the C++ half resolved the rail index to a space id and pushed the payload back"
+    },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "popover-controls",
+      "target": "/theme",
+      "expression": "(() => { const body = document.querySelector('.tw-body'); if (!body) return 'no-body'; const name = document.querySelector('.tw-name'); return 'sliders=' + body.querySelectorAll('input[type=\"range\"]').length + ' canvas=' + !!body.querySelector('canvas') + ' name=' + (name ? name.textContent : ''); })()",
+      "note": "the same six sliders and one gradient canvas theme-studio.js draws in the Spaces pane, this time inside the /theme window's own card. Counted inside .tw-body, not over the whole document: theme-picker.js appends its floating picker to document.body, so a document-wide count reads 7 and a second canvas"
+    },
+    { "type": "activate", "note": "CDP evals never move macOS window ordering - reassert Atrium frontmost before the capture" },
+    { "type": "settle", "ms": 500 },
+    {
+      "type": "capture",
+      "id": "before-drag",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the studio where PlaceThemeStudioAtAnchor put it, still over the sidebar column, before the header drag moves it"
+    },
+    {
+      "type": "eval",
+      "id": "drag-window",
+      "target": "/theme",
+      "expression": "(() => { const head = document.querySelector('.tw-head'); if (!head) return 'no-head'; const init = (x, y) => ({bubbles: true, clientX: x, clientY: y, screenX: x, screenY: y, pointerId: 1, button: 0}); head.dispatchEvent(new PointerEvent('pointerdown', init(100, 20))); head.dispatchEvent(new PointerEvent('pointermove', init(400, 140))); head.dispatchEvent(new PointerEvent('pointerup', init(400, 140))); return 'dragged'; })()",
+      "note": "the header's own drag path: one pointerdown, one move of 300x120, one release - the widget should now sit over the page, not the sidebar. screenX/screenY are set because the header reads those, not clientX: a constructed PointerEvent leaves them at 0 and the delta would be 0"
+    },
+    { "type": "settle", "ms": 800 },
+    { "type": "activate", "note": "the drag went through chrome.send, so nothing raised the app - reassert it before the frame that has to show the moved card" },
+    { "type": "settle", "ms": 500 },
+    {
+      "type": "capture",
+      "id": "popover",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the one frame showing the studio open and already dragged clear of the sidebar column"
+    },
+    {
+      "type": "eval",
+      "id": "bogus-edit",
+      "target": "/theme",
+      "expression": "(() => { chrome.send('settingsThemeChanged', ['no-such-space', {name: 'Bogus', stops: [{x: 0.5, y: 0.5, color: '#00FF88', alpha: 1}], opacity: 1, effects: {grain: 0, vignette: 0, frost: 0, warmth: 0}, darkAdaptation: 0, version: 1}]); return 'sent'; })()",
+      "note": "the space id crosses from a renderer, so a bogus one has to be refused before it reaches atrium_core_set_space_theme - sent ahead of the real edit so the decline cannot be confused with it"
+    },
+    { "type": "settle", "ms": 1500 },
+    {
+      "type": "eval",
+      "id": "bump-opacity",
+      "target": "/theme",
+      "expression": "(() => { const el = document.querySelector('.theme-studio-slider[data-key=\"opacity\"]'); if (!el) return 'no-slider'; el.value = '0.92'; el.dispatchEvent(new Event('input', {bubbles: true})); return 'set:' + el.value; })()",
+      "note": "THE EDIT: a new value on the range input, then the same `input` event theme-studio.js listens for"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: theme preview applied",
+      "timeout_ms": 8000,
+      "note": "BrowserController::PreviewSpaceTheme's own line - the edit reached a realised Atrium window"
+    },
+    { "type": "settle", "ms": 1500 },
+    {
+      "type": "eval",
+      "id": "click-save",
+      "target": "/theme",
+      "expression": "(() => { const b = document.querySelector('.theme-studio-save'); if (!b) return 'no-save'; b.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar theme saved",
+      "timeout_ms": 10000,
+      "note": "the studio window's own save path, distinct from the settings window's 'Atrium: theme saved'"
+    },
+    { "type": "settle", "ms": 2000 },
+    {
+      "type": "eval",
+      "id": "close-pop",
+      "target": "/theme",
+      "expression": "(() => { document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})); return 'sent'; })()",
+      "note": "Escape is one of the three dismissals. The page only sends themeStudioClose, so the close is read from the browser's own line below rather than from the DOM the hidden window keeps"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: theme studio window closing",
+      "timeout_ms": 5000,
+      "note": "ThemeStudioWidget::Close's own line - the widget hid itself, so the capture below has an unoccluded backdrop"
+    },
+    { "type": "settle", "ms": 1500 },
+    { "type": "activate", "note": "CDP evals never move macOS window ordering - reassert Atrium frontmost before the capture" },
+    { "type": "settle", "ms": 500 },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 500,
+      "fps": 20,
+      "note": "the window's own backdrop after the saved edit, with the studio closed so nothing occludes it"
+    },
+    {
+      "type": "eval",
+      "id": "reopen-menu",
+      "target": "/sidebar",
+      "expression": "(() => { const dot = [...document.querySelectorAll('.sdot')].find((d) => d.dataset.spaceIndex === '0'); if (!dot) return 'no-dot'; const r = dot.getBoundingClientRect(); dot.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, clientX: r.left + 4, clientY: r.top + 4})); const item = [...document.querySelectorAll('.ctxitem')].find((b) => b.textContent === 'Change Theme'); if (!item) return 'no-item'; item.click(); return 'clicked'; })()",
+      "note": "a second open, so the studio is rebuilt from what the core now holds rather than from the draft it was edited on"
+    },
+    { "type": "settle", "ms": 2000 },
+    {
+      "type": "eval",
+      "id": "persisted-opacity",
+      "target": "/theme",
+      "expression": "(() => { const el = document.querySelector('.theme-studio-slider[data-key=\"opacity\"]'); return el ? el.value : 'no-slider'; })()",
+      "note": "the reopened studio's own opacity - the saved value coming back through atrium_core_space_theme"
+    },
+    {
+      "type": "eval",
+      "id": "close-again",
+      "target": "/theme",
+      "expression": "(() => { document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})); return 'sent'; })()"
+    },
+    { "type": "settle", "ms": 1000 }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "open-menu",
+      "expected": "\"Change Theme\"",
+      "desc": "the dot's own menu opened, carrying Change Theme and nothing the active-space menu would have added"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pick-theme",
+      "expected": "\"clicked\"",
+      "desc": "Change Theme was there to pick"
+    },
+    {
+      "type": "vlog",
+      "label": "the-popover-opened-anchored-at-the-dot",
+      "pattern": "Atrium: theme studio popover opened for space 0"
+    },
+    {
+      "type": "vlog",
+      "label": "the-window-showed",
+      "pattern": "Atrium: theme studio window showing"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "the-settings-window-was-not-opened-instead",
+      "pattern": "Atrium: settings window built"
+    },
+    {
+      "type": "eval_equals",
+      "id": "popover-controls",
+      "expected": "\"sliders=6 canvas=true name=Studio\"",
+      "desc": "the studio window drew all 6 sliders (theme-studio.js's own SLIDERS list) and its gradient canvas, under the space's own name in the card header"
+    },
+    {
+      "type": "eval_equals",
+      "id": "drag-window",
+      "expected": "\"dragged\"",
+      "desc": "the header took the pointer sequence, so the deltas left the renderer"
+    },
+    {
+      "type": "pixels_changed",
+      "before": "before-drag",
+      "after": "popover",
+      "region": [300, 100, 400, 500],
+      "min_changed_pct": 10.0,
+      "desc": "the drag moved the window itself, not a layer inside it - the region right of the sidebar column holds different pixels once the card has been carried into it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bogus-edit",
+      "expected": "\"sent\"",
+      "desc": "the unknown-id commit left the renderer"
+    },
+    {
+      "type": "vlog",
+      "label": "an-unknown-space-id-was-declined",
+      "pattern": "Atrium: settingsThemeChanged from the sidebar named an unknown space"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bump-opacity",
+      "expected": "\"set:0.92\"",
+      "desc": "the opacity slider took the new value"
+    },
+    {
+      "type": "vlog",
+      "label": "the-preview-reached-the-window-behind",
+      "pattern": "Atrium: theme preview applied"
+    },
+    {
+      "type": "vlog",
+      "label": "the-save-committed",
+      "pattern": "Atrium: sidebar theme saved"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "the-save-did-not-fail",
+      "pattern": "Atrium: sidebar theme save failed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "close-pop",
+      "expected": "\"sent\"",
+      "desc": "Escape reached the page's own keydown listener"
+    },
+    {
+      "type": "vlog",
+      "label": "escape-closed-the-studio-window",
+      "pattern": "Atrium: theme studio window closing"
+    },
+    {
+      "type": "file_contains",
+      "file": "themes",
+      "path": "themes.77777777-7777-7777-7777-777777777777.opacity",
+      "value": 0.92,
+      "label": "the-edit-reached-themes-json",
+      "desc": "the saved opacity is on disk, and the staged fixture held 0.3 - so this value can only be the studio window's own write"
+    },
+    {
+      "type": "eval_equals",
+      "id": "persisted-opacity",
+      "expected": "\"0.92\"",
+      "desc": "a reopened studio comes up on the saved theme, not on the fixture's 0.3"
+    },
+    {
+      "type": "theme_changed",
+      "before": "before",
+      "after": "after",
+      "region": [40, 300, 200, 300],
+      "min_delta": 12,
+      "desc": "the opacity edit reached the window's own backdrop (raw-pixel region compare over the sidebar margin, the region presenter-startup.json uses)"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly after a studio edit and a save"
+    }
+  ]
+}

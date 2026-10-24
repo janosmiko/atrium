@@ -1,0 +1,9 @@
+[
+  {"created_by_policy": 0, "is_active": 1, "keyword": "docs", "prepopulate_id": 0, "safe_for_autoreplace": 0, "short_name": "Docs", "starter_pack_id": 0, "sync_guid": "G-DOCS-1", "url": "https://docs.example.test/search?q={searchTerms}"},
+  {"created_by_policy": 0, "is_active": 1, "keyword": "google.com", "prepopulate_id": 1, "safe_for_autoreplace": 1, "short_name": "Google", "starter_pack_id": 0, "sync_guid": "G-GOOGLE", "url": "{google:baseURL}search?q={searchTerms}"},
+  {"created_by_policy": 0, "is_active": 1, "keyword": "@bookmarks", "prepopulate_id": 0, "safe_for_autoreplace": 0, "short_name": "Bookmarks", "starter_pack_id": 1, "sync_guid": "G-STARTER", "url": "chrome://bookmarks/?q={searchTerms}"},
+  {"created_by_policy": 1, "is_active": 1, "keyword": "intranet", "prepopulate_id": 0, "safe_for_autoreplace": 0, "short_name": "Intranet", "starter_pack_id": 0, "sync_guid": "G-POLICY", "url": "https://intranet.example.test/?q={searchTerms}"},
+  {"created_by_policy": 0, "is_active": 0, "keyword": "auto.example.test", "prepopulate_id": 0, "safe_for_autoreplace": 1, "short_name": "Auto", "starter_pack_id": 0, "sync_guid": "G-AUTO", "url": "https://auto.example.test/?q={searchTerms}"},
+  {"created_by_policy": 0, "is_active": 1, "keyword": "plain", "prepopulate_id": 0, "safe_for_autoreplace": 0, "short_name": "Plain", "starter_pack_id": 0, "sync_guid": "G-PLAIN", "url": "http://plain.example.test/?q={searchTerms}"},
+  {"created_by_policy": 0, "is_active": 1, "keyword": "weird", "prepopulate_id": 0, "safe_for_autoreplace": 0, "short_name": "Weird", "starter_pack_id": 0, "sync_guid": "G-WEIRD", "url": "https://weird.example.test/?q={searchTerms}&ie={inputEncoding}"}
+]

@@ -1,0 +1,72 @@
+{
+  "name": "nav-glyphs-are-larger",
+  "description": "the back/forward/reload/toggle glyphs read small next to the traffic lights, so their font-size and the reload SVG grew - the 22px button box holds without change, so this reads computed style rather than pixels: a regression that shrank the font or the SVG back down would leave the box and the row's layout looking identical while the glyph itself regressed. THE SIZE IS SETTLED. The first pass went to 22.5px in a 22px box, which read too large and put the glyphs a pixel and a half apart in the box. 17px is measured: Chrome quantises the line box, so the offset of a glyph's ink from the middle of the button does not move smoothly with the font-size, and across 14..22px in half-pixel steps 17 is where the guillemets ‹ › land closest to the middle (0.81px low, against 1.03 at 18 and 1.93 at 22). The reload SVG at 16 and the toggle SVG at 18 draw the same 14px of ink as each other, which is the lab's own relation between those two icons (12 and 14 in its 21px box). The sizes are still well above the 15px this row started at, which is what the larger glyph is for.",
+  "fixture": "two-tabs.spaces.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the nav row announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "back-font-size",
+      "target": "/sidebar",
+      "expression": "getComputedStyle(document.querySelector('.sbnav .sbback')).fontSize",
+      "note": "the text glyphs (‹ › and the modifier variants) all inherit .sbnav .nb's font-size"
+    },
+    {
+      "type": "eval",
+      "id": "reload-svg-width",
+      "target": "/sidebar",
+      "expression": "document.querySelector('.sbnav .sbreload svg').getAttribute('width')",
+      "note": "the reload arc's own attribute, not CSS - sidebar-nav-row.js sets it directly"
+    },
+    {
+      "type": "eval",
+      "id": "toggle-svg-width",
+      "target": "/sidebar",
+      "expression": "document.querySelector('.sbnav .sbtoggle svg').getAttribute('width')",
+      "note": "the second half of the pair: 16 and 18 are chosen together, so they draw one ink height"
+    },
+    {
+      "type": "capture",
+      "id": "rest",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the row with the larger glyphs, still flush at the row's right edge"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "back-font-size",
+      "expected": "\"17px\"",
+      "desc": "the measured size: bigger than the 15px this row started at, and no longer overflowing its box the way 22.5px did"
+    },
+    {
+      "type": "eval_equals",
+      "id": "reload-svg-width",
+      "expected": "\"16\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "toggle-svg-width",
+      "expected": "\"18\"",
+      "desc": "18 against reload's 16 is what makes the two icons draw the same 14px of ink"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

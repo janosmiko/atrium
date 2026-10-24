@@ -1,0 +1,13 @@
+<!doctype html>
+<html>
+<head><title>Popup Target</title></head>
+<body style="margin:0; background:#0f8f5a; color:#fff;
+             font-family: -apple-system, sans-serif;">
+<h1 style="padding:40px; font-size:40px;">Popup page</h1>
+<p id="opener" style="padding:0 40px; font-size:26px;">opener: unknown</p>
+<script>
+document.getElementById('opener').textContent =
+    'opener: ' + (window.opener ? 'kept' : 'LOST');
+</script>
+</body>
+</html>

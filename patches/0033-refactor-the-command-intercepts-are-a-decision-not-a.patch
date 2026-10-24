@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 01:56:56 +0200
+Subject: [PATCH 033/154] refactor: the command intercepts are a decision, not
+ a wall of ifs
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+WillExecuteCommand and ExecuteCommand each held a chain of conditions with no
+test over any of them. The policy is now atrium_command_intercept_decision.h -
+values in, an answer out, no AppKit and no Browser - and the two methods gather
+inputs and switch.
+
+Fifteen tests, one per intercepted command plus the gates that turn each one
+off. Three of them cover the crash guards, which are the reason this list
+matters: the stock handlers do not degrade on a chromeless window, they die.
+Split view NOTREACHEDs with no BrowserView-backed TabCollection, the find bar
+dereferences a null owner, and chrome://newtab has no footer controller. A
+command quietly dropped from this list does not fail a test, it crashes a
+window.
+
+Half the gates read the dylib and go false at the cut. Written as inputs, the
+policy survives H2 unchanged and only the callers change - which is why this
+is worth doing before the cut rather than after.
+
+COMPILED, NOT EXERCISED. This is live keyboard dispatch and the scenario suite
+is busy with a baseline; the VM check has not run.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index f8c76f7472d91..a3e61152e8e3c 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -623,6 +623,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:edit_focus_gate",
+     "//chrome/browser/ui/atrium:extension_popup_watchdog_policy",
+     "//chrome/browser/ui/atrium:little_marker",
++    "//chrome/browser/ui/atrium:command_intercept_decision",
+     "//chrome/browser/ui/atrium:command_target_decision",
+     "//chrome/browser/ui/atrium:peek_decision",
+     "//chrome/browser/ui/atrium:routing_navigation_decision",

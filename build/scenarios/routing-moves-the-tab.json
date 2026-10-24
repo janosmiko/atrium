@@ -1,0 +1,42 @@
+{
+  "name": "routing-moves-the-tab",
+  "description": "A typed URL that a rule claims lands in the space the rule names, and the tab that typed it goes with it. The fixture stores Work first and renders it last (order 2), and Home renders first though it is stored second - so the old array-position slot selected Home and the window would never have appeared to move. Home starts active with one row; after the route Work is showing with one row (the routed tab) and Home still shows its own one row, undisturbed. Same profile throughout, so the route is a live move rather than a reopen. The command bar is the trigger, the same one routing-pane-adds-a-rule.json uses: Home's tab is not a favourite, so OpenCommandBarMatch opens the typed URL in a fresh tab beside it (chrome::AddTabAt) rather than reusing it in place - the command bar commit asks the rules first and opens THAT tab in Work directly, so nothing ever paints in Home, so Home's own row count never changes and the row-count checks below prove no duplicate or stray row appears in either space.",
+  "fixture": "routing-moves-the-tab.spaces.json",
+  "routing": "routing-moves-the-tab.routing.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "437a0002-0000-4000-8000-00000000ad02",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "wait_vlog", "pattern": "Atrium: tab [0-9]+ url http://dl\\.localhost", "timeout_ms": 20000, "note": "gate: the Home tab committed, so the app and the profile are live" },
+    { "type": "settle", "ms": 4000 },
+    { "type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot" },
+    { "type": "settle", "ms": 1000 },
+    { "type": "eval", "id": "rows-in-home-before", "target": "/sidebar", "expression": "document.querySelectorAll('.railpane[data-space-index=\"0\"] .tabrow').length", "note": "the one row the fixture gives Home, and the baseline the move is measured against. Scoped to Home's own pane: the rail draws every space's pane at once, so an unscoped .tabrow counts rows across all three" },
+    { "type": "eval", "id": "sidebar-order-before", "target": "/sidebar", "expression": "[...document.querySelectorAll('.spacedots .sdot[data-space-index]')].map((d) => d.dataset.spaceIndex).join(',')", "note": "recorded: three dots, so the rail agrees the document has three spaces" },
+    { "type": "capture", "id": "before", "duration_ms": 400, "fps": 20, "note": "Home tint (oceanBlue) baseline" },
+    { "type": "key", "combo": "cmd+t", "note": "open the command bar for a real navigation" },
+    { "type": "wait_vlog", "pattern": "Atrium: command bar widget showing", "timeout_ms": 15000 },
+    { "type": "settle", "ms": 2000 },
+    { "type": "type", "text": "http://corp.example/", "note": "a URL the staged rule claims for Work" },
+    { "type": "settle", "ms": 2000 },
+    { "type": "key", "combo": "return", "note": "commit the typed URL - the navigation the throttle sees" },
+    { "type": "wait_vlog", "pattern": "Atrium: routed http://corp\\.example into space 437a0001-0000-4000-8000-00000000ad01, opened there", "timeout_ms": 10000, "note": "THE MEASUREMENT: the named space, decided at the command bar commit before any tab existed" },
+    { "type": "settle", "ms": 3000, "note": "let the space switch, the load and the repaint settle" },
+    { "type": "eval", "id": "rows-in-work-after", "target": "/sidebar", "expression": "document.querySelectorAll('.railpane[data-space-index=\"2\"] .tabrow').length", "note": "Work is showing now, and its own pane (sidebar index 2) holds the one row that moved" },
+    { "type": "capture", "id": "after", "duration_ms": 400, "fps": 20, "note": "should now show Work tint (sunsetOrange)" },
+    { "type": "eval", "id": "back-to-home", "target": "/sidebar", "expression": "(() => { const dot = document.querySelector('.spacedots .sdot[data-space-index=\"0\"]'); if (!dot) { return 'no home dot'; } dot.click(); return 'clicked'; })()", "note": "sidebar slot 0 is Home - the space that was active when the routed tab was created" },
+    { "type": "settle", "ms": 2500, "note": "let the switch back repaint" },
+    { "type": "eval", "id": "rows-in-home-after", "target": "/sidebar", "expression": "document.querySelectorAll('.railpane[data-space-index=\"0\"] .tabrow').length", "note": "THE OTHER HALF: Home's own pane still shows just its own one row - no stray copy of the routed tab landed there" }
+  ],
+  "assertions": [
+    { "type": "eval_equals", "id": "rows-in-home-before", "expected": "1", "desc": "Home starts with the one row the fixture gives it" },
+    { "type": "eval_equals", "id": "back-to-home", "expected": "\"clicked\"", "desc": "the Home dot was there to click, so the count after it means something" },
+    { "type": "vlog", "label": "the-route-named-the-right-space", "pattern": "Atrium: routed http://corp\\.example into space 437a0001-0000-4000-8000-00000000ad01, opened there" },
+    { "type": "vlog", "label": "the-window-switched-to-the-third-slot", "pattern": "Atrium: active space 0 -> 2 'Work'", "note": "2 is Work's SIDEBAR position. An array index would have said 0, which is Home, and the window would not have moved at all" },
+    { "type": "eval_equals", "id": "rows-in-work-after", "expected": "1", "desc": "the routed tab has a row in the space the rule named" },
+    { "type": "eval_equals", "id": "rows-in-home-after", "expected": "1", "desc": "Home still shows only its own original row - the routed tab did not leave a stray copy behind" },
+    { "type": "vlog_absent", "label": "no-second-route", "pattern": "opened there[\\s\\S]*opened there", "note": "the throttle's idempotence gate: the route must not fire on its own result" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

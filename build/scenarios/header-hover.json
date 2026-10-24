@@ -1,0 +1,144 @@
+{
+  "name": "header-hover",
+  "description": "Both the workspace/pinned header and a folder header must light the same rowHover fill a tab row shows on plain pointer hover (previously only a drag-target lit the folder header; the pinned header had no fill at all). Also checks the pinned header's icon/chevron swap does not shift the workspace name at the larger rowIconSize frame. Same fixture as header-narrow (pinned + grouped + plain tabs, 200pt sidebarWidth) so header/folder/row are all visible together.\n\nthree frames were captured and none was inspected, and both hover coordinates were stale. Read off y=130 lands in the 'Drag tabs here' empty-state text, which is not a row at all, and y=210 falls in the gap between the PINNED header (box y 177..201) and the first tab row (y 208..240). The whole sidebar reads delta 0.00 between the rest frame and both hover frames; the only pixels that move in the entire capture are the cursor sprite.\n\nThe coordinates are now derived from the frames rather than assumed: PINNED at y=147, 'News' at y=224, both hovered at x=170 so the pointer stays 34px clear of every measured region. The hover path itself is known good - lit the PINNED header from the same `move` action, and sidebar-row-click still lands synthetic clicks on rows today.\n\nWhat the pinned header is, concretely: the .row.frow.sechdrow on the pinned section (sidebar.css:402). The workspace NAME above it is a .wsname div with no :hover rule at all, so it is not the row this scenario means.",
+  "fixture": "header-alignment.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "33333333-3333-3333-3333-333333333333",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "let the docked sidebar render at rest first"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 600,
+      "note": "park the pointer in blank page content so 'rest' is a known un-hovered baseline. On the 2026-08-10 run the rest frame already had the cursor sitting on a sidebar row, inherited from whatever ran before - a baseline that may already carry the fill is not one"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "rest",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "baseline, nothing hovered"
+    },
+    {
+      "type": "move",
+      "x": 170,
+      "y": 147,
+      "note": "hover the PINNED section header. Box measured at y 135..159 (uppercase label spans y 141..152); x=170 is inside the 200pt row footprint and clear of the region below"
+    },
+    {
+      "type": "settle",
+      "ms": 700,
+      "note": "let the hover fill fade in (.12s transition) and the chevron swap settle (.15s/.22s)"
+    },
+    {
+      "type": "capture",
+      "id": "hover-pinned",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "pinned header hovered: rowHover fill + chevron swapped in for the glyph"
+    },
+    {
+      "type": "move",
+      "x": 170,
+      "y": 224,
+      "note": "hover the folder header row (News), box measured at y 210..240"
+    },
+    {
+      "type": "settle",
+      "ms": 700,
+      "note": "let the hover fill fade in"
+    },
+    {
+      "type": "capture",
+      "id": "hover-group",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "folder header hovered: rowHover fill, no drag involved"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "theme_changed",
+      "before": "rest",
+      "after": "hover-pinned",
+      "region": [
+        16,
+        139,
+        120,
+        16
+      ],
+      "min_delta": 2.0,
+      "desc": "the pinned section header lights the rowHover fill - the half that has its own fill",
+      "note": "THRESHOLD, derived from a frame where the fill actually rendered. lit this same .sechdrow: region [12,194,190,22] went 106.3,125.6,141.8 -> 116.0,133.8,148.8, which is an effective white-alpha of 0.0652, 0.0634, 0.0618 per channel - call it 0.0635. It is that low rather than the .15 in sidebar.css:273 because .sechdrow carries opacity:.5 (sidebar.css:402), which halves its own background too. This region reads 210.0,219.6,225.8 at rest, so a working fill lands at 0.0635*(45.0,35.4,29.2) = 4.1. Floor is 0.00: rest against both hover frames measures exactly 0.00 over every sidebar region with no cursor in it. 2.0 is half the signal with the floor at zero. The weakest of the four thresholds here, and deliberately so - this is the faintest fill the sidebar draws, and the known failure is a threshold carried across a palette change without re-measuring, not a threshold that was small."
+    },
+    {
+      "type": "region_stable",
+      "before": "rest",
+      "after": "hover-pinned",
+      "region": [
+        16,
+        214,
+        120,
+        20
+      ],
+      "max_delta": 1.0,
+      "desc": "and the folder header 77px below it stays dark - the fill follows the pointer's row, it is not a sidebar-wide repaint",
+      "note": "Without this, a build that lit every row on any pointer motion would pass the two positives. Measured floor 0.00; the fill this region would show if it lit is 7.9, so 1.0 is 8x under it."
+    },
+    {
+      "type": "theme_changed",
+      "before": "rest",
+      "after": "hover-group",
+      "region": [
+        16,
+        214,
+        120,
+        20
+      ],
+      "min_delta": 3.0,
+      "desc": "the folder header lights the same fill on a plain hover, with no drag involved",
+      "note": "Same measured alpha, doubled to 0.127 because .row.frow has no opacity:.5. Region reads 211.8,220.6,226.7 at rest, so a working fill lands at 0.127*(43.2,34.4,28.3) = 7.9. 3.0 is 2.6x under it, floor 0.00."
+    },
+    {
+      "type": "region_stable",
+      "before": "rest",
+      "after": "hover-group",
+      "region": [
+        16,
+        139,
+        120,
+        16
+      ],
+      "max_delta": 1.0,
+      "desc": "and the pinned header above it stays dark - the mirror of the guard above",
+      "note": "Measured floor 0.00; the fill this region would show if it lit is 4.1, so 1.0 is 4x under it."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q actually quits (process gone)"
+    }
+  ]
+}

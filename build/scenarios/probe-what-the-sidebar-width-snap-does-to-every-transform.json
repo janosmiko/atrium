@@ -1,0 +1,107 @@
+{
+  "name": "probe-what-the-sidebar-width-snap-does-to-every-transform",
+  "description": "follow-up. The address bar lands home in a single frame on the way back to a space, and the pinned icons flash while the sidebar resizes. Both sit on the same boundary: onActiveIndex sends sidebarOverviewPaneActive at the START of the settle, the browser animates the sidebar slot's width, and every transform in the document is computed against root.clientWidth.\n\nThis probe asserts nothing. It records the root, the rail, the first two panes, the address row and the pinned grid on every frame of three routes, then prints the frames around each width change so the discontinuity can be read rather than inferred.",
+  "fixture": "lab-compare.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "arm-op",
+      "target": "/sidebar",
+      "expression": "(() => {   const root = document.getElementById('atrium-root');   const rail = root?.querySelector('.rail');   if (!rail) { return 'no rail'; }   window.__op = [];   const tx = (el) => el ? Math.round(new DOMMatrixReadOnly(getComputedStyle(el).transform).m41) : null;   const box = (el) => { const r = el?.getBoundingClientRect(); return r ? [Math.round(r.x), Math.round(r.width)] : null; };   const read = () => {     const panes = rail.querySelectorAll('.railpane');     const grid = [...root.children].find((el) => el.classList.contains('favgrid'));     const bar = root.querySelector('.urlrow');     window.__op.push([       Math.round(performance.now()),       root.clientWidth,       box(root), box(rail), tx(rail),       box(panes[0]), box(panes[1]),       tx(bar), box(bar),       tx(grid), box(grid),       (root.classList.contains('pinnedoff') ? 'P' : '-') +       (root.classList.contains('xprofile') ? 'X' : '-') +       (grid ? (getComputedStyle(grid).visibility === 'hidden' ? 'H' : 'v') : 'n'),     ]);   };   const tick = () => { read(); window.__opRaf = requestAnimationFrame(tick); };   window.__opRaf = requestAnimationFrame(tick);   return 'armed'; })()",
+      "note": "armed before the open, so the first frame of the glide is in the sample"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+o"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "dump-op",
+      "target": "/sidebar",
+      "expression": "(() => {   cancelAnimationFrame(window.__opRaf);   const f = window.__op;   const hits = [];   for (let i = 1; i < f.length; i++) { if (f[i][1] !== f[i-1][1]) { hits.push(i); } }   const keep = new Set();   for (const h of hits) { for (let k = h - 6; k <= h + 6; k++) { if (k >= 0 && k < f.length) { keep.add(k); } } }   const rows = [...keep].sort((a, b) => a - b).map((k) => [k].concat(f[k]));   return f.length + ' frames, width changed at ' + JSON.stringify(hits) + ' :: ' + JSON.stringify(rows); })()"
+    },
+    {
+      "type": "eval",
+      "id": "arm-cl",
+      "target": "/sidebar",
+      "expression": "(() => {   const root = document.getElementById('atrium-root');   const rail = root?.querySelector('.rail');   if (!rail) { return 'no rail'; }   window.__cl = [];   const tx = (el) => el ? Math.round(new DOMMatrixReadOnly(getComputedStyle(el).transform).m41) : null;   const box = (el) => { const r = el?.getBoundingClientRect(); return r ? [Math.round(r.x), Math.round(r.width)] : null; };   const read = () => {     const panes = rail.querySelectorAll('.railpane');     const grid = [...root.children].find((el) => el.classList.contains('favgrid'));     const bar = root.querySelector('.urlrow');     window.__cl.push([       Math.round(performance.now()),       root.clientWidth,       box(root), box(rail), tx(rail),       box(panes[0]), box(panes[1]),       tx(bar), box(bar),       tx(grid), box(grid),       (root.classList.contains('pinnedoff') ? 'P' : '-') +       (root.classList.contains('xprofile') ? 'X' : '-') +       (grid ? (getComputedStyle(grid).visibility === 'hidden' ? 'H' : 'v') : 'n'),     ]);   };   const tick = () => { read(); window.__clRaf = requestAnimationFrame(tick); };   window.__clRaf = requestAnimationFrame(tick);   return 'armed'; })()",
+      "note": "the close by the same shortcut"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+o"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "dump-cl",
+      "target": "/sidebar",
+      "expression": "(() => {   cancelAnimationFrame(window.__clRaf);   const f = window.__cl;   const hits = [];   for (let i = 1; i < f.length; i++) { if (f[i][1] !== f[i-1][1]) { hits.push(i); } }   const keep = new Set();   for (const h of hits) { for (let k = h - 6; k <= h + 6; k++) { if (k >= 0 && k < f.length) { keep.add(k); } } }   const rows = [...keep].sort((a, b) => a - b).map((k) => [k].concat(f[k]));   return f.length + ' frames, width changed at ' + JSON.stringify(hits) + ' :: ' + JSON.stringify(rows); })()"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+o"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "arm-sw",
+      "target": "/sidebar",
+      "expression": "(() => {   const root = document.getElementById('atrium-root');   const rail = root?.querySelector('.rail');   if (!rail) { return 'no rail'; }   window.__sw = [];   const tx = (el) => el ? Math.round(new DOMMatrixReadOnly(getComputedStyle(el).transform).m41) : null;   const box = (el) => { const r = el?.getBoundingClientRect(); return r ? [Math.round(r.x), Math.round(r.width)] : null; };   const read = () => {     const panes = rail.querySelectorAll('.railpane');     const grid = [...root.children].find((el) => el.classList.contains('favgrid'));     const bar = root.querySelector('.urlrow');     window.__sw.push([       Math.round(performance.now()),       root.clientWidth,       box(root), box(rail), tx(rail),       box(panes[0]), box(panes[1]),       tx(bar), box(bar),       tx(grid), box(grid),       (root.classList.contains('pinnedoff') ? 'P' : '-') +       (root.classList.contains('xprofile') ? 'X' : '-') +       (grid ? (getComputedStyle(grid).visibility === 'hidden' ? 'H' : 'v') : 'n'),     ]);   };   const tick = () => { read(); window.__swRaf = requestAnimationFrame(tick); };   window.__swRaf = requestAnimationFrame(tick);   return 'armed'; })()",
+      "note": "parked on the Overview again, now leave it by a swipe"
+    },
+    {
+      "type": "eval",
+      "id": "swipe-off-the-overview",
+      "target": "/sidebar",
+      "expression": "(() => { const root = document.getElementById('atrium-root'); if (!root) { return 'no root'; } let n = 0; const fire = () => { root.dispatchEvent(new WheelEvent('wheel', {deltaX: 40, deltaY: 0, bubbles: true, cancelable: true})); if (++n < 14) { setTimeout(fire, 16); } }; fire(); return 'sent ' + 14 + ' wheel events'; })()",
+      "note": "wheel, not a pointer drag: swipe.js listens for wheel and its own comments say a synthetic stream with no momentum labels is a path it handles. The harness drag action would press on nothing here"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "eval",
+      "id": "dump-sw",
+      "target": "/sidebar",
+      "expression": "(() => {   cancelAnimationFrame(window.__swRaf);   const f = window.__sw;   const hits = [];   for (let i = 1; i < f.length; i++) { if (f[i][1] !== f[i-1][1]) { hits.push(i); } }   const keep = new Set();   for (const h of hits) { for (let k = h - 6; k <= h + 6; k++) { if (k >= 0 && k < f.length) { keep.add(k); } } }   const rows = [...keep].sort((a, b) => a - b).map((k) => [k].concat(f[k]));   return f.length + ' frames, width changed at ' + JSON.stringify(hits) + ' :: ' + JSON.stringify(rows); })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "arm-op",
+      "expected": "\"armed\"",
+      "desc": "the sampler was installed before the open"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

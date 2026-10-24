@@ -1,0 +1,74 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 7 Sep 2026 19:12:40 +0200
+Subject: [PATCH 121/154] feat(settings): remove the Adapt to spaces accent
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The overlay accent that followed the active space fought the space
+theme for the same colour. The picker, the core allow-list, the
+overlay_accent_space flag and its push through the window, the theme
+script and the confirm-to-quit panel are gone, along with the pref
+the panel read. A stored space accent loads as the default accent
+until the user changes it.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/cocoa/confirm_quit.cc               |  1 -
+ .../browser/ui/cocoa/confirm_quit_panel_controller.mm | 11 ++---------
+ chrome/common/pref_names.h                            |  6 +-----
+ 3 files changed, 3 insertions(+), 15 deletions(-)
+
+diff --git a/chrome/browser/ui/cocoa/confirm_quit.cc b/chrome/browser/ui/cocoa/confirm_quit.cc
+index 5c509d336d655..633c098197e7c 100644
+--- a/chrome/browser/ui/cocoa/confirm_quit.cc
++++ b/chrome/browser/ui/cocoa/confirm_quit.cc
+@@ -36,7 +36,6 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
+   registry->RegisterBooleanPref(prefs::kAtriumConfirmQuitPanelNative, false);
+   registry->RegisterIntegerPref(prefs::kAtriumConfirmQuitPanelSurroundColor,
+                                 -1);
+-  registry->RegisterBooleanPref(prefs::kAtriumOverlayAccentSpace, false);
+   registry->RegisterIntegerPref(prefs::kAtriumConfirmQuitPanelAccentColor, -1);
+ }
+ 
+diff --git a/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm b/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
+index 1f5c4a4d83bc5..0d8141b0d0158 100644
+--- a/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
++++ b/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
+@@ -62,15 +62,8 @@ atrium::ConfirmQuitPanelStyle CurrentPanelStyle() {
+       surround_argb >= 0
+           ? std::make_optional(static_cast<SkColor>(surround_argb))
+           : std::nullopt;
+-  const bool accent_space =
+-      local_state->GetBoolean(prefs::kAtriumOverlayAccentSpace);
+-  const int accent_argb =
+-      local_state->GetInteger(prefs::kAtriumConfirmQuitPanelAccentColor);
+-  const std::optional<SkColor> accent =
+-      (accent_space && accent_argb >= 0)
+-          ? std::make_optional(static_cast<SkColor>(accent_argb))
+-          : std::nullopt;
+-  return atrium::ComputeConfirmQuitPanelStyle(dark, native, surround, accent);
++  return atrium::ComputeConfirmQuitPanelStyle(dark, native, surround,
++                                              std::nullopt);
+ }
+ 
+ }  // namespace
+diff --git a/chrome/common/pref_names.h b/chrome/common/pref_names.h
+index 30d2baef301b8..ec32b3aa0bdc2 100644
+--- a/chrome/common/pref_names.h
++++ b/chrome/common/pref_names.h
+@@ -406,11 +406,7 @@ inline constexpr char kAtriumConfirmQuitPanelNative[] =
+ inline constexpr char kAtriumConfirmQuitPanelSurroundColor[] =
+     "browser.atrium_confirm_quit_panel_surround_color";
+ 
+-// settings.json's overlayAccent, mirrored for the same reason.
+-inline constexpr char kAtriumOverlayAccentSpace[] =
+-    "browser.atrium_overlay_accent_space";
+-// The live space tint, read only while kAtriumOverlayAccentSpace is true.
+-// -1 means AUTOMATIC (no tint has been pushed yet).
++// The live backdrop tint. -1 means AUTOMATIC (no tint has been pushed yet).
+ inline constexpr char kAtriumConfirmQuitPanelAccentColor[] =
+     "browser.atrium_confirm_quit_panel_accent_color";
+ 

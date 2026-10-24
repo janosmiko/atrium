@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sat, 5 Sep 2026 15:54:33 +0200
+Subject: [PATCH 114/154] feat(find): the find bar widget and its five verbs
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 77e218151f6c5..35c0e8299e0d7 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3595,6 +3595,8 @@ static_library("ui") {
+       "atrium/atrium_capture.h",
+       "atrium/atrium_command_bar_widget.h",
+       "atrium/atrium_command_bar_widget.mm",
++      "atrium/atrium_find_bar_widget.h",
++      "atrium/atrium_find_bar_widget.mm",
+       "atrium/atrium_permission_sheet_widget.h",
+       "atrium/atrium_permission_sheet_widget.mm",
+       "atrium/atrium_permission_prompt.h",

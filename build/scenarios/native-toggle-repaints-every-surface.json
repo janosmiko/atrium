@@ -1,0 +1,178 @@
+{
+  "name": "native-toggle-repaints-every-surface",
+  "description": "SetOpaqueSurround only called PushSidebarAppearance, and neither it nor the crossfade completion in StepSurroundFade called PushAiPanelInk, so the command bar (and the rest of the nine-surface fan-out) kept ink computed against the previous surround after a LIVE Native app view toggle - only a surface's own one-shot ready handshake ever caught it up, which is why the defect hides at startup and this scenario toggles rather than launches into the new state. Fixed by adding PushAiPanelInk() to the end of SetOpaqueSurround and to StepSurroundFade's completion.\n\nreads the command bar's surround tokens before the toggle and again after the crossfade finishes - opened ONCE before the toggle and never reopened, the same technique a sibling scenario's scenario uses for the same reason, so CommandBarWidget::Show's own re-push on open cannot be mistaken for the live fan-out. The fixture (ambilight.spaces.json + a page carrying its own tint) guarantees has_backdrop_tint_ is true, so the toggle actually takes the crossfade branch rather than snapping - the crossfade's completion must push too, not only the toggle's start.\nThe deciding assertion: eval_changed on the command bar's tokens.\n\nAlso reads the settings window across the same toggle. Settings is always native, so it must stay native on both sides of the toggle.",
+  "fixture": "ambilight.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "the window paints its tint, which is what the fade needs to fade from"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "open the command bar ONCE, before the toggle - CommandBarWidget::Show re-pushes the theme on every open"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "commandbar-tokens-before",
+      "target": "/commandbar",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(r); const t = (n) => (s.getPropertyValue(n) || '').trim().toLowerCase(); return 'surround=' + t('--atrium-surround-color') + ' ink=' + t('--atrium-surround-ink') + ' native=' + r.classList.contains('atrium-native-chrome'); })()",
+      "note": "read before the toggle - opaqueSurround starts false in the staged settings"
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "hides the card without tearing down its WebContents, so it stays reachable by PushAiPanelInk without ever being reopened"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "open the settings window on Appearance"
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "the window builds and the route answers"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "eval",
+      "id": "appearance-pane",
+      "target": "settings",
+      "expression": "(() => { const b = document.querySelector('.settings-rail-item[data-pane=\"appearance\"]'); if (!b) return 'no-pane'; b.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "settings-tokens-before",
+      "target": "settings",
+      "expression": "(() => 'native=' + document.documentElement.classList.contains('atrium-native-chrome'))()",
+      "note": "settings is native before the toggle"
+    },
+    {
+      "type": "eval",
+      "id": "native-view-on",
+      "target": "settings",
+      "expression": "(() => { const t = document.querySelector('.settings-row[data-key=\"opaqueSurround\"] .settings-row-toggle'); if (!t) return 'no-toggle'; t.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings written",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: surround fade in started",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: surround fade in finished",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "round-trip margin after the fade's own completion push"
+    },
+    {
+      "type": "eval",
+      "id": "commandbar-tokens-after",
+      "target": "/commandbar",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(r); const t = (n) => (s.getPropertyValue(n) || '').trim().toLowerCase(); return 'surround=' + t('--atrium-surround-color') + ' ink=' + t('--atrium-surround-ink') + ' native=' + r.classList.contains('atrium-native-chrome'); })()",
+      "note": "THE DECIDING READ: never reopened, so this can only be the live fan-out from SetOpaqueSurround/StepSurroundFade"
+    },
+    {
+      "type": "eval",
+      "id": "settings-tokens-after",
+      "target": "settings",
+      "expression": "(() => 'native=' + document.documentElement.classList.contains('atrium-native-chrome'))()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "desc": "the browser window and the settings window, both open at the end of the run"
+    },
+    {
+      "type": "eval_equals",
+      "id": "native-view-on",
+      "expected": "\"clicked\"",
+      "desc": "the eval found the toggle"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: settings written",
+      "label": "the-setting-landed",
+      "desc": "the toggle reached the file"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: surround fade in started",
+      "label": "the-fade-began",
+      "desc": "the fixture's tint makes the toggle take the crossfade branch, not the instant install"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: surround fade in finished",
+      "label": "the-fade-ran-out",
+      "desc": "the crossfade's completion is what must push too"
+    },
+    {
+      "type": "vlog_after",
+      "pattern": "Atrium: surround fade in finished",
+      "after_pattern": "Atrium: surround fade in started",
+      "label": "finished-after-started",
+      "desc": "the order is the proof of an interval between them"
+    },
+    {
+      "type": "eval_changed",
+      "before": "commandbar-tokens-before",
+      "after": "commandbar-tokens-after",
+      "desc": "THE SIGNATURE: under the earlier bug this stays identical, because SetOpaqueSurround and StepSurroundFade never reached anything but the sidebar"
+    },
+    {
+      "type": "eval_equals",
+      "id": "settings-tokens-before",
+      "expected": "\"native=true\"",
+      "desc": "settings is native with Native app view off"
+    },
+    {
+      "type": "eval_equals",
+      "id": "settings-tokens-after",
+      "expected": "\"native=true\"",
+      "desc": "settings stays native after the toggle"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

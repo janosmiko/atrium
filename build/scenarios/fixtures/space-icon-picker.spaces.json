@@ -1,0 +1,27 @@
+{
+  "spaces": [
+    {
+      "id": "5bac0001-0000-4000-8000-000000000001",
+      "name": "Work",
+      "emoji": "W",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135300.0,
+          "url": "http://127.0.0.1:8000/alpha.html",
+          "title": "Alpha"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "favorites": [],
+  "appState": {
+    "sidebarWidth": 160,
+    "schemaVersion": 5,
+    "activeSpaceID": "5bac0001-0000-4000-8000-000000000001"
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "name": "ai-panel-wears-the-space-theme",
+  "description": "The open AI panel on a colored space reads the sidebar's glass ink and wash, then the native surround after Native app view turns on in the running app. Reads the ink, the card fill and the native class off the /ai-panel document before and after the toggle, and captures the window both ways. Settings closes with Escape before the second capture so it does not cover the panel.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "wait_vlog", "pattern": "Atrium: sidebar rows drawn [1-9]", "timeout_ms": 20000 },
+    {
+      "type": "eval_until",
+      "id": "panel-built",
+      "target": "/ai-panel",
+      "expression": "String(!!document.querySelector('.aichatinput'))",
+      "expected": "true",
+      "timeout_ms": 10000
+    },
+    { "type": "activate" },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "open",
+      "target": "/ai-panel",
+      "expression": "(() => { document.dispatchEvent(new KeyboardEvent('keydown', {key: '`'})); return String(document.getElementById('atrium-root').classList.contains('aipopen')); })()"
+    },
+    { "type": "settle", "ms": 2500, "note": "the container widens and the tint push lands" },
+    {
+      "type": "eval",
+      "id": "panel-tokens-before",
+      "target": "/ai-panel",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(document.getElementById('atrium-root')); const card = document.querySelector('.aipcard'); return 'ink=' + s.getPropertyValue('--atrium-ink').trim() + ' card=' + getComputedStyle(card).backgroundColor + ' surround=' + getComputedStyle(r).getPropertyValue('--atrium-surround-color').trim() + ' native=' + r.classList.contains('atrium-native-chrome'); })()"
+    },
+    { "type": "capture", "id": "warm-up", "duration_ms": 300, "fps": 10, "note": "the first stream in a run can deliver no frames" },
+    { "type": "capture", "id": "ai-panel-glass", "duration_ms": 300, "fps": 10, "note": "Native app view off" },
+    { "type": "key", "combo": "cmd+comma", "note": "open the settings window" },
+    { "type": "settle", "ms": 6000, "note": "the window builds and the route answers" },
+    { "type": "activate" },
+    {
+      "type": "eval",
+      "id": "appearance-pane",
+      "target": "settings",
+      "expression": "(() => { const b = document.querySelector('.settings-rail-item[data-pane=\"appearance\"]'); if (!b) return 'no-pane'; b.click(); return 'clicked'; })()"
+    },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "native-view-on",
+      "target": "settings",
+      "expression": "(() => { const t = document.querySelector('.settings-row[data-key=\"opaqueSurround\"] .settings-row-toggle'); if (!t) return 'no-toggle'; t.click(); return 'clicked'; })()"
+    },
+    { "type": "wait_vlog", "pattern": "Atrium: settings written", "timeout_ms": 6000 },
+    { "type": "settle", "ms": 4000, "note": "covers either the instant snap or the crossfade branch" },
+    { "type": "key", "combo": "escape", "note": "close settings so it does not cover the panel" },
+    { "type": "settle", "ms": 1500 },
+    {
+      "type": "eval",
+      "id": "panel-tokens-after",
+      "target": "/ai-panel",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(document.getElementById('atrium-root')); const card = document.querySelector('.aipcard'); return 'ink=' + s.getPropertyValue('--atrium-ink').trim() + ' card=' + getComputedStyle(card).backgroundColor + ' surround=' + getComputedStyle(r).getPropertyValue('--atrium-surround-color').trim() + ' native=' + r.classList.contains('atrium-native-chrome'); })()"
+    },
+    { "type": "capture", "id": "ai-panel-native", "duration_ms": 300, "fps": 10, "note": "Native app view on" }
+  ],
+  "assertions": [
+    { "type": "ax_window_count", "expected": 1, "min_area": 200000, "desc": "the browser window alone, settings closed" },
+    { "type": "eval_equals", "id": "open", "expected": "\"true\"", "desc": "setup: the hotkey opened the panel" },
+    { "type": "eval_equals", "id": "native-view-on", "expected": "\"clicked\"", "desc": "setup: the toggle was found and clicked" },
+    {
+      "type": "eval_changed",
+      "before": "panel-tokens-before",
+      "after": "panel-tokens-after",
+      "desc": "the AI panel's ink and card fill change when Native app view turns on"
+    },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

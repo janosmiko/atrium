@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Reload probe</title>
+<link rel="stylesheet" href="reload-probe.css">
+</head>
+<body>
+<pre class="out" id="readout">not loaded yet</pre>
+<script>
+// Site data, so only the chord that clears the site resets these. An
+// in-memory counter cannot tell the chords apart - every reload wipes the heap.
+const loads = Number(localStorage.getItem('loads') || '0') + 1;
+localStorage.setItem('loads', String(loads));
+const cookieSurvived = document.cookie.includes('reloadprobe=');
+if (!cookieSurvived) {
+  document.cookie = 'reloadprobe=1; path=/';
+}
+
+// python3 -m http.server sends Last-Modified and no Cache-Control, so an
+// ordinary reload revalidates (headers only) and only a bypass refetches the body.
+function cacheVerdict() {
+  const css = performance.getEntriesByType('resource')
+      .find((e) => e.name.endsWith('reload-probe.css'));
+  if (!css) {
+    return 'no-entry';
+  }
+  if (css.transferSize === 0) {
+    return 'cache';
+  }
+  return css.transferSize < css.encodedBodySize ? 'revalidated' : 'network';
+}
+
+addEventListener('load', () => {
+  window.probe = {
+    loads: loads,
+    css: cacheVerdict(),
+    cookie: cookieSurvived ? 'kept' : 'fresh',
+  };
+  document.getElementById('readout').textContent = JSON.stringify(window.probe);
+});
+</script>
+</body>
+</html>

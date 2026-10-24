@@ -1,0 +1,1498 @@
+# Copyright 2026 The Atrium Authors
+# Use of this source code is governed by the Apache License, Version 2.0
+# found in the LICENSE file.
+
+# Mirrors //chrome/browser/ui/webui_browser:headers - a tiny, dependency-free
+# target so code outside chrome/browser/ui (e.g. chrome/browser/ui/read_anything)
+# can query IsAtriumBrowserWindowEnabled() without depending on the rest of the
+# mac-only atrium sources, which live inline in //chrome/browser/ui.
+#
+# atrium_devtools_bridge.h joins it for the same reason -
+# chrome/browser/devtools (devtools_window.cc, devtools_window_views.cc)
+# needs AtriumCanDockDevtools/MaybeUpdateAtriumDockedDevtools's declarations
+# without a build dependency on the rest of the mac-only atrium sources.
+# The reserved chrome-layer BrowserContext. Standalone rather than
+# part of //chrome/browser/ui:ui so that //chrome/browser/ui/webui/atrium can
+# depend on it: ui already deps on webui/atrium, so folding this in the other
+# direction is a cycle.
+source_set("chrome_context") {
+  sources = [
+    "atrium_chrome_context.h",
+    "atrium_chrome_context.cc",
+    # Renderer-crash recovery for the contents the context builds. Here rather
+    # than in //chrome/browser/ui because that target already depends on this
+    # one, so attaching the observer from the context would be a cycle.
+    "atrium_chrome_contents_observer.h",
+    "atrium_chrome_contents_observer.cc",
+    "atrium_favicon_source.cc",
+    "atrium_favicon_source.h",
+    "atrium_icon_path.cc",
+    "atrium_icon_path.h",
+
+    # The app icon variants. Here rather than in //chrome/browser/ui because
+    # the request filter in webui/atrium serves them, and ui already depends
+    # on webui/atrium.
+    "atrium_icon_source.cc",
+    "atrium_icon_source.h",
+
+    # The favourite parking store. Here because //chrome/browser/ui already
+    # depends on this target, and a new target would need an edit to that
+    # upstream BUILD.gn.
+    "atrium_favorite_parking.cc",
+    "atrium_favorite_parking.h",
+    "atrium_sidebar_tabs.cc",
+    "atrium_sidebar_tabs.h",
+    # The seam between a WebUI controller and the widget that owns its
+    # WebContents - needed by both sides, so it lives here too.
+    "atrium_surface_host.h",
+    "atrium_surface_host.cc",
+  ]
+
+  deps = [
+    ":sidebar_model_source",
+    "//base",
+    "//chrome/browser:browser_process",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/resource_coordinator",
+    "//chrome/common:constants",
+    "//content/public/browser",
+    "//third_party/atrium/core:atrium_core",
+    "//url",
+  ]
+}
+
+source_set("headers") {
+  sources = [
+    "atrium_devtools_bridge.h",
+    "atrium_feature_check.h",
+  ]
+}
+
+# the recursive row/col split tree (docs/lab/swipe-lab.html's
+# treeOf()/layoutOf() shape), header-only so //chrome/browser/ui:ui can
+# instantiate it with a view pointer and :unit_tests with a plain value.
+source_set("split_tree") {
+  sources = [ "atrium_split_tree.h" ]
+}
+
+# InsertAtLeaf and friends - header-only for the same reason
+# as :split_tree (BrowserController instantiates it with a view pointer,
+# :unit_tests with a plain value).
+source_set("split_tree_insertion") {
+  sources = [ "atrium_split_tree_insertion.h" ]
+  deps = [ ":split_tree" ]
+}
+
+# the recursive leaf/gutter geometry for an N-leaf tree -
+# header-only for the same reason as :split_tree (AtriumPaneContainerView
+# instantiates it with a view pointer, :unit_tests with a plain value).
+source_set("split_tree_layout") {
+  sources = [ "atrium_split_tree_layout.h" ]
+  deps = [
+    ":split_tree",
+    "//ui/gfx/geometry",
+  ]
+}
+
+# Where the quick menu lands under its puzzle button. Views-free and
+# Browser-free so it is a fast, standalone gtest unit, and so
+# //chrome/browser/ui:ui and :unit_tests share ONE definition.
+source_set("quick_menu_anchor") {
+  sources = [
+    "atrium_quick_menu_anchor.cc",
+    "atrium_quick_menu_anchor.h",
+  ]
+  # //base provides the partition_alloc include paths that
+  # //ui/gfx/geometry's own headers (raw_ptr_exclusion.h) need.
+  deps = [
+    "//base",
+    "//ui/gfx/geometry",
+  ]
+}
+
+# The per-slot Presenter/Visible state machine, extracted from
+# atrium_browser_controller.cc's file-local maps. Deliberately views-free and
+# Browser-free (opaque ControllerId, std-only) so it is a fast, standalone
+# gtest unit and so //chrome/browser/ui:ui and :unit_tests share ONE definition
+# (a diamond through this source_set) rather than compiling it twice. The rest
+# of the mac-only atrium sources still live inline in //chrome/browser/ui.
+# which cold rows still need an icon, and how many lookups for them
+# run at once. //base only, atrium_favicon_source's tab cache posture - the
+# bound and the once-per-URL memo are what a reader cannot check.
+source_set("icon_backfill") {
+  sources = [
+    "atrium_icon_backfill.cc",
+    "atrium_icon_backfill.h",
+  ]
+  deps = [
+    "//base",
+    "//net",
+    "//url",
+  ]
+}
+
+# Row favicon lookup tiers 3-4: pure decisions, no I/O - icon_backfill's
+# posture, a Delegate fetches, decodes and stores.
+source_set("row_icon_lookup") {
+  sources = [
+    "atrium_row_icon_lookup.cc",
+    "atrium_row_icon_lookup.h",
+  ]
+  deps = [
+    ":icon_backfill",
+    ":log_safe_url",
+    "//base",
+    "//net",
+    "//third_party/atrium/core:atrium_core",
+    "//url",
+  ]
+}
+
+# the history scrubber's per-stop captures. Same posture as
+# atrium_favicon_source's tab cache - the cap and the eviction rule ARE the
+# retention policy, and reading them off the code is not asserting them.
+source_set("visit_thumbnail_store") {
+  sources = [
+    "atrium_visit_thumbnail_store.cc",
+    "atrium_visit_thumbnail_store.h",
+  ]
+  deps = [ "//base" ]
+}
+
+# Reads another browser's SQLite file for the importer through a private
+# copy, so a running browser's lock and WAL never reach the read.
+source_set("import_sql_reader") {
+  sources = [
+    "atrium_import_sql_reader.cc",
+    "atrium_import_sql_reader.h",
+  ]
+  deps = [
+    "//base",
+    "//sql",
+  ]
+}
+
+# Reads another browser's visits for the importer and writes them into a
+# profile's history.
+source_set("import_history") {
+  sources = [
+    "atrium_import_history.cc",
+    "atrium_import_history.h",
+  ]
+  public_deps = [ "//components/history/core/browser" ]
+  deps = [
+    ":import_sql_reader",
+    "//base",
+    "//url",
+  ]
+}
+
+# loads vim-page.js out of atrium_resources.pak and wraps its entry
+# points. The library itself is a JS resource so it can carry a node suite,
+# which is also why the grit dep sits here and not on //chrome/browser/ui:ui.
+source_set("vim_script") {
+  sources = [
+    "atrium_vim_script.cc",
+    "atrium_vim_script.h",
+  ]
+  deps = [
+    "//base",
+    "//chrome/browser/resources/atrium:resources",
+    "//ui/base",
+  ]
+}
+
+# where the sidebar's model comes from - the dylib while Swift
+# exists, the Rust core from spaces.json once it does not, and the flat tab
+# list when neither answers. Dependency-free but for //base's FilePath, same
+# posture as the decision source_sets around it, so the ordering is asserted
+# rather than read. Shared by //chrome/browser/ui:ui and :unit_tests.
+source_set("sidebar_model_source") {
+  sources = [
+    "atrium_sidebar_model_source.cc",
+    "atrium_sidebar_model_source.h",
+  ]
+  deps = [ "//base" ]
+}
+
+# the seam between settings.json's confirmToQuitEnabled and Chrome's
+# own browser.confirm_to_quit local-state pref, which is the only thing the
+# Cmd+Q gate reads. Its own target because both the settings window and
+# startup hand the value over, and the reading half is pure enough to assert.
+source_set("confirm_to_quit") {
+  sources = [
+    "atrium_confirm_to_quit.cc",
+    "atrium_confirm_to_quit.h",
+  ]
+  deps = [
+    ":overlay_themes",
+    "//base",
+    "//chrome/browser:browser_process",
+    "//chrome/common:constants",
+    "//components/prefs",
+  ]
+}
+
+# Dependency-free because //chrome/browser/picture_in_picture asks it, and
+# that target must not pull in the rest of the mac-only atrium sources.
+source_set("auto_mini_player") {
+  sources = [
+    "atrium_auto_mini_player.cc",
+    "atrium_auto_mini_player.h",
+  ]
+  deps = [ "//base" ]
+}
+
+# The brand book's themes as C++, for the native surfaces that cannot read
+# overlay.css. Skia only, so unit tests can pin it to the book.
+source_set("overlay_themes") {
+  sources = [
+    "atrium_overlay_themes.cc",
+    "atrium_overlay_themes.h",
+  ]
+  deps = [ "//skia" ]
+}
+
+# The confirm-to-quit panel's colours/radius, computed from (dark, native,
+# surround) rather than read off overlay.css - the panel is a bare NSWindow
+# with no WebContents. Dependency-free but for skia/ui/gfx so the unittest
+# can assert it without pulling in AppKit.
+source_set("confirm_quit_panel_style") {
+  sources = [
+    "atrium_confirm_quit_panel_style.cc",
+    "atrium_confirm_quit_panel_style.h",
+  ]
+  deps = [
+    ":overlay_themes",
+    "//base",
+    "//skia",
+    "//ui/gfx",
+  ]
+}
+
+# confirm_to_quit's shape, for MemorySaverModePolicy's own prefs.
+source_set("memory_saver") {
+  sources = [
+    "atrium_memory_saver.cc",
+    "atrium_memory_saver.h",
+  ]
+  deps = [
+    "//base",
+    "//chrome/browser:browser_process",
+    "//components/performance_manager",
+    "//components/prefs",
+  ]
+}
+
+# the WebContents->Space hibernation bridge - reads
+# memory_saver's prefs and the Rust core's tab binding, applies the answer
+# via TabLifecycleUnitExternal.
+source_set("hibernate_bridge") {
+  sources = [
+    "atrium_hibernate_bridge.cc",
+    "atrium_hibernate_bridge.h",
+  ]
+  deps = [
+    ":memory_saver",
+    "//base",
+    "//chrome/browser/resource_coordinator",
+    "//content/public/browser",
+    "//third_party/atrium/core:atrium_core",
+  ]
+}
+
+# what settings.json says about where a link another macOS
+# app hands over opens, and the core call that decides. Its own target for
+# confirm_to_quit's reason - startup seeds the value and the openURLs hook
+# reads it - and the deciding half is the Rust core's, reached through the ABI.
+source_set("external_link") {
+  sources = [
+    "atrium_external_link.cc",
+    "atrium_external_link.h",
+  ]
+  deps = [
+    "//base",
+    "//third_party/atrium/core:atrium_core",
+  ]
+}
+
+# what settings.json says about how a WINDOW looks - sidebar side,
+# the native-app surround, glass opacity. Its own target for confirm_to_quit's
+# reason: startup and the settings window both hand the values over, and the
+# reading half is pure enough to assert. No skia dep - the colour is a plain
+# 0xAARRGGBB uint32_t, which is what SetOpaqueSurround already takes and the
+# posture status_bubble_color_math established.
+source_set("window_appearance") {
+  sources = [
+    "atrium_window_appearance.cc",
+    "atrium_window_appearance.h",
+  ]
+  deps = [ "//base" ]
+}
+
+# the action ids and compiled-in combos NativeHotkeyMap starts from,
+# lifted out of the Objective-C++ map so a test can hold them next to the Rust
+# core's own default_hotkeys(). Nothing else could: the map lives in
+# //chrome/browser/ui, which no unit-test target links.
+source_set("native_hotkey_defaults") {
+  sources = [
+    "atrium_native_hotkey_defaults.cc",
+    "atrium_native_hotkey_defaults.h",
+  ]
+  deps = [ "//base" ]
+}
+
+# Which sidebar row a cycle key moves to. Pure - a sidebar snapshot and a
+# direction in, an index out - so the walk's order, its wrap and its refusals
+# are asserted rather than read off the source.
+source_set("tab_cycle") {
+  sources = [
+    "atrium_tab_cycle.cc",
+    "atrium_tab_cycle.h",
+  ]
+  deps = [ "//base" ]
+}
+
+# the C++ side of Ctrl-Tab recency cycling. Thin wrappers over the
+# atrium_core_tab_recency_* C ABI - the list and the walk live in Rust. Wired
+# into //chrome/browser/ui:ui's deps (both atrium_browser_controller.cc and
+# atrium_command_dispatcher_delegate.mm call it); see atrium_tab_recency_bridge.h
+# for what else is and is not wired.
+source_set("tab_recency_bridge") {
+  sources = [
+    "atrium_tab_recency_bridge.cc",
+    "atrium_tab_recency_bridge.h",
+  ]
+  deps = [ "//third_party/atrium/core:atrium_core" ]
+}
+
+source_set("slot_presentation_table") {
+  sources = [
+    "slot_presentation_table.cc",
+    "slot_presentation_table.h",
+  ]
+}
+
+# the pure edit-focus hotkey gate - which chords macOS already uses
+# for text editing, and whether one may fire given the focus signal C++ pushes
+# to Swift. Deliberately dependency-free (slot_presentation_table's posture): no
+# AppKit, no content::, just the plain values both dispatch routes resolve, so
+# the fail-closed matrix is a fast standalone gtest unit. Shared by
+# //chrome/browser/ui:ui (the dispatcher hook and BrowserController) and
+# :unit_tests via a diamond.
+source_set("edit_focus_gate") {
+  sources = [
+    "atrium_edit_focus_gate.cc",
+    "atrium_edit_focus_gate.h",
+  ]
+}
+
+# whether a hidden profile's own AtriumBrowserWindow may run the
+# sidebar's JS rebuild, extracted so the gate is a fast, standalone gtest unit
+# (slot_presentation_table's posture) - no views:: or content:: dependency,
+# just a bool in and an enum out. Shared by //chrome/browser/ui:ui
+# (AtriumBrowserWindow::PushSidebarSnapshot) and :unit_tests via a diamond.
+source_set("sidebar_snapshot_gate") {
+  sources = [
+    "atrium_sidebar_snapshot_gate.cc",
+    "atrium_sidebar_snapshot_gate.h",
+  ]
+}
+
+# the pure extension-action JSON serializer, extracted from
+# atrium_extension_bridge.cc so its logic is a fast, standalone gtest unit
+# (slot_presentation_table's posture) - Browser-free and views-free, depending
+# only on //base. Shared by //chrome/browser/ui:ui (the bridge that feeds it
+# live extension state) and :unit_tests via a diamond, so it compiles once.
+source_set("extension_actions_json") {
+  sources = [
+    "atrium_extension_actions_json.cc",
+    "atrium_extension_actions_json.h",
+  ]
+  deps = [ "//base" ]
+}
+
+# the command bar's row text and its wire snapshot, kept out of the
+# bridge that feeds it live omnibox state so both stay fast standalone gtest
+# units (extension_actions_json's posture) - no omnibox, no views. //url and
+# //net only for the row URL key and the registrable-domain title trim.
+# Shared by //chrome/browser/ui:ui and :unit_tests via a diamond.
+source_set("command_bar_matches") {
+  sources = [
+    "atrium_command_bar_matches.cc",
+    "atrium_command_bar_matches.h",
+  ]
+  public_deps = [ ":command_bar_match_text" ]
+  deps = [
+    "//base",
+    "//net",
+    "//url",
+  ]
+}
+
+# The one scoring rule every palette producer filters on, its own unit so the
+# page's copy in command-match.js has something to be pinned against.
+source_set("command_bar_match_text") {
+  sources = [
+    "atrium_command_bar_match_text.cc",
+    "atrium_command_bar_match_text.h",
+  ]
+  deps = [ "//base" ]
+}
+
+# The palette's action rows, derived from the native hotkey table so a row and
+# the key that runs it cannot drift apart. Same posture as command_bar_matches
+# - //base only, shared by :ui and :unit_tests.
+source_set("command_bar_actions") {
+  sources = [
+    "atrium_command_bar_actions.cc",
+    "atrium_command_bar_actions.h",
+    "atrium_overlay_theme_script.cc",
+    "atrium_overlay_theme_script.h",
+    "atrium_sidebar_bindings_script.cc",
+    "atrium_sidebar_bindings_script.h",
+  ]
+  public_deps = [ ":native_hotkey_defaults" ]
+  deps = [
+    "//base",
+    "//skia",
+  ]
+}
+
+# Mirrors the settings file's `searchEngines` list into TemplateURLService.
+# Shared by //chrome/browser/ui:ui (atrium_settings_window.cc,
+# atrium_browser_window.cc) and :unit_tests via a diamond.
+source_set("search_engine_mirror") {
+  sources = [
+    "atrium_search_engine_mirror.cc",
+    "atrium_search_engine_mirror.h",
+  ]
+  deps = [
+    "//base",
+    "//components/search_engines",
+    "//url",
+  ]
+}
+
+# Holds settings.json for the process so a window constructor never reads it
+# on the UI thread. Shared by //chrome/browser/ui:ui and :unit_tests.
+source_set("settings_json_cache") {
+  sources = [
+    "atrium_settings_json_cache.cc",
+    "atrium_settings_json_cache.h",
+  ]
+  deps = [ "//base" ]
+}
+
+# The settings panes number the spaces they draw, and the core reads those
+# numbers as sidebar positions - so the pushed list is sorted before it goes.
+# Its own target for cdp_response's reason: JSON in, JSON out, //base only.
+source_set("spaces_order") {
+  sources = [
+    "atrium_spaces_order.cc",
+    "atrium_spaces_order.h",
+  ]
+  deps = [ "//base" ]
+}
+
+# the pure watchdog decision logic for ExtensionPopupHost's hang
+# detection, extracted so it's a fast, standalone gtest unit - Browser-free
+# and views-free (slot_presentation_table's posture), depending only on
+# //base. Shared by //chrome/browser/ui:ui (the host that arms/disarms it
+# against a real base::OneShotTimer) and :unit_tests via a diamond.
+source_set("extension_popup_watchdog_policy") {
+  sources = [
+    "extension_popup_watchdog_policy.cc",
+    "extension_popup_watchdog_policy.h",
+  ]
+}
+
+# the pure region->device-pixel rect math for atrium_capture.cc's
+# CaptureRegion, extracted so the rounding/clamping logic is a fast, standalone
+# gtest unit (slot_presentation_table's posture) - no content/ or
+# RenderWidgetHostView dependency, just //ui/gfx/geometry. Shared by
+# //chrome/browser/ui:ui (atrium_capture.cc) and :unit_tests via a diamond.
+source_set("capture_math") {
+  sources = [
+    "atrium_capture_math.cc",
+    "atrium_capture_math.h",
+  ]
+  # //base provides the partition_alloc include paths that
+  # //ui/gfx/geometry's own headers (raw_ptr_exclusion.h) need, and
+  # base::StringPrintf plus base::Time for CaptureFileName.
+  deps = [
+    "//base",
+    "//ui/gfx/geometry",
+  ]
+}
+
+# the pure CDP-response parsing (JSON -> optional<PNG bytes>) for
+# atrium_capture.cc's CaptureFullPage, extracted so it's a fast, standalone
+# gtest unit (capture_math's posture) - no content:: or DevToolsAgentHost
+# dependency, just //base's JSON reader and base64 decoder. Shared by
+# //chrome/browser/ui:ui (atrium_capture.cc) and :unit_tests via a diamond.
+source_set("cdp_response") {
+  sources = [
+    "atrium_cdp_response.cc",
+    "atrium_cdp_response.h",
+  ]
+  deps = [ "//base" ]
+}
+
+# the pure widget-local drag -> content DIP rect mapping for the
+# region-select overlay (atrium_capture_overlay_widget.cc's OnCommit), pulled
+# out so the normalize/clamp/zero-size-cancel logic is a fast, standalone
+# gtest unit - same posture as :capture_math above, no views:: or content::
+# dependency, just //ui/gfx/geometry. Shared by //chrome/browser/ui:ui
+# (atrium_capture_overlay_widget.cc) and :unit_tests via a diamond.
+source_set("capture_overlay_math") {
+  sources = [
+    "atrium_capture_overlay_math.cc",
+    "atrium_capture_overlay_math.h",
+  ]
+  # //base provides the partition_alloc include paths that
+  # //ui/gfx/geometry's own headers (raw_ptr_exclusion.h) need.
+  deps = [
+    "//base",
+    "//ui/gfx/geometry",
+  ]
+}
+
+# Little Atrium: the little-mode marker BrowserController::
+# CreateLittleWindow sets around its own Browser::Create() call, read by
+# browser_window_factory.cc to decide whether to build a little-mode
+# AtriumBrowserWindow. Dependency-free (slot_presentation_table's posture) so
+# it's a fast, standalone gtest unit and so //chrome/browser/ui:ui and
+# :unit_tests share ONE definition via a diamond, same as every other
+# extracted-logic source_set above.
+source_set("little_marker") {
+  sources = [
+    "atrium_little_marker.cc",
+    "atrium_little_marker.h",
+  ]
+}
+
+# The redaction a VLOG/LOG line applies to a page URL before printing it - the
+# eTLD+1, never the path or query. //net only, so it is a fast, standalone
+# gtest unit and //chrome/browser/ui:ui and :unit_tests share ONE definition
+# via a diamond, same as every other extracted-logic source_set above.
+source_set("log_safe_url") {
+  sources = [
+    "atrium_log_safe_url.cc",
+    "atrium_log_safe_url.h",
+  ]
+  deps = [
+    "//base",
+    "//net",
+    "//url",
+  ]
+}
+
+# Whether an address-bar submission over a favourite's tab navigates that tab
+# or opens beside it. Same //net-only posture as log_safe_url above, so the
+# eTLD+1 rule is a standalone gtest unit shared by //chrome/browser/ui:ui and
+# :unit_tests via a diamond.
+source_set("url_submit_decision") {
+  sources = [
+    "atrium_url_submit_decision.cc",
+    "atrium_url_submit_decision.h",
+  ]
+  deps = [
+    "//base",
+    "//net",
+    "//url",
+  ]
+}
+
+# little_marker's posture again - dependency-free so
+# ProfileBrowserCollection (chrome/browser/ui/browser_window/internal) can
+# query it without linking the rest of the mac-only atrium sources.
+source_set("little_window_registry") {
+  sources = [
+    "atrium_little_window_registry.cc",
+    "atrium_little_window_registry.h",
+  ]
+  deps = [ "//base" ]
+}
+
+# the move-vs-reopen decision MoveLittleTabToSpace makes
+# when the foyer's Move-to-Space button fires, extracted so it's a fast,
+# standalone gtest unit (little_marker's posture) independent of
+# TabStripModel/Registry()'s private state. Shared by //chrome/browser/ui:ui
+# and :unit_tests via a diamond, same as every other extracted-logic
+# source_set above.
+source_set("move_target_decision") {
+  sources = [
+    "atrium_move_target_decision.cc",
+    "atrium_move_target_decision.h",
+  ]
+}
+
+# TASK: the settingsProfileOpenPage enum map. A pure lookup, so it is a fast,
+# standalone gtest unit the way move_target_decision above is - the page name
+# is checked here rather than in the window, and a renderer never names a URL.
+source_set("profile_page_url") {
+  sources = [
+    "atrium_profile_page_url.cc",
+    "atrium_profile_page_url.h",
+  ]
+  deps = [ "//chrome/common" ]
+}
+
+# Which live Atrium window a data link for a profile opens in. Pure -
+# candidates and an id in, an index out - so it is a fast, standalone gtest
+# unit the way move_target_decision above is. The window scan and the
+# new-window fallback that use it live in atrium_browser_for_profile.cc.
+source_set("profile_window_decision") {
+  sources = [
+    "atrium_profile_window_decision.cc",
+    "atrium_profile_window_decision.h",
+  ]
+}
+
+# extracted so it's a standalone gtest unit, same posture as
+# drop_target_decision above.
+source_set("downloads_overview") {
+  sources = [
+    "atrium_downloads_overview.cc",
+    "atrium_downloads_overview.h",
+  ]
+  deps = [
+    "//base",
+    "//components/download/public/common:public",
+    "//content/public/browser",
+    "//ui/base",
+  ]
+}
+
+# the drop-target classifier - which of another Atrium window's
+# sidebar or content rect (or neither) a tab-drag release point lands on.
+# Extracted to the move_target_decision/little_marker posture so the rule is
+# a fast, standalone gtest unit independent of BrowserController::Registry()
+# and AtriumBrowserWindow's private state. Shared by //chrome/browser/ui:ui
+# and :unit_tests via a diamond, same as every other extracted-logic
+# source_set above.
+source_set("drop_target_decision") {
+  sources = [
+    "atrium_drop_target_decision.cc",
+    "atrium_drop_target_decision.h",
+  ]
+  # //base provides the partition_alloc include paths that //ui/gfx/
+  # geometry's own headers (raw_ptr_exclusion.h) need - same fix as
+  # devtools_card_corners/corner_radius above.
+  deps = [
+    "//base",
+    "//ui/gfx/geometry",
+  ]
+}
+
+# NonClientHitTest's in-band-controls carve, extracted to the
+# drop_target_decision posture as a fast, standalone gtest unit. Shared by
+# //chrome/browser/ui:ui (atrium_browser_window.cc) and :unit_tests.
+source_set("nav_carve_decision") {
+  sources = [
+    "atrium_nav_carve_decision.cc",
+    "atrium_nav_carve_decision.h",
+  ]
+  deps = [
+    "//base",
+    "//ui/gfx/geometry",
+  ]
+}
+
+# How wide the sidebar has to be while its overview pane is on screen. Same
+# extracted-logic posture as nav_carve_decision above, so the rule has a fast
+# unit test without a browser or a window server.
+source_set("sidebar_overview_width") {
+  sources = [
+    "atrium_sidebar_overview_width.cc",
+    "atrium_sidebar_overview_width.h",
+  ]
+  deps = [ "//base" ]
+}
+
+# Where the palette card goes when it opens on a clicked address row.
+# Same extracted-logic posture as nav_carve_decision above, so the geometry
+# has a fast unit test without a browser or a window server.
+source_set("command_bar_anchor") {
+  sources = [
+    "atrium_command_bar_anchor.cc",
+    "atrium_command_bar_anchor.h",
+  ]
+  deps = [
+    "//base",
+    "//ui/gfx/geometry",
+  ]
+}
+
+# Whether a window-level mouse-down has to dismiss the sidebar's open menu.
+# Same extracted-logic posture as nav_carve_decision above, so the geometry
+# has a fast unit test without a browser.
+source_set("menu_dismiss_decision") {
+  sources = [
+    "atrium_menu_dismiss_decision.cc",
+    "atrium_menu_dismiss_decision.h",
+  ]
+  deps = [
+    "//base",
+    "//ui/gfx/geometry",
+  ]
+}
+
+# Whether a cross-window sidebar drop (already
+# classified as kSidebar by drop_target_decision above) moves the tab
+# silently or asks first - a plain workspace-id string comparison. Same
+# extracted-logic posture as move_target_decision/drop_target_decision so
+# it's a fast, standalone gtest unit. Shared by //chrome/browser/ui:ui and
+# :unit_tests via a diamond.
+source_set("sidebar_drop_decision") {
+  sources = [
+    "atrium_sidebar_drop_decision.cc",
+    "atrium_sidebar_drop_decision.h",
+  ]
+}
+
+# whether OnSidebarMoveConfirmed's confirmed move can run live
+# or must reopen-and-close, kept separate from sidebar_drop_decision (that
+# one only gates whether to ask). Same extracted-logic posture.
+source_set("sidebar_move_execution_decision") {
+  sources = [
+    "atrium_sidebar_move_execution_decision.cc",
+    "atrium_sidebar_move_execution_decision.h",
+  ]
+}
+
+# The split-orientation geometry (L/R/T/B/C) a
+# cross-window content-area drop resolves against, reproducing docs/lab/
+# swipe-lab.html's zoneOf(). Same posture as drop_target_decision.
+source_set("split_orientation_decision") {
+  sources = [
+    "atrium_split_orientation_decision.cc",
+    "atrium_split_orientation_decision.h",
+  ]
+  deps = [
+    "//base",
+    "//ui/gfx/geometry",
+  ]
+}
+
+# where an address bar grip drag lands in its own window.
+source_set("own_window_drop") {
+  sources = [
+    "atrium_own_window_drop.cc",
+    "atrium_own_window_drop.h",
+  ]
+  deps = [
+    ":split_orientation_decision",
+    ":split_tree_insertion",
+    "//base",
+    "//ui/gfx/geometry",
+  ]
+}
+
+# the pure background->text-ink contrast pick for the link-hover
+# status bubble, extracted so it's a fast, standalone gtest unit (capture_
+# math's posture) - plain uint32_t ARGB in and out, no SkColor/gfx dependency.
+# Shared by //chrome/browser/ui:ui (atrium_browser_window.cc's
+# AtriumStatusBubbleView::OnPaint) and :unit_tests via a diamond.
+source_set("status_bubble_color_math") {
+  sources = [
+    "atrium_status_bubble_color_math.cc",
+    "atrium_status_bubble_color_math.h",
+  ]
+}
+
+# The pure per-corner radii math for the content card once
+# docked DevTools splits it into two tiles, extracted so the "round only the
+# card's own corners, keep the seam straight" rule is a fast, standalone gtest
+# unit (capture_math's posture) - no views:: dependency, just
+# //ui/gfx/geometry. Shared by //chrome/browser/ui:ui (AtriumPaneView::Layout)
+# and :unit_tests via a diamond.
+source_set("devtools_card_corners") {
+  sources = [
+    "atrium_devtools_card_corners.cc",
+    "atrium_devtools_card_corners.h",
+  ]
+  # //base provides the partition_alloc include paths that
+  # //ui/gfx/geometry's own headers (raw_ptr_exclusion.h) need.
+  deps = [
+    "//base",
+    "//ui/gfx/geometry",
+  ]
+}
+
+# the concentric nested-corner math (inner = outer - gap), extracted
+# so the rule that keeps a card's gap even around the window corner is a fast,
+# standalone gtest unit (capture_math's posture) - no AppKit, no views::, just
+# arithmetic. Shared by //chrome/browser/ui:ui (the content card and the
+# floating sidebar overlay) and :unit_tests via a diamond.
+source_set("corner_radius") {
+  sources = [
+    "atrium_corner_radius.cc",
+    "atrium_corner_radius.h",
+  ]
+}
+
+# where the sidebar's width grip sits, extracted so the rule that
+# keeps its grab band contiguous across the seam is a fast, standalone gtest
+# unit (devtools_card_corners' posture) - no views::, just //ui/gfx/geometry.
+source_set("sidebar_grip_bounds") {
+  sources = [
+    "atrium_sidebar_grip_bounds.cc",
+    "atrium_sidebar_grip_bounds.h",
+  ]
+
+  # //base provides the partition_alloc include paths that
+  # //ui/gfx/geometry's own headers (raw_ptr_exclusion.h) need.
+  deps = [
+    "//base",
+    "//ui/gfx/geometry",
+  ]
+}
+
+# The pill the seam draws while the grip is held, in sidebar_grip_bounds'
+# posture. Its numbers come from the overlay design guide, so the guide can be
+# checked against a test rather than against the paint code.
+source_set("sidebar_seam_line") {
+  sources = [
+    "atrium_sidebar_seam_line.cc",
+    "atrium_sidebar_seam_line.h",
+  ]
+
+  deps = [
+    ":sidebar_grip_bounds",
+    "//base",
+    "//skia",
+    "//ui/gfx/geometry",
+  ]
+}
+
+# The extension side panel's width rule, in sidebar_grip_bounds' posture: a
+# plain gtest unit with no views.
+source_set("extension_panel_width") {
+  sources = [
+    "atrium_extension_panel_width.cc",
+    "atrium_extension_panel_width.h",
+  ]
+
+  deps = [ "//base" ]
+}
+
+# the same posture for auto-peek's decision, so the Keyhole's
+# promise - a pinned page never navigates away - is asserted rather than read
+# off the source. The rule is kept, with its
+# tests, as what a native replacement rebuilds against.
+source_set("peek_decision") {
+  sources = [
+    "atrium_new_tab_modifiers.h",
+    "atrium_new_tab_modifiers.mm",
+    "atrium_peek_decision.cc",
+    "atrium_peek_decision.h",
+  ]
+}
+
+# The request table behind FindSession::Apply, same posture as :peek_decision
+# so the table in find_bar_controller.cc:42-89 and find_bar_view.cc:607-633 is
+# asserted rather than read off the FindTabHelper calls it maps to.
+source_set("find_action") {
+  sources = [
+    "atrium_find_action.cc",
+    "atrium_find_action.h",
+  ]
+}
+
+# The size/anchor/clamp/follow-parent maths for ThemeStudioWidget, kept apart
+# so it can be asserted without a window.
+source_set("theme_studio_placement") {
+  sources = [
+    "atrium_theme_studio_placement.cc",
+    "atrium_theme_studio_placement.h",
+  ]
+
+  # //base provides the partition_alloc include paths that
+  # //ui/gfx/geometry's own headers (raw_ptr_exclusion.h) need.
+  deps = [
+    "//base",
+    "//ui/gfx/geometry",
+  ]
+}
+
+# Whether the Last-tab-out interception keeps a window open. Extracted so the
+# gate that decides it - and the Cmd+Shift+W override on top of it - can be
+# asserted without a Browser, a widget or an NSWindow.
+source_set("window_close_decision") {
+  sources = [
+    "atrium_window_close_decision.cc",
+    "atrium_window_close_decision.h",
+  ]
+}
+
+# which favourite tile a Cmd+digit chord opens. Same posture as
+# :pin_toggle below - the window parses the sidebar model, this decides.
+source_set("favorite_slot") {
+  sources = [
+    "atrium_favorite_slot.cc",
+    "atrium_favorite_slot.h",
+  ]
+}
+
+# which way Cmd+D moves the shown row. Same posture as
+# :peek_decision - the window parses the sidebar model, this decides.
+source_set("pin_toggle") {
+  sources = [
+    "atrium_pin_toggle.cc",
+    "atrium_pin_toggle.h",
+  ]
+}
+
+# the pinch/ctrl+wheel threshold and direction rule behind
+# opening and closing the Courtyard, same posture as :peek_decision so it is
+# asserted rather than read off the AppKit event monitor it feeds.
+source_set("pinch_gesture_decision") {
+  sources = [
+    "atrium_pinch_gesture_decision.cc",
+    "atrium_pinch_gesture_decision.h",
+  ]
+}
+
+# The AppKit bottom-up -> Views top-down flip the monitor's hit test depends
+# on, asserted at both window edges directly rather than only through a
+# browsertest's synthetic event location.
+source_set("pinch_gesture_hit_test") {
+  sources = [
+    "atrium_pinch_gesture_hit_test.cc",
+    "atrium_pinch_gesture_hit_test.h",
+  ]
+
+  # //base provides the partition_alloc include paths that
+  # //ui/gfx/geometry's own headers (raw_ptr_exclusion.h) need.
+  deps = [
+    "//base",
+    "//ui/gfx/geometry",
+  ]
+}
+
+# the reading half of the restore plan the Rust core hands back -
+# which tabs to close, which rows to reopen and which one of them the moment
+# was showing. Its own target for cdp_response's reason: JSON in, a struct
+# out, //base only, so the selection rule is asserted rather than read off
+# RestoreSidebarSlice. Shared by //chrome/browser/ui:ui and :unit_tests.
+source_set("restore_plan") {
+  sources = [
+    "atrium_restore_plan.cc",
+    "atrium_restore_plan.h",
+  ]
+  deps = [ "//base" ]
+}
+
+# TraceClaim's STALE-DETACH/DOUBLE-CLAIM guard,
+# extracted so it is a fast, standalone gtest unit. Same posture as the
+# extracted-logic source_sets above.
+source_set("claim_ledger_decision") {
+  sources = [
+    "atrium_claim_ledger_decision.cc",
+    "atrium_claim_ledger_decision.h",
+  ]
+}
+
+# what the palette and the peek card do with a key equivalent before
+# their own web content sees it. Both surfaces promised to hand Cmd+Q to the
+# main menu and both made the promise from a hook a live renderer skips, so the
+# ordering is the whole answer and belongs somewhere it can be asserted.
+source_set("surface_key_route") {
+  sources = [
+    "atrium_surface_key_route.cc",
+    "atrium_surface_key_route.h",
+  ]
+}
+
+# whether PreHandleKeyboardEvent consumes a key for vim mode. Pure,
+# so the steal rule is asserted without a browser process.
+source_set("vim_key_decision") {
+  sources = [
+    "atrium_vim_key_decision.cc",
+    "atrium_vim_key_decision.h",
+  ]
+  # //base provides the partition_alloc include paths the action enum's own
+  # headers (raw_ptr_exclusion.h, via span.h) need.
+  public_deps = [ ":native_hotkey_defaults" ]
+  deps = [ "//base" ]
+}
+
+# the request-time SSRF check, so :unit_tests can assert the
+# address rule without spinning up a NetworkContext.
+source_set("custom_endpoint_request_guard") {
+  sources = [
+    "atrium_custom_endpoint_request_guard.cc",
+    "atrium_custom_endpoint_request_guard.h",
+  ]
+  deps = [
+    "//net",
+    "//third_party/atrium/core:atrium_core",
+  ]
+}
+
+# Same extracted-logic posture as drop_target_decision above. Shared by
+# //chrome/browser/ui:ui and :unit_tests via a diamond.
+source_set("ai_summarize_decision") {
+  sources = [
+    "atrium_ai_summarize_decision.cc",
+    "atrium_ai_summarize_decision.h",
+  ]
+  deps = [ "//base" ]
+}
+
+# which backend "aiModel" routes to, and the per-backend
+# kUnavailable message - pure, so it is unit-testable without the browser
+# process AtriumBrowserWindow itself needs.
+source_set("ai_route_decision") {
+  sources = [
+    "atrium_ai_route_decision.cc",
+    "atrium_ai_route_decision.h",
+  ]
+  deps = [ "//base" ]
+}
+
+# The shared `messages` list. Depended on by both remote backends, which are
+# kept free of each other.
+source_set("ai_chat_prompt") {
+  sources = [
+    "atrium_ai_chat_prompt.cc",
+    "atrium_ai_chat_prompt.h",
+  ]
+
+  # For kTruncatedMarker: the clamp carries the fact that it cut, and this is
+  # the only place that reads it back off the text.
+  deps = [
+    ":ai_summarize_decision",
+    "//base",
+  ]
+}
+
+# the Ollama request path. Not mac-only (unlike ai_backend_mac
+# below), so it stays outside the is_mac block.
+source_set("ai_backend_ollama") {
+  sources = [
+    "atrium_ai_backend_ollama.cc",
+    "atrium_ai_backend_ollama.h",
+  ]
+  deps = [
+    ":ai_chat_prompt",
+    "//base",
+    "//net",
+    "//services/network:network_service",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
+    "//url",
+  ]
+}
+
+# the custom-endpoint request path. The keychain read for its
+# api_key argument is the mac-only caller's job, so this stays cross-platform.
+source_set("ai_backend_custom_endpoint") {
+  sources = [
+    "atrium_ai_backend_custom_endpoint.cc",
+    "atrium_ai_backend_custom_endpoint.h",
+  ]
+  deps = [
+    ":ai_chat_prompt",
+    ":custom_endpoint_request_guard",
+    "//base",
+    "//net",
+    "//services/network:network_service",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
+    "//url",
+  ]
+}
+
+if (is_mac) {
+  import("//build/config/mac/mac_sdk.gni")
+
+  # Compiles the Swift helper by shelling out to swiftc directly - not a
+  # tool("swift") target, since gn itself crashes (SIGSEGV) on any target
+  # in this checkout's mac (non-iOS) toolchain declaring a .swift source.
+  action("atrium_ai_fm_helper") {
+    script = "build_ai_fm_helper.py"
+    sources = [ "atrium_ai_foundation_models.swift" ]
+    _output = "$root_out_dir/atrium_ai_fm_helper"
+    outputs = [ _output ]
+    args = [
+      "--source",
+      rebase_path("atrium_ai_foundation_models.swift", root_build_dir),
+      "--output",
+      rebase_path(_output, root_build_dir),
+      "--target-cpu",
+      target_cpu,
+      "--deployment-target",
+      mac_deployment_target,
+    ]
+  }
+
+  # atrium_ai_backend_mac.cc looks up the helper via base::DIR_EXE, which
+  # resolves to Contents/MacOS - it must land there, not in Resources.
+  bundle_data("atrium_ai_fm_helper_bundle_data") {
+    sources = [ "$root_out_dir/atrium_ai_fm_helper" ]
+    outputs = [ "{{bundle_executable_dir}}/{{source_file_part}}" ]
+    public_deps = [ ":atrium_ai_fm_helper" ]
+  }
+
+  source_set("ai_backend_mac") {
+    sources = [
+      "atrium_ai_backend_mac.cc",
+      "atrium_ai_backend_mac.h",
+    ]
+    data_deps = [ ":atrium_ai_fm_helper" ]
+
+    # For kTruncatedNote and the marker: the Swift helper builds its own prompt,
+    # so this is where a cut page gets told about on the on-device route.
+    deps = [
+      ":ai_chat_prompt",
+      ":ai_summarize_decision",
+      "//base",
+    ]
+  }
+}
+
+# The theme backdrop's ambient/night-shift re-raster clock, edit_focus_gate's
+# standalone-gtest posture. Shared by //chrome/browser/ui:ui and :unit_tests
+# via a diamond.
+source_set("theme_animator") {
+  sources = [
+    "atrium_theme_animator.cc",
+    "atrium_theme_animator.h",
+  ]
+  deps = [
+    "//base",
+    "//third_party/atrium/core:atrium_core",
+  ]
+}
+
+# First automated C++ coverage of the atrium layer. Wired into the giant
+# //chrome/test:unit_tests target via a deps entry in its is_mac block.
+# Run: autoninja -C out/atrium unit_tests &&
+#      out/atrium/unit_tests --gtest_filter=SlotPresentationTable*
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "atrium_ai_backend_custom_endpoint_unittest.cc",
+    "atrium_ai_backend_ollama_unittest.cc",
+    "atrium_ai_chat_prompt_unittest.cc",
+    "atrium_ai_route_decision_unittest.cc",
+    "atrium_ai_summarize_decision_unittest.cc",
+    "atrium_archive_sweep_ids_unittest.cc",
+    "atrium_autocomplete_bridge_unittest.cc",
+    "atrium_favicon_source_unittest.cc",
+    "atrium_icon_backfill_unittest.cc",
+    "atrium_log_safe_url_unittest.cc",
+    "atrium_media_hub_unittest.cc",
+    "atrium_capture_math_unittest.cc",
+    "atrium_capture_overlay_math_unittest.cc",
+    "atrium_cdp_response_unittest.cc",
+    "atrium_chrome_surface_key_forwarder_unittest.cc",
+    "atrium_claim_ledger_decision_unittest.cc",
+    "atrium_chrome_context_unittest.cc",
+    "atrium_command_bar_actions_unittest.cc",
+    "atrium_command_bar_anchor_unittest.cc",
+    "atrium_command_bar_match_text_unittest.cc",
+    "atrium_command_bar_matches_unittest.cc",
+    "atrium_overlay_theme_script_unittest.cc",
+    "atrium_sidebar_bindings_script_unittest.cc",
+    "atrium_search_engine_mirror_unittest.cc",
+    "atrium_settings_apply_changes_unittest.cc",
+    "atrium_settings_window_unittest.cc",
+    "atrium_auto_mini_player_unittest.cc",
+    "atrium_confirm_to_quit_unittest.cc",
+    "atrium_confirm_quit_panel_style_unittest.cc",
+    "atrium_pip_always_on_top_unittest.cc",
+    "atrium_overlay_themes_unittest.cc",
+    "atrium_core_abi_unittest.cc",
+    "atrium_corner_radius_unittest.cc",
+    "atrium_custom_endpoint_request_guard_unittest.cc",
+    "atrium_devtools_card_corners_unittest.cc",
+    "atrium_downloads_overview_unittest.cc",
+    "atrium_drop_target_decision_unittest.cc",
+    "atrium_own_window_drop_unittest.cc",
+    "atrium_nav_carve_decision_unittest.cc",
+    "atrium_sidebar_overview_width_unittest.cc",
+    "atrium_menu_dismiss_decision_unittest.cc",
+    "atrium_edit_focus_gate_unittest.cc",
+    "atrium_external_link_unittest.cc",
+    "atrium_extension_actions_json_unittest.cc",
+    "atrium_hibernate_bridge_unittest.cc",
+    "atrium_icon_path_unittest.cc",
+    "atrium_import_history_unittest.cc",
+    "atrium_import_sql_reader_unittest.cc",
+    "atrium_native_hotkey_defaults_unittest.cc",
+    "atrium_tab_cycle_unittest.cc",
+    "atrium_traffic_routing_unittest.cc",
+    "atrium_visit_thumbnail_store_unittest.cc",
+    "atrium_little_marker_unittest.cc",
+    "atrium_load_phase_script_unittest.cc",
+    "atrium_marginalia_script_unittest.cc",
+    "atrium_memory_saver_unittest.cc",
+    "atrium_move_target_decision_unittest.cc",
+    "atrium_command_decision_abi_unittest.cc",
+    "atrium_ambilight_cadence_unittest.cc",
+    "atrium_app_icon_variant_unittest.cc",
+    "atrium_startup_hold_unittest.cc",
+    "atrium_theme_animator_unittest.cc",
+    "atrium_devbar_scroll_unittest.cc",
+    "atrium_devbar_layout_unittest.cc",
+    "atrium_surface_message_router_unittest.cc",
+    "atrium_edge_tint_unittest.cc",
+    "atrium_page_color_unittest.cc",
+    "atrium_favorite_slot_unittest.cc",
+    "atrium_find_action_unittest.cc",
+    "atrium_theme_studio_placement_unittest.cc",
+    "atrium_peek_decision_unittest.cc",
+    "atrium_pin_toggle_unittest.cc",
+    "atrium_pinch_gesture_decision_unittest.cc",
+    "atrium_pinch_gesture_hit_test_unittest.cc",
+    "atrium_profile_page_url_unittest.cc",
+    "atrium_profile_window_decision_unittest.cc",
+    "atrium_quick_menu_anchor_unittest.cc",
+    "atrium_restore_plan_unittest.cc",
+    "atrium_row_icon_lookup_unittest.cc",
+    "atrium_sidebar_drop_decision_unittest.cc",
+    "atrium_extension_panel_width_unittest.cc",
+    "atrium_sidebar_grip_bounds_unittest.cc",
+    "atrium_sidebar_live_resize_wiring_unittest.cc",
+    "atrium_sidebar_seam_line_unittest.cc",
+    "atrium_sidebar_move_execution_decision_unittest.cc",
+    "atrium_sidebar_model_source_unittest.cc",
+    "atrium_settings_json_cache_unittest.cc",
+    "atrium_settings_source_unittest.cc",
+    "atrium_sidebar_snapshot_gate_unittest.cc",
+    "atrium_sidebar_tabs_unittest.cc",
+    "atrium_spaces_order_unittest.cc",
+    "atrium_split_orientation_decision_unittest.cc",
+    "atrium_split_tree_insertion_unittest.cc",
+    "atrium_split_tree_layout_unittest.cc",
+    "atrium_split_tree_unittest.cc",
+    "atrium_status_bubble_color_math_unittest.cc",
+    "atrium_surface_key_route_unittest.cc",
+    "atrium_url_submit_decision_unittest.cc",
+    "atrium_vim_key_decision_unittest.cc",
+    "atrium_window_appearance_unittest.cc",
+    "atrium_window_close_decision_unittest.cc",
+    "extension_popup_watchdog_policy_unittest.cc",
+    "slot_presentation_table_unittest.cc",
+  ]
+  deps = [
+    ":ai_backend_custom_endpoint",
+    ":ai_backend_ollama",
+    ":ai_chat_prompt",
+    ":ai_route_decision",
+    ":ai_summarize_decision",
+    ":auto_mini_player",
+    ":icon_backfill",
+    ":import_history",
+    ":import_sql_reader",
+    ":log_safe_url",
+    ":capture_math",
+    ":command_bar_actions",
+    ":command_bar_anchor",
+    ":command_bar_match_text",
+    ":command_bar_matches",
+    ":capture_overlay_math",
+    ":cdp_response",
+    ":chrome_context",
+    ":claim_ledger_decision",
+    ":confirm_to_quit",
+    ":confirm_quit_panel_style",
+    ":overlay_themes",
+    ":corner_radius",
+    ":custom_endpoint_request_guard",
+    ":devtools_card_corners",
+    ":downloads_overview",
+    ":drop_target_decision",
+    ":edit_focus_gate",
+    ":own_window_drop",
+    ":external_link",
+    ":extension_actions_json",
+    ":favorite_slot",
+    ":find_action",
+    ":theme_studio_placement",
+    ":extension_popup_watchdog_policy",
+    ":hibernate_bridge",
+    ":little_marker",
+    ":memory_saver",
+    ":move_target_decision",
+    ":nav_carve_decision",
+    ":sidebar_overview_width",
+    ":menu_dismiss_decision",
+    ":native_hotkey_defaults",
+    ":peek_decision",
+    ":pin_toggle",
+    ":pinch_gesture_decision",
+    ":pinch_gesture_hit_test",
+    ":profile_page_url",
+    ":profile_window_decision",
+    ":quick_menu_anchor",
+    ":restore_plan",
+    ":row_icon_lookup",
+    ":search_engine_mirror",
+    ":settings_json_cache",
+    ":sidebar_drop_decision",
+    ":extension_panel_width",
+    ":sidebar_grip_bounds",
+    ":sidebar_move_execution_decision",
+    ":sidebar_seam_line",
+    ":sidebar_model_source",
+    ":sidebar_snapshot_gate",
+    ":slot_presentation_table",
+    ":spaces_order",
+    ":split_orientation_decision",
+    ":split_tree",
+    ":split_tree_insertion",
+    ":split_tree_layout",
+    ":surface_key_route",
+    ":tab_cycle",
+    ":theme_animator",
+    ":status_bubble_color_math",
+    ":url_submit_decision",
+    ":vim_key_decision",
+    ":visit_thumbnail_store",
+    ":window_appearance",
+    ":window_close_decision",
+    "//base",
+    "//chrome/app:command_ids",
+    "//chrome/browser/history",
+    "//chrome/browser/resource_coordinator",
+    "//chrome/browser/ui",
+    "//chrome/browser/ui/tabs:test_support",
+    "//chrome/test:test_support",
+    "//components/download/public/common:test_support",
+    "//components/history/core/browser",
+    "//components/input",
+    "//components/keyed_service/core",
+    "//components/performance_manager",
+    "//components/performance_manager/test_support:test_support_common",
+    "//content/public/browser",
+    "//content/test:test_support",
+    "//net",
+    "//sql",
+    "//testing/gtest",
+    "//third_party/blink/public/common:headers",
+    "//third_party/atrium/core:atrium_core",
+    "//ui/gfx/geometry",
+    "//url",
+  ]
+}
+
+# Pins AtriumBrowserWindow::IsOnCurrentWorkspace returning
+# true, so the old not-implemented stub cannot come back silently.
+# AtriumBrowserWindow only exists on Mac (browser_window_factory.cc's
+# BUILDFLAG(IS_MAC) block), so this target follows suit rather than
+# compiling (and skipping) everywhere.
+if (is_mac) {
+  source_set("browser_tests") {
+    testonly = true
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [
+      "atrium_activate_tab_otr_guard_browsertest.cc",
+      "atrium_adopt_tab_into_little_window_browsertest.cc",
+      "atrium_browser_window_browsertest.cc",
+      "atrium_content_drop_browsertest.cc",
+      "atrium_command_bar_anchor_browsertest.cc",
+      "atrium_command_bar_query_profile_browsertest.cc",
+      "atrium_command_bar_url_browsertest.cc",
+      "atrium_courtyard_glass_browsertest.cc",
+      "atrium_drop_target_guard_browsertest.cc",
+      "atrium_extension_side_panel_browsertest.cc",
+      "atrium_find_bar_browsertest.cc",
+      "atrium_theme_studio_browsertest.cc",
+      "atrium_discard_tab_row_continuity_browsertest.cc",
+      "atrium_deferred_row_browsertest.cc",
+      "atrium_favorite_keep_alive_browsertest.cc",
+      "atrium_favorite_link_peek_browsertest.cc",
+      "atrium_favorite_redirect_browsertest.cc",
+      "atrium_elsewhere_two_windows_browsertest.cc",
+      "atrium_favorite_two_windows_browsertest.cc",
+      "atrium_hint_overlay_browsertest.cc",
+      "atrium_hotkey_preset_browsertest.cc",
+      "atrium_hotkey_reset_browsertest.cc",
+      "atrium_incognito_icon_scope_browsertest.cc",
+      "atrium_javascript_dialog_peek_browsertest.cc",
+      "atrium_little_dialog_anchor_shortcut_browsertest.cc",
+      "atrium_live_tabs_cache_browsertest.cc",
+      "atrium_media_hub_browsertest.cc",
+      "atrium_visit_timeline_browsertest.cc",
+      "atrium_little_move_cross_profile_browsertest.cc",
+      "atrium_little_never_adopted_browsertest.cc",
+      "atrium_little_startup_hold_browsertest.cc",
+      "atrium_little_window_find_tabbed_browser_browsertest.cc",
+      "atrium_little_window_link_click_browsertest.cc",
+      "atrium_multi_profile_teardown_browsertest.cc",
+      "atrium_native_chrome_overlays_browsertest.cc",
+      "atrium_open_doorway_browsertest.cc",
+      "atrium_page_focus_browsertest.cc",
+      "atrium_peek_animation_browsertest.cc",
+      "atrium_peek_controls_browsertest.cc",
+      "atrium_peek_dismiss_browsertest.cc",
+      "atrium_peek_link_navigation_browsertest.cc",
+      "atrium_permission_prompt_browsertest.cc",
+      "atrium_pinch_gesture_monitor_browsertest.mm",
+      "atrium_popup_peek_browsertest.cc",
+      "atrium_profile_routes_browsertest.cc",
+      "atrium_quick_menu_browsertest.cc",
+      "atrium_reload_clearing_site_browsertest.cc",
+      "atrium_reload_hotkey_browsertest.cc",
+      "atrium_restore_sidebar_slice_browsertest.cc",
+      "atrium_routing_move_browsertest.cc",
+      "atrium_row_favicon_redirect_browsertest.cc",
+      "atrium_row_favicon_link_tag_browsertest.cc",
+      "atrium_extension_popup_browsertest.cc",
+      "atrium_sad_tab_pane_browsertest.cc",
+      "atrium_sidebar_appearance_browsertest.cc",
+      "atrium_sidebar_drop_browsertest.cc",
+      "atrium_sidebar_overlay_browsertest.cc",
+      "atrium_sidebar_tab_drag_released_browsertest.cc",
+      "atrium_settings_window_titlebar_browsertest.mm",
+      "atrium_soft_navigation_peek_browsertest.cc",
+      "atrium_space_icon_picker_widget_browsertest.cc",
+      "atrium_space_theme_browsertest.cc",
+      "atrium_space_hotkey_browsertest.cc",
+      "atrium_side_panel_menu_browsertest.mm",
+      "atrium_toast_overlay_browsertest.cc",
+      "atrium_vim_mode_browsertest.cc",
+      "atrium_vim_popup_browsertest.cc",
+      "atrium_web_card_loading_fill_browsertest.cc",
+      "atrium_window_corner_radius_browsertest.mm",
+    ]
+
+    deps = [
+      "//base",
+      "//chrome/browser/extensions:test_support",
+      "//chrome/browser/extensions/api/side_panel",
+      "//chrome/browser/resource_coordinator",
+      "//chrome/browser/ui",
+      "//chrome/browser/ui/atrium:ai_summarize_decision",
+      "//chrome/browser/ui/atrium:extension_panel_width",
+      "//chrome/browser/ui/atrium:icon_backfill",
+      "//chrome/browser/ui/atrium:profile_page_url",
+      "//chrome/browser/ui/atrium:split_orientation_decision",
+      "//chrome/browser/ui/atrium:theme_studio_placement",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//extensions:test_support",
+      "//extensions/browser",
+      "//extensions/common",
+      "//components/page_load_metrics/browser:test_support",
+      "//components/permissions",
+      "//components/tabs:public",
+      "//components/web_modal",
+      "//content/test:test_support",
+      "//services/media_session/public/cpp/test:test_support",
+      "//skia",
+      "//testing/gtest",
+      "//third_party/atrium/core:atrium_core",
+      "//ui/accessibility:ax_base",
+      "//ui/events:test_support",
+      "//ui/gfx/codec",
+      "//ui/native_theme:test_support",
+    ]
+  }
+}

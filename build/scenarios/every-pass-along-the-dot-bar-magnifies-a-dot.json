@@ -1,0 +1,59 @@
+{
+  "name": "every-pass-along-the-dot-bar-magnifies-a-dot",
+  "description": "The magnification worked on some passes and not others. placeDotBloom appends a .dotbloom div to the same bar the pick walked, the bloom carries no .d glyph, and a pick that landed on it threw inside paint - which left the held index on the bloom, so every following pass early-returned and the bar stayed dead until the cursor left. The unit suite can build that shape by hand, but only the running product says whether the bloom is really a sibling of the dots. This puts the pointer on alternating dots ten times and counts how many passes actually wore the chip, then does it once more after a space switch has rebuilt the bar.\n\nTHE BLOOM IS ASSERTED PRESENT FIRST. Without it the ten passes below run against a bar that never had the trap in it, and would pass on the broken code too.\n\nALTERNATING DOTS, NOT A SWEEP. paint returns early when the pick has not changed, so ten moves along one dot would count one magnification and nine no-ops. Moving between two dots makes every pass a real repaint, and the centre of the other dot is far enough for the hysteresis to release the held pick.",
+  "fixture": "lab-compare.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "wait_vlog", "pattern": "Atrium: sidebar rows drawn [1-9]", "timeout_ms": 20000 },
+    { "type": "activate" },
+    { "type": "settle", "ms": 1500 },
+    {
+      "type": "eval",
+      "id": "the-bloom-shares-the-bar",
+      "target": "/sidebar",
+      "expression": "(() => { const bar = document.querySelector('.spacedots'); if (!bar) return 'no-bar'; const bloom = bar.querySelector('.dotscroll > .dotbloom'); return bloom ? 'bloom-is-a-sibling' : 'no-bloom'; })()",
+      "note": "the trap itself: a child of the bar that is not a dot"
+    },
+    {
+      "type": "eval",
+      "id": "ten-passes",
+      "target": "/sidebar",
+      "expression": "(() => { const bar = document.querySelector('.spacedots'); if (!bar) return 'no-bar'; const dots = [...bar.querySelectorAll('.sdot')]; if (dots.length < 2) return 'dots ' + dots.length; let landed = 0; for (let i = 0; i < 10; i++) { const target = dots[i % 2]; const box = target.getBoundingClientRect(); bar.dispatchEvent(new MouseEvent('mousemove', {bubbles: true, clientX: box.left + box.width / 2, clientY: box.top + box.height / 2})); if (bar.querySelector('.sdot.mag') === target) { landed++; } } return String(landed); })()",
+      "note": "THE MEASUREMENT: how many of ten consecutive passes put the chip on the dot under the cursor"
+    },
+    {
+      "type": "eval",
+      "id": "leave-the-bar",
+      "target": "/sidebar",
+      "expression": "(() => { const bar = document.querySelector('.spacedots'); bar.dispatchEvent(new MouseEvent('mouseleave', {bubbles: true})); return String(bar.querySelectorAll('.sdot.mag').length); })()"
+    },
+    { "type": "key", "combo": "cmd+shift+right", "note": "a space switch rebuilds the dots bar, so the pass below meets fresh elements" },
+    { "type": "wait_vlog", "pattern": "Atrium: active space 0 -> 1", "timeout_ms": 8000 },
+    { "type": "settle", "ms": 2000 },
+    {
+      "type": "eval",
+      "id": "after-a-rebuild",
+      "target": "/sidebar",
+      "expression": "(() => { const bar = document.querySelector('.spacedots'); if (!bar) return 'no-bar'; const target = bar.querySelector('.sdot'); if (!target) return 'no-dot'; const box = target.getBoundingClientRect(); bar.dispatchEvent(new MouseEvent('mousemove', {bubbles: true, clientX: box.left + box.width / 2, clientY: box.top + box.height / 2})); const chip = bar.querySelector('.sdot.mag'); return chip === target ? 'chip' : 'no-chip'; })()",
+      "note": "A rebuilt bar has to answer a cursor move the same way the first one did"
+    },
+    {
+      "type": "eval",
+      "id": "the-console-stayed-quiet",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.spacedots .sdot.mag').length)",
+      "note": "one chip, not two: a throw mid-paint leaves the previous dot still wearing .mag"
+    }
+  ],
+  "assertions": [
+    { "type": "eval_equals", "id": "the-bloom-shares-the-bar", "expected": "\"bloom-is-a-sibling\"", "desc": "setup: the bloom really is a child of the bar, so the ten passes below meet the trap" },
+    { "type": "eval_equals", "id": "ten-passes", "expected": "\"10\"", "desc": "Every one of ten consecutive passes magnified the dot under the cursor" },
+    { "type": "eval_equals", "id": "leave-the-bar", "expected": "\"0\"", "desc": "the bar settles back, so the rebuild pass starts from nothing" },
+    { "type": "eval_equals", "id": "after-a-rebuild", "expected": "\"chip\"", "desc": "A magnification after a sidebar rebuild behaves like one after a plain move" },
+    { "type": "eval_equals", "id": "the-console-stayed-quiet", "expected": "\"1\"", "desc": "exactly one chip: a throw inside paint would leave the previous dot marked too" },
+    { "type": "vlog_absent", "pattern": "Uncaught TypeError", "label": "no-throw-in-the-pick", "desc": "the wedge announced itself as a TypeError on every pass" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

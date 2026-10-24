@@ -1,0 +1,96 @@
+{
+  "name": "page-tint-a-middle-block-stays-off-the-band",
+  "description": "The ambilight sampler read a whole half of the page per edge, so a coloured block sitting in the page's horizontal middle still fell inside the left half and tinted the band beside the card. The sampler now reads a thin strip along each edge instead, so the same block no longer reaches the left run. Same navy header over a white body as page-tint-native-glow-follows-the-page-top-to-bottom, plus a blue block placed well clear of the left edge, below the header.",
+  "fixture": "edge-middle-block.spaces.json",
+  "settings": "page-tint-native.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the sampler reads at 125ms, then backs off, and the band crossfades in over the tint fade"
+    },
+    {
+      "type": "eval_until",
+      "id": "middle-block-page",
+      "target": "edge-middle-block-stays-out.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/edge-middle-block-stays-out.html",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "native-mark",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.classList.contains('atrium-native-chrome'))"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: ambilight edges",
+      "timeout_ms": 10000,
+      "note": "GATE: the sampler produced a read"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the crossfade land"
+    },
+    {
+      "type": "capture",
+      "id": "middle-block",
+      "duration_ms": 500,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "native-mark",
+      "expected": "\"true\"",
+      "desc": "THE CONTROL: Native app view is on"
+    },
+    {
+      "type": "eval_equals",
+      "id": "middle-block-page",
+      "expected": "http://127.0.0.1:8000/edge-middle-block-stays-out.html",
+      "label": "the-page-really-loaded",
+      "desc": "THE CONTROL: the fixture with the middle block committed"
+    },
+    {
+      "type": "region_mean",
+      "capture": "middle-block",
+      "x": 206,
+      "y": 130,
+      "w": 16,
+      "h": 60,
+      "min_mean": 0,
+      "max_mean": 200,
+      "label": "the-band-beside-the-header-is-navy",
+      "desc": "THE CONTROL: the header still reaches the band, same as page-tint-native-glow-follows-the-page-top-to-bottom."
+    },
+    {
+      "type": "region_mean",
+      "capture": "middle-block",
+      "x": 206,
+      "y": 600,
+      "w": 16,
+      "h": 60,
+      "min_mean": 225,
+      "max_mean": 256,
+      "label": "the-band-beside-the-middle-block-stays-light",
+      "desc": "THE MEASUREMENT: the blue block sits at 30-55% of the page's width, well clear of the left strip, so the band here reads the white body, not the block. A half-of-the-page sampler would have picked the block up at this height and read visibly darker."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

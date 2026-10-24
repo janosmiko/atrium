@@ -1,0 +1,225 @@
+{
+  "name": "a-background-audio-tab-gets-a-controller",
+  "description": "The sidebar media controller block. AtriumMediaHub pushes one record per tab that plays media, and the block draws one controller for each of them under the tab list.\n\nbuild/scenarios/fixtures holds no media file, so nothing in the VM can make a tab play. The records are pushed straight into the surface through window.atriumMediaSessionsChanged, which is the same entry point the browser calls - a fake record proves the block, not the hub. atrium_media_hub_browsertest.cc owns the hub half.\n\nMeasures what the unit suite cannot: the real height of a controller, that the block clears the space dots bar under it, that the live theme resolves a fill and an ink for it, and that a button reaches chrome.send in the real document.",
+  "fixture": "repeated-row-drags.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "two-records",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumMediaSessionsChanged([{id:'98',title:'Older Track',faviconURL:'',host:'one.example',playing:true,muted:false,canPrev:false,canNext:true,canSeek:false,pictureInPicture:false},{id:'99',title:'Newer Track',faviconURL:'',host:'two.example',playing:true,muted:false,canPrev:true,canNext:true,canSeek:false,pictureInPicture:false}]); const items = [...document.querySelectorAll('body > .sbm-block .sbm-item')]; return items.length + ':' + items.map((i) => i.dataset.tabId).join('>'); })()"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "eval",
+      "id": "geometry",
+      "target": "/sidebar",
+      "expression": "(() => { const block = document.querySelector('body > .sbm-block'); const item = block.querySelector('.sbm-item').getBoundingClientRect(); const dots = document.querySelector('.spacedots'); const clear = !dots || block.getBoundingClientRect().bottom <= dots.getBoundingClientRect().top + 1; return Math.round(item.height) + ',' + (clear ? 'clear' : 'overlaps'); })()"
+    },
+    {
+      "type": "eval",
+      "id": "at-rest",
+      "target": "/sidebar",
+      "expression": "(() => { const item = document.querySelector('body > .sbm-block .sbm-item'); const hidden = (sel) => getComputedStyle(item.querySelector(sel)).display === 'none'; const up = ['.sbm-fv', '.sbm-prev', '.sbm-play', '.sbm-next', '.sbm-vol-btn'].every((sel) => !hidden(sel)); const down = ['.sbm-title', '.sbm-pip-btn', '.sbm-close-btn'].every(hidden); return (up ? 'transport-in' : 'transport-out') + ',' + (down ? 'title-out' : 'title-in'); })()"
+    },
+    {
+      "type": "eval",
+      "id": "themed",
+      "target": "/sidebar",
+      "expression": "(() => { const style = getComputedStyle(document.querySelector('body > .sbm-block .sbm-item')); const set = (v) => /^rgba?\\(/.test(v) && !/,\\s*0\\)$/.test(v); return (set(style.backgroundColor) ? 'fill' : 'nofill') + ',' + (set(style.color) ? 'ink' : 'noink'); })()"
+    },
+    {
+      "type": "eval",
+      "id": "unsupported-dimmed",
+      "target": "/sidebar",
+      "expression": "(() => { const first = document.querySelectorAll('body > .sbm-block .sbm-item')[0]; const names = [...first.querySelectorAll('.sbm-btn[data-command]')].map((b) => b.dataset.command).join(','); return names + '|' + (first.querySelector('.sbm-prev').disabled ? 'dim' : 'live'); })()"
+    },
+    {
+      "type": "eval",
+      "id": "button-sends",
+      "target": "/sidebar",
+      "expression": "(() => { const sent = []; const real = chrome.send; chrome.send = (n, a) => sent.push(n + ':' + a[0]); const item = document.querySelectorAll('body > .sbm-block .sbm-item')[1]; for (const name of ['mediaPrev','mediaPlayPause','mediaNext','mediaPictureInPicture','mediaClosed']) { item.querySelector('.sbm-btn[data-command=\"' + name + '\"]').click(); } chrome.send = real; return sent.join(' '); })()"
+    },
+    {
+      "type": "eval",
+      "id": "new-controls",
+      "target": "/sidebar",
+      "expression": "(() => { const sent = []; const real = chrome.send; chrome.send = (n, a) => sent.push(n + ':' + a.join(',')); const item = document.querySelectorAll('body > .sbm-block .sbm-item')[1]; item.querySelector('.sbm-title').click(); item.querySelector('.sbm-vol-btn').click(); const range = item.querySelector('.sbm-vol-range'); range.value = '0.4'; range.dispatchEvent(new Event('input', {bubbles: true})); chrome.send = real; return sent.join(' '); })()"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "eval",
+      "id": "vol-height",
+      "target": "/sidebar",
+      "expression": "(() => { const item = document.querySelectorAll('body > .sbm-block .sbm-item')[1]; const band = item.querySelector('.sbm-volband'); return Math.round(item.getBoundingClientRect().height) + ',' + (getComputedStyle(band).display === 'none' ? 'band-out' : 'band-in'); })()"
+    },
+    {
+      "type": "eval",
+      "id": "transport-spread",
+      "target": "/sidebar",
+      "expression": "(() => { const item = document.querySelectorAll('body > .sbm-block .sbm-item')[1]; const box = item.getBoundingClientRect(); const style = getComputedStyle(item); const lead = item.querySelector('.sbm-fv').getBoundingClientRect().left - (box.left + parseFloat(style.paddingLeft)); const trail = (box.right - parseFloat(style.paddingRight)) - item.querySelector('.sbm-vol-btn').getBoundingClientRect().right; const full = Math.abs(lead) <= 1 && Math.abs(trail) <= 1; const face = getComputedStyle(item.querySelector('.sbm-title')).fontFamily; return (full ? 'full-width' : 'inset:' + Math.round(lead) + '/' + Math.round(trail)) + ',' + (/sans|system-ui|-apple-system/i.test(face) ? 'sans' : face); })()"
+    },
+    {
+      "type": "eval",
+      "id": "row-bands",
+      "target": "/sidebar",
+      "expression": "(() => { const item = document.querySelectorAll('body > .sbm-block .sbm-item')[1]; const top = item.getBoundingClientRect().top; const mid = (sel) => { const r = item.querySelector(sel).getBoundingClientRect(); return Math.round((r.top + r.bottom) / 2 - top); }; return mid('.sbm-title') + ',' + mid('.sbm-play') + ',' + mid('.sbm-vol-range'); })()"
+    },
+    {
+      "type": "eval",
+      "id": "narrow-even",
+      "target": "/sidebar",
+      "expression": "(() => { const block = document.querySelector('body > .sbm-block'); const item = document.querySelectorAll('body > .sbm-block .sbm-item')[1]; const was = block.style.width; block.style.width = '144px'; item.getBoundingClientRect(); const box = item.getBoundingClientRect(); const r = (s) => item.querySelector(s).getBoundingClientRect(); const lead = r('.sbm-prev').left - box.left; const trail = box.right - r('.sbm-vol-btn').right; const g1 = r('.sbm-play').left - r('.sbm-prev').right; const g2 = r('.sbm-next').left - r('.sbm-play').right; const g3 = r('.sbm-vol-btn').left - r('.sbm-next').right; block.style.width = was; const all = [lead, g1, g2, g3, trail]; const even = all.every((v) => Math.abs(v - all[0]) <= 1); return (even ? 'even' : all.map((v) => Math.round(v)).join('/')) + ',' + Math.round(all[0]); })()"
+    },
+    {
+      "type": "eval",
+      "id": "survives-push",
+      "target": "/sidebar",
+      "expression": "(() => { const block = document.querySelector('body > .sbm-block'); const item = block.querySelectorAll('.sbm-item')[1]; item.dataset.mark = 'kept'; window.atriumMediaSessionsChanged([{id:'98',title:'Older Track',faviconURL:'',host:'one.example',playing:true,muted:false,canPrev:false,canNext:true,canSeek:false,pictureInPicture:false},{id:'99',title:'Newer Track',faviconURL:'',host:'two.example',playing:false,muted:false,canPrev:true,canNext:true,canSeek:false,pictureInPicture:false}]); const after = block.querySelectorAll('.sbm-item')[1]; return (after.dataset.mark || 'rebuilt') + ',' + (after.classList.contains('sbm-vol-open') ? 'open' : 'closed') + ',' + after.querySelector('.sbm-play').title; })()"
+    },
+    {
+      "type": "eval",
+      "id": "dismiss-closes-band",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumDismissMenus(); const item = document.querySelectorAll('body > .sbm-block .sbm-item')[1]; return item.classList.contains('sbm-vol-open') ? 'still-open' : 'closed'; })()"
+    },
+    {
+      "type": "eval",
+      "id": "one-record-goes",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumMediaSessionsChanged([{id:'99',title:'Newer Track',faviconURL:'',host:'two.example',playing:false,muted:false,canPrev:true,canNext:true,canSeek:false,pictureInPicture:false}]); const items = [...document.querySelectorAll('body > .sbm-block .sbm-item')]; return items.length + ':' + items.map((i) => i.dataset.tabId).join('>'); })()"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "eval",
+      "id": "all-records-go",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumMediaSessionsChanged([]); const block = document.querySelector('body > .sbm-block'); const root = document.getElementById('atrium-root'); return block.querySelectorAll('.sbm-item').length + ',' + (block.classList.contains('sbm-hidden') ? 'hidden' : 'shown') + ',' + (root.classList.contains('sbm-reflow') ? 'lane' : 'no-lane'); })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "two-records",
+      "expected": "\"2:98>99\"",
+      "desc": "One controller per record, newest at the bottom"
+    },
+    {
+      "type": "eval_equals",
+      "id": "geometry",
+      "expected": "\"36,clear\"",
+      "desc": "a controller rests at one 36px tab row and the block clears the space dots bar"
+    },
+    {
+      "type": "eval_equals",
+      "id": "at-rest",
+      "expected": "\"transport-in,title-out\"",
+      "desc": "the transport is the resting row; the title and the window controls belong to the expanded state"
+    },
+    {
+      "type": "eval_equals",
+      "id": "themed",
+      "expected": "\"fill,ink\"",
+      "desc": "The live theme resolves a fill and an ink for the block"
+    },
+    {
+      "type": "eval_equals",
+      "id": "unsupported-dimmed",
+      "expected": "\"mediaPrev,mediaPlayPause,mediaNext,mediaPictureInPicture,mediaClosed|dim\"",
+      "desc": "a record with no previous track keeps the button in place, disabled"
+    },
+    {
+      "type": "eval_equals",
+      "id": "button-sends",
+      "expected": "\"mediaPrev:99 mediaPlayPause:99 mediaNext:99 mediaPictureInPicture:99 mediaClosed:99\"",
+      "desc": "Every control sends its own command with its own tab id"
+    },
+    {
+      "type": "eval_equals",
+      "id": "new-controls",
+      "expected": "\"mediaBackToTab:99 mediaVolume:99,0.4\"",
+      "desc": "The title is the back-to-tab target and the slider sends a level"
+    },
+    {
+      "type": "eval_equals",
+      "id": "vol-height",
+      "expected": "\"108,band-in\"",
+      "desc": "The volume slider grows a third band in the block, not a popover"
+    },
+    {
+      "type": "eval_equals",
+      "id": "transport-spread",
+      "expected": "\"full-width,sans\"",
+      "desc": "the transport fills the row from the favicon to the volume button, in the sidebar sans face"
+    },
+    {
+      "type": "eval_equals",
+      "id": "row-bands",
+      "expected": "\"18,54,90\"",
+      "desc": "each band centres its own contents, and the volume band opens under the transport"
+    },
+    {
+      "type": "eval_equals",
+      "id": "narrow-even",
+      "expected": "\"even,10\"",
+      "desc": "at the narrowest sidebar the space before the first button, between each pair and after the volume button all measure the same"
+    },
+    {
+      "type": "eval_equals",
+      "id": "survives-push",
+      "expected": "\"kept,open,Play\"",
+      "desc": "a push that changes no row patches the nodes it drew and keeps the open band, but still redraws the play glyph"
+    },
+    {
+      "type": "eval_equals",
+      "id": "dismiss-closes-band",
+      "expected": "\"closed\"",
+      "desc": "Esc and click-outside reach the band through the shared dismiss registry"
+    },
+    {
+      "type": "eval_equals",
+      "id": "one-record-goes",
+      "expected": "\"1:99\"",
+      "desc": "The record that went took its controller with it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "all-records-go",
+      "expected": "\"0,hidden,no-lane\"",
+      "desc": "An empty push empties the block and gives the tab list its room back"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

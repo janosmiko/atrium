@@ -1,0 +1,57 @@
+{
+  "name": "incognito-persists-nothing",
+  "description": "an incognito window must write no tab row to the persisted document.\n\nIncognito is a PROFILE property, not a browser type, so an incognito window is is_type_normal and the bootstrap gives it an AtriumBrowserWindow and a BrowserController like any other. AddTab passes -1 for the space index, so its rows landed in whichever NON-incognito space was active, drew there, and survived into spaces.json, its .bak, its .pre-rust and the 30-day archive.\n\nAsserted as a PRESENCE - the guard fired on a real incognito navigation - rather than as the absence of a write. An absence assertion passes just as well when the window never opened or the navigation never happened, which is the trap both earlier scenarios were built out of.\n\nA browsertest cannot cover this: CreateIncognitoBrowser dies in browser_compositor_view_mac.mm on a GetCompositor check, which is a harness limit, not the product - Cmd+Shift+N in the VM opens a second window and the app stays up.",
+  "fixture": "favourite-icon.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the startup tab commit"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+n",
+      "note": "SETUP: an incognito window. It is is_type_normal, so it gets a controller like any other"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "let the private window come up and take focus"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "a tab in it, which is what would have been persisted"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 100000,
+      "note": "Two windows, so the incognito one really opened. Without this the vlog below could be absent for the boring reason."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: tab [0-9]+ not persisted, window is off the record",
+      "note": "THE CLAIM, as a presence: the write path refused a real incognito tab. The line deliberately carries no url and no title, since not recording those is the point."
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

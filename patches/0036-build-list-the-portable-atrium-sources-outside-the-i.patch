@@ -1,0 +1,127 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 06:54:19 +0200
+Subject: [PATCH 036/154] build: list the portable atrium sources outside the
+ is_mac arm
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Thirty-one entries move out: every renamed .cc and the headers with no .mm
+sibling. Eleven .mm files and their headers stay inside, which is the whole of
+what is genuinely AppKit today.
+
+Measured on the real Linux GN output rather than argued: gn gen for
+target_os=linux succeeds, and //chrome/browser/ui:ui carries 35 atrium sources
+with zero .mm. Control: the same query before this change returns 4.
+
+chrome_context already had no .mm sources - the rename in 443.1 did that.
+
+These files do not COMPILE on Linux yet. That is H3.7 and H3.8. What this
+unblocks is generation, which is the step everything else waits behind.
+
+macOS builds unchanged: zero errors, zero warnings, same targets.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 55 +++++++++++++++++++++-----------------
+ 1 file changed, 31 insertions(+), 24 deletions(-)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 5528310e0cb87..eef299e55832f 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3466,61 +3466,68 @@ static_library("ui") {
+     ]
+   }
+ 
+-  if (is_mac) {
+-    sources += [
++  # The portable half of the atrium sources. No Objective-C in
++  # any of them, so they belong outside the is_mac arm - which is what lets
++  # gn gen run for a non-Mac target. They do not COMPILE on Linux yet; that
++  # is H3.7 and H3.8.
++  sources += [
+       "atrium/atrium_autocomplete_bridge.h",
+       "atrium/atrium_autocomplete_bridge.cc",
+       "atrium/atrium_autofill_bubble_handler.h",
+       "atrium/atrium_autofill_bubble_handler.cc",
+-      "atrium/atrium_bridge.h",
+-      "atrium/atrium_browser_controller.h",
+-      "atrium/atrium_browser_controller.mm",
+-      "atrium/atrium_browser_window.h",
+-      "atrium/atrium_browser_window.mm",
+       "atrium/atrium_capture.cc",
+-      "atrium/atrium_capture.h",
+       "atrium/atrium_capture_overlay_widget.h",
+       "atrium/atrium_capture_overlay_widget.cc",
+       "atrium/atrium_command_bar_open_reason.h",
+-      "atrium/atrium_command_bar_widget.h",
+-      "atrium/atrium_command_bar_widget.mm",
+       "atrium/atrium_chrome_contents_observer.h",
+       "atrium/atrium_chrome_contents_observer.cc",
+-      "atrium/atrium_command_dispatcher_delegate.h",
+-      "atrium/atrium_command_dispatcher_delegate.mm",
+       "atrium/atrium_dock_reopen_hook.h",
+       "atrium/atrium_dock_reopen_hook.cc",
+       "atrium/atrium_extension_bridge.h",
+       "atrium/atrium_extension_bridge.cc",
+-      "atrium/atrium_extension_pill_widget.h",
+-      "atrium/atrium_extension_pill_widget.mm",
+-      "atrium/atrium_extension_popup_host.h",
+       "atrium/atrium_extension_popup_host.cc",
+       "atrium/atrium_fedcm_anchor_hook.h",
+       "atrium/atrium_fedcm_anchor_hook.cc",
+       "atrium/atrium_link_copy_format.h",
+       "atrium/atrium_main_extra_parts.h",
+       "atrium/atrium_main_extra_parts.cc",
+-      "atrium/atrium_native_hotkey_map.h",
+-      "atrium/atrium_native_hotkey_map.mm",
+-      "atrium/atrium_peek_intercept.h",
+       "atrium/atrium_peek_intercept.cc",
+       "atrium/atrium_peek_navigation_throttle.cc",
+       "atrium/atrium_peek_navigation_throttle.h",
+-      "atrium/atrium_peek_widget.h",
+-      "atrium/atrium_peek_widget.mm",
+       "atrium/atrium_profile_bootstrap.h",
+       "atrium/atrium_profile_bootstrap.cc",
+       "atrium/atrium_routing_navigation_throttle.cc",
+       "atrium/atrium_routing_navigation_throttle.h",
+-      "atrium/atrium_settings_menu_hook.h",
+-      "atrium/atrium_settings_menu_hook.mm",
+-      "atrium/atrium_sidebar_overlay_widget.h",
+-      "atrium/atrium_sidebar_overlay_widget.mm",
+       "atrium/atrium_status_bubble_hook.h",
+       "atrium/atrium_status_bubble_hook.cc",
+       "atrium/atrium_traffic_routing.h",
+       "atrium/atrium_traffic_routing.cc",
++  ]
++
++  if (is_mac) {
++    sources += [
++      "atrium/atrium_bridge.h",
++      "atrium/atrium_browser_controller.h",
++      "atrium/atrium_browser_controller.mm",
++      "atrium/atrium_browser_window.h",
++      "atrium/atrium_browser_window.mm",
++      "atrium/atrium_capture.h",
++      "atrium/atrium_command_bar_widget.h",
++      "atrium/atrium_command_bar_widget.mm",
++      "atrium/atrium_command_dispatcher_delegate.h",
++      "atrium/atrium_command_dispatcher_delegate.mm",
++      "atrium/atrium_extension_pill_widget.h",
++      "atrium/atrium_extension_pill_widget.mm",
++      "atrium/atrium_extension_popup_host.h",
++      "atrium/atrium_native_hotkey_map.h",
++      "atrium/atrium_native_hotkey_map.mm",
++      "atrium/atrium_peek_intercept.h",
++      "atrium/atrium_peek_widget.h",
++      "atrium/atrium_peek_widget.mm",
++      "atrium/atrium_settings_menu_hook.h",
++      "atrium/atrium_settings_menu_hook.mm",
++      "atrium/atrium_sidebar_overlay_widget.h",
++      "atrium/atrium_sidebar_overlay_widget.mm",
+       "atrium/atrium_ui_bridge.h",
+       "atrium/atrium_ui_bridge.mm",
+       "atrium/atrium_window_corner_radius.h",

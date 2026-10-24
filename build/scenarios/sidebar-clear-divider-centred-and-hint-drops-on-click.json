@@ -1,0 +1,166 @@
+{
+  "fixture": "icon-tint-none.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "startup_space": "437b0002-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "name": "sidebar-clear-divider-centred-and-hint-drops-on-click",
+  "description": "The divider above the ungrouped rows is one 1px line across the row. It carries no text. When the pointer is over the sidebar, the Clear icon opens at the line's right end and the line gives up that end to it, the lab's .clearbtn pattern and Arc's. The hint over the icon drops the moment the icon is clicked, because the button leaves with the rows it cleared.",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 400,
+      "note": "the pointer stays where the last scenario left it, and over the sidebar it shortens the line at rest"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "header-shape",
+      "target": "/sidebar",
+      "expression": "(() => { const h = document.querySelector('.sechdr'); if (!h) { return 'no-header'; } const b = h.querySelector('.sechdrclear'); if (h.textContent.trim() !== '') { return 'text:' + h.textContent.trim(); } if (!b || !b.querySelector('svg')) { return 'no-icon'; } return 'line+icon'; })()"
+    },
+    {
+      "type": "eval",
+      "id": "line-at-rest",
+      "target": "/sidebar",
+      "expression": "(() => { const h = document.querySelector('.sechdr'); if (!h) { return 'no-header'; } const b = h.querySelector('.sechdrclear'); const line = parseFloat(getComputedStyle(h, '::before').width); const inner = h.clientWidth - parseFloat(getComputedStyle(h).paddingLeft) - parseFloat(getComputedStyle(h).paddingRight); return b.getBoundingClientRect().width === 0 && Math.abs(line - inner) <= 1 ? 'whole' : 'short ' + line + '/' + inner + ' btn ' + b.getBoundingClientRect().width; })()",
+      "note": "one line across the whole row: the icon takes no width until the sidebar is hovered"
+    },
+    {
+      "type": "eval",
+      "id": "hover-rule-on-root",
+      "target": "/sidebar",
+      "expression": "String([...document.styleSheets].some((s) => { try { return [...s.cssRules].some((r) => r.selectorText === '#atrium-root.sbroot:hover .sechdrclear'); } catch (e) { return false; } }))",
+      "note": "the icon follows a hover anywhere over the document, favourites and address row included"
+    },
+    {
+      "type": "move",
+      "x": 186,
+      "y": 166,
+      "note": "the icon at the divider's right end - it is opacity 0 until the sidebar is really hovered, and the synthetic pointerover below cannot do that"
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "eval",
+      "id": "line-on-hover",
+      "target": "/sidebar",
+      "expression": "(() => { const h = document.querySelector('.sechdr'); if (!h) { return 'no-header'; } const b = h.querySelector('.sechdrclear').getBoundingClientRect(); const line = h.querySelector ? parseFloat(getComputedStyle(h, '::before').width) : 0; const inner = h.clientWidth - parseFloat(getComputedStyle(h).paddingLeft) - parseFloat(getComputedStyle(h).paddingRight); return b.width >= 13 && inner - line >= 19 ? 'right-end' : 'no ' + b.width + ' line ' + line + '/' + inner; })()",
+      "note": "the icon is 14px wide at the line's right end, and the line lost that end plus the gap"
+    },
+    {
+      "type": "eval",
+      "id": "hover-clear",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sechdrclear'); if (!b) { return 'no-button'; } b.dispatchEvent(new PointerEvent('pointerover', {bubbles: true})); return 'hovered'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 900,
+      "note": "past HOVER_DELAY_MS (600ms) in hint-triggers.js"
+    },
+    {
+      "type": "eval_until",
+      "id": "hint-text",
+      "target": "/hint",
+      "expression": "String((document.querySelector('.hint .hint-text') || {}).textContent || 'no hint')",
+      "expected": "Clear tabs",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "eval",
+      "id": "clear-clicked",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sechdrclear'); if (!b) { return 'no-button'; } b.click(); return 'clicked'; })()",
+      "note": "the press that archives the rows and takes the button away"
+    },
+    {
+      "type": "eval_until",
+      "id": "hint-gone",
+      "target": "/hint",
+      "expression": "String((document.querySelector('.hint .hint-text') || {}).textContent || 'no hint')",
+      "expected": "no hint",
+      "timeout_ms": 1500,
+      "note": "well inside the hint's 4000ms time to live, so a hint still up here is one the click failed to drop"
+    },
+    {
+      "type": "eval_until",
+      "id": "header-gone",
+      "target": "/sidebar",
+      "expression": "String(!!document.querySelector('.sechdrclear'))",
+      "expected": "false",
+      "timeout_ms": 8000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "header-shape",
+      "expected": "\"line+icon\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "line-on-hover",
+      "expected": "\"right-end\"",
+      "desc": "AC: on hover the Clear icon replaces the right part of the line, like Arc and the lab"
+    },
+    {
+      "type": "eval_equals",
+      "id": "line-at-rest",
+      "expected": "\"whole\"",
+      "desc": "AC: a single line, no gap in the middle, before the pointer arrives"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hover-rule-on-root",
+      "expected": "\"true\"",
+      "desc": "AC: the hover rule keys off the root, so the favourites and address row count"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hover-clear",
+      "expected": "\"hovered\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint-text",
+      "expected": "Clear tabs",
+      "desc": "the hint was up before the click, so hint-gone measures the click and not an absent hint"
+    },
+    {
+      "type": "eval_equals",
+      "id": "clear-clicked",
+      "expected": "\"clicked\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint-gone",
+      "expected": "no hint",
+      "desc": "AC: the click dropped the hint at once"
+    },
+    {
+      "type": "eval_equals",
+      "id": "header-gone",
+      "expected": "false",
+      "desc": "the click archived the rows, which is what took the button away"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

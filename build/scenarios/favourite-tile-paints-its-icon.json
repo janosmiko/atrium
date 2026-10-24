@@ -1,0 +1,33 @@
+{
+  "name": "favourite-tile-paints-its-icon",
+  "description": "In one run, because both need the same rare fixture: a favourite whose URL the profile has actually visited. Every other spaces fixture here either has no favourites or points them at a page with no icon, which is why neither fix had ever been seen working.\n\nThe favourite and the startup tab are the same URL, so the icon resolves from a real visit and the tile has a live tab to activate. favicon-page.html carries a blue PNG icon, which is the only thing in that corner of the sidebar that is blue - the tile's own tint is the space's ocean blue chip at 16px, and the icon paints over it.\n\nOne measure is that the tile changes after the icon lands. The other is that clicking the favourite does not add a tab: the URL is already open, so a second copy would be the bug this fixture can catch and a browsertest cannot, since only a real profile has favicon history behind it.",
+  "fixture": "favourite-icon.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "settle", "ms": 2000, "note": "the sidebar renders before the icon lookup answers - this frame is the tile with its tint chip and no icon yet" },
+    { "type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot" },
+    { "type": "capture", "id": "before-icon", "duration_ms": 300, "fps": 20 },
+    { "type": "settle", "ms": 4000, "note": "the favicon service answers and PushSidebarSnapshot re-pushes with the icon" },
+    { "type": "capture", "id": "after-icon", "duration_ms": 300, "fps": 20, "note": "the tile with a real icon on it" },
+    { "type": "settle", "ms": 800 },
+    { "type": "capture", "id": "before-click", "duration_ms": 300, "fps": 20 },
+    { "type": "click", "x": 30, "y": 150, "note": "the favourite tile - it points at the page already open in the startup tab" },
+    { "type": "settle", "ms": 2500 },
+    { "type": "capture", "id": "after-click", "duration_ms": 300, "fps": 20 }
+  ],
+  "assertions": [
+    { "type": "ax_window_count", "expected": 1, "min_area": 200000, "desc": "sanity: one real window rendered" },
+    {
+      "type": "pixels_changed",
+      "before": "before-icon",
+      "after": "after-icon",
+      "region": [30, 136, 22, 22],
+      "min_changed_pct": 40.0,
+      "desc": "the icon reached the tile. The chip is the space's tint until the URL-keyed lookup answers, and the site's icon is blue, so this square changing IS the icon arriving.",
+      "note": "The favourite tile's 16px chip, measured at x 30..52, y 136..158 Before the fix this region never changed: the lookup was marked requested at the first push, before the visit committed, came back empty and kept the mark for the session, so the tile held its tint chip forever."
+    },
+    { "type": "vlog_absent", "pattern": "Atrium: cold sidebar row opening", "label": "no-duplicate-tab", "desc": "the click reused the live tab. OpenSidebarColdTab logs this line every time it opens one, so its absence is the proof no second copy was made - the handler called OpenOrActivateUrl and the URL was already on screen. The fixture's favourite and startup tab are the same page, the only one this run could ever open cold, so the bare prefix still means the same thing the URL used to say." },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

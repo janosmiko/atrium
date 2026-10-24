@@ -1,0 +1,166 @@
+{
+  "name": "the-lights-travel-and-keep-their-colour",
+  "description": "One window. SetSidebarWidth asks AtriumWindowPlatform::SetWindowControlsVisible to take the lights away over kSidebarResizeAnimationDuration (150ms), and the Mac side animated only alphaValue. Two defects came out of that: the lights stood still while the pane slid left, and the AppKit animator proxy redrew them at below-full alpha, which is how an inactive window's grey lights get drawn.\n\nThe fix slides the button layers with the pane and moves the fade onto the backing layer, so the already-drawn coloured bitmap is what composites. A mid-slide frame is the only moment either defect exists: at rest the lights are simply present or gone.\n\nThe reveal is the direction this films. Both directions run the same ease-out, so the hide spends 220pt of travel in its first 30ms and leaves at most one frame with a light still on screen, while the reveal's tail holds the lights in view for over 100ms. The hide here is the warm-up burst and the reveal carries the assertions.\n\nThe window is parked at 0,40 and sized 560x500 first, so the light centres are fixed screen coordinates. Measured off this scenario's own settled frames: the dots are 14pt across at 23pt centres, red at x 19.5, amber at 42.5, green at 65.5, all on row y 59.5. Nothing ever rests left of x 12.5, which is what the travel sample reads.",
+  "fixture": "lab-compare.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot, and an inactive window draws grey lights on purpose - the very thing a sibling scenario asserts against"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "move_window",
+      "x": 0,
+      "y": 40,
+      "note": "screen x maps 1:1 to window x from here on"
+    },
+    {
+      "type": "resize",
+      "w": 560,
+      "h": 500
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "capture",
+      "id": "docked",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the three lights at rest, coloured, at their settled centres"
+    },
+    {
+      "type": "key_during_capture",
+      "combo": "cmd+s",
+      "capture_id": "hiding",
+      "duration_ms": 2000,
+      "fps": 30,
+      "key_delay_ms": 300,
+      "mid_after_chord_ms": 20,
+      "note": "The hide. Nothing asserts on it: the ease-out is over in 30ms of travel, and the first burst of a run is also the one whose stream delivers late. It leaves the pane collapsed and the stream awake for the reveal."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key_during_capture",
+      "combo": "cmd+s",
+      "capture_id": "revealing",
+      "duration_ms": 2000,
+      "fps": 30,
+      "key_delay_ms": 300,
+      "mid_after_chord_return_ms": 35,
+      "note": "THE capture. The probe is placed from the chord's own measured return, not from a stall: this burst's stall lands AFTER the slide, once the screen goes quiet again, so anchoring on it walks the probe past the transition. Seven recorded bursts put the return anywhere from 438 to 483ms, which is wider than the window the lights are travelling in, so a fixed offset from the burst start misses it. Measured from the return, the travel runs from about 17ms to 54ms."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "shown",
+      "duration_ms": 400,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "region_stable",
+      "before": "docked",
+      "after": "shown",
+      "region": "13,53,60,14",
+      "max_delta": 6,
+      "label": "the-band-came-back-as-it-left",
+      "desc": "Control for every coordinate below. The whole light band reads identically before the hide and after the reveal, so a mid-slide reading that differs is the slide and not a window that moved or a theme that shifted."
+    },
+    {
+      "type": "region_mean",
+      "capture": "shown",
+      "x": 17,
+      "y": 57,
+      "w": 5,
+      "h": 6,
+      "min_mean": 100,
+      "max_mean": 200,
+      "min_r": 200,
+      "max_g": 130,
+      "max_b": 130,
+      "label": "the-reveal-leaves-red-red",
+      "desc": "A grey light sits on r=g=b, so min_r with a G and B ceiling is what fails on it - the mean alone cannot tell mid grey from this red."
+    },
+    {
+      "type": "region_mean",
+      "capture": "shown",
+      "x": 40,
+      "y": 57,
+      "w": 5,
+      "h": 6,
+      "min_mean": 100,
+      "max_mean": 200,
+      "min_r": 200,
+      "max_b": 60,
+      "label": "the-reveal-leaves-amber-amber",
+      "desc": "Amber's B is what separates it from every grey and from red."
+    },
+    {
+      "type": "region_mean",
+      "capture": "shown",
+      "x": 63,
+      "y": 57,
+      "w": 5,
+      "h": 6,
+      "min_mean": 100,
+      "max_mean": 200,
+      "max_r": 120,
+      "max_b": 130,
+      "label": "the-reveal-leaves-green-green",
+      "desc": "The window background under this row reads B 142, so the B ceiling also refuses a frame with no light here at all."
+    },
+    {
+      "type": "pixels_changed",
+      "before": "shown",
+      "after": "revealing_mid",
+      "region": [1, 53, 72, 14],
+      "min_changed_pct": 12,
+      "label": "the-lights-are-not-where-they-settle",
+      "desc": "The whole band the three lights rest in. A light that faded in place holds its settled pixels and leaves this band identical to the settled frame, so the bar can only be met by dots that sit somewhere else. Measured 0.00 percent on every frame once the slide lands, and 25 to 59 percent on the frames inside it."
+    },
+    {
+      "type": "region_mean",
+      "capture": "revealing_mid",
+      "x": 14,
+      "y": 57,
+      "w": 23,
+      "h": 6,
+      "min_mean": 105,
+      "max_mean": 175,
+      "max_b": 130,
+      "label": "the-travelling-lights-still-carry-colour",
+      "desc": "One whole 23pt pitch, so exactly one 14pt dot and one 9pt gap sit in the box at any offset out to 45pt. The glass alone reads B 142 and every hue drops it: measured 115 with green in the box, 84 with amber, 108 with red."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "label": "the-window-survived-both-chords",
+      "desc": "Liveness. A run that crashed mid-burst would otherwise leave four captures nobody questions."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

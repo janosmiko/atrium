@@ -1,0 +1,25 @@
+{
+  "spaces": [
+    {
+      "id": "48900001-0000-0000-0000-000000000001",
+      "name": "Swallow",
+      "emoji": "🛑",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "url": "http://127.0.0.1:8000/quit-swallow.html",
+          "title": "Quit Swallow"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "48900001-0000-0000-0000-000000000001"
+  }
+}

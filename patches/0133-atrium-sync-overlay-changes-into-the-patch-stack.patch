@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 13 Sep 2026 04:07:04 +0200
+Subject: [PATCH 133/154] atrium: sync overlay changes into the patch stack
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index ebf32ec22055c..07471e411349b 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -631,7 +631,6 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:downloads_overview",
+     "//chrome/browser/ui/atrium:drop_target_decision",
+     "//chrome/browser/ui/atrium:extension_actions_json",
+-    "//chrome/browser/ui/atrium:bounded_icon_store",
+     "//chrome/browser/ui/atrium:icon_backfill",
+     "//chrome/browser/ui/atrium:row_icon_lookup",
+     "//chrome/browser/ui/atrium:log_safe_url",

@@ -1,0 +1,42 @@
+{
+  "spaces": [
+    {
+      "id": "74774774-7477-4774-8774-747747747748",
+      "name": "Header Test",
+      "emoji": "🗂",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?loose",
+          "title": "Loose"
+        },
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?solo",
+          "title": "Solo",
+          "groupID": "33333333-1010-4010-8010-101010101010"
+        }
+      ],
+      "tabs": [
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?plain",
+          "title": "Plain"
+        }
+      ],
+      "groups": [
+        {
+          "id": "33333333-1010-4010-8010-101010101010",
+          "name": "Solo Folder",
+          "collapsed": false
+        }
+      ]
+    }
+  ],
+  "favorites": [],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "74774774-7477-4774-8774-747747747748"
+  }
+}

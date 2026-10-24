@@ -1,0 +1,68 @@
+{
+  "name": "the-settings-labels-keep-their-ink",
+  "description": "the settings page's labels read in their own ink, not the sidebar's glass ink. sidebar.css serves every route, and a block on html once painted the settings labels white on the white window. The reading is the computed colour of the pane's first label on the settings page.",
+  "fixture": "two-tabs.spaces.json",
+  "settings": "page-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings surface ready",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "label-ink",
+      "target": "/settings",
+      "expression": "(() => { const el = document.querySelector('label, h1, h2, .row, main, body'); const c = getComputedStyle(el).color; return c === 'rgba(255, 255, 255, 0.92)' || c === 'rgb(255, 255, 255)' ? 'white' : 'ink'; })()",
+      "expected": "ink",
+      "timeout_ms": 8000,
+      "note": "The sidebar's white glass ink must not reach this page."
+    },
+    {
+      "type": "capture",
+      "id": "settings",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "pattern": "Atrium: settings surface ready",
+      "label": "settings-opened",
+      "desc": "THE CONTROL: the settings page loaded."
+    },
+    {
+      "type": "eval_equals",
+      "id": "label-ink",
+      "expected": "ink",
+      "desc": "The settings labels keep their own ink."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

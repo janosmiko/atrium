@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 7 Sep 2026 09:45:46 +0200
+Subject: [PATCH 119/154] fix(devbar): let a click in the plate's corner wedges
+ reach the page
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The bar's WebContents sat in a rectangular NSView while the plate is a
+17px stadium, and nothing on that path overrides hitTest, so the four
+corner wedges swallowed clicks. An AtriumRoundedHitTestView now hosts
+the page's NSView and declines a hit outside the rounded rect, swapped
+in through WebView's holder once the widget exists. A DevBarWebView
+subclass keeps WebView's own re-attach from putting the raw view back,
+and the window detaches the wrapper through the holder on teardown.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index b44c41579f291..1cfac057a4229 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3647,6 +3647,8 @@ static_library("ui") {
+       "atrium/atrium_sidebar_edge_reveal.mm",
+       "atrium/atrium_overlay_shadow_layer.h",
+       "atrium/atrium_overlay_shadow_layer.mm",
++      "atrium/atrium_rounded_hit_test_view.h",
++      "atrium/atrium_rounded_hit_test_view.mm",
+       "atrium/atrium_frost_probe.h",
+       "atrium/atrium_frost_probe.mm",
+       "atrium/atrium_sidebar_frost_layer.h",

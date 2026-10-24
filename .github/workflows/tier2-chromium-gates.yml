@@ -1,0 +1,57 @@
+name: Tier 2 - Chromium gates (no build)
+
+# A second 121 GB Chromium clone does not fit, so these read the tree the host
+# builds in. patches-verify compares the series against that tree, so a red run
+# can mean a lane has uncommitted work rather than that the push broke anything.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # One at a time. Two jobs reading the same checkout while a lane edits it
+  # produce two different answers and neither is trustworthy.
+  group: tier2
+  cancel-in-progress: false
+
+jobs:
+  chromium-gates:
+    runs-on: [self-hosted, macOS, chromium-checkout]
+    timeout-minutes: 45
+    env:
+      # gn gen writes here, clear of out/atrium, so a tier 2 run cannot
+      # disturb a build the host has in flight.
+      ATRIUM_LINUXGEN_DIR: out/linuxgen-ci
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Report the checkout this run reads
+        run: |
+          source build/scripts/env.sh
+          echo "SRC=$SRC"
+          test -d "$SRC/chrome" || { echo "no Chromium checkout at $SRC"; exit 1; }
+          git -C "$SRC" status --porcelain | head -20
+
+      - name: WebUI suites and drift guards
+        run: make webui-test
+
+      - name: Design tokens match the reference
+        run: make tokens-verify
+
+      - name: License headers
+        run: make license-verify
+
+      - name: Codec posture
+        run: make codec-posture
+
+      - name: Linux source-list guard
+        run: make linux-verify
+
+      - name: Patch series matches the tree
+        run: make patches-verify

@@ -1,0 +1,130 @@
+{
+  "name": "sidebar-padding-mirrors-when-it-docks-right",
+  "description": "The sidebar's horizontal insets are two tokens, --sb-pad-lead for the window edge and --sb-pad-trail for the page edge, spent by the pane root, the address row, the favourites grid, the space-dots bar and the extension strip. Nothing swapped them when the sidebar moved to the right, so every one of those boxes kept the left-docked arrangement and the rows sat hard against the window edge with the wide gap facing the page.\n\nWHY THE JS BINDING AND NOT THE SETTINGS ROW. atriumSetSidebarOnRight is the one entry point the native side uses for this fact, from both SetSidebarPosition (mid-run) and the new-surface catch-up. sidebar-position-right already gates that the stored setting reaches the window; what is unproven is that the page mirrors when it arrives. Driving the binding puts both states in ONE launch, which is what makes the left reading and the right reading comparable at all - a scenario per side would compare two windows.\n\nWHY BOTH DIRECTIONS. The mirror has to be reversible: a rule that only ever adds the swapped values would pass a right-docked reading and leave the sidebar wrong for every user who moves it back. The last two steps read the left arrangement again after a round trip.\n\nWHAT IT READS. getComputedStyle on .sidebar, which is the box carrying the padding shorthand - #atrium-root.sbroot around it holds the docked width and has no padding of its own, and reading the root instead answers 0px on both sides whichever way the sidebar is docked. Beside it, the address row's own left/right, set from the same pair and the box the report was about. Numbers are logged beside every gate so a failure names the measured inset rather than only false.\n\nEVERY PANE, not the first. The rail carries one .sidebar per space, so a rule that reached only the visible one would pass a first-element read and leave every other space wrong the moment it pages in.",
+  "fixture": "cold-tab-slow-load.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000,
+      "note": "past this the pane root and the address row exist, so a padding read is about the real boxes"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval",
+      "id": "left-docked-insets",
+      "target": "/sidebar",
+      "expression": "(() => { const root = document.querySelector('.sidebar'); const row = document.querySelector('#atrium-root.sbroot > .urlrow'); if (!root || !row) { return 'no pane or urlrow'; } const rs = getComputedStyle(root); const ws = getComputedStyle(row); return 'panes ' + document.querySelectorAll('.sidebar').length + ' ' + rs.paddingLeft + '/' + rs.paddingRight + ' urlrow ' + ws.left + '/' + ws.right + ' onRight=' + document.documentElement.classList.contains('atrium-sidebar-on-right'); })()",
+      "note": "the baseline in numbers, logged whether the gate below passes or not"
+    },
+    {
+      "type": "eval_until",
+      "id": "left-dock-puts-the-wide-inset-on-the-window-edge",
+      "target": "/sidebar",
+      "expression": "(() => { const panes = Array.from(document.querySelectorAll('.sidebar')); const row = document.querySelector('#atrium-root.sbroot > .urlrow'); if (!panes.length || !row) { return 'no pane or urlrow'; } const ws = getComputedStyle(row); return String(panes.every((p) => { const s = getComputedStyle(p); return s.paddingLeft === '8px' && s.paddingRight === '2px'; }) && ws.left === '8px' && ws.right === '2px'); })()",
+      "expected": "true",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "eval",
+      "id": "dock-it-right",
+      "target": "/sidebar",
+      "expression": "(() => { if (typeof window.atriumSetSidebarOnRight !== 'function') { return 'no binding'; } window.atriumSetSidebarOnRight(true); return 'onRight=' + document.documentElement.classList.contains('atrium-sidebar-on-right'); })()",
+      "note": "the same call SetSidebarPosition makes - not a class toggled by hand, so a binding that stopped setting it fails here"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "eval",
+      "id": "right-docked-insets",
+      "target": "/sidebar",
+      "expression": "(() => { const root = document.querySelector('.sidebar'); const row = document.querySelector('#atrium-root.sbroot > .urlrow'); const grid = document.querySelector('#atrium-root.sbroot > .favgrid'); if (!root || !row) { return 'no pane or urlrow'; } const rs = getComputedStyle(root); const ws = getComputedStyle(row); const gs = grid ? getComputedStyle(grid) : null; return 'panes ' + document.querySelectorAll('.sidebar').length + ' ' + rs.paddingLeft + '/' + rs.paddingRight + ' urlrow ' + ws.left + '/' + ws.right + ' favgrid ' + (gs ? gs.left + '/' + gs.right : 'absent'); })()"
+    },
+    {
+      "type": "eval_until",
+      "id": "right-dock-moves-the-wide-inset-to-the-other-edge",
+      "target": "/sidebar",
+      "expression": "(() => { const panes = Array.from(document.querySelectorAll('.sidebar')); const row = document.querySelector('#atrium-root.sbroot > .urlrow'); if (!panes.length || !row) { return 'no pane or urlrow'; } const ws = getComputedStyle(row); return String(panes.every((p) => { const s = getComputedStyle(p); return s.paddingLeft === '2px' && s.paddingRight === '8px'; }) && ws.left === '2px' && ws.right === '8px'); })()",
+      "expected": "true",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "eval_until",
+      "id": "every-consumer-mirrors-not-only-the-pane-root",
+      "target": "/sidebar",
+      "expression": "(() => { const boxes = Array.from(document.querySelectorAll('#atrium-root.sbroot > .urlrow, #atrium-root.sbroot > .favgrid, .exs-row')); if (!boxes.length) { return 'no consumer boxes'; } return String(boxes.every((b) => { const s = getComputedStyle(b); return s.left === '2px' && s.right === '8px'; })); })()",
+      "expected": "true",
+      "timeout_ms": 6000,
+      "note": "the address row, the favourites grid and the extension strip read the same pair - one of them left behind is the shape of the original report"
+    },
+    {
+      "type": "eval",
+      "id": "dock-it-back-left",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumSetSidebarOnRight(false); return 'onRight=' + document.documentElement.classList.contains('atrium-sidebar-on-right'); })()"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "eval_until",
+      "id": "moving-back-left-restores-the-original-insets",
+      "target": "/sidebar",
+      "expression": "(() => { const panes = Array.from(document.querySelectorAll('.sidebar')); const row = document.querySelector('#atrium-root.sbroot > .urlrow'); if (!panes.length || !row) { return 'no pane or urlrow'; } const ws = getComputedStyle(row); return String(panes.every((p) => { const s = getComputedStyle(p); return s.paddingLeft === '8px' && s.paddingRight === '2px'; }) && ws.left === '8px' && ws.right === '2px'); })()",
+      "expected": "true",
+      "timeout_ms": 6000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "left-dock-puts-the-wide-inset-on-the-window-edge",
+      "expected": "true",
+      "desc": "The left-docked arrangement is the one it always was, 8px at the window edge and 2px facing the page"
+    },
+    {
+      "type": "eval_equals",
+      "id": "right-dock-moves-the-wide-inset-to-the-other-edge",
+      "expected": "true",
+      "desc": "Docked right, the 8px is on the right - the window edge on that side - and the 2px faces the page"
+    },
+    {
+      "type": "eval_equals",
+      "id": "every-consumer-mirrors-not-only-the-pane-root",
+      "expected": "true",
+      "desc": "The address row, the favourites grid and the extension strip mirror with the root, none left on the old side"
+    },
+    {
+      "type": "eval_equals",
+      "id": "moving-back-left-restores-the-original-insets",
+      "expected": "true",
+      "desc": "the swap is reversible, so moving the sidebar back does not leave it wrong the other way"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "liveness: one real window through both dock changes"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits"
+    }
+  ]
+}

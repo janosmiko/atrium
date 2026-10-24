@@ -1,0 +1,156 @@
+{
+  "name": "settings-confirm-quit-takes-effect",
+  "description": "toggling 'Warn before quitting' changes whether Atrium asks before quitting.\n\nWHAT WAS WRONG. confirmToQuitEnabled was stored by the Rust core and drawn as a row, and nothing in the chrome layer put it onto prefs::kConfirmToQuitEnabled - the pref BrowserProcessPlatformPart::AttemptExit and -[AppController tryToTerminateApplication] actually consult. So the row rendered, persisted, survived a relaunch, and quitting behaved identically either way. settings-confirm-quit-toggle proved every one of those things and none of this one, which is the point: a row that stores and renders but is never read is indistinguishable from a working one at the surface.\n\nTHE SAME CHORD, SENT TWICE, WITH ONLY THE TOGGLE BETWEEN THEM. That is the whole design. Cmd+Q lands once with the row On and once with it Off, in one launch, from the same window in the same focus state, and the two outcomes have to differ. A scenario that only sent it once could not tell a working gate from a chord that went missing for some unrelated reason - and Cmd+Q going missing on this exact window is a defect this repo has already had twice.\n\nWHY THE FIRST CHORD IS EXPECTED TO BE CANCELLED RATHER THAN TO PROMPT. With the pref on, ConfirmQuitPanelController runs a hold-to-quit loop: a plain TAP releases the key before the 1.5s hold, so runConfirmQuitLoopWithEvent returns NO, confirmQuitIfNeeded answers ConfirmQuitResultAborted and the quit is dropped. cgevent sends a tap. The 'Hold \\u2318Q to Quit' HUD is on screen for about a second afterwards, which is what the key_during_capture burst is timed to catch.\n\nHOW THE HARNESS IS TOLD THE APP SURVIVED, given it has no 'did not quit' assertion. Not by pgrep, and not by the capture. After the chord the row is clicked a SECOND time, and turning it off writes the file and emits 'Atrium: confirm-to-quit is now off'. A dead app writes nothing. So a vlog_after anchored on the chord's own routing line is a graded, ordered claim that Atrium was still alive and still serving its settings surface after Cmd+Q reached it - which is exactly what a swallowed chord looks like from the outside, and exactly what the pref is supposed to cause here.\n\nThe closing `quit` assertion is the other half, and it is listed last for the reason the runner's header gives: assertions before it see the pre-quit log. It sends the identical chord into the identical window with the toggle back off, and quit_outcome.py grades it - so the run ends on a clean quit rather than on the SIGTERM fallback, and the contrast is measured by the same code that measures every other quit in this suite.\n\nCOORDINATES. The rail click and the row click are the ones settings-cmd-comma and settings-confirm-quit-toggle read off their own General captures. The settings window sits at 82,37 at 860x652 on this VM's 1024x768 screen (measured, ax_window_count on the 2026-08-10 artifacts), and the row VALUE is right-aligned, so 'On' and 'Off' share a right edge and one coordinate hits both.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "settings": "glass-surround.settings.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so the browser window is up before anything is typed at it"
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate",
+      "note": "Atrium MUST be frontmost or cmd+comma opens the frontmost app's own settings instead - observed"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "open the settings window on General"
+    },
+    {
+      "type": "settle",
+      "ms": 7000,
+      "note": "the window builds, the route loads, and the core's values land a beat after the labels"
+    },
+    {
+      "type": "capture",
+      "id": "toggle-off",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "THE BEFORE MEASUREMENT: Warn before quitting reads Off, from the staged fixture. Without it the chord below could be quitting because nothing was ever turned on"
+    },
+    {
+      "type": "eval",
+      "id": "toggle-the-warn-before-quitting-row",
+      "target": "/settings",
+      "expression": "(() => { const row = [...document.querySelectorAll('.settings-row')].find((r) => /warn before quitting/i.test(r.textContent || '')); if (!row) { return 'no Warn before quitting row'; } const btn = row.querySelector('button.settings-row-toggle'); if (!btn) { return 'row has no toggle button: ' + row.innerHTML.slice(0, 120); } const was = btn.getAttribute('aria-checked') || btn.textContent.trim(); btn.click(); return 'clicked, was ' + was; })()",
+      "note": "Dispatched on the BUTTON, not at a screen coordinate. The old (888, 570) missed: the settings window sits at screen 82,37 with a 32px title bar, so that point is document 806,501 while the row spans x 44..786 and y 504..557 - 20px past its right edge and 3px above its top. Nothing was toggled, the page sent no save, and the run looked exactly like a broken write path."
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the click repaints at once; the write is a round trip through the thread pool, and the pref is set on its way back"
+    },
+    {
+      "type": "capture",
+      "id": "toggle-on",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the row reads On, and no .settings-alert box - so the write was not refused"
+    },
+    {
+      "type": "key_during_capture",
+      "combo": "cmd+q",
+      "capture_id": "chord-with-toggle-on",
+      "duration_ms": 2500,
+      "fps": 20,
+      "key_delay_ms": 400,
+      "mid_at_ms": 1100,
+      "note": "THE FIRST CHORD. The mid frame is timed for the 'Hold \\u2318Q to Quit' HUD, which is up for about a second after a tap and gone before the run ends - a plain capture afterwards would show nothing. The last frame is the settled state: both windows still on screen"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the HUD finish fading and the panel's discarded-event sweep pass before the next click"
+    },
+    {
+      "type": "eval",
+      "id": "toggle-it-back",
+      "target": "/settings",
+      "expression": "(() => { const row = [...document.querySelectorAll('.settings-row')].find((r) => /warn before quitting/i.test(r.textContent || '')); if (!row) { return 'no Warn before quitting row'; } const btn = row.querySelector('button.settings-row-toggle'); if (!btn) { return 'row has no toggle button: ' + row.innerHTML.slice(0, 120); } const was = btn.getAttribute('aria-checked') || btn.textContent.trim(); btn.click(); return 'clicked, was ' + was; })()",
+      "note": "the same control again, to put it back"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "capture",
+      "id": "toggle-off-again",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the row back to Off, on a window that is still there after Cmd+Q"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-window-was-built",
+      "pattern": "Atrium: settings window built",
+      "note": "gate on the PREMISE. A build where cmd+comma did nothing would send both chords at a plain browser window and prove nothing about this row"
+    },
+    {
+      "type": "vlog",
+      "label": "the-settings-window-had-key",
+      "pattern": "Atrium: settings window gained key",
+      "note": "the half a screenshot cannot settle: a window can be visible and on top without owning key, and owning key is what decides which CommandDispatcher sees the chord"
+    },
+    {
+      "type": "vlog",
+      "label": "the-stored-value-reached-the-pref",
+      "pattern": "Atrium: confirm-to-quit is now on",
+      "note": "THE WIRING. Logged by SetConfirmToQuitPref, which is the only thing that writes browser.confirm_to_quit here, and only after atrium_core_save_settings answered 1. Necessary and not sufficient - a build could set the pref and still route the chord past the gate, which is what the two chords below are for"
+    },
+    {
+      "type": "vlog_after",
+      "label": "the-pref-was-set-by-the-click",
+      "pattern": "Atrium: confirm-to-quit is now on",
+      "after_pattern": "Atrium: settings surface ready",
+      "note": "ordering, so the launch-time seed cannot stand in for the click. The fixture stages false, so the seed's own line says off; anchoring after the surface announced itself makes this a claim about the click specifically"
+    },
+    {
+      "type": "vlog",
+      "label": "the-first-chord-was-delivered",
+      "pattern": "Atrium: settings passing key-equivalent to main menu \\(keyCode 12\\)",
+      "note": "keyCode 12 is q. Cmd+Q reached this window and left it through the settings route rather than vanishing into the web content, so whatever happened next happened at the quit path and not before it"
+    },
+    {
+      "type": "vlog_after",
+      "label": "the-chord-landed-with-the-toggle-on",
+      "pattern": "Atrium: settings passing key-equivalent to main menu \\(keyCode 12\\)",
+      "after_pattern": "Atrium: confirm-to-quit is now on",
+      "note": "ordering the other way round: the chord followed the pref going on, rather than racing it. The seed at launch logs the OFF line for this fixture, so the first ON line is the click's"
+    },
+    {
+      "type": "vlog_after",
+      "label": "atrium-was-still-running-after-the-chord",
+      "pattern": "Atrium: confirm-to-quit is now off",
+      "after_pattern": "Atrium: settings passing key-equivalent to main menu \\(keyCode 12\\)",
+      "note": "THE ASSERTION THAT SAYS THE CHORD DID NOT QUIT. This line is written when the second click's save comes back, so it can only exist if the app was alive, frontmost and serving its settings surface AFTER Cmd+Q had already reached the quit path. A build without the pref wiring quits on that chord and never gets here"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "note": "the browser window AND the settings window, both still on screen at the end. The 'Hold \\u2318Q to Quit' HUD is far below min_area, so it cannot pad this count"
+    },
+    {
+      "type": "quit",
+      "desc": "the identical Cmd+Q, with the row toggled back off, quits"
+    }
+  ]
+}

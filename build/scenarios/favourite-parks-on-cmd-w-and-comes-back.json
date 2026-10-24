@@ -1,0 +1,120 @@
+{
+  "name": "favourite-parks-on-cmd-w-and-comes-back",
+  "description": "Cmd+W on a favourite still showing its own page parks the page instead of deleting it, and the next tile click shows that same page with no load.\n\nThe browser tests drive the sidebar's own close route. This one drives the real gesture: Cmd+W reaches ExecuteCommand in atrium_native_widget_mac.mm, which is a different entry point into ParkFavoriteTab and the only one a user actually presses. A seam that works from the test route and not from the keystroke would pass every browser test and ship broken.\n\nThe two log lines carry the tab id, so a restore that quietly opened a fresh tab reads as a different number and the ordering assertion fails.",
+  "fixture": "favourite-not-a-row.json",
+  "settings": "favourite-keep-alive-on.settings.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "click",
+      "x": 40,
+      "y": 121,
+      "note": "the first favourite tile, the same cell favourite-highlight-clears-on-tab-close measures"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "eval_until",
+      "id": "lit",
+      "target": "/sidebar",
+      "expression": "(() => { const f = [...document.querySelectorAll('.fav')]; return 'tiles=' + f.length + ' first=' + f[0].classList.contains('sel'); })()",
+      "expected": "tiles=3 first=true",
+      "timeout_ms": 15000,
+      "note": "THE CONTROL: the click landed on the tile and its tab is the active one. Without this a missed click parks nothing and the rest of the run proves nothing"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w",
+      "note": "the user's gesture, the entry point no browser test reaches"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: favourite parked tab [0-9]+",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval_until",
+      "id": "unlit",
+      "target": "/sidebar",
+      "expression": "(() => { const f = [...document.querySelectorAll('.fav')]; return 'first=' + f[0].classList.contains('sel'); })()",
+      "expected": "first=false",
+      "timeout_ms": 15000,
+      "note": "the parked page leaves the strip, so its tile reads as not open - a parked page the sidebar still shows as a live row would be worse than the bug"
+    },
+    {
+      "type": "click",
+      "x": 40,
+      "y": 121,
+      "note": "the same tile again, within the keep-alive time"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: favourite restored its parked tab [0-9]+",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval_until",
+      "id": "relit",
+      "target": "/sidebar",
+      "expression": "(() => { const f = [...document.querySelectorAll('.fav')]; return 'first=' + f[0].classList.contains('sel'); })()",
+      "expected": "first=true",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "capture",
+      "id": "favourite-restored-from-parking",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "the browser window alone"
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: favourite parked tab [0-9]+",
+      "desc": "one Cmd+W parks one page and no more - a park per paint would be a page leak, not a feature",
+      "max": 1
+    },
+    {
+      "type": "vlog_after",
+      "label": "the-tile-click-took-the-parked-page-back",
+      "after_pattern": "Atrium: favourite parked tab [0-9]+",
+      "pattern": "Atrium: favourite restored its parked tab [0-9]+",
+      "desc": "the restore is the parked page coming back, not a line left over from an earlier phase of the run"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

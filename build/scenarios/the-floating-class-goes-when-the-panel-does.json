@@ -1,0 +1,92 @@
+{
+  "name": "the-floating-class-goes-when-the-panel-does",
+  "description": "The panel's wash is scoped to html.atrium-sidebar-floating, so a class that outlives the panel paints the DOCKED sidebar as a flat slab and the desktop stops reading through it. Two dismissals are graded. Leaving the panel runs FinishHide, which clears the span. Cmd+S taken while the panel is up does not: BrowserController::ToggleSidebar sees revealed_by_hover and calls ForgetReveal, which only drops the edge zone. That branch was written when a reveal expanded the docked pane rather than opening a child window.",
+  "fixture": "checkerboard.spaces.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "settle", "ms": 5000 },
+    { "type": "activate" },
+    { "type": "settle", "ms": 1500 },
+    {
+      "type": "eval",
+      "id": "tab-opened",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.row'); if (!r) return 'no-row'; r.click(); return 'clicked'; })()"
+    },
+    { "type": "settle", "ms": 5000 },
+    {
+      "type": "eval",
+      "id": "collapse-pressed",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbtoggle'); if (!b) return 'no-button'; b.click(); return 'clicked'; })()",
+      "note": "The row's own Hide button. Cmd+S dies whenever an HTML surface holds first responder."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar toggle requested from the chrome row",
+      "timeout_ms": 8000
+    },
+    { "type": "settle", "ms": 3000 },
+    { "type": "move", "x": 300, "y": 400 },
+    { "type": "settle", "ms": 600 },
+    { "type": "move", "x": 20, "y": 400, "note": "cross into the 32pt arming strip from outside it" },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "timeout_ms": 20000
+    },
+    { "type": "settle", "ms": 1500 },
+    {
+      "type": "eval",
+      "id": "class-while-floating",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.classList.contains('atrium-sidebar-floating'))",
+      "note": "The control. If the class is not set while the panel is genuinely up, the run says nothing about it being cleared."
+    },
+    { "type": "move", "x": 700, "y": 400, "note": "leave, so the panel dismisses through its own rule" },
+    { "type": "settle", "ms": 4000, "note": "past the 280ms grace and the 240ms slide, so FinishHide has run" },
+    {
+      "type": "eval",
+      "id": "class-after-leaving",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.classList.contains('atrium-sidebar-floating'))"
+    },
+    { "type": "move", "x": 300, "y": 400 },
+    { "type": "settle", "ms": 600 },
+    { "type": "move", "x": 20, "y": 400, "note": "reveal a second time, for the Cmd+S half" },
+    { "type": "settle", "ms": 2000 },
+    { "type": "key", "combo": "cmd+s", "note": "the chord taken while the panel stands open" },
+    { "type": "settle", "ms": 4000 },
+    {
+      "type": "eval",
+      "id": "class-after-the-chord",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.classList.contains('atrium-sidebar-floating'))"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "class-while-floating",
+      "expected": "\"true\"",
+      "label": "the-class-is-set-while-the-panel-is-up"
+    },
+    {
+      "type": "eval_equals",
+      "id": "class-after-leaving",
+      "expected": "\"false\"",
+      "label": "leaving-the-panel-clears-it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "class-after-the-chord",
+      "expected": "\"false\"",
+      "label": "and-so-does-the-chord",
+      "desc": "The measurement. A class left behind here paints the docked sidebar as a flat slab."
+    },
+    { "type": "vlog_absent", "pattern": "DCHECK failed", "label": "no-dcheck-fired" },
+    { "type": "quit" }
+  ]
+}

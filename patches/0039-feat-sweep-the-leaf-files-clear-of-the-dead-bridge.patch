@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 13:34:36 +0200
+Subject: [PATCH 039/154] feat: sweep the leaf files clear of the dead bridge
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Four files whose bridge calls had no cross-file cascade, plus the settings
+menu hook, which had one and is better gone.
+
+Extensions and autocomplete: the dylib push goes, the HTML feed stays.
+PushActionsToHtmlArm, PushMatchesToPage and both icon caches are what the
+pill and the palette actually read since 444.2 and 444.3, and each one sits
+one line from a call that is now dead. ExtIconCache::Get().Store is the same
+shape as the FaviconCache trap and was one line above the deleted push.
+
+The autocomplete bridge loses its whole Swift payload builder - MatchToJson
+and its two helpers, 164 lines. atrium_command_bar_matches.cc has built the
+HTML rows since 444.2, so this was a second encoder for a reader that no
+longer exists. query_generation_ went with the streaming envelope that was
+its only reader.
+
+The sidebar producer loses its first source. CopySidebarModelJSON returns
+empty in every build, so the Rust core already answered every call; the
+comment claiming Swift is the real producer outlived the fact by a day.
+
+The settings menu hook is deleted rather than reduced. Its whole purpose was
+to re-point the Settings item at a Swift window, and forwarding instead would
+leave the item always-enabled where stock gates it on canOpenNewBrowser - a
+difference with nothing behind it. Removing the hook restores stock exactly.
+A follow-up rebuilds the surface and carries the reason the item needs its own
+hook at all: main_menu_builder gives it an explicit target and action, so the
+IDC_OPTIONS intercept never sees the key.
+
+ExtensionActionBridge loses its AtriumHost parameter, which nothing read
+after the push went.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index dbdcd1b0c5b4f..3b7f6db7bf213 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3525,8 +3525,6 @@ static_library("ui") {
+       "atrium/atrium_peek_intercept.h",
+       "atrium/atrium_peek_widget.h",
+       "atrium/atrium_peek_widget.mm",
+-      "atrium/atrium_settings_menu_hook.h",
+-      "atrium/atrium_settings_menu_hook.mm",
+       "atrium/atrium_sidebar_overlay_widget.h",
+       "atrium/atrium_sidebar_overlay_widget.mm",
+       "atrium/atrium_ui_bridge.h",

@@ -1,0 +1,262 @@
+{
+  "spaces": [
+    {
+      "id": "20000000-0000-4000-8000-000000000001",
+      "name": "Scroll Test",
+      "emoji": "S",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?s1",
+          "title": "Scroll Page"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-2.html",
+          "title": "Cold Tab 2"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-3.html",
+          "title": "Cold Tab 3"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-4.html",
+          "title": "Cold Tab 4"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-5.html",
+          "title": "Cold Tab 5"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-6.html",
+          "title": "Cold Tab 6"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-7.html",
+          "title": "Cold Tab 7"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-8.html",
+          "title": "Cold Tab 8"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-9.html",
+          "title": "Cold Tab 9"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-10.html",
+          "title": "Cold Tab 10"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-11.html",
+          "title": "Cold Tab 11"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-12.html",
+          "title": "Cold Tab 12"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-13.html",
+          "title": "Cold Tab 13"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-14.html",
+          "title": "Cold Tab 14"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-15.html",
+          "title": "Cold Tab 15"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-16.html",
+          "title": "Cold Tab 16"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-17.html",
+          "title": "Cold Tab 17"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-18.html",
+          "title": "Cold Tab 18"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-19.html",
+          "title": "Cold Tab 19"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-20.html",
+          "title": "Cold Tab 20"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-21.html",
+          "title": "Cold Tab 21"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-22.html",
+          "title": "Cold Tab 22"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-23.html",
+          "title": "Cold Tab 23"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-24.html",
+          "title": "Cold Tab 24"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-25.html",
+          "title": "Cold Tab 25"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-26.html",
+          "title": "Cold Tab 26"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-27.html",
+          "title": "Cold Tab 27"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-28.html",
+          "title": "Cold Tab 28"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-29.html",
+          "title": "Cold Tab 29"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-30.html",
+          "title": "Cold Tab 30"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-31.html",
+          "title": "Cold Tab 31"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-32.html",
+          "title": "Cold Tab 32"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-33.html",
+          "title": "Cold Tab 33"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-34.html",
+          "title": "Cold Tab 34"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-35.html",
+          "title": "Cold Tab 35"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-36.html",
+          "title": "Cold Tab 36"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-37.html",
+          "title": "Cold Tab 37"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-38.html",
+          "title": "Cold Tab 38"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-39.html",
+          "title": "Cold Tab 39"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-40.html",
+          "title": "Cold Tab 40"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-41.html",
+          "title": "Cold Tab 41"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-42.html",
+          "title": "Cold Tab 42"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-43.html",
+          "title": "Cold Tab 43"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-44.html",
+          "title": "Cold Tab 44"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-45.html",
+          "title": "Cold Tab 45"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-46.html",
+          "title": "Cold Tab 46"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-47.html",
+          "title": "Cold Tab 47"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-48.html",
+          "title": "Cold Tab 48"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-49.html",
+          "title": "Cold Tab 49"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-50.html",
+          "title": "Cold Tab 50"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-51.html",
+          "title": "Cold Tab 51"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-52.html",
+          "title": "Cold Tab 52"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-53.html",
+          "title": "Cold Tab 53"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-54.html",
+          "title": "Cold Tab 54"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-55.html",
+          "title": "Cold Tab 55"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-56.html",
+          "title": "Cold Tab 56"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-57.html",
+          "title": "Cold Tab 57"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-58.html",
+          "title": "Cold Tab 58"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-59.html",
+          "title": "Cold Tab 59"
+        },
+        {
+          "url": "http://127.0.0.1:8000/cold-60.html",
+          "title": "Cold Tab 60"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "favorites": [],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "20000000-0000-4000-8000-000000000001"
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "name": "collapse-slides-rather-than-reflows",
+  "description": "Hiding the sidebar animated the SLOT's width, and the page inside was laid out at 100% - so every tick re-laid-out the whole document. The favourites grid re-flowed its auto-fill columns and the rows re-wrapped, which is what the reporter saw as the icons changing position rather than the sidebar sliding away.\n\nThe lab never animates width. Its hidden sidebar is held at a fixed width and moved with transform (swipe-lab.html:37-39), so nothing inside it can move relative to anything else.\n\nThe page is now held at the docked width the native side pushes, and hangs off the trailing edge, so a narrowing slot slides it out and clips it. This captures the middle of the collapse, which is the only moment the difference exists: at either end the sidebar is simply present or absent.",
+  "fixture": "lab-compare.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "docked",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the sidebar at rest, so the mid-collapse frame has something to be compared against by eye"
+    },
+    {
+      "type": "key_during_capture",
+      "combo": "cmd+s",
+      "duration_ms": 700,
+      "fps": 30,
+      "note": "THE capture. The collapse animation runs about 150ms, so a capture started with the chord catches it in flight. 30fps to get several frames inside that window.",
+      "capture_id": "collapsing"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "hidden",
+      "duration_ms": 400,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "label": "the-window-survived-the-collapse",
+      "desc": "Liveness. The frames are the point of this scenario and a person reads them, but a run that crashed would otherwise leave three captures nobody questions."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: sidebar grip band",
+      "label": "the-collapse-actually-ran",
+      "desc": "The floor. The grip band is re-placed on every layout pass, so its presence says the sidebar laid out at all - without it a chord that missed would leave a still frame that looks like a perfect slide."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

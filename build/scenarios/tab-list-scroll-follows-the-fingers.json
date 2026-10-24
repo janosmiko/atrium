@@ -1,0 +1,104 @@
+{
+  "name": "tab-list-scroll-follows-the-fingers",
+  "description": "A vertical trackpad gesture over the tabs list scrolls it by the distance the fingers travelled. The zone's wheel handler applies mid-list deltas to scrollTop itself: leaving them to native scrolling made the outcome a per-gesture race (the diagnostic probe read 0px from 300px gestures whose every event reached the page, while an identical planted div scrolled 300 on one run and 0 on the next). The sampler sums the deltas the page received and compares them to the scrollTop movement, so the assertion is 'the list followed the fingers', not a magic pixel count.",
+  "fixture": "tab-list-scroll-speed.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "20000000-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "example-domain.html?s1",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/example-domain.html?s1"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "zone-overflows",
+      "target": "/sidebar",
+      "expression": "(() => { const z = document.querySelector('.scrollzone'); if (!z) return 'NOZONE'; return z.scrollHeight > z.clientHeight ? 'overflows' : 'flat:' + z.scrollHeight + '/' + z.clientHeight; })()",
+      "note": "60 tabs must outgrow the zone or there is nothing to measure"
+    },
+    {
+      "type": "eval",
+      "id": "arm",
+      "target": "/sidebar",
+      "expression": "(() => { const z = document.querySelector('.scrollzone'); if (!z) return 'NOZONE'; const st = {sumDy: 0, events: 0, top0: z.scrollTop}; window.__followprobe = st; z.addEventListener('wheel', (e) => { st.events++; st.sumDy += e.deltaY; }, {passive: true}); return 'ARMED'; })()"
+    },
+    {
+      "type": "move",
+      "x": 110,
+      "y": 400,
+      "note": "cgevent scroll events land at the cursor, so park it on the rows first"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "vscroll",
+      "x": 110,
+      "y": 400,
+      "dy": -300,
+      "phase_ms": 400
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "move",
+      "x": 110,
+      "y": 400,
+      "note": "a second identical gesture: cgevent delivery is flaky per gesture in the VM, and the verdict compares moved against whatever actually arrived, so both landing is as fine as one"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "vscroll",
+      "x": 110,
+      "y": 400,
+      "dy": -300,
+      "phase_ms": 400
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval",
+      "id": "followed",
+      "target": "/sidebar",
+      "expression": "(() => { const z = document.querySelector('.scrollzone'); const st = window.__followprobe; if (!z || !st) return 'NOSTATE'; const moved = Math.round(z.scrollTop - st.top0); const sum = Math.round(st.sumDy); if (st.events === 0) return 'NOEVENTS'; return moved === sum && sum > 100 ? 'followed' : 'lagged:' + moved + '/' + sum; })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "zone-overflows",
+      "expected": "\"overflows\"",
+      "desc": "THE CONTROL: the list is taller than the zone"
+    },
+    {
+      "type": "eval_equals",
+      "id": "followed",
+      "expected": "\"followed\"",
+      "desc": "THE RULE: scrollTop moved by exactly the deltas the page received, and the gesture was a real one (over 100px arrived). NOEVENTS means the gesture never landed - a cursor parking problem, not a scroll one."
+    }
+  ]
+}

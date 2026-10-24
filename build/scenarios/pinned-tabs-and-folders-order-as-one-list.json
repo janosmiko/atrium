@@ -1,0 +1,185 @@
+{
+  "name": "pinned-tabs-and-folders-order-as-one-list",
+  "description": "Folders are items of the pinned list and order freely with pinned tabs. Four gestures, each a synthetic dragstart/dragover/drop against the running sidebar, the same events installRowDrag listens for: a pinned tab dropped on a folder head joins the folder, a member dragged out lands in the pinned run where it was dropped, a pinned folder head reorders among the pinned tabs, and a folder from the head of the section drops into the run and becomes one of its items. Then a relaunch reads the order back from the document.\n\nThe fixture's space pins four tabs, two of them members of the Work folder, and holds one regular folder, News, with one member.",
+  "fixture": "pinned-items.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "order-0",
+      "target": "/sidebar",
+      "expression": "(() => { const zone = document.querySelector('.railpane:not(.ovrailpane) .foldin[data-dropzone=\"pinned\"]'); if (!zone) { return 'no-zone'; } const title = (r) => (r.querySelector('.tl') || r).textContent.trim(); const items = [...zone.children].filter((el) => el.matches('.tabrow, .frow')).map((el) => el.matches('.frow') ? 'F:' + el.dataset.folderId.slice(0, 4) + '[' + [...el.nextElementSibling.querySelectorAll('.tabrow')].map(title).join('+') + ']' : title(el)); const legacy = [...document.querySelectorAll('.railpane:not(.ovrailpane) .folderlist > .frow')].map((h) => 'F:' + h.dataset.folderId.slice(0, 4)); return items.join(' | ') + ' // folders ' + (legacy.join(' | ') || 'none'); })()",
+      "expected": "Pin One | F:1111[Work A+Work B] | Pin Two // folders F:2222",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "join-drag",
+      "target": "/sidebar",
+      "expression": "(() => { const pane = document.querySelector('.railpane:not(.ovrailpane)'); const title = (r) => (r.querySelector('.tl') || r).textContent.trim(); const rows = [...pane.querySelectorAll('.tabrow')]; const heads = [...pane.querySelectorAll('.frow[data-folder-id]')]; const find = (key) => key.startsWith('F:') ? heads.find((h) => h.dataset.folderId.startsWith(key.slice(2))) : rows.find((r) => title(r) === key); const src = find(\"Pin Two\"); const dst = find(\"F:1111\"); if (!src || !dst) { return 'missing ' + (src ? '' : 'src ') + (dst ? '' : 'dst'); } if (!src.draggable) { return 'source not draggable'; } const dt = new DataTransfer(); src.dispatchEvent(new DragEvent('dragstart', {bubbles: true, cancelable: true, dataTransfer: dt})); const rect = dst.getBoundingClientRect(); const clientX = rect.left + 20; const clientY = rect.top + rect.height * 0.5; dst.dispatchEvent(new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer: dt, clientX, clientY})); dst.dispatchEvent(new DragEvent('drop', {bubbles: true, cancelable: true, dataTransfer: dt, clientX, clientY})); src.dispatchEvent(new DragEvent('dragend', {bubbles: true, cancelable: true, dataTransfer: dt})); return 'dropped Pin Two on the Work head'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval_until",
+      "id": "join",
+      "target": "/sidebar",
+      "expression": "(() => { const zone = document.querySelector('.railpane:not(.ovrailpane) .foldin[data-dropzone=\"pinned\"]'); if (!zone) { return 'no-zone'; } const title = (r) => (r.querySelector('.tl') || r).textContent.trim(); const items = [...zone.children].filter((el) => el.matches('.tabrow, .frow')).map((el) => el.matches('.frow') ? 'F:' + el.dataset.folderId.slice(0, 4) + '[' + [...el.nextElementSibling.querySelectorAll('.tabrow')].map(title).join('+') + ']' : title(el)); const legacy = [...document.querySelectorAll('.railpane:not(.ovrailpane) .folderlist > .frow')].map((h) => 'F:' + h.dataset.folderId.slice(0, 4)); return items.join(' | ') + ' // folders ' + (legacy.join(' | ') || 'none'); })()",
+      "expected": "Pin One | F:1111[Work A+Work B+Pin Two] // folders F:2222",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "leave-drag",
+      "target": "/sidebar",
+      "expression": "(() => { const pane = document.querySelector('.railpane:not(.ovrailpane)'); const title = (r) => (r.querySelector('.tl') || r).textContent.trim(); const rows = [...pane.querySelectorAll('.tabrow')]; const heads = [...pane.querySelectorAll('.frow[data-folder-id]')]; const find = (key) => key.startsWith('F:') ? heads.find((h) => h.dataset.folderId.startsWith(key.slice(2))) : rows.find((r) => title(r) === key); const src = find(\"Work A\"); const dst = find(\"Pin One\"); if (!src || !dst) { return 'missing ' + (src ? '' : 'src ') + (dst ? '' : 'dst'); } if (!src.draggable) { return 'source not draggable'; } const dt = new DataTransfer(); src.dispatchEvent(new DragEvent('dragstart', {bubbles: true, cancelable: true, dataTransfer: dt})); const rect = dst.getBoundingClientRect(); const clientX = rect.left + 20; const clientY = rect.top + rect.height * 0.25; dst.dispatchEvent(new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer: dt, clientX, clientY})); dst.dispatchEvent(new DragEvent('drop', {bubbles: true, cancelable: true, dataTransfer: dt, clientX, clientY})); src.dispatchEvent(new DragEvent('dragend', {bubbles: true, cancelable: true, dataTransfer: dt})); return 'dropped Work A above Pin One'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval_until",
+      "id": "leave",
+      "target": "/sidebar",
+      "expression": "(() => { const zone = document.querySelector('.railpane:not(.ovrailpane) .foldin[data-dropzone=\"pinned\"]'); if (!zone) { return 'no-zone'; } const title = (r) => (r.querySelector('.tl') || r).textContent.trim(); const items = [...zone.children].filter((el) => el.matches('.tabrow, .frow')).map((el) => el.matches('.frow') ? 'F:' + el.dataset.folderId.slice(0, 4) + '[' + [...el.nextElementSibling.querySelectorAll('.tabrow')].map(title).join('+') + ']' : title(el)); const legacy = [...document.querySelectorAll('.railpane:not(.ovrailpane) .folderlist > .frow')].map((h) => 'F:' + h.dataset.folderId.slice(0, 4)); return items.join(' | ') + ' // folders ' + (legacy.join(' | ') || 'none'); })()",
+      "expected": "Work A | Pin One | F:1111[Work B+Pin Two] // folders F:2222",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "folder-first-drag",
+      "target": "/sidebar",
+      "expression": "(() => { const pane = document.querySelector('.railpane:not(.ovrailpane)'); const title = (r) => (r.querySelector('.tl') || r).textContent.trim(); const rows = [...pane.querySelectorAll('.tabrow')]; const heads = [...pane.querySelectorAll('.frow[data-folder-id]')]; const find = (key) => key.startsWith('F:') ? heads.find((h) => h.dataset.folderId.startsWith(key.slice(2))) : rows.find((r) => title(r) === key); const src = find(\"F:1111\"); const dst = find(\"Work A\"); if (!src || !dst) { return 'missing ' + (src ? '' : 'src ') + (dst ? '' : 'dst'); } if (!src.draggable) { return 'source not draggable'; } const dt = new DataTransfer(); src.dispatchEvent(new DragEvent('dragstart', {bubbles: true, cancelable: true, dataTransfer: dt})); const rect = dst.getBoundingClientRect(); const clientX = rect.left + 20; const clientY = rect.top + rect.height * 0.25; dst.dispatchEvent(new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer: dt, clientX, clientY})); dst.dispatchEvent(new DragEvent('drop', {bubbles: true, cancelable: true, dataTransfer: dt, clientX, clientY})); src.dispatchEvent(new DragEvent('dragend', {bubbles: true, cancelable: true, dataTransfer: dt})); return 'dropped the Work head above Work A'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval_until",
+      "id": "folder-first",
+      "target": "/sidebar",
+      "expression": "(() => { const zone = document.querySelector('.railpane:not(.ovrailpane) .foldin[data-dropzone=\"pinned\"]'); if (!zone) { return 'no-zone'; } const title = (r) => (r.querySelector('.tl') || r).textContent.trim(); const items = [...zone.children].filter((el) => el.matches('.tabrow, .frow')).map((el) => el.matches('.frow') ? 'F:' + el.dataset.folderId.slice(0, 4) + '[' + [...el.nextElementSibling.querySelectorAll('.tabrow')].map(title).join('+') + ']' : title(el)); const legacy = [...document.querySelectorAll('.railpane:not(.ovrailpane) .folderlist > .frow')].map((h) => 'F:' + h.dataset.folderId.slice(0, 4)); return items.join(' | ') + ' // folders ' + (legacy.join(' | ') || 'none'); })()",
+      "expected": "F:1111[Work B+Pin Two] | Work A | Pin One // folders F:2222",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "pin-folder-drag",
+      "target": "/sidebar",
+      "expression": "(() => { const pane = document.querySelector('.railpane:not(.ovrailpane)'); const title = (r) => (r.querySelector('.tl') || r).textContent.trim(); const rows = [...pane.querySelectorAll('.tabrow')]; const heads = [...pane.querySelectorAll('.frow[data-folder-id]')]; const find = (key) => key.startsWith('F:') ? heads.find((h) => h.dataset.folderId.startsWith(key.slice(2))) : rows.find((r) => title(r) === key); const src = find(\"F:2222\"); const dst = find(\"Pin One\"); if (!src || !dst) { return 'missing ' + (src ? '' : 'src ') + (dst ? '' : 'dst'); } if (!src.draggable) { return 'source not draggable'; } const dt = new DataTransfer(); src.dispatchEvent(new DragEvent('dragstart', {bubbles: true, cancelable: true, dataTransfer: dt})); const rect = dst.getBoundingClientRect(); const clientX = rect.left + 20; const clientY = rect.top + rect.height * 0.75; dst.dispatchEvent(new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer: dt, clientX, clientY})); dst.dispatchEvent(new DragEvent('drop', {bubbles: true, cancelable: true, dataTransfer: dt, clientX, clientY})); src.dispatchEvent(new DragEvent('dragend', {bubbles: true, cancelable: true, dataTransfer: dt})); return 'dropped the News head below Pin One'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval_until",
+      "id": "pin-folder",
+      "target": "/sidebar",
+      "expression": "(() => { const zone = document.querySelector('.railpane:not(.ovrailpane) .foldin[data-dropzone=\"pinned\"]'); if (!zone) { return 'no-zone'; } const title = (r) => (r.querySelector('.tl') || r).textContent.trim(); const items = [...zone.children].filter((el) => el.matches('.tabrow, .frow')).map((el) => el.matches('.frow') ? 'F:' + el.dataset.folderId.slice(0, 4) + '[' + [...el.nextElementSibling.querySelectorAll('.tabrow')].map(title).join('+') + ']' : title(el)); const legacy = [...document.querySelectorAll('.railpane:not(.ovrailpane) .folderlist > .frow')].map((h) => 'F:' + h.dataset.folderId.slice(0, 4)); return items.join(' | ') + ' // folders ' + (legacy.join(' | ') || 'none'); })()",
+      "expected": "F:1111[Work B+Pin Two] | Work A | Pin One | F:2222[Example Domain] // folders none",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "relaunch",
+      "note": "Cmd+Q and start again against the same staged file, so the order below is what the document holds"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "eval_until",
+      "id": "after-restart",
+      "target": "/sidebar",
+      "expression": "(() => { const zone = document.querySelector('.railpane:not(.ovrailpane) .foldin[data-dropzone=\"pinned\"]'); if (!zone) { return 'no-zone'; } const title = (r) => (r.querySelector('.tl') || r).textContent.trim(); const items = [...zone.children].filter((el) => el.matches('.tabrow, .frow')).map((el) => el.matches('.frow') ? 'F:' + el.dataset.folderId.slice(0, 4) + '[' + [...el.nextElementSibling.querySelectorAll('.tabrow')].map(title).join('+') + ']' : title(el)); const legacy = [...document.querySelectorAll('.railpane:not(.ovrailpane) .folderlist > .frow')].map((h) => 'F:' + h.dataset.folderId.slice(0, 4)); return items.join(' | ') + ' // folders ' + (legacy.join(' | ') || 'none'); })()",
+      "expected": "F:1111[Work B+Pin Two] | Work A | Pin One | F:2222[Example Domain] // folders none",
+      "timeout_ms": 15000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "order-0",
+      "expected": "Pin One | F:1111[Work A+Work B] | Pin Two // folders F:2222",
+      "desc": "the control: the fixture's pinned run as stored, a folder among the pinned tabs and one legacy folder at the head"
+    },
+    {
+      "type": "eval_equals",
+      "id": "join-drag",
+      "expected": "\"dropped Pin Two on the Work head\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "join",
+      "expected": "Pin One | F:1111[Work A+Work B+Pin Two] // folders F:2222",
+      "desc": "a pinned tab dropped on a folder joins it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "leave-drag",
+      "expected": "\"dropped Work A above Pin One\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "leave",
+      "expected": "Work A | Pin One | F:1111[Work B+Pin Two] // folders F:2222",
+      "desc": "a member dragged out of the folder lands in the pinned run where it was dropped"
+    },
+    {
+      "type": "eval_equals",
+      "id": "folder-first-drag",
+      "expected": "\"dropped the Work head above Work A\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "folder-first",
+      "expected": "F:1111[Work B+Pin Two] | Work A | Pin One // folders F:2222",
+      "desc": "a pinned folder reorders among the pinned tabs"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pin-folder-drag",
+      "expected": "\"dropped the News head below Pin One\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "pin-folder",
+      "expected": "F:1111[Work B+Pin Two] | Work A | Pin One | F:2222[Example Domain] // folders none",
+      "desc": "a folder from the head of the section drops into the pinned run and becomes an item of it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "after-restart",
+      "expected": "F:1111[Work B+Pin Two] | Work A | Pin One | F:2222[Example Domain] // folders none",
+      "desc": "AC: the order survives a restart"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

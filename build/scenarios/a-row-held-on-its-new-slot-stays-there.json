@@ -1,0 +1,156 @@
+{
+  "name": "a-row-held-on-its-new-slot-stays-there",
+  "description": "A real cgevent drag of the second tab row up onto the top of the first, then a little down again, still inside the moved row, then on down into the first row's split band. The preview used to hit-test the rows where they stood at rest, so the small move back down landed in the first row's old split band, the moved row jumped home, and the band sat under the drawn row where nobody could see it.\n\nWhat it measures: once the row moves up it never jumps home before the drop, the split band shows on the first row in its new place with the drawn row hidden, and the drop sends one split.\n\nRows sit at client y 187..223 and 227..263. Screen coordinates add the 30px the window sits below the screen top.",
+  "fixture": "frost-two-tabs.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "wake-first",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 2) { return 'rows ' + rows.length; } rows[0].click(); return 'clicked'; })()",
+      "note": "Both rows are cold at launch, and a cold row has no tab id to split with."
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "wake-second",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 2) { return 'rows ' + rows.length; } rows[1].click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval_until",
+      "id": "layout",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 2) { return 'rows ' + rows.length; } return rows.slice(0, 2).map((r) => { const b = r.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.right), Math.round(b.top), Math.round(b.bottom), r.dataset.tabId ? 'live' : 'cold'].join(':'); }).join(','); })()",
+      "expected": "8:258:187:223:live,8:258:227:263:live",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "spy",
+      "target": "/sidebar",
+      "expression": "(() => { const q = '.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow'; const rows = [...document.querySelectorAll(q)]; window.__targetId = rows[0].dataset.tabId; window.__dragId = rows[1].dataset.tabId; window.__dropped = false; window.__st = []; window.__cs = []; document.addEventListener('drop', () => { window.__dropped = true; }, true); document.addEventListener('dragover', () => requestAnimationFrame(() => { if (window.__dropped) { return; } const first = document.querySelector(q); const side = document.querySelector('.dropsplit'); const f = document.querySelector('.dragfollow'); const v = (first && first.dataset.tabId === window.__dragId ? 'moved' : 'home') + '/' + (side ? side.dataset.splitSide : 'noside') + '/' + (f && !f.hidden ? 'follow' : 'nofollow'); if (window.__st[window.__st.length - 1] !== v) { window.__st.push(v); } }), true); const orig = chrome.send.bind(chrome); chrome.send = (name, args) => { if (name === 'sidebarTabSplit' || name === 'sidebarTabReordered') { const named = args.map((a) => a === window.__dragId ? 'dragged' : a === window.__targetId ? 'target' : a); window.__cs.push(name + ':' + named.join(',')); } return orig(name, args); }; return 'spying'; })()"
+    },
+    {
+      "type": "drag_path",
+      "path": [113, 275, 113, 220, 113, 238, 113, 278],
+      "steps": 20,
+      "note": "Client y 245 in the second row, up to 190 in the first row's top band, back down to 208 inside the moved row, then 248, the lower half of the first row once it has moved down."
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "eval",
+      "id": "states",
+      "target": "/sidebar",
+      "expression": "window.__st.join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "moved",
+      "target": "/sidebar",
+      "expression": "String(window.__st.includes('moved/noside/follow'))"
+    },
+    {
+      "type": "eval",
+      "id": "flips",
+      "target": "/sidebar",
+      "expression": "(() => { const at = window.__st.findIndex((v) => v.startsWith('moved')); return at < 0 ? 'never moved' : String(window.__st.slice(at).filter((v) => v.startsWith('home')).length); })()"
+    },
+    {
+      "type": "eval",
+      "id": "last",
+      "target": "/sidebar",
+      "expression": "window.__st[window.__st.length - 1] || 'none'"
+    },
+    {
+      "type": "eval",
+      "id": "sends",
+      "target": "/sidebar",
+      "expression": "window.__cs.join(';')"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "wake-first",
+      "expected": "\"clicked\"",
+      "desc": "the first row went live"
+    },
+    {
+      "type": "eval_equals",
+      "id": "wake-second",
+      "expected": "\"clicked\"",
+      "desc": "and the second, so both carry a tab id"
+    },
+    {
+      "type": "eval_equals",
+      "id": "layout",
+      "expected": "8:258:187:223:live,8:258:227:263:live",
+      "desc": "gates the drag: the rows are live and sit where the screen coordinates assume"
+    },
+    {
+      "type": "eval_equals",
+      "id": "spy",
+      "expected": "\"spying\"",
+      "desc": "the spies installed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "moved",
+      "expected": "\"true\"",
+      "desc": "the top of the first row moved the dragged row above it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "flips",
+      "expected": "\"0\"",
+      "desc": "THE MEASUREMENT: once moved, the row never jumped home again before the drop"
+    },
+    {
+      "type": "eval_equals",
+      "id": "last",
+      "expected": "\"moved/bottom/nofollow\"",
+      "desc": "the split band marks the first row in its new place, and the drawn row does not cover it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "sends",
+      "expected": "\"sidebarTabSplit:dragged,target,bottom\"",
+      "desc": "one split, no reorder"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

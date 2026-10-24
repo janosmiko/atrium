@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 30 Aug 2026 23:59:31 +0200
+Subject: [PATCH 100/154] test(gestures): cover the coordinate flip the pinch
+ hit test depends on
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Scoping the pinch to the sidebar already landed, and this adds what it was
+missing. The AppKit to Views y flip sat unexported in an implementation file
+with no direct coverage, and the browsertests around it only probe points near
+the window's bottom edge, which is exactly where an off-by-a-height error hides.
+
+It moves to a pure function tested at both edges.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 070442183a45d..46be246cead94 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3542,6 +3542,8 @@ static_library("ui") {
+       "atrium/atrium_peek_navigation_throttle.cc",
+       "atrium/atrium_pinch_gesture_decision.h",
+       "atrium/atrium_pinch_gesture_decision.cc",
++      "atrium/atrium_pinch_gesture_hit_test.h",
++      "atrium/atrium_pinch_gesture_hit_test.cc",
+       "atrium/atrium_settings_window.cc",
+       "atrium/atrium_hex_color.cc",
+       "atrium/atrium_ambilight_cadence.cc",

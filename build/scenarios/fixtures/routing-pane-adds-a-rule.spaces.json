@@ -1,0 +1,38 @@
+{
+  "spaces": [
+    {
+      "id": "437a0001-0000-4000-8000-00000000ad01",
+      "name": "Home",
+      "emoji": "H",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135200.0,
+          "url": "http://dl.localhost:8000/example-domain.html?home",
+          "title": "Home"
+        }
+      ],
+      "groups": []
+    },
+    {
+      "id": "437a0002-0000-4000-8000-00000000ad02",
+      "name": "Work",
+      "emoji": "W",
+      "tint": "sunsetOrange",
+      "profileID": "Default",
+      "order": 1,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    }
+  ],
+  "favorites": [],
+  "appState": {
+    "sidebarWidth": 260,
+    "schemaVersion": 1,
+    "activeSpaceID": "437a0001-0000-4000-8000-00000000ad01"
+  }
+}

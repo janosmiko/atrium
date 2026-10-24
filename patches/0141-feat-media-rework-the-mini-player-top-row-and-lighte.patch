@@ -1,0 +1,498 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 21 Sep 2026 08:17:05 +0200
+Subject: [PATCH 141/154] feat(media): rework the mini player top row and
+ lighten its hover scrim
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/color/chrome_color_mixer.cc |  6 +-
+ .../ui/views/overlay/back_to_tab_button.cc    | 14 +--
+ .../ui/views/overlay/close_image_button.cc    |  9 +-
+ chrome/browser/ui/views/overlay/constants.h   |  8 +-
+ .../ui/views/overlay/minimize_button.cc       | 11 ++-
+ .../overlay/video_overlay_window_views.cc     | 94 +++++++------------
+ .../overlay/video_overlay_window_views.h      |  4 -
+ .../video_overlay_window_views_unittest.cc    | 54 +++++------
+ 8 files changed, 90 insertions(+), 110 deletions(-)
+
+diff --git a/chrome/browser/ui/color/chrome_color_mixer.cc b/chrome/browser/ui/color/chrome_color_mixer.cc
+index 0b07f90b8a979..c4fcfc564a452 100644
+--- a/chrome/browser/ui/color/chrome_color_mixer.cc
++++ b/chrome/browser/ui/color/chrome_color_mixer.cc
+@@ -588,15 +588,15 @@ void AddChromeColorMixer(ui::ColorProvider* provider,
+   mixer[kColorPipWindowForeground] =
+       ui::GetColorWithMaxContrast(kColorPipWindowBackground);
+   mixer[kColorPipWindowForegroundInactive] = {gfx::kGoogleGrey500};
+-  mixer[kColorPipWindowScrimFull] = {SkColorSetA(SK_ColorBLACK, 0x66)};
++  mixer[kColorPipWindowScrimFull] = {SkColorSetA(SK_ColorBLACK, 0x26)};
+   mixer[kColorPipWindowScrimTopGradientStart] = {
+-      SkColorSetA(SK_ColorBLACK, 0xCD)};
++      SkColorSetA(SK_ColorBLACK, 0x8C)};
+   mixer[kColorPipWindowScrimTopGradientEnd] = {
+       SkColorSetA(SK_ColorBLACK, 0x00)};
+   mixer[kColorPipWindowScrimBottomGradientStart] = {
+       SkColorSetA(SK_ColorBLACK, 0x00)};
+   mixer[kColorPipWindowScrimBottomGradientEnd] = {
+-      SkColorSetA(SK_ColorBLACK, 0xCD)};
++      SkColorSetA(SK_ColorBLACK, 0x8C)};
+   mixer[kColorPipWindowSkipAdButtonBackground] = {gfx::kGoogleGrey700};
+   mixer[kColorPipWindowSkipAdButtonBorder] = {kColorPipWindowForeground};
+   mixer[kColorProfileMenuBackground] = {ui::kColorDialogBackground};
+diff --git a/chrome/browser/ui/views/overlay/back_to_tab_button.cc b/chrome/browser/ui/views/overlay/back_to_tab_button.cc
+index 10eee41246980..1ab381db4511d 100644
+--- a/chrome/browser/ui/views/overlay/back_to_tab_button.cc
++++ b/chrome/browser/ui/views/overlay/back_to_tab_button.cc
+@@ -5,6 +5,7 @@
+ #include "chrome/browser/ui/views/overlay/back_to_tab_button.h"
+ 
+ #include "chrome/browser/ui/color/chrome_color_id.h"
++#include "chrome/browser/ui/views/overlay/constants.h"
+ #include "chrome/grit/generated_resources.h"
+ #include "components/vector_icons/vector_icons.h"
+ #include "ui/base/l10n/l10n_util.h"
+@@ -16,10 +17,10 @@
+ 
+ namespace {
+ 
+-constexpr int kBackToTabButtonVerticalMargin = 5;
+-constexpr int kBackToTabButtonHorizontalMargin = 28;
+-constexpr int kBackToTabButtonSize = 24;
+-constexpr int kBackToTabButtonIconSize = 16;
++constexpr int kBackToTabButtonVerticalMargin = kPipTopButtonTopMargin;
++constexpr int kBackToTabButtonHorizontalMargin = kPipTopButtonEdgeMargin;
++constexpr int kBackToTabButtonSize = kPipTopButtonSize;
++constexpr int kBackToTabButtonIconSize = kPipTopButtonIconSize;
+ 
+ }  // namespace
+ 
+@@ -43,9 +44,8 @@ OverlayWindowBackToTabButton::OverlayWindowBackToTabButton(
+ }
+ 
+ void OverlayWindowBackToTabButton::SetPosition(const gfx::Size& size) {
+-  views::ImageButton::SetPosition(gfx::Point(
+-      size.width() - kBackToTabButtonSize - kBackToTabButtonHorizontalMargin,
+-      kBackToTabButtonVerticalMargin));
++  views::ImageButton::SetPosition(gfx::Point(kBackToTabButtonHorizontalMargin,
++                                             kBackToTabButtonVerticalMargin));
+ }
+ 
+ BEGIN_METADATA(OverlayWindowBackToTabButton)
+diff --git a/chrome/browser/ui/views/overlay/close_image_button.cc b/chrome/browser/ui/views/overlay/close_image_button.cc
+index 101b14222cfbb..285f78c85ed67 100644
+--- a/chrome/browser/ui/views/overlay/close_image_button.cc
++++ b/chrome/browser/ui/views/overlay/close_image_button.cc
+@@ -5,6 +5,7 @@
+ #include "chrome/browser/ui/views/overlay/close_image_button.h"
+ 
+ #include "chrome/browser/ui/color/chrome_color_id.h"
++#include "chrome/browser/ui/views/overlay/constants.h"
+ #include "chrome/grit/generated_resources.h"
+ #include "components/vector_icons/vector_icons.h"
+ #include "ui/base/l10n/l10n_util.h"
+@@ -17,10 +18,10 @@
+ 
+ namespace {
+ 
+-constexpr int kCloseButtonTopMargin = 5;
+-constexpr int kCloseButtonMargin = 4;
+-constexpr int kCloseButtonSize = 24;
+-constexpr int kCloseButtonIconSize = 16;
++constexpr int kCloseButtonTopMargin = kPipTopButtonTopMargin;
++constexpr int kCloseButtonMargin = kPipTopButtonEdgeMargin;
++constexpr int kCloseButtonSize = kPipTopButtonSize;
++constexpr int kCloseButtonIconSize = kPipTopButtonIconSize;
+ 
+ }  // namespace
+ 
+diff --git a/chrome/browser/ui/views/overlay/constants.h b/chrome/browser/ui/views/overlay/constants.h
+index cbd3b5821787a..97f2d03d28707 100644
+--- a/chrome/browser/ui/views/overlay/constants.h
++++ b/chrome/browser/ui/views/overlay/constants.h
+@@ -7,6 +7,12 @@
+ 
+ inline constexpr int kPipWindowIconPadding = 4;
+ 
+-inline constexpr int kCenterButtonSize = 48;
++inline constexpr int kCenterButtonSize = 56;
++
++// The close, minimize, back-to-tab and always-on-top buttons.
++inline constexpr int kPipTopButtonSize = 32;
++inline constexpr int kPipTopButtonIconSize = 20;
++inline constexpr int kPipTopButtonTopMargin = 5;
++inline constexpr int kPipTopButtonEdgeMargin = 4;
+ 
+ #endif  // CHROME_BROWSER_UI_VIEWS_OVERLAY_CONSTANTS_H_
+diff --git a/chrome/browser/ui/views/overlay/minimize_button.cc b/chrome/browser/ui/views/overlay/minimize_button.cc
+index 6a3b1e62597f9..3ff4782525444 100644
+--- a/chrome/browser/ui/views/overlay/minimize_button.cc
++++ b/chrome/browser/ui/views/overlay/minimize_button.cc
+@@ -6,6 +6,7 @@
+ 
+ #include "chrome/app/vector_icons/vector_icons.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
++#include "chrome/browser/ui/views/overlay/constants.h"
+ #include "chrome/grit/generated_resources.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+@@ -16,10 +17,12 @@
+ 
+ namespace {
+ 
+-constexpr int kMinimizeButtonVerticalMargin = 5;
+-constexpr int kMinimizeButtonHorizontalMargin = 52;
+-constexpr int kMinimizeButtonSize = 24;
+-constexpr int kMinimizeButtonIconSize = 16;
++constexpr int kMinimizeButtonVerticalMargin = kPipTopButtonTopMargin;
++// Sits next to the close button. Back-to-tab moved to the top left corner.
++constexpr int kMinimizeButtonHorizontalMargin =
++    kPipTopButtonEdgeMargin + kPipTopButtonSize + 4;
++constexpr int kMinimizeButtonSize = kPipTopButtonSize;
++constexpr int kMinimizeButtonIconSize = kPipTopButtonIconSize;
+ 
+ }  // namespace
+ 
+diff --git a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
+index 331f081d44642..d54b016106b53 100644
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
+@@ -4,6 +4,7 @@
+ 
+ #include "chrome/browser/ui/views/overlay/video_overlay_window_views.h"
+ 
++#include <algorithm>
+ #include <memory>
+ #include <string>
+ 
+@@ -115,11 +116,8 @@ constexpr int kOverlayBorderThickness = 10;
+ constexpr gfx::Size kOverlayViewPadding(64, 46);
+ 
+ // Size for action buttons.
+-constexpr gfx::Size kActionButtonSize(28, 28);
++constexpr gfx::Size kActionButtonSize(36, 36);
+ 
+-// The two Atrium buttons in the top row, sized to match the
+-// minimize/close buttons rather than the bottom row's kActionButtonSize.
+-constexpr int kAtriumTopRowButtonSize = 24;
+ constexpr int kAtriumTopRowButtonSpacing = 4;
+ 
+ // The amount of time the seek buttons next to the play button seek.
+@@ -1039,7 +1037,6 @@ bool VideoOverlayWindowViews::ControlsHitTestContainsPoint(
+       GetCloseControlsBounds().Contains(point) ||
+       GetMinimizeControlsBounds().Contains(point) ||
+       GetAlwaysOnTopControlsBounds().Contains(point) ||
+-      GetJumpToStartControlsBounds().Contains(point) ||
+       GetPlayPauseControlsBounds().Contains(point) ||
+       GetReplay10SecondsButtonBounds().Contains(point) ||
+       GetForward10SecondsButtonBounds().Contains(point) ||
+@@ -1167,17 +1164,7 @@ void VideoOverlayWindowViews::SetUpViews() {
+                                                : kKeepOffOldIcon),
+       u"Always on top");
+   always_on_top_button->SetSize(
+-      gfx::Size(kAtriumTopRowButtonSize, kAtriumTopRowButtonSize));
+-
+-  auto jump_to_start_button = std::make_unique<SimpleOverlayWindowImageButton>(
+-      base::BindRepeating(
+-          [](VideoOverlayWindowViews* overlay) { overlay->JumpToStart(); },
+-          base::Unretained(this)),
+-      features::IsRoundedIconsEnabled() ? vector_icons::kReplayIcon
+-                                        : vector_icons::kReplayOldIcon,
+-      u"Jump to start");
+-  jump_to_start_button->SetSize(
+-      gfx::Size(kAtriumTopRowButtonSize, kAtriumTopRowButtonSize));
++      gfx::Size(kPipTopButtonSize, kPipTopButtonSize));
+ 
+   auto replay_10_seconds_button =
+       std::make_unique<SimpleOverlayWindowImageButton>(
+@@ -1398,8 +1385,6 @@ void VideoOverlayWindowViews::SetUpViews() {
+ 
+   always_on_top_button_ = controls_container_view_->AddChildView(
+       std::move(always_on_top_button));
+-  jump_to_start_button_ = controls_container_view_->AddChildView(
+-      std::move(jump_to_start_button));
+   minimize_button_ =
+       controls_container_view_->AddChildView(std::move(minimize_button));
+   back_to_tab_button_ =
+@@ -1545,19 +1530,23 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
+   UpdateResizeHandleBounds(quadrant);
+ #endif
+ 
+-  constexpr int kTopControlsHeight = 34;
++  constexpr int kTopControlsHeight =
++      kPipTopButtonTopMargin + kPipTopButtonSize + 5;
+   constexpr int kBottomControlsHeight = 64;
+   constexpr int kTopScrimHeight = 160;
+   constexpr int kBottomScrimHeight = 160;
+-  constexpr int kFaviconLeftMargin = 8;
+-  constexpr int kFaviconTopMargin = 5;
++  // The back-to-tab button holds the top left corner, the favicon follows it.
++  constexpr int kFaviconLeftMargin =
++      kPipTopButtonEdgeMargin + kPipTopButtonSize + kAtriumTopRowButtonSpacing;
++  constexpr int kFaviconTopMargin =
++      kPipTopButtonTopMargin + (kPipTopButtonSize - kFaviconSize.height()) / 2;
+   constexpr int kFaviconRightMargin = 4;
+-  constexpr int kOriginTopMargin = 5;
++  constexpr int kOriginTopMargin = kFaviconTopMargin;
+   constexpr int kOriginHeight = 24;
+-  // 80 clears the original minimize/back_to_tab/close row. The two Atrium
+-  // buttons and their spacing extend that row further left.
++  // Clears the close, minimize and always-on-top buttons on the right.
+   constexpr int kOriginRightMargin =
+-      80 + 2 * (kAtriumTopRowButtonSize + kAtriumTopRowButtonSpacing);
++      kPipTopButtonEdgeMargin +
++      3 * (kPipTopButtonSize + kAtriumTopRowButtonSpacing);
+   constexpr int kProgressBarHeight = 26;
+   constexpr int kCenterControlMargin = 16;
+   constexpr int kBottomControlsHorizontalMargin = 12;
+@@ -1612,17 +1601,23 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
+            kBottomScrimHeight,
+        bottom_controls_bounds.width(), kBottomScrimHeight});
+ 
+-  gfx::Rect favicon_view_bounds({top_controls_bounds.x() + kFaviconLeftMargin,
+-                                 top_controls_bounds.y() + kFaviconTopMargin},
+-                                kFaviconSize);
+-  favicon_view_->SetPosition(favicon_view_bounds.origin());
+-
+-  gfx::Point origin_position(favicon_view_bounds.right() + kFaviconRightMargin,
+-                             kOriginTopMargin);
+-  origin_->SetPosition(origin_position);
+-  origin_->SetSize(
+-      {top_controls_bounds.width() - origin_position.x() - kOriginRightMargin,
+-       kOriginHeight});
++  // The favicon and title sit centered in the top row, pushed aside only
++  // where the buttons on either side need the room.
++  const int title_left = top_controls_bounds.x() + kFaviconLeftMargin;
++  const int title_right = top_controls_bounds.right() - kOriginRightMargin;
++  const int title_width =
++      std::min(kFaviconSize.width() + kFaviconRightMargin +
++                   origin_->GetPreferredSize().width(),
++               title_right - title_left);
++  const int title_x = std::clamp(
++      top_controls_bounds.CenterPoint().x() - title_width / 2, title_left,
++      title_right - title_width);
++  favicon_view_->SetPosition(
++      {title_x, top_controls_bounds.y() + kFaviconTopMargin});
++
++  const int origin_x = title_x + kFaviconSize.width() + kFaviconRightMargin;
++  origin_->SetBounds(origin_x, kOriginTopMargin,
++                     title_x + title_width - origin_x, kOriginHeight);
+ 
+   minimize_button_->SetPosition(GetBounds().size());
+   back_to_tab_button_->SetPosition(GetBounds().size());
+@@ -1630,16 +1625,10 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
+   // Anchored off minimize_button_'s own bounds, not a duplicated margin
+   // constant, so this tracks minimize_button.cc if its margin ever changes.
+   const gfx::Rect minimize_button_bounds = minimize_button_->bounds();
+-  jump_to_start_button_->SetPosition(
++  always_on_top_button_->SetPosition(
+       gfx::Point(minimize_button_bounds.x() - kAtriumTopRowButtonSpacing -
+-                     kAtriumTopRowButtonSize,
++                     kPipTopButtonSize,
+                  minimize_button_bounds.y()));
+-  const gfx::Rect jump_to_start_button_bounds =
+-      jump_to_start_button_->bounds();
+-  always_on_top_button_->SetPosition(
+-      gfx::Point(jump_to_start_button_bounds.x() - kAtriumTopRowButtonSpacing -
+-                     kAtriumTopRowButtonSize,
+-                 jump_to_start_button_bounds.y()));
+ 
+   const bool showing_vc_controls = show_toggle_camera_button_ ||
+                                    show_toggle_microphone_button_ ||
+@@ -1768,8 +1757,6 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
+   replay_10_seconds_button_->SetVisible(!is_dragging_progress_bar && !is_live_);
+   forward_10_seconds_button_->SetVisible(!is_dragging_progress_bar &&
+                                          !is_live_);
+-  // A seek target of 0 has no meaning once there is no fixed start to seek to.
+-  jump_to_start_button_->SetVisible(!is_live_);
+ }
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+@@ -2019,6 +2006,7 @@ void VideoOverlayWindowViews::SetMediaPosition(
+ void VideoOverlayWindowViews::SetSourceTitle(
+     const std::u16string& source_title) {
+   origin_->SetText(source_title);
++  UpdateControlsBounds();
+ }
+ 
+ void VideoOverlayWindowViews::SetFaviconImages(
+@@ -2143,10 +2131,6 @@ gfx::Rect VideoOverlayWindowViews::GetAlwaysOnTopControlsBounds() {
+   return always_on_top_button_->GetMirroredBounds();
+ }
+ 
+-gfx::Rect VideoOverlayWindowViews::GetJumpToStartControlsBounds() {
+-  return jump_to_start_button_->GetMirroredBounds();
+-}
+-
+ #if BUILDFLAG(IS_CHROMEOS)
+ gfx::Rect VideoOverlayWindowViews::GetResizeHandleControlsBounds() {
+   return resize_handle_view_->GetMirroredBounds();
+@@ -2272,10 +2256,6 @@ void VideoOverlayWindowViews::Forward10Seconds() {
+       std::min(position_.GetPosition() + kSeekTime, position_.duration()));
+ }
+ 
+-void VideoOverlayWindowViews::JumpToStart() {
+-  controller_->SeekTo(base::Seconds(0));
+-}
+-
+ void VideoOverlayWindowViews::ToggleAlwaysOnTop() {
+   const bool enabled = !atrium::PipAlwaysOnTop();
+   atrium::PipAlwaysOnTop() = enabled;
+@@ -2307,11 +2287,6 @@ VideoOverlayWindowViews::always_on_top_button_for_testing() const {
+   return always_on_top_button_;
+ }
+ 
+-SimpleOverlayWindowImageButton*
+-VideoOverlayWindowViews::jump_to_start_button_for_testing() const {
+-  return jump_to_start_button_;
+-}
+-
+ SimpleOverlayWindowImageButton*
+ VideoOverlayWindowViews::replay_10_seconds_button_for_testing() const {
+   return replay_10_seconds_button_;
+@@ -2525,7 +2500,6 @@ void VideoOverlayWindowViews::SetLiveCaptionDialogVisibility(
+       back_to_tab_button_.get(),
+       close_controls_view_.get(),
+       always_on_top_button_.get(),
+-      jump_to_start_button_.get(),
+       replay_10_seconds_button_.get(),
+       play_pause_controls_view_.get(),
+       forward_10_seconds_button_.get(),
+diff --git a/chrome/browser/ui/views/overlay/video_overlay_window_views.h b/chrome/browser/ui/views/overlay/video_overlay_window_views.h
+index 3954d3e1f32ea..d47763d0e7f69 100644
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views.h
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.h
+@@ -195,7 +195,6 @@ class VideoOverlayWindowViews : public content::VideoOverlayWindow,
+   gfx::Rect GetCloseControlsBounds();
+   gfx::Rect GetMinimizeControlsBounds();
+   gfx::Rect GetAlwaysOnTopControlsBounds();
+-  gfx::Rect GetJumpToStartControlsBounds();
+   gfx::Rect GetPlayPauseControlsBounds();
+   gfx::Rect GetReplay10SecondsButtonBounds();
+   gfx::Rect GetForward10SecondsButtonBounds();
+@@ -231,7 +230,6 @@ class VideoOverlayWindowViews : public content::VideoOverlayWindow,
+   OverlayWindowMinimizeButton* minimize_button_for_testing() const;
+   OverlayWindowBackToTabButton* back_to_tab_button_for_testing() const;
+   SimpleOverlayWindowImageButton* always_on_top_button_for_testing() const;
+-  SimpleOverlayWindowImageButton* jump_to_start_button_for_testing() const;
+   gfx::Point close_image_position_for_testing() const;
+   gfx::Point resize_handle_position_for_testing() const;
+   PlaybackState playback_state_for_testing() const;
+@@ -322,7 +320,6 @@ class VideoOverlayWindowViews : public content::VideoOverlayWindow,
+   void Forward10Seconds();
+ 
+   // Seeks the media session back to the start.
+-  void JumpToStart();
+ 
+   // Flips the widget between kFloatingWindow and kNormal and
+   // persists the choice through atrium::SavePipAlwaysOnTop.
+@@ -494,7 +491,6 @@ class VideoOverlayWindowViews : public content::VideoOverlayWindow,
+   raw_ptr<OverlayWindowMinimizeButton> minimize_button_ = nullptr;
+   raw_ptr<OverlayWindowBackToTabButton> back_to_tab_button_ = nullptr;
+   raw_ptr<SimpleOverlayWindowImageButton> always_on_top_button_ = nullptr;
+-  raw_ptr<SimpleOverlayWindowImageButton> jump_to_start_button_ = nullptr;
+   raw_ptr<BackToTabLabelButton> back_to_tab_label_button_ = nullptr;
+   raw_ptr<SimpleOverlayWindowImageButton> previous_track_controls_view_ =
+       nullptr;
+diff --git a/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc b/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
+index 9ba8433e43d9a..74ada1f2865b9 100644
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
+@@ -967,6 +967,7 @@ TEST_F(VideoOverlayWindowViewsTest, AlwaysOnTopButtonTogglesZOrder) {
+   ui::MouseEvent dummy_event(ui::EventType::kMousePressed, gfx::Point(0, 0),
+                              gfx::Point(0, 0), ui::EventTimeForNow(), 0, 0);
+   const ui::ZOrderLevel initial_z_order = overlay_window().GetZOrderLevel();
++  EXPECT_EQ(ui::ZOrderLevel::kFloatingWindow, initial_z_order);
+ 
+   // Clicking the always-on-top button flips the widget's z-order.
+   always_on_top_button_clicker.NotifyClick(dummy_event);
+@@ -977,35 +978,14 @@ TEST_F(VideoOverlayWindowViewsTest, AlwaysOnTopButtonTogglesZOrder) {
+   EXPECT_EQ(initial_z_order, overlay_window().GetZOrderLevel());
+ }
+ 
+-TEST_F(VideoOverlayWindowViewsTest, JumpToStartButtonSeeksToZero) {
+-  overlay_window().ForceControlsVisibleForTesting(true);
+-  media_session::MediaPosition media_position(/*playback_rate=*/0,
+-                                              /*duration=*/base::Seconds(100),
+-                                              /*position=*/base::Seconds(42),
+-                                              /*end_of_media=*/false);
+-  overlay_window().SetMediaPosition(media_position);
+-  SimpleOverlayWindowImageButton* jump_to_start_button =
+-      overlay_window().jump_to_start_button_for_testing();
+-  ASSERT_NE(nullptr, jump_to_start_button);
+-  EXPECT_TRUE(jump_to_start_button->IsDrawn());
+-
+-  views::test::ButtonTestApi jump_to_start_button_clicker(jump_to_start_button);
+-  ui::MouseEvent dummy_event(ui::EventType::kMousePressed, gfx::Point(0, 0),
+-                             gfx::Point(0, 0), ui::EventTimeForNow(), 0, 0);
+-
+-  PictureInPictureWindowManager::GetInstance()
+-      ->set_window_controller_for_testing(&pip_window_controller());
+-  EXPECT_CALL(pip_window_controller(), SeekTo(base::Seconds(0)));
+-  jump_to_start_button_clicker.NotifyClick(dummy_event);
+-  testing::Mock::VerifyAndClearExpectations(&pip_window_controller());
+-}
+-
+ TEST_F(VideoOverlayWindowViewsTest,
+        TitleDoesNotOverlapAtriumButtonsAtMinimumWidth) {
+   // 284 is production's real minimum window width
+   // (video_overlay_window_views.cc's kMinWindowSize), where the origin label
+   // and the two Atrium top-row buttons sit closest together.
+   overlay_window().SetBounds({0, 0, 284, 160});
++  overlay_window().SetSourceTitle(u"a-very-long-subdomain.example.com");
++  overlay_window().OnUpdateControlsBounds();
+ 
+   views::Label* origin = overlay_window().origin_for_testing();
+   SimpleOverlayWindowImageButton* always_on_top_button =
+@@ -1013,6 +993,22 @@ TEST_F(VideoOverlayWindowViewsTest,
+   ASSERT_NE(nullptr, origin);
+   ASSERT_NE(nullptr, always_on_top_button);
+   EXPECT_LE(origin->bounds().right(), always_on_top_button->bounds().x());
++
++  OverlayWindowBackToTabButton* back_to_tab_button =
++      overlay_window().back_to_tab_button_for_testing();
++  ASSERT_NE(nullptr, back_to_tab_button);
++  EXPECT_LE(back_to_tab_button->bounds().right(),
++            overlay_window().favicon_view_for_testing()->bounds().x());
++}
++
++TEST_F(VideoOverlayWindowViewsTest, TitleIsCenteredInTheTopRow) {
++  overlay_window().SetBounds({0, 0, 600, 340});
++  overlay_window().SetSourceTitle(u"youtube.com");
++  overlay_window().OnUpdateControlsBounds();
++
++  const int left = overlay_window().favicon_view_for_testing()->bounds().x();
++  const int right = overlay_window().origin_for_testing()->bounds().right();
++  EXPECT_NEAR((left + right) / 2, 300, 1);
+ }
+ 
+ // Gesture events are not supported on Mac.
+@@ -1702,9 +1698,8 @@ TEST_F(VideoOverlayWindowViewsTest, TopControlsAreAlwaysOnTheRight) {
+     overlay_window().SetBounds(test_case.bounds);
+     overlay_window().OnUpdateControlsBounds();
+ 
+-    // The top controls (minimize, back-to-tab, close) should always be on the
+-    // top-right of the picture-in-picture window, regardless of which quadrant
+-    // the window is in.
++    // The minimize and close buttons stay top right and back-to-tab stays top
++    // left, regardless of which quadrant the window is in.
+     const auto pip_window_bounds = overlay_window().GetWindowBoundsInScreen();
+     const auto check_control_bounds = [&](const views::View* button_view) {
+       EXPECT_GT(button_view->GetMirroredBounds().x(),
+@@ -1715,7 +1710,12 @@ TEST_F(VideoOverlayWindowViewsTest, TopControlsAreAlwaysOnTheRight) {
+ 
+     check_control_bounds(overlay_window().close_button_for_testing());
+     check_control_bounds(overlay_window().minimize_button_for_testing());
+-    check_control_bounds(overlay_window().back_to_tab_button_for_testing());
++    const views::View* back_to_tab =
++        overlay_window().back_to_tab_button_for_testing();
++    EXPECT_LT(back_to_tab->GetMirroredBounds().right(),
++              pip_window_bounds.width() / 2);
++    EXPECT_LT(back_to_tab->GetMirroredBounds().y(),
++              pip_window_bounds.height() / 2);
+   }
+ }
+ 

@@ -1,0 +1,142 @@
+{
+  "name": "find-in-page-walks-and-closes",
+  "description": "Cmd+F used to be swallowed, because the stock find bar dereferences a null FindBarOwner on a chromeless window. It now opens Atrium's own bar on the /find route. Four legs in one run: the bar arrives typable without a click, typing counts the matches, Cmd+G and Cmd+Shift+G move the ordinal in both directions, and Escape takes the bar away. The count is read out of the page rather than off pixels: an ordinal is a number, and a pixel gate over a number is a gate that cannot say which way it moved.",
+  "fixture": "cmdf-swallowed.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "timeout_ms": 20000,
+      "note": "GATE: a committed navigation, so there is a real tab with real text to find. Same line and same reason as quit-with-tab."
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the restored tab render"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot. Without this the chord lands in Finder and everything below passes on a key that was never delivered"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the window come forward"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+f",
+      "vlog": "Atrium: find bar showing"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "the bar has to build its document and take key before a keystroke can land in the field"
+    },
+    {
+      "type": "type",
+      "text": "domain",
+      "note": "no click first. If these keystrokes land, the bar earned key status on its own, which is the property the command bar's own scenario was written for."
+    },
+    {
+      "type": "eval_until",
+      "id": "count-after-typing",
+      "target": "/find",
+      "expression": "String((document.querySelector('.fb-count')||{}).textContent||'none')",
+      "expected": "1 of 2",
+      "timeout_ms": 20000,
+      "note": "example-domain.html renders the word twice. Two is what makes the walk below meaningful: with one match, next and previous both read 1 of 1 and prove nothing."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+g"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval",
+      "id": "count-after-next",
+      "target": "/find",
+      "expression": "String((document.querySelector('.fb-count')||{}).textContent||'none')"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+g"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval",
+      "id": "count-after-previous",
+      "target": "/find",
+      "expression": "String((document.querySelector('.fb-count')||{}).textContent||'none')"
+    },
+    {
+      "type": "key",
+      "combo": "escape"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "find-page-after-escape",
+      "target": "/find",
+      "expression": "document.visibilityState + '/' + String(document.hasFocus())",
+      "note": "Both halves of Close() in one read. Counting .fb nodes cannot say this: Close() hides the widget rather than destroying its document, so the element is still there and the count is 1 whether the bar went away or not. Measured on the run of 2026-09-05: 1 after Escape. Visibility and focus both flip, and both are page-observable."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-tab-loaded-first",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "note": "THE POSITIVE GATE, first on purpose. It proves a tab had committed before the chord, so every count below was read off a real page rather than an empty one."
+    },
+    {
+      "type": "eval_equals",
+      "id": "count-after-next",
+      "expected": "\"2 of 2\"",
+      "desc": "Cmd+G moved to the second match"
+    },
+    {
+      "type": "eval_equals",
+      "id": "count-after-previous",
+      "expected": "\"1 of 2\"",
+      "desc": "and Cmd+Shift+G moved back to the first"
+    },
+    {
+      "type": "eval_equals",
+      "id": "find-page-after-escape",
+      "expected": "\"hidden/false\"",
+      "desc": "Escape took the bar away and gave the keyboard back"
+    },
+    {
+      "type": "vlog",
+      "label": "the-session-ended",
+      "pattern": "Atrium: find session stopped",
+      "note": "The highlights go with the bar. A close that hid the widget and left the session running would leave the tab marked as searching, which is the state that makes Chrome build a FindBarController on the next insert."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "the window survived every chord",
+      "note": "The find bar's null FindBarOwner deref is browser-side, so a regression here kills the browser process and this reads 0 windows rather than a wrong number. min_area keeps the 348x52 bar itself out of the count."
+    },
+    {
+      "type": "quit",
+      "desc": "and the app quit through its own path, not on a signal"
+    }
+  ]
+}

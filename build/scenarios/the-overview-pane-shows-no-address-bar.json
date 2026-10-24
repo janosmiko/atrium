@@ -1,0 +1,56 @@
+{
+  "name": "the-overview-pane-shows-no-address-bar",
+  "description": "The address row and the extension strip float over every rail pane, so the Overview used to show the address of the space one swiped away from. Reads the bar's opacity and pointer-events on a space, on the Overview, and back on the space, and reads the header the pane draws instead.",
+  "fixture": "lab-compare.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "wait_vlog", "pattern": "Atrium: sidebar rows drawn [1-9]", "timeout_ms": 20000 },
+    { "type": "activate" },
+    { "type": "settle", "ms": 1500 },
+    {
+      "type": "eval",
+      "id": "bar-on-a-space",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.urlrow'); if (!b) return 'no-bar'; const s = getComputedStyle(b); return 'opacity=' + s.opacity + ' clicks=' + (s.pointerEvents === 'none' ? 'no' : 'yes'); })()"
+    },
+    { "type": "key", "combo": "cmd+shift+o", "note": "toggleOverview pages the rail onto the Overview" },
+    { "type": "settle", "ms": 2500 },
+    {
+      "type": "eval",
+      "id": "bar-on-the-overview",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.urlrow'); if (!b) return 'no-bar'; const s = getComputedStyle(b); return 'opacity=' + s.opacity + ' clicks=' + (s.pointerEvents === 'none' ? 'no' : 'yes'); })()"
+    },
+    {
+      "type": "eval",
+      "id": "the-header",
+      "target": "/sidebar",
+      "expression": "String(document.querySelector('.ovrailpane .ovhead')?.textContent || 'no-header')"
+    },
+    {
+      "type": "eval",
+      "id": "top-of-the-pane",
+      "target": "/sidebar",
+      "expression": "(() => { const pane = document.querySelector('.ovrailpane'); const rail = document.querySelector('.ovrailpane .ovrail'); if (!pane || !rail) return 'no-pane'; return String(Math.round(rail.getBoundingClientRect().top - pane.getBoundingClientRect().top)); })()"
+    },
+    { "type": "capture", "id": "overview", "duration_ms": 300, "fps": 10 },
+    { "type": "key", "combo": "cmd+shift+o", "note": "and back to the space" },
+    { "type": "settle", "ms": 2500 },
+    {
+      "type": "eval",
+      "id": "bar-back-on-the-space",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.urlrow'); if (!b) return 'no-bar'; const s = getComputedStyle(b); return 'opacity=' + s.opacity + ' clicks=' + (s.pointerEvents === 'none' ? 'no' : 'yes'); })()"
+    }
+  ],
+  "assertions": [
+    { "type": "eval_equals", "id": "bar-on-a-space", "expected": "\"opacity=1 clicks=yes\"", "desc": "A space pane still shows the address bar" },
+    { "type": "eval_equals", "id": "bar-on-the-overview", "expected": "\"opacity=0 clicks=no\"", "desc": "The bar is gone over the Overview and takes no clicks" },
+    { "type": "eval_equals", "id": "the-header", "expected": "\"Downloads\"", "desc": "The pane names the section it is showing" },
+    { "type": "eval_equals", "id": "top-of-the-pane", "expected": "\"46\"", "desc": "The pane reserves the traffic lights' room only" },
+    { "type": "eval_equals", "id": "bar-back-on-the-space", "expected": "\"opacity=1 clicks=yes\"", "desc": "The bar comes back for a space pane" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

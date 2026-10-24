@@ -1,0 +1,147 @@
+{
+  "name": "cmd-t-moves-the-selection-onto-new-tab",
+  "description": "Cmd+T opens the command bar for a tab that does not exist yet, and the sidebar kept the previous row selected the whole time. While the bar is open the New Tab button wears the selected wash and the row's ring goes quiet. Escape hands the selection back to the row, and a committed URL leaves the new tab's row selected with the button plain. Three reads of the sidebar document: open, after Escape, after the commit.",
+  "fixture": "two-tabs.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "chromium_flags": "--vmodule=atrium_command_bar_widget=1",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "before",
+      "target": "/sidebar",
+      "expression": "(() => { const root = document.querySelector('.sbroot'); const sel = document.querySelector('.row.tabrow.sel'); return root.classList.contains('cb-newtab-pending') + ' ring ' + (sel ? getComputedStyle(sel.querySelector('.brdr')).opacity : 'none'); })()"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "open",
+      "target": "/sidebar",
+      "expression": "(() => { const root = document.querySelector('.sbroot'); const sel = document.querySelector('.row.tabrow.sel'); return root.classList.contains('cb-newtab-pending') + ' ring ' + (sel ? getComputedStyle(sel.querySelector('.brdr')).opacity : 'none'); })()"
+    },
+    {
+      "type": "key",
+      "combo": "escape"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget closing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval",
+      "id": "cancelled",
+      "target": "/sidebar",
+      "expression": "(() => { const root = document.querySelector('.sbroot'); const sel = document.querySelector('.row.tabrow.sel'); return root.classList.contains('cb-newtab-pending') + ' ring ' + (sel ? getComputedStyle(sel.querySelector('.brdr')).opacity : 'none'); })()"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/peek-target.html"
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "eval_until",
+      "id": "typed-url-tab-page",
+      "target": "peek-target.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-target.html",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "committed",
+      "target": "/sidebar",
+      "expression": "(() => { const root = document.querySelector('.sbroot'); const sel = document.querySelector('.row.tabrow.sel'); return root.classList.contains('cb-newtab-pending') + ' ' + (sel && String(sel.dataset.url).includes('peek-target.html') ? 'new row selected' : 'row ' + (sel ? sel.dataset.url : 'none')); })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "before",
+      "expected": "\"false ring 1\"",
+      "desc": "VACUITY GUARD: nothing is pending before the chord and the row rings"
+    },
+    {
+      "type": "eval_equals",
+      "id": "open",
+      "expected": "\"true ring 0\"",
+      "desc": "Cmd+T moves the selection onto the New Tab button and the row's ring goes quiet"
+    },
+    {
+      "type": "eval_equals",
+      "id": "cancelled",
+      "expected": "\"false ring 1\"",
+      "desc": "Escape hands the selection back to the row"
+    },
+    {
+      "type": "eval_equals",
+      "id": "committed",
+      "expected": "\"false new row selected\"",
+      "desc": "A commit clears the pending state and the new tab's row is selected"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

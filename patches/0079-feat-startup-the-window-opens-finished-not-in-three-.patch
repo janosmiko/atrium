@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Fri, 28 Aug 2026 08:35:50 +0200
+Subject: [PATCH 079/154] feat(startup): the window opens finished, not in
+ three arrivals
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The window used to show on the system fill, then the sidebar page
+loaded empty, then the rows drew, then the tint landed, none of them
+waiting for the other.
+
+THE SPACE TINT is painted at window construction, so the first frame is
+the window's own colour.
+
+THE SIDEBAR stays at opacity 0 until its first render marks the root
+drawn, then fades in over 200ms as one piece.
+
+THE FIRST SHOW waits for that render or a 700ms cap, whichever comes
+first, and logs which. StartupHold owns the wait and fires once.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index f2c31e53e65da..f97a32427871f 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3528,6 +3528,7 @@ static_library("ui") {
+       "atrium/atrium_settings_window.cc",
+       "atrium/atrium_hex_color.cc",
+       "atrium/atrium_ambilight_cadence.cc",
++      "atrium/atrium_startup_hold.cc",
+       "atrium/atrium_browser_window_surface_routes.cc",
+       "atrium/atrium_surface_message_router.cc",
+       "atrium/atrium_edge_tint.cc",
+@@ -3586,6 +3587,7 @@ static_library("ui") {
+       "atrium/atrium_settings_window.h",
+       "atrium/atrium_hex_color.h",
+       "atrium/atrium_ambilight_cadence.h",
++      "atrium/atrium_startup_hold.h",
+       "atrium/atrium_surface_message_router.h",
+       "atrium/atrium_edge_tint.h",
+       "atrium/atrium_page_color.h",

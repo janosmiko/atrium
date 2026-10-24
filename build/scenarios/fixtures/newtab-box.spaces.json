@@ -1,0 +1,33 @@
+{
+  "spaces": [
+    {
+      "id": "55555555-5555-5555-5555-555555555555",
+      "name": "Alpha",
+      "emoji": "🅰",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {"url": "http://127.0.0.1:8000/example-domain.html?alpha", "title": "Alpha Example"}
+      ]
+    },
+    {
+      "id": "66666666-6666-6666-6666-666666666666",
+      "name": "Beta",
+      "emoji": "🅱",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 1,
+      "pinnedTabs": [],
+      "tabs": [
+        {"url": "http://127.0.0.1:8000/example-domain.html?beta", "title": "Beta Example"}
+      ]
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 220,
+    "schemaVersion": 1,
+    "activeSpaceID": "55555555-5555-5555-5555-555555555555"
+  }
+}

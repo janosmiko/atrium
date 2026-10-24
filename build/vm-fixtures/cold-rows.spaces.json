@@ -1,0 +1,44 @@
+{
+  "spaces": [
+    {
+      "id": "72872872-7287-4287-8287-728728728728",
+      "name": "Cold Rows",
+      "emoji": "🧊",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [
+        {
+          "lastActiveAt": 805135100.0,
+          "url": "http://127.0.0.1:8000/brand-dark-red-icon.html",
+          "title": "Dark Page Red Icon"
+        }
+      ],
+      "tabs": [
+        {
+          "lastActiveAt": 805135200.0,
+          "url": "http://127.0.0.1:8000/favicon-page.html",
+          "title": "Blue Favicon Site"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "favorites": [
+    {
+      "url": "http://127.0.0.1:8000/icon-tint-orange.html",
+      "title": "Orange Icon Page",
+      "profileID": "Default"
+    },
+    {
+      "url": "http://localhost:8000/example-domain.html",
+      "title": "Never Visited",
+      "profileID": "Default"
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "72872872-7287-4287-8287-728728728728"
+  }
+}

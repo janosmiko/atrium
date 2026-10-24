@@ -1,0 +1,85 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 30 Aug 2026 21:59:52 +0200
+Subject: [PATCH 097/154] fix(peek): stop a JS dialog or permission prompt in a
+ peek from killing the browser
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+AdoptPopupAsPeek runs AttachTabHelpers on a WebContents that never enters a
+TabStripModel, so every helper attached there can reach a TabInterface lookup
+that the header documents as tab-only and that crashes otherwise. Two callers
+were guarded earlier; these are the rest.
+
+The dialog case cannot simply return, because the renderer is blocked waiting
+for an answer. With no tab to host it, the view skips the widget and posts the
+force-closed callback, which resolves the request as a cancellation the same way
+a dismissed dialog does.
+
+The permission factory is the only construction site for the embedded prompt and
+gates it behind this check, so guarding here covers the prompt too.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../javascript_tab_modal_dialog_view_views.cc | 21 +++++++++++++++++--
+ .../permissions/permission_prompt_factory.cc  |  6 +++++-
+ 2 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.cc b/chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.cc
+index e0c7c6df6f415..93aa125170327 100644
+--- a/chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.cc
++++ b/chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.cc
+@@ -5,6 +5,7 @@
+ #include "chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.h"
+ 
+ #include "base/functional/callback.h"
++#include "base/task/sequenced_task_runner.h"
+ #include "chrome/browser/ui/javascript_dialogs/javascript_tab_modal_dialog_manager_delegate_desktop.h"
+ #include "chrome/browser/ui/views/title_origin_label.h"
+ #include "components/constrained_window/constrained_window_views.h"
+@@ -80,8 +81,24 @@ JavaScriptTabModalDialogViewViews::JavaScriptTabModalDialogViewViews(
+       dialog_callback_(std::move(dialog_callback)),
+       dialog_force_closed_callback_(std::move(dialog_force_closed_callback)) {
+   tabs::TabInterface* tab =
+-      tabs::TabInterface::GetFromContents(parent_web_contents);
+-  CHECK(tab && tab->CanShowModalUI());
++      tabs::TabInterface::MaybeGetFromContents(parent_web_contents);
++  if (!tab) {
++    // Atrium can host a WebContents with no TabInterface (e.g. a peek card).
++    // Post rather than run inline: TabModalDialogManager isn't tracking this
++    // dialog yet, so resolving before CreateNewDialog() returns is dropped.
++    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
++        FROM_HERE,
++        base::BindOnce(
++            [](JavaScriptTabModalDialogViewViews* dialog) {
++              if (dialog->dialog_force_closed_callback_) {
++                std::move(dialog->dialog_force_closed_callback_).Run();
++              }
++              delete dialog;
++            },
++            base::Unretained(this)));
++    return;
++  }
++  CHECK(tab->CanShowModalUI());
+   scoped_tab_modal_ui_ = tab->ShowModalUI();
+ 
+   SetModalType(ui::mojom::ModalType::kChild);
+diff --git a/chrome/browser/ui/views/permissions/permission_prompt_factory.cc b/chrome/browser/ui/views/permissions/permission_prompt_factory.cc
+index 6fa48b4221597..ff07b2e69dd96 100644
+--- a/chrome/browser/ui/views/permissions/permission_prompt_factory.cc
++++ b/chrome/browser/ui/views/permissions/permission_prompt_factory.cc
+@@ -214,7 +214,11 @@ bool CanCurrentRequestUseModalUI(
+               /*already_overrode_requester=*/true)) {
+     return true;
+   }
+-  return tabs::TabInterface::GetFromContents(web_contents)->CanShowModalUI();
++  // Atrium can route a permission request from a WebContents it hosts outside
++  // the tab strip (e.g. a peek card), which has no TabInterface.
++  tabs::TabInterface* tab =
++      tabs::TabInterface::MaybeGetFromContents(web_contents);
++  return tab && tab->CanShowModalUI();
+ }
+ 
+ std::unique_ptr<permissions::PermissionPrompt> CreatePwaPrompt(

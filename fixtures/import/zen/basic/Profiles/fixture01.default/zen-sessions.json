@@ -1,0 +1,37 @@
+{
+  "spaces": [
+    {"uuid": "W-HOME", "name": "Home", "icon": "\ud83c\udf3f", "containerTabId": 0,
+     "theme": {"type": "gradient", "gradientColors": [{"c": [255, 128, 0], "isPrimary": true}, {"c": [0, 64, 255]}], "opacity": 0.5, "texture": 0},
+     "hasCollapsedPinnedTabs": false},
+    {"uuid": "W-WORK", "name": "Work", "icon": "chrome://browser/skin/zen-icons/selectable/briefcase.svg", "containerTabId": 2,
+     "theme": {"type": "gradient", "gradientColors": [], "opacity": 0.5, "texture": 0},
+     "hasCollapsedPinnedTabs": false}
+  ],
+  "tabs": [
+    {"pinned": true, "zenEssential": true, "userContextId": 1, "zenWorkspace": "W-HOME", "hidden": false,
+     "entries": [{"url": "https://mail.example.test/inbox", "title": "Inbox"}], "index": 1, "lastAccessed": 0,
+     "_zenPinnedInitialState": {"entry": {"url": "https://mail.example.test/", "title": "Mail"}}},
+    {"pinned": true, "zenEssential": false, "userContextId": 0, "zenWorkspace": "W-HOME", "hidden": false,
+     "entries": [{"url": "https://news.example.test/a", "title": "A"}, {"url": "https://news.example.test/b", "title": "Morning News"}],
+     "index": 2, "lastAccessed": 1767225600000},
+    {"pinned": true, "zenEssential": false, "userContextId": 2, "zenWorkspace": "W-WORK", "groupId": "F-DOCS", "hidden": true,
+     "entries": [{"url": "https://docs.example.test/page", "title": "Page"}], "index": 1,
+     "_zenPinnedInitialState": {"entry": {"url": "https://docs.example.test/", "title": "Docs Home"}}},
+    {"pinned": true, "zenEssential": false, "userContextId": 2, "zenWorkspace": "W-WORK", "groupId": "F-SPECS", "hidden": true,
+     "entries": [{"url": "https://docs.example.test/specs", "title": "Specs"}], "index": 1},
+    {"pinned": false, "zenEssential": false, "userContextId": 0, "zenWorkspace": "W-WORK", "hidden": true,
+     "entries": [{"url": "https://tickets.example.test/1", "title": "Ticket 1"}], "index": 1},
+    {"pinned": false, "zenEssential": false, "userContextId": 0, "zenWorkspace": "W-HOME", "zenIsGlance": true,
+     "entries": [{"url": "https://peek.example.test/", "title": "Peek"}], "index": 1},
+    {"pinned": false, "zenEssential": false, "userContextId": 0, "zenWorkspace": "W-HOME",
+     "entries": [{"url": "about:preferences", "title": "Settings"}], "index": 1},
+    {"pinned": false, "zenEssential": false, "userContextId": 0, "zenWorkspace": "W-GONE",
+     "entries": [{"url": "https://gone.example.test/", "title": "Gone"}], "index": 1}
+  ],
+  "folders": [
+    {"id": "F-DOCS", "name": "Docs", "workspaceId": "W-WORK", "parentId": null, "pinned": true},
+    {"id": "F-SPECS", "name": "Specs", "workspaceId": "W-WORK", "parentId": "F-DOCS", "pinned": true}
+  ],
+  "groups": [],
+  "splitViewData": []
+}

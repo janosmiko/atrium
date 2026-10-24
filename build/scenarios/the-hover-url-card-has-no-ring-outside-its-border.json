@@ -1,0 +1,193 @@
+{
+  "name": "the-hover-url-card-has-no-ring-outside-its-border",
+  "description": "Reported with a screenshot: a hard light outline sits just outside the hover URL card's rounded border, which no other overlay surface has. The outline is the accent ring toast-stack.css gives every .toast - a status line sets no --ctc of its own, so the ring fell back to --ov-accent.\n\n--ct-ring is not only paint. toast-surface.js reads it off the .toasts box and reports it as the third argument of toastStackSized, where atrium_toast_overlay_widget.mm stores it as stack_outset_ and offsets the widget by it. So the outset has to go with the ring, or the card gains a stray gap at the pane corner.\n\nWHERE THE PIXELS ARE. The hover card hangs off the window's bottom leading corner over a flat light page. The card's own screen rect is recorded below from the /toast widget's window origin, so the probe coordinates under it can be read against a number rather than guessed.",
+  "fixture": "devbar-light-page.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "past the show debounce the hover path keeps"
+    },
+    {
+      "type": "eval",
+      "id": "arm-a-link",
+      "target": "panel-legibility-type",
+      "expression": "(() => { const a = document.createElement('a'); a.href = 'https://short.example/a'; a.textContent = ''; a.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;z-index:99;background:#000'; document.body.appendChild(a); return 'armed'; })()",
+      "note": "an opaque BLACK link over the whole web card. The ring is the accent at 45% over whatever is behind it, so a dark surround is what makes a light rim a large reading rather than a few counts on white."
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 300,
+      "note": "REAL pointer move into the link"
+    },
+    {
+      "type": "eval_until",
+      "id": "card-is-up",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? t.textContent : 'no card'; })()",
+      "expected": "https://short.example/a",
+      "timeout_ms": 8000,
+      "note": "THE CONTROL: every reading below is of this card, so a run that raised none must not satisfy them by measuring bare page"
+    },
+    {
+      "type": "eval",
+      "id": "status-card-paints-no-ring",
+      "target": "/toast",
+      "expression": "(() => { const c = document.querySelector('.toasts .toast'); if (!c) { return 'no card'; } return getComputedStyle(c).boxShadow; })()",
+      "note": "In the layout engine: the ring was a box-shadow, so none here means nothing paints outside the border box"
+    },
+    {
+      "type": "eval",
+      "id": "status-card-border-is-transparent",
+      "target": "/toast",
+      "expression": "(() => { const c = document.querySelector('.toasts .toast'); if (!c) { return 'no card'; } return getComputedStyle(c).borderColor; })()",
+      "note": ".ov-card gives every card a 1px border. The status-line rule sets border-color:transparent so the rim is invisible."
+    },
+    {
+      "type": "eval",
+      "id": "status-card-has-a-cti-control",
+      "target": "/toast",
+      "expression": "(() => { const c = document.querySelector('.toasts .toast'); if (!c) { return 'no card'; } return String(!!c.querySelector('.cti')); })()",
+      "note": "THE CONTROL for the rule's own selector: the new rule keys on :not(:has(.cti)), so a card that turned out to carry an icon would be exempt and the reading above would mean nothing"
+    },
+    {
+      "type": "eval",
+      "id": "the-box-reports-no-outset",
+      "target": "/toast",
+      "expression": "(() => { const box = document.querySelector('.toasts'); if (!box) { return 'no stack'; } return getComputedStyle(box).getPropertyValue('--ct-ring').trim(); })()",
+      "note": "This is the value toast-surface.js sends as toastStackSized's third argument and the widget offsets itself by. 1px with no ring painted is the stray gap at the corner."
+    },
+    {
+      "type": "eval",
+      "id": "the-card-sits-flush-in-its-widget",
+      "target": "/toast",
+      "expression": "(() => { const c = document.querySelector('.toasts .toast'); if (!c) { return 'no card'; } const r = c.getBoundingClientRect(); return String(Math.round(r.top * 100) / 100); })()",
+      "note": "The top edge the stack anchors to. .toastroot .toasts sets top to var(--ct-ring), so this was 1 while the ring was reserved and is 0 with it gone."
+    },
+    {
+      "type": "eval",
+      "id": "the-card-box-in-its-widget",
+      "target": "/toast",
+      "expression": "(() => { const c = document.querySelector('.toasts .toast'); if (!c) { return 'no card'; } const r = c.getBoundingClientRect(); const w = document.documentElement.clientWidth; const h = document.documentElement.clientHeight; const r2 = (n) => Math.round(n * 100) / 100; return [r2(r.left), r2(w - r.right), r2(r.top), r2(h - r.bottom)].join(' '); })()",
+      "note": "EVIDENCE, ungraded: all four gaps. The leading one is not zero - toast-surface.js sizes the widget to the width it fitted the label to, not to the card's measured box, which this scenario does not grade."
+    },
+    {
+      "type": "eval",
+      "id": "the-card-on-screen",
+      "target": "/toast",
+      "expression": "(() => { const c = document.querySelector('.toasts .toast'); if (!c) { return 'no card'; } const r = c.getBoundingClientRect(); const R = (n) => Math.round(n); return [R(window.screenX + r.left), R(window.screenY + r.top), R(r.width), R(r.height)].join(' '); })()",
+      "note": "EVIDENCE, ungraded: the card's rect in screen pixels, which is where the region_mean probes below were placed from"
+    },
+    {
+      "type": "capture",
+      "id": "warm-up",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the first stream in a run can deliver no frames"
+    },
+    {
+      "type": "capture",
+      "id": "hover-card",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "card-is-up",
+      "expected": "https://short.example/a",
+      "desc": "THE CONTROL: the hover raised a card, so every reading below is of a real card"
+    },
+    {
+      "type": "eval_equals",
+      "id": "status-card-has-a-cti-control",
+      "expected": "\"false\"",
+      "desc": "THE CONTROL: the hover card carries no icon, so the new :not(:has(.cti)) rule does apply to it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "status-card-paints-no-ring",
+      "expected": "\"none\"",
+      "desc": "The box-shadow ring is gone"
+    },
+    {
+      "type": "eval_equals",
+      "id": "status-card-border-is-transparent",
+      "expected": "\"rgba(0, 0, 0, 0)\"",
+      "desc": "The .ov-card border is transparent on a status strip"
+    },
+    {
+      "type": "eval_equals",
+      "id": "the-box-reports-no-outset",
+      "expected": "\"0px\"",
+      "desc": "The outset went with the ring, so the widget is not padded for paint nobody makes"
+    },
+    {
+      "type": "eval_equals",
+      "id": "the-card-sits-flush-in-its-widget",
+      "expected": "\"0\"",
+      "desc": "The stack's top edge is flush in its widget, so nothing is reserved for a ring nobody paints"
+    },
+    {
+      "type": "region_mean",
+      "capture": "hover-card",
+      "x": 500,
+      "y": 665,
+      "w": 80,
+      "h": 20,
+      "max_mean": 16,
+      "label": "the-surround-is-dark",
+      "desc": "THE CONTROL for the rim reading: bare page level with the card and clear of it. Without it a frame that lost the black link would let the miss below pass on a light page where a light rim cannot be told from its surround."
+    },
+    {
+      "type": "region_mean",
+      "capture": "hover-card",
+      "x": 300,
+      "y": 665,
+      "w": 60,
+      "h": 3,
+      "min_mean": 200,
+      "max_mean": 255,
+      "label": "there-is-a-card-to-read",
+      "desc": "THE CONTROL: the card's own paper, --ov-paper at 249,240,241. The card's screen position varies by a few pixels between runs, so this probe sits inside the card's vertical center rather than at its top edge."
+    },
+    {
+      "type": "region_mean",
+      "capture": "hover-card",
+      "x": 300,
+      "y": 650,
+      "w": 60,
+      "h": 1,
+      "max_mean": 40,
+      "label": "the-row-above-the-border-is-page-not-rim",
+      "desc": "This row sits well above the card's top edge (card starts around y=658-662 depending on the run). The old accent ring at 45% over black read about 46 across a 4px band above the card. The page reads near 0."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

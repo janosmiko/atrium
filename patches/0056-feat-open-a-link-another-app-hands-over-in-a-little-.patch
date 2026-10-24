@@ -1,0 +1,96 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 11 Aug 2026 10:53:10 +0200
+Subject: [PATCH 056/154] feat: open a link another app hands over in a little
+ window
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+-[AppController application:openURLs:] now asks the core where a handed-over
+link belongs before it hands the list to the stock path. With the setting on
+and every URL in the list http(s), each opens a chromeless little window;
+anything else - the setting off, a mailto:/file:/javascript: URL, no resident
+profile - falls through untouched with the whole list.
+
+The decision lives in Rust (navigation::decide_external_link_target) so the
+scheme rule and the setting rule are asserted without a browser. The setting is
+a new settings.json key, externalLinksOpenInLittle, absent reads on. It is
+seeded at startup because openURLs runs on the UI thread, where reading a file
+is a fatal DCHECK, and re-applied on save so a running browser stops ignoring
+the row until the next launch.
+
+Replaces the startup_behavior target, whose last reader is gone.
+
+IsOnCurrentWorkspace returned false, which made FindTabbedBrowser skip every
+Atrium window - so the setting-off path built a second space window instead of
+adding a tab. Stock BrowserView returns true on Mac; so does this now.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/app_controller_mac.mm | 14 ++++++++++++--
+ chrome/browser/ui/BUILD.gn           |  4 +++-
+ 2 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/chrome/browser/app_controller_mac.mm b/chrome/browser/app_controller_mac.mm
+index 90313ec7137c9..a6c21aa11e143 100644
+--- a/chrome/browser/app_controller_mac.mm
++++ b/chrome/browser/app_controller_mac.mm
+@@ -71,6 +71,7 @@
+ #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
+ #include "chrome/browser/task_manager/task_manager_metrics_recorder.h"
+ #include "chrome/browser/ui/atrium/atrium_dock_reopen_hook.h"
++#include "chrome/browser/ui/atrium/atrium_external_link_hook.h"
+ #include "chrome/browser/ui/browser.h"
+ #include "chrome/browser/ui/browser_command_controller.h"
+ #include "chrome/browser/ui/browser_commands.h"
+@@ -2093,8 +2094,17 @@ class AppControllerProfileObserver : public ProfileAttributesStorage::Observer,
+     }
+   }
+ 
+-  if (!gurlVector.empty())
+-    [self openUrlsReplacingNTP:std::move(gurlVector)];
++  if (gurlVector.empty())
++    return;
++
++  // With externalLinksOpenInLittle on, a link another app hands
++  // over opens in a chromeless little window instead of a space window. False
++  // - the setting off, a non-http(s) url, no resident profile - leaves the
++  // stock path below untouched with the whole list.
++  if (atrium::HandleExternalLinks(gurlVector))
++    return;
++
++  [self openUrlsReplacingNTP:std::move(gurlVector)];
+ }
+ 
+ // Show the preferences window, or bring it to the front if it's already
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 15cd42f19df47..68eb1203a8cab 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -622,6 +622,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:extension_actions_json",
+     "//chrome/browser/ui/atrium:bounded_icon_store",
+     "//chrome/browser/ui/atrium:edit_focus_gate",
++    "//chrome/browser/ui/atrium:external_link",
+     "//chrome/browser/ui/atrium:extension_popup_watchdog_policy",
+     "//chrome/browser/ui/atrium:little_marker",
+     "//chrome/browser/ui/atrium:native_hotkey_defaults",
+@@ -629,7 +630,6 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:tab_cycle",
+     "//chrome/browser/ui/atrium:peek_decision",
+     "//chrome/browser/ui/atrium:slot_presentation_table",
+-    "//chrome/browser/ui/atrium:startup_behavior",
+     "//chrome/browser/ui/atrium:status_bubble_color_math",
+     "//chrome/browser/ui/atrium:surface_key_route",
+     "//chrome/browser/ui/atrium:window_appearance",
+@@ -3485,6 +3485,8 @@ static_library("ui") {
+       "atrium/atrium_command_bar_open_reason.h",
+       "atrium/atrium_dock_reopen_hook.h",
+       "atrium/atrium_dock_reopen_hook.cc",
++      "atrium/atrium_external_link_hook.h",
++      "atrium/atrium_external_link_hook.cc",
+       "atrium/atrium_extension_bridge.h",
+       "atrium/atrium_extension_bridge.cc",
+       "atrium/atrium_extension_popup_host.cc",

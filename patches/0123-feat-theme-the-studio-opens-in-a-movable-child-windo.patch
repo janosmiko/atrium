@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 8 Sep 2026 10:17:53 +0200
+Subject: [PATCH 123/154] feat(theme): the studio opens in a movable child
+ window above the sidebar
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index e54d84ca7f29d..162d48e7b9ae5 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3601,6 +3601,8 @@ static_library("ui") {
+       "atrium/atrium_command_bar_widget.mm",
+       "atrium/atrium_find_bar_widget.h",
+       "atrium/atrium_find_bar_widget.mm",
++      "atrium/atrium_theme_studio_widget.h",
++      "atrium/atrium_theme_studio_widget.mm",
+       "atrium/atrium_overlay_key_mac.h",
+       "atrium/atrium_permission_sheet_widget.h",
+       "atrium/atrium_permission_sheet_widget.mm",

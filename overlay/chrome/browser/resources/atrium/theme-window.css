@@ -1,0 +1,83 @@
+/* Copyright 2026 The Atrium Authors
+   Use of this source code is governed by the Apache License, Version 2.0
+   found in the LICENSE file. */
+
+/* The /theme route. The widget is exactly the card plus a 6px ring outset
+   on every side (atrium_theme_studio_placement.h), so the root is the
+   viewport and the card fills it minus that margin. */
+.themeroot {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+.tw {
+  position: absolute;
+  inset: 6px;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-card);
+  background: color-mix(in srgb, var(--ov-paper) 94%, transparent);
+  backdrop-filter: blur(24px) saturate(1.3);
+  color: var(--ov-fg);
+  font-family: var(--ov-font);
+  font-size: 12.5px;
+  box-shadow: var(--ov-shadow);
+}
+
+.tw-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 13px 8px;
+  border-bottom: 1px solid var(--ov-border);
+  font-size: 13px;
+  cursor: default;
+  user-select: none;
+  touch-action: none;
+}
+
+.tw-name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tw-close {
+  appearance: none;
+  margin-left: auto;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: default;
+  font-size: 15px;
+  line-height: 1;
+  opacity: .6;
+}
+
+.tw-close:hover {
+  opacity: 1;
+}
+
+.tw-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 13px 11px;
+}
+
+/* The studio is authored for the settings pane's wide column, where a label
+   and its control sit side by side. There is no room for that here. */
+.tw .settings-row,
+.tw .theme-studio-row {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tw .theme-studio-slider {
+  width: 100%;
+}

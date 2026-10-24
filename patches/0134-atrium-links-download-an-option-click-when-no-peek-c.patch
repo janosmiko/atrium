@@ -1,0 +1,40 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 13 Sep 2026 06:50:06 +0200
+Subject: [PATCH 134/154] atrium(links): download an option-click when no peek
+ controller exists
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/browser.cc | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/chrome/browser/ui/browser.cc b/chrome/browser/ui/browser.cc
+index 484a364276a53..00bee363c8f36 100644
+--- a/chrome/browser/ui/browser.cc
++++ b/chrome/browser/ui/browser.cc
+@@ -1546,9 +1546,17 @@ WebContents* Browser::OpenURLFromTab(
+   // never, so shift+click fell through to a stock new window. The peek card
+   // itself is C++ and survived, so the gate goes and the feature returns.
+   if (params.disposition == WindowOpenDisposition::NEW_WINDOW &&
+-      params.is_renderer_initiated && !params.started_from_context_menu &&
+-      atrium::MaybeOpenPeek(this, source, params.url, params.referrer)) {
+-    return source;  // No new WebContents/window created on this path.
++      params.is_renderer_initiated && !params.started_from_context_menu) {
++    if (atrium::MaybeOpenPeek(this, source, params.url, params.referrer)) {
++      return source;  // No new WebContents/window created on this path.
++    }
++    // No controller for this window (a popup, DevTools, or app window) -
++    // Option alone reaches here the same as Shift, and upstream's answer to
++    // an unpeekable Option-click is a download, not a new window.
++    if (atrium::OptionOnlyModifierHeld()) {
++      atrium::DownloadOptionClickedLink(source, params);
++      return source;  // No new WebContents/window created on this path.
++    }
+   }
+   // Auto-peek for a plain click lives in AtriumPeekNavigationThrottle, since
+   // a plain click emits no OpenURL IPC. A window.open with noopener does,

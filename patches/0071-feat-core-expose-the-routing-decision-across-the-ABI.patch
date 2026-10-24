@@ -1,0 +1,65 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 18 Aug 2026 23:32:01 +0200
+Subject: [PATCH 071/154] feat(core): expose the routing decision across the
+ ABI
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Takes routing.json's contents rather than reading it, because the store layer
+here has never done file IO and the caller already loads the file once at wiring
+time. Parsing per call is affordable: navigations happen at human speed and the
+file holds a handful of rules.
+
+Null is "no rule claims this url" and also every failure - unreadable input, a
+file that does not parse, a schema this build refuses. The same answer on
+purpose: routing is an enhancement, so a caller that cannot tell them apart
+still does the right thing, which is to open the url where it was already going.
+
+regex_lite needed its visibility widened. The generated BUILD.gn says how - add
+the crate to chromium_crates_io - but that regenerates every crate target for one
+dependency. The narrow version is recorded in gnrt_config.toml as well as in the
+generated file, so a later regen reproduces it rather than dropping it.
+
+Also fixes drift this bump uncovered: atrium_core_sidebar_width reached the
+header and the crate at ABI 35 and never reached the pinned export list, so that
+test had been failing since. Third time this has happened on a bump.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ third_party/rust/chromium_crates_io/gnrt_config.toml | 3 +++
+ third_party/rust/regex_lite/v0_1/BUILD.gn            | 5 ++++-
+ 2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/third_party/rust/chromium_crates_io/gnrt_config.toml b/third_party/rust/chromium_crates_io/gnrt_config.toml
+index 9ae14f802aff7..8561d000ac2a3 100644
+--- a/third_party/rust/chromium_crates_io/gnrt_config.toml
++++ b/third_party/rust/chromium_crates_io/gnrt_config.toml
+@@ -745,6 +745,9 @@ allow_unsafe = true
+ 
+ [crate.regex-lite]
+ extra_kv = { allow_unsafe = false }
++# Atrium's core matches routing rules with this. The wildcard is the default
++# this list replaces, so it has to be repeated rather than added to.
++visibility = ['//third_party/rust/*', '//third_party/atrium/core:*']
+ 
+ [crate.regex-syntax.extra_kv]
+ allow_unsafe = false
+diff --git a/third_party/rust/regex_lite/v0_1/BUILD.gn b/third_party/rust/regex_lite/v0_1/BUILD.gn
+index ce25fea76942c..09d284b0f6030 100644
+--- a/third_party/rust/regex_lite/v0_1/BUILD.gn
++++ b/third_party/rust/regex_lite/v0_1/BUILD.gn
+@@ -49,7 +49,10 @@ cargo_crate("lib") {
+   # Only for usage from third-party crates. Add the crate to
+   # //third_party/rust/chromium_crates_io/Cargo.toml to use
+   # it from first-party code.
+-  visibility = [ "//third_party/rust/*" ]
++  visibility = [
++    "//third_party/rust/*",
++    "//third_party/atrium/core:*",
++  ]
+ 
+   #####################################################################
+   # Tweaking which GN `config`s apply to this target.

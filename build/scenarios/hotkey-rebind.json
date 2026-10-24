@@ -1,0 +1,272 @@
+{
+  "name": "hotkey-rebind",
+  "description": "a rebound shortcut works, and it still works after a relaunch.\n\nWHAT WAS WRONG. NativeHotkeyMap::SetFromJSON had no callers, so hotkeys.json was drawn in the Inputs pane and the running app kept its compiled-in bindings regardless. A shortcut shown in settings was not necessarily the shortcut that worked. SeedFromSettings now reads hotkeys.json as a third field on the same ReadSeedStores post and calls SetFromJSON there.\n\nTHE FIXTURE MOVES ONE ACTION AND NOTHING ELSE. sidebar-rebind.hotkeys.json binds toggleSidebar to cmd+shift+j alone. The core's load_hotkeys unions a file over its defaults, so every other action keeps its stock combo and only this one moves - which makes the Cmd+S leg below a statement about this rebind rather than about an empty file. toggleSidebar is the action to pick because its stock-key release is the only one observable without a second window.\n\nBOTH DIRECTIONS ARE MEASURED, and that is the point. A build that ignored the file entirely would still collapse the sidebar - on Cmd+S - so 'the sidebar collapsed' proves nothing on its own. The pair is: cmd+shift+j MUST collapse it, and cmd+s MUST NOT. Only a build that read the file gets both.\n\nWHY CMD+S IS FOLLOWED BY ESCAPE. Releasing the stock combo sets sidebar_toggle_combo_bound=false in AtriumCommandInterceptInputs (atrium_native_widget_mac.mm), so the Rust core's claims_save_page_for_sidebar declines the command and IDC_SAVE_PAGE runs for real - which puts a native Save As sheet over the window. What it does claim is that the frame it grades is comparable with the one before the chord. If Cmd+S had toggled the sidebar instead, Escape would not put the sidebar back, so the assertion still fails on the behaviour it is named for.\n\nthe frame WAS captured with the sheet still up. shows a native 'Save As' sheet centered over the window, its dimmed backdrop covering the graded region (40,200,150,300), on the launch-1 leg only - launch 2's same leg passed at delta 0.00 in the same run. The old sequence (a fixed 2500ms settle, one Escape, a fixed 1500ms settle, then capture) raced the panel: SavePackage::GetSaveInfo hops to a background thread for the default download directory before the sheet appears, the exact race savepage-swallow's own notes measured, and a first-launch VM is colder than a relaunch, so only launch 1 lost the race often enough to fail. The fix below gates on the 'Atrium: tab 1 save page' vlog line before settling for the sheet to appear, then dismisses with the same double-Escape a sibling scenario uses for the identical panel.\n\nTHE MEASURE IS pixels_changed, NOT theme_changed. cmds-sidebar-collapse graded this same collapse on a mean delta and had to hunt for a region that would not cancel - a region straddling the sidebar's right edge scores near zero even when the collapse plainly happened, because what leaves one end averages against what arrives at the other. pixels_changed compares corresponding pixels and counts how many moved, so nothing cancels. The region sits entirely inside the docked sidebar (the fixture's appState.sidebarWidth is 280, and that width reaches the window), away from the right edge and away from the parked pointer at 700,600.\n\nWHY THERE IS NO file_contains HERE. file_contains is a WRITE prover: file_value.py fails the assertion outright when the staged fixture already holds the expected value, on the argument that it would otherwise pass against a build that wrote nothing. 'cmd+shift+j is still in the file' is exactly that case - nothing in this build writes hotkeys.json - so the assertion cannot be spelled. The relaunch leg carries the claim instead, and carries it behaviourally: if anything had rewritten the file, the second launch would bind toggleSidebar back to its stock combo, the 'stock combo released' line would not be there to gate on, and cmd+shift+j would stop collapsing the sidebar. Its own fixture on the harness's example-domain-tall.html, which carries the <title> the gates wait for and enough banded content that a captured region has variance. It used to wait on a remote page the VM cannot reach.",
+  "fixture": "hotkey-rebind.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "hotkeys": "sidebar-rebind.hotkeys.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "timeout_ms": 20000,
+      "note": "gate on a committed navigation, same line and reason as cmds-sidebar-collapse: past this point the sidebar has real rows rather than a loading placeholder"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the docked sidebar finish rendering at the fixture's 280pt width"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot; without this every chord below lands in Finder"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 600,
+      "note": "park the pointer in page content, well outside the 280pt sidebar column, so the cursor sprite cannot supply a delta to any region below"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "l1-docked",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "launch 1, sidebar docked, nothing pressed yet"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "THE NEGATIVE: the stock toggleSidebar combo, which the staged file released. It must reach Save Page instead of the sidebar"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab 1 save page",
+      "timeout_ms": 10000,
+      "note": "confirm SavePage() was entered before waiting for its panel - same gate savepage-control uses for the same line"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "let the save sheet actually appear - SavePackage::GetSaveInfo hops to a background thread for the default download directory first, the race savepage-swallow's notes measured against this same panel"
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "cancel the save panel so the frame below is comparable with l1-docked. Harmless if no panel opened"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "sheet teardown finishes before the frame below is captured"
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "second dismissal in case the first raced the panel, same double-Escape savepage-swallow uses. A no-op on a page with no dialog"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "l1-after-cmds",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "launch 1 after Cmd+S: the sidebar must still be docked"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+j",
+      "note": "THE POSITIVE: the combo the staged file put toggleSidebar on"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the collapse settle - the same margin cmds-sidebar-collapse uses for this transition"
+    },
+    {
+      "type": "capture",
+      "id": "l1-collapsed",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "launch 1 after the rebound chord: the sidebar column must have gone"
+    },
+    {
+      "type": "relaunch",
+      "note": "stop and start against the SAME staged hotkeys.json, without restaging. This is what makes the second half a question about the file surviving rather than about the fixture being copied in again"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "timeout_ms": 20000,
+      "note": "same gate for launch 2"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 600
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "l2-docked",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "launch 2, sidebar docked again - the collapse from launch 1 was session state, not a file write"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "the negative again, on the relaunched app"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab 1 save page",
+      "timeout_ms": 10000,
+      "note": "same gate as launch 1's negative leg"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "key",
+      "combo": "escape"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "second dismissal, same reason as launch 1's negative leg"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "l2-after-cmds",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+j",
+      "note": "the positive again"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "l2-collapsed",
+      "duration_ms": 400,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-file-reached-the-map-and-released-cmd-s",
+      "pattern": "Atrium: native hotkey action 'toggleSidebar' bound to 1 combo\\(s\\), stock combo released",
+      "note": "THE WIRING, in one line. Written by NativeHotkeyMap::SetFromJSON. 'released' is the half that matters for the Cmd+S leg: it says the parsed combo is NOT the compiled-in default, which is what sets sidebar_toggle_combo_bound=false and hands IDC_SAVE_PAGE back to Chromium. Necessary and not sufficient - the map could hold the binding and never match it - which is what the pixel pairs below are for. MEASURED alongside it, in the same run log: editCurrentURL, littleWindow, nextSpace, previousSpace, nextTab and previousTab all logged 'stock combo kept', so the union really did move this one action and leave the rest alone"
+    },
+    {
+      "type": "region_stable",
+      "before": "l1-docked",
+      "after": "l1-after-cmds",
+      "region": [
+        40,
+        200,
+        150,
+        300
+      ],
+      "max_delta": 10.0,
+      "desc": "LAUNCH 1 NEGATIVE: Cmd+S no longer toggles the sidebar, because the staged file moved toggleSidebar off it",
+      "note": "MEASURED on this build (bundle 21afec27..., libchrome_dll.dylib 2026-08-10 08:39): delta 0.00 here. The collapse this must not see is worth about 57 on the same region and the same fixture - cmds-sidebar-collapse measured 56.76 and 56.79 across two runs with the sidebar column going flat 238,238,238. So 10.0 sits about 5.7x under a real toggle and well above the 0.00 a stable sidebar scores; it is not a threshold call in either direction"
+    },
+    {
+      "type": "pixels_changed",
+      "before": "l1-after-cmds",
+      "after": "l1-collapsed",
+      "region": [
+        40,
+        200,
+        150,
+        300
+      ],
+      "min_changed_pct": 40.0,
+      "desc": "LAUNCH 1 POSITIVE: cmd+shift+j collapses the sidebar, so the rebind is installed and matched",
+      "note": "MEASURED on this build: changed_pct 99.68, which is 44857 of the region's 45000 pixels, mean_px_dist 56.9, after_var 0.0 (flat page content with nothing left of the sidebar to vary). Every pixel of the docked column is handed to page content, so a working collapse saturates the count - 40.0 is 2.5x under what was measured and far above anything a repaint of the rows alone could reach. pixels_changed rather than theme_changed because a mean cancels, a per-pixel count does not"
+    },
+    {
+      "type": "region_stable",
+      "before": "l2-docked",
+      "after": "l2-after-cmds",
+      "region": [
+        40,
+        200,
+        150,
+        300
+      ],
+      "max_delta": 10.0,
+      "desc": "LAUNCH 2 NEGATIVE, after the relaunch: Cmd+S still does not toggle, so the file was still read on the second launch",
+      "note": "same region, same derivation as the launch 1 negative. MEASURED: delta 0.00"
+    },
+    {
+      "type": "pixels_changed",
+      "before": "l2-after-cmds",
+      "after": "l2-collapsed",
+      "region": [
+        40,
+        200,
+        150,
+        300
+      ],
+      "min_changed_pct": 40.0,
+      "desc": "LAUNCH 2 POSITIVE, and THE ACCEPTANCE CRITERION: the rebound shortcut still works after a relaunch",
+      "note": "MEASURED: changed_pct 99.68, 44857 of 45000 pixels, mean_px_dist 57.0. Same region and derivation as the launch 1 positive. This is the pair that says the rebind is not a first-launch accident and that nothing rewrote hotkeys.json between the two launches"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "liveness, and a check that no save panel was left standing: one real window at the end"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits - graded by quit_outcome.py, so a SIGTERM fallback fails here rather than passing quietly"
+    }
+  ],
+  "serve_fixtures": true
+}

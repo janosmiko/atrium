@@ -1,0 +1,101 @@
+{
+  "name": "settings-routing-fallback-and-add-buttons",
+  "description": "the Routing fallback card keeps a transparent background while its select has focus (the rule-card focus tint turned the dashed card red), and '+ Add a rule' and '+ Add engine' draw the bordered-button shape instead of muted text.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so the app is up"
+    },
+    {"type": "settle", "ms": 4000},
+    {"type": "activate", "note": "Atrium must be frontmost or cmd+comma opens Finder Settings instead"},
+    {"type": "settle", "ms": 1000},
+    {"type": "key", "combo": "cmd+comma", "note": "open Settings"},
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings surface ready",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: routing rules pushed",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "open-routing-pane",
+      "target": "/settings",
+      "expression": "(() => { const item = document.querySelector('.settings-rail-item[data-pane=\"routing\"]'); if (!item) { return 'no routing rail item'; } item.click(); return 'clicked'; })()"
+    },
+    {"type": "settle", "ms": 1500},
+    {
+      "type": "eval",
+      "id": "fallback-focused-bg",
+      "target": "/settings",
+      "expression": "(() => { const s = document.querySelector('.routing-fallback select'); if (!s) { return 'no select'; } s.focus(); const card = s.closest('.routing-fallback'); return card.matches(':focus-within') + ' ' + getComputedStyle(card).backgroundColor; })()"
+    },
+    {
+      "type": "capture",
+      "id": "routing",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence: focused fallback card stays clear, Add a rule is a bordered button"
+    },
+    {
+      "type": "eval",
+      "id": "routing-add-is-button",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.routing-add'); if (!b) { return 'no button'; } const cs = getComputedStyle(b); return cs.borderTopStyle + ' ' + (cs.backgroundColor !== 'rgba(0, 0, 0, 0)') + ' ' + (b.getBoundingClientRect().width < 200); })()"
+    },
+    {
+      "type": "eval",
+      "id": "open-engines-pane",
+      "target": "/settings",
+      "expression": "(() => { const item = document.querySelector('.settings-rail-item[data-pane=\"engines\"]'); if (!item) { return 'no engines rail item'; } item.click(); return 'clicked'; })()"
+    },
+    {"type": "settle", "ms": 1500},
+    {
+      "type": "capture",
+      "id": "engines",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence: Add engine is a bordered button"
+    },
+    {
+      "type": "eval",
+      "id": "engine-add-is-button",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.engine-add'); if (!b) { return 'no button'; } const cs = getComputedStyle(b); return cs.borderTopStyle + ' ' + (cs.backgroundColor !== 'rgba(0, 0, 0, 0)') + ' ' + (b.getBoundingClientRect().width < 200); })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "fallback-focused-bg",
+      "expected": "\"true rgba(0, 0, 0, 0)\"",
+      "desc": "the fallback card has focus and still draws no tint"
+    },
+    {
+      "type": "eval_equals",
+      "id": "routing-add-is-button",
+      "expected": "\"solid true true\"",
+      "desc": "Add a rule has a border, a fill, and its own width"
+    },
+    {
+      "type": "eval_equals",
+      "id": "engine-add-is-button",
+      "expected": "\"solid true true\"",
+      "desc": "Add engine has a border, a fill, and its own width"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

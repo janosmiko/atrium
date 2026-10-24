@@ -1,0 +1,29 @@
+# Copyright 2026 The Atrium Authors
+# Use of this source code is governed by the Apache License, Version 2.0
+# found in the LICENSE file.
+[package]
+name = "atrium-core"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# GN builds this crate from src/lib.rs and ignores this file. It exists so the
+# crate also builds and tests on its own, away from a Chromium checkout.
+[lib]
+name = "atrium_core"
+
+[features]
+test-support = []
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Chromium vendors this one (third_party/rust/regex_lite), which is what lets the
+# GN build match the cargo build. The full regex crate is vendored too and is
+# far larger than a handful of host rules needs.
+regex-lite = "0.1"
+
+# Integration tests live in a separate crate and need mutate::test_support,
+# which is only compiled in behind this feature.
+[dev-dependencies]
+atrium-core = { path = ".", features = ["test-support"] }

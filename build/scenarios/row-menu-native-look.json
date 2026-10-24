@@ -1,0 +1,114 @@
+{
+  "name": "row-menu-native-look",
+  "description": "with opaqueSurround on, the row menu's .ctxmenu and .ctxitem rows read the same --ov-radius-card/--ov-radius-row tokens overlay.css's html.atrium-native-chrome block redefines for the command bar, so the menu switches to the window's native corner radii instead of a sidebar.css literal. Same fixture and open gesture as row-menu-wears-the-space-tint.json, but with task-overlay-opaque-surround.settings.json turning opaqueSurround on.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "settings": "task-overlay-opaque-surround.settings.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: measure nothing until the restored tab has loaded"
+    },
+    {
+      "type": "settle",
+      "ms": 8000,
+      "note": "let both rows reach the sidebar and the snapshot settle"
+    },
+    {
+      "type": "activate",
+      "note": "Atrium frontmost, so a synthetic click lands on it"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "rightclick",
+      "x": 110,
+      "y": 297,
+      "note": "the first tab row - sidebar-row-click.json's own measured coordinate, reused from a sibling scenario"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the menu build"
+    },
+    {
+      "type": "eval",
+      "id": "menu-open",
+      "target": "/sidebar",
+      "expression": "(() => document.querySelector('.ctxmenu') ? 'menu open' : 'no menu')()",
+      "note": "gate: without an open menu the readings below prove nothing"
+    },
+    {
+      "type": "eval",
+      "id": "native-class",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.classList.contains('atrium-native-chrome'))",
+      "note": "AC: opaqueSurround pushes the native-chrome class into this document too"
+    },
+    {
+      "type": "eval",
+      "id": "menu-radius",
+      "target": "/sidebar",
+      "expression": "getComputedStyle(document.querySelector('.ctxmenu')).borderRadius",
+      "note": "AC: the native card corner"
+    },
+    {
+      "type": "eval",
+      "id": "row-radius",
+      "target": "/sidebar",
+      "expression": "getComputedStyle(document.querySelector('.ctxitem')).borderRadius",
+      "note": "AC: the native row corner"
+    },
+    {
+      "type": "key",
+      "combo": "escape"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "menu-open",
+      "expected": "\"menu open\"",
+      "desc": "the right-click opened the row menu"
+    },
+    {
+      "type": "eval_equals",
+      "id": "native-class",
+      "expected": "\"true\"",
+      "desc": "opaqueSurround reaches the sidebar document as the native-chrome class"
+    },
+    {
+      "type": "eval_equals",
+      "id": "menu-radius",
+      "expected": "\"12px\"",
+      "desc": "the menu wears the native card corner radius, not sidebar.css's own"
+    },
+    {
+      "type": "eval_equals",
+      "id": "row-radius",
+      "expected": "\"6px\"",
+      "desc": "rows wear the native row corner radius"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

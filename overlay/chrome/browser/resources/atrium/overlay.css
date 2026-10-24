@@ -1,0 +1,500 @@
+/* Copyright 2026 The Atrium Authors */
+
+/* The one place an overlay's colors, radii, font and shadow live. Consumers
+   (commandbar.css, later toast-stack.css, permsheet.css, hint.css) read the
+   --ov-* tokens and the component classes here, never a literal. */
+
+@font-face {
+  font-family: 'Archivo';
+  src: url('fonts/Archivo-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: block;
+}
+
+:root {
+  /* C++ pushes the space tint as an RGB triplet (PushOverlayTheme). The
+     fallback is the brand crimson, so a document with no push still reads. */
+  --ov-accent: rgb(var(--atrium-space-tint, 176 58 72));
+  /* The ink C++ graded against the tint, so a filled button stays readable on
+     a pale custom tint that white ink would vanish into. */
+  --ov-accent-ink: rgb(var(--atrium-space-tint-ink, 255 255 255));
+  --ov-soft: color-mix(in srgb, var(--ov-accent) 60%, white);
+  --ov-ink: 34 16 22;
+  --ov-paper: color-mix(in srgb, var(--ov-accent) 6%, #FBF7F8);
+  /* A full-window backdrop, not a card: tinted like --ov-paper, but against
+     sidebar.css's own floating-wash base, which a see-through ground failed
+     to read over. */
+  --ov-ground: color-mix(in srgb, var(--ov-accent) 12%, rgb(219 222 229));
+  --ov-fg: rgb(var(--ov-ink) / .92);
+  --ov-mute: rgb(var(--ov-ink) / .55);
+  --ov-sel: color-mix(in srgb, var(--ov-accent) 14%, transparent);
+  --ov-key-bg: color-mix(in srgb, var(--ov-accent) 10%, var(--ov-paper));
+  --ov-key-fg: var(--ov-fg);
+  --ov-key-line: var(--ov-soft);
+  --ov-border: rgb(var(--ov-ink) / .12);
+  --ov-scrim: rgb(var(--ov-ink) / .28);
+  /* Its own pair, not a shade of --ov-accent: a green tint must not turn the
+     insecure-origin warning green. */
+  --ov-danger: rgb(150 32 31);
+  --ov-danger-paper: rgb(251 227 227);
+  /* The colour AtriumRootView::SetSeamAccent paints the native seam pill, for
+     the two grips the page draws itself. Resolved here rather than read as
+     --ov-accent at the grip: the ai panel shadows that on #atrium-root for its
+     own card, which left the grip grey. */
+  --ov-seam: var(--ov-accent);
+  --ov-shadow: 0 14px 36px rgb(var(--ov-ink) / .22);
+  /* For a small floating surface, where --ov-shadow's 14px offset is half the
+     height and reads as a smear rather than a lift. */
+  --ov-shadow-tight: 0 5px 14px rgb(var(--ov-ink) / .30);
+  --ov-font: 'Archivo', system-ui, -apple-system, sans-serif;
+  --ov-font-mono: ui-monospace, monospace;
+  /* macOS 27's tighter large-surface silhouette. Toasts and floating cards
+     share this ceiling; smaller semantic shapes keep their own radii. */
+  --ov-radius-card: 16px;
+  /* Short floating strips must not clamp into pills at the card radius. */
+  --ov-radius-compact: 10px;
+  --ov-radius-row: 11px;
+  /* Below the card/row contract: a badge, a favicon, an icon tile, a dot. */
+  --ov-radius-chip: 12px;
+  --ov-radius-favicon: 4px;
+  --ov-radius-swatch: 7px;
+  --ov-radius-tile: 5px;
+  --ov-radius-dot: 3px;
+  /* Matches sidebar.css's own .urlbar radius, a file this token
+     contract doesn't reach, so the value is pinned here rather than derived. */
+  --ov-radius-anchor: 8px;
+  /* The one easing and duration every overlay expand uses. */
+  --ov-ease: cubic-bezier(.22, .61, .36, 1);
+  --ov-expand-ms: 120ms;
+  /* Contrast for content on an item's own colour, not --ov-paper, so this
+     stays flat across light, dark and native. */
+  --ov-tile-ink: white;
+  --ov-tile-shadow: black;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ov-ink: 249 240 241;
+    --ov-paper: color-mix(in srgb, var(--ov-accent) 10%, #241418);
+    --ov-ground: color-mix(in srgb, var(--ov-accent) 18%, rgb(42 42 44));
+    /* Not the ink: the dark ink is near-white, and a wash of it lightens the
+       page the scrim is there to push back. */
+    --ov-scrim: rgb(0 0 0 / .5);
+    --ov-danger: rgb(255 179 176);
+    --ov-danger-paper: rgb(58 22 21);
+    --ov-shadow: 0 14px 36px rgb(0 0 0 / .45);
+    --ov-shadow-tight: 0 5px 14px rgb(0 0 0 / .55);
+  }
+}
+
+/* Every route here is app chrome, so the pointer stays an arrow and nothing
+   is selectable. sidebar.css carried the same pair on .sidebar, which the
+   Overview rail pane is not inside. */
+/* body, not #atrium-root: an id would out-rank every class rule that asks
+   for selectable text back. */
+body {
+  cursor: default;
+  user-select: none;
+}
+
+/* Buttons and links do not inherit the cursor on their own. */
+button,
+a,
+summary,
+[role="button"],
+[role="link"] {
+  cursor: inherit;
+}
+
+/* A field still takes typing. Not a readonly one: the address row is an input
+   the user can only click, and a caret over it offers typing it refuses. */
+input:not([readonly]),
+textarea:not([readonly]),
+[contenteditable="true"] {
+  cursor: auto;
+  user-select: text;
+}
+
+/* settings.json's overlayAccent defaults to "brand", so every
+   overlay card pins --ov-accent to the crimson fallback rather than
+   following --atrium-space-tint. A class rather than editing the :root
+   fallback itself, because the fallback is also what a document with no
+   push at all reads - this has to win over a LIVE tint, not just stand in
+   for a missing one. html.foo's specificity already beats :root without
+   needing source order, but this still has to sit ABOVE atrium-native-chrome
+   below: native mode's own class matches the same specificity, and source
+   order is the only thing left to make it win. */
+html.atrium-overlay-accent-brand {
+  --ov-accent: rgb(176 58 72);
+  --ov-accent-ink: white;
+}
+
+/* The System accent. A live colour has no fixed class, so PushOverlayTheme
+   sets the --atrium-system-* properties on the root and this maps them. Same
+   place in the file as the brand class, and for the same reason: native
+   mode's class matches this specificity and has to win. */
+html.atrium-overlay-accent-system {
+  --ov-accent: var(--atrium-system-accent, #2B6DE8);
+  --ov-ink: var(--atrium-system-ink, 28 28 30);
+  --ov-paper: var(--atrium-system-paper, #F6F6F6);
+  --ov-soft: var(--atrium-system-soft, #6EA8FF);
+
+  --ov-accent-ink: var(--atrium-system-accent-ink, white);
+}
+
+/* The native chrome mode: the window's own neutral surround, the system
+   font, and the system selection blue. Same token names, so no consumer
+   changes. Redefines every token that carries a look, and only those. */
+html.atrium-native-chrome {
+  --ov-accent: #2B6DE8;
+  --ov-accent-ink: white;
+  --ov-soft: #2B6DE8;
+  --ov-ink: var(--atrium-surround-ink, 28 28 30);
+  --ov-paper: var(--atrium-surround-color, #F6F6F6);
+  --ov-ground: var(--atrium-surround-color, #F6F6F6);
+  --ov-sel: var(--ov-accent);
+  --ov-key-bg: transparent;
+  --ov-key-fg: var(--ov-mute);
+  --ov-key-line: transparent;
+  --ov-shadow: 0 10px 30px rgb(0 0 0 / .2);
+  --ov-shadow-tight: 0 4px 12px rgb(0 0 0 / .22);
+  --ov-font: -apple-system, system-ui, sans-serif;
+  --ov-font-mono: var(--ov-font);
+  --ov-radius-card: 12px;
+  --ov-radius-row: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  html.atrium-native-chrome {
+    --ov-accent: #3B7CF0;
+    --ov-soft: #3B7CF0;
+  }
+}
+
+.ov-card {
+  background: var(--ov-paper);
+  color: var(--ov-fg);
+  font-family: var(--ov-font);
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-card);
+  box-shadow: var(--ov-shadow);
+}
+
+.ov-row {
+  display: flex;
+  align-items: center;
+  gap: var(--atrium-row-content-spacing, 8px);
+  /* 6px read as too compact. Raised HERE rather than on one
+     surface, so every overlay row keeps one height. */
+  padding: 8px 10px;
+  border-radius: var(--ov-radius-row);
+  font-weight: 500;
+}
+
+.ov-row.ov-sel {
+  background: var(--ov-sel);
+}
+
+/* Native mode selects with solid blue and white ink, the way Spotlight
+   does. Every child follows through currentColor. */
+html.atrium-native-chrome .ov-row.ov-sel {
+  color: white;
+}
+
+html.atrium-native-chrome .ov-row.ov-sel .ov-sub,
+html.atrium-native-chrome .ov-row.ov-sel .ov-key,
+html.atrium-native-chrome .ov-row.ov-sel .ov-icon {
+  color: white;
+}
+
+.ov-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--ov-accent);
+}
+
+html.atrium-native-chrome .ov-icon {
+  color: var(--ov-mute);
+}
+
+.ov-title {
+  flex: 0 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ov-sub {
+  flex: 1 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--ov-mute);
+  font-size: var(--atrium-filter-font-size, 12.5px);
+  font-weight: 400;
+}
+
+.ov-keys {
+  flex: none;
+  margin-inline-start: auto;
+  display: inline-flex;
+  gap: 3px;
+}
+
+.ov-key {
+  min-width: 12px;
+  padding: 3px 5px;
+  border-radius: 6px;
+  background: var(--ov-key-bg);
+  color: var(--ov-key-fg);
+  border-bottom: 2px solid var(--ov-key-line);
+  font: 600 11px/1 var(--ov-font);
+  text-align: center;
+}
+
+html.atrium-native-chrome .ov-key {
+  padding: 0 1px;
+  border-bottom: 0;
+  font: 400 12px/1 var(--ov-font);
+}
+
+html.atrium-native-chrome .ov-keys {
+  gap: 0;
+}
+
+.ov-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  /* 35 is the 8px block padding this used to carry around a 19px keycap. The
+     card holds it whatever it contains, or a keyed bubble stands taller than
+     a text-only one beside it. */
+  box-sizing: border-box;
+  height: 35px;
+  padding: 0 14px;
+  border-radius: 999px;
+}
+
+.ov-btn {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--ov-border);
+  border-radius: 9px;
+  background: var(--ov-paper);
+  color: var(--ov-accent);
+  cursor: default;
+}
+
+.ov-btn .ov-icon {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+}
+
+/* The command bar's footer: the actions for the selected row. */
+.ov-foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--ov-border);
+  color: var(--ov-mute);
+  font: 400 12px var(--ov-font);
+}
+
+.ov-foot .ov-keys {
+  margin-inline-start: 6px;
+}
+
+.ov-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-row);
+  background: var(--ov-paper);
+  color: var(--ov-fg);
+  font: 500 13px var(--ov-font);
+  cursor: default;
+}
+
+.ov-button.ov-primary {
+  border-color: transparent;
+  background: var(--ov-accent);
+  color: var(--ov-accent-ink);
+}
+
+.ov-button:focus-visible {
+  outline: 2px solid var(--ov-accent);
+  outline-offset: 2px;
+}
+
+.ov-scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--ov-scrim);
+}
+
+/* One definition, because atrium.html loads every route's sheet into one
+   document: sidebar.css and devbar.css each carried a copy of this name, and
+   devbar.css loads second, so its values silently drove the sidebar's fill too.
+   The trough is what a glance during the wait usually gets - measured at 8
+   levels out of 255 against the field it sits on when it was .08. */
+@keyframes loadbreathe {
+  0%, 100% {
+    opacity: .14;
+  }
+
+  50% {
+    opacity: .26;
+  }
+}
+
+/* The brand book's 19 themes, generated from its own themes object and pinned
+   to it by overlay-themes-test.mjs - the book is the source, not this file.
+   A class rather than a push, extending html.atrium-overlay-accent-brand
+   above: setting one class repaints every overlay surface at once, including
+   documents already open. --ov-ink is a triplet because it is consumed as
+   rgb(var(--ov-ink) / alpha); the other three are colours. */
+html.atrium-theme-crimson {
+  --ov-accent: #B03A48;
+  --ov-ink: 34 16 22;
+  --ov-paper: #F9F0F1;
+  --ov-soft: #E06A76;
+}
+
+html.atrium-theme-vermilion {
+  --ov-accent: #E8481C;
+  --ov-ink: 29 13 6;
+  --ov-paper: #FFF2EA;
+  --ov-soft: #FF8A5C;
+}
+
+html.atrium-theme-magenta {
+  --ov-accent: #D62D8A;
+  --ov-ink: 35 8 30;
+  --ov-paper: #FBEFF7;
+  --ov-soft: #F27AB8;
+}
+
+html.atrium-theme-ultraviolet {
+  --ov-accent: #6C4CE8;
+  --ov-ink: 18 14 46;
+  --ov-paper: #F0EEFB;
+  --ov-soft: #9D8AF2;
+}
+
+html.atrium-theme-cyan {
+  --ov-accent: #00A6C0;
+  --ov-ink: 4 33 43;
+  --ov-paper: #EAF7F9;
+  --ov-soft: #56D0E2;
+}
+
+html.atrium-theme-lime {
+  --ov-accent: #7CB518;
+  --ov-ink: 19 26 6;
+  --ov-paper: #F5F8EA;
+  --ov-soft: #A9D94E;
+}
+
+html.atrium-theme-amber {
+  --ov-accent: #E8960C;
+  --ov-ink: 29 20 6;
+  --ov-paper: #FBF4E6;
+  --ov-soft: #F5B84D;
+}
+
+html.atrium-theme-tokyo-night {
+  --ov-accent: #7AA2F7;
+  --ov-ink: 26 27 38;
+  --ov-paper: #E6E9F5;
+  --ov-soft: #BB9AF7;
+}
+
+html.atrium-theme-catppuccin {
+  --ov-accent: #CBA6F7;
+  --ov-ink: 30 30 46;
+  --ov-paper: #EFF1F5;
+  --ov-soft: #F5C2E7;
+}
+
+html.atrium-theme-gruvbox {
+  --ov-accent: #D65D0E;
+  --ov-ink: 40 40 40;
+  --ov-paper: #FBF1C7;
+  --ov-soft: #FABD2F;
+}
+
+html.atrium-theme-kanagawa {
+  --ov-accent: #7E9CD8;
+  --ov-ink: 31 31 40;
+  --ov-paper: #DCD7BA;
+  --ov-soft: #957FB8;
+}
+
+html.atrium-theme-synthwave-everything {
+  --ov-accent: #FF7EDB;
+  --ov-ink: 36 27 47;
+  --ov-paper: #F6EBFF;
+  --ov-soft: #72F1B8;
+}
+
+html.atrium-theme-bluloco {
+  --ov-accent: #3691FF;
+  --ov-ink: 40 44 52;
+  --ov-paper: #F9F9F9;
+  --ov-soft: #9F7EFE;
+}
+
+html.atrium-theme-monokai-pro {
+  --ov-accent: #FF6188;
+  --ov-ink: 45 42 46;
+  --ov-paper: #FCFCFA;
+  --ov-soft: #FFD866;
+}
+
+html.atrium-theme-dracula {
+  --ov-accent: #BD93F9;
+  --ov-ink: 40 42 54;
+  --ov-paper: #F8F8F2;
+  --ov-soft: #FF79C6;
+}
+
+html.atrium-theme-nord {
+  --ov-accent: #88C0D0;
+  --ov-ink: 46 52 64;
+  --ov-paper: #ECEFF4;
+  --ov-soft: #81A1C1;
+}
+
+html.atrium-theme-rose-pine {
+  --ov-accent: #EB6F92;
+  --ov-ink: 25 23 36;
+  --ov-paper: #FAF4ED;
+  --ov-soft: #C4A7E7;
+}
+
+html.atrium-theme-everforest {
+  --ov-accent: #A7C080;
+  --ov-ink: 45 53 59;
+  --ov-paper: #FDF6E3;
+  --ov-soft: #E69875;
+}
+
+html.atrium-theme-solarized {
+  --ov-accent: #268BD2;
+  --ov-ink: 0 43 54;
+  --ov-paper: #FDF6E3;
+  --ov-soft: #CB4B16;
+}

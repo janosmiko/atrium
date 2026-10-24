@@ -1,0 +1,286 @@
+{
+  "name": "page-hover-works-before-the-first-click",
+  "description": "User report: after a site opens, hover on its buttons does nothing or lags until a click on the page. The page opens from the command bar (Cmd+T, URL, Return), and then with no click the pointer moves onto a large button and one letter key is typed. The page records its own focus 100ms and 600ms after load, its mousemove count, and its keydowns. Red while the bug is there.",
+  "fixture": "hover-probe.spaces.json",
+  "startup_space": "48b00000-0000-4000-8000-000000000481",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "chromium_flags": "--vmodule=atrium_command_bar_widget=1",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup",
+      "target": "hover-probe.html?a",
+      "expression": "location.search",
+      "expected": "?a",
+      "timeout_ms": 20000,
+      "note": "gate: the app is up on the fixture tab"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "move",
+      "x": 640,
+      "y": 380,
+      "note": "the pointer already rests over the page when the new tab appears, as in the user's report"
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/hover-probe.html?cmd"
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "eval_until",
+      "id": "cmd-open",
+      "target": "hover-probe.html?cmd",
+      "expression": "location.search",
+      "expected": "?cmd",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "frontmost",
+      "id": "front-cmd",
+      "note": "which app and window macOS has as key, before any click on the page"
+    },
+    {
+      "type": "eval",
+      "id": "focus-cmd",
+      "target": "hover-probe.html?cmd",
+      "expression": "String(window.samples.load100) + '/' + String(window.samples.load600)",
+      "note": "document.hasFocus() 100ms and 600ms after the page showed, sampled by the page itself. The reattach heal runs at about 250ms."
+    },
+    {
+      "type": "eval",
+      "id": "base-cmd",
+      "target": "hover-probe.html?cmd",
+      "expression": "(window.m0 = window.moves, window.k0 = window.log.length, 'base ' + window.m0)"
+    },
+    {
+      "type": "move",
+      "x": 640,
+      "y": 380
+    },
+    {
+      "type": "move",
+      "x": 660,
+      "y": 395
+    },
+    {
+      "type": "move",
+      "x": 680,
+      "y": 408
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 420
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "moves-cmd",
+      "target": "hover-probe.html?cmd",
+      "expression": "window.moves - window.m0 > 0 ? 'moved' : 'no moves'",
+      "note": "no moves means the mouseMoved events never reached the renderer: a Cocoa gate"
+    },
+    {
+      "type": "eval",
+      "id": "hover-cmd",
+      "target": "hover-probe.html?cmd",
+      "expression": "String(!!document.querySelector('button:hover'))"
+    },
+    {
+      "type": "eval",
+      "id": "bg-cmd",
+      "target": "hover-probe.html?cmd",
+      "expression": "getComputedStyle(document.getElementById('b')).backgroundColor"
+    },
+    {
+      "type": "key",
+      "combo": "k"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "key-cmd",
+      "target": "hover-probe.html?cmd",
+      "expression": "window.log.slice(window.k0).some((x) => x.startsWith('keydown:k')) ? 'keydown' : 'no keydown'"
+    },
+    {
+      "type": "eval",
+      "id": "diag-cmd",
+      "target": "hover-probe.html?cmd",
+      "expression": "'moves=' + window.moves + ' m0=' + window.m0 + ' last=' + window.lastMove + ' samples=' + JSON.stringify(window.samples) + ' focus=' + document.hasFocus() + ' log=' + window.log.join(',')",
+      "note": "raw numbers for the report, no assertion"
+    },
+    {
+      "type": "eval",
+      "id": "base-cdp-cmd",
+      "target": "hover-probe.html?cmd",
+      "expression": "(window.m1 = window.moves, 'base ' + window.m1)"
+    },
+    {
+      "type": "cdp_move",
+      "target": "hover-probe.html?cmd",
+      "x": 300,
+      "y": 200,
+      "note": "mouseMoved straight into the widget host, past AppKit, after the cgevent hover read above"
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "eval",
+      "id": "cdp-moves-cmd",
+      "target": "hover-probe.html?cmd",
+      "expression": "window.moves - window.m1 > 0 ? 'moved' : 'no moves'",
+      "note": "moved here with no moves above puts the gate in AppKit, not in the renderer"
+    },
+    {
+      "type": "capture",
+      "id": "shot-cmd",
+      "duration_ms": 400
+    },
+    {
+      "type": "click",
+      "x": 700,
+      "y": 420,
+      "note": "the click the user says fixes it"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "eval",
+      "id": "base-ctl-cmd",
+      "target": "hover-probe.html?cmd",
+      "expression": "(window.m0 = window.moves, 'base ' + window.m0)"
+    },
+    {
+      "type": "move",
+      "x": 640,
+      "y": 380
+    },
+    {
+      "type": "move",
+      "x": 660,
+      "y": 395
+    },
+    {
+      "type": "move",
+      "x": 680,
+      "y": 408
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 420
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "ctl-cmd",
+      "target": "hover-probe.html?cmd",
+      "expression": "'focus=' + document.hasFocus() + ' moves=' + (window.moves - window.m0 > 0 ? 'yes' : 'no') + ' hover=' + !!document.querySelector('button:hover')"
+    },
+    {
+      "type": "capture",
+      "id": "shot-cmd-after-click",
+      "duration_ms": 400
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "focus-cmd",
+      "expected": "\"true/true\"",
+      "desc": "cmd: the page has focus 100ms and 600ms after it showed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "moves-cmd",
+      "expected": "\"moved\"",
+      "desc": "cmd: pointer moves reach the page before any click"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hover-cmd",
+      "expected": "\"true\"",
+      "desc": "cmd: the button matches :hover under the pointer"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bg-cmd",
+      "expected": "\"rgb(255, 0, 0)\"",
+      "desc": "cmd: the hover style paints"
+    },
+    {
+      "type": "eval_equals",
+      "id": "key-cmd",
+      "expected": "\"keydown\"",
+      "desc": "cmd: a letter key reaches the page"
+    },
+    {
+      "type": "eval_equals",
+      "id": "cdp-moves-cmd",
+      "expected": "\"moved\"",
+      "desc": "cmd: a CDP mouseMoved reaches the page (splits an AppKit gate from a renderer one)"
+    },
+    {
+      "type": "eval_equals",
+      "id": "ctl-cmd",
+      "expected": "\"focus=true moves=yes hover=true\"",
+      "desc": "VACUITY GUARD cmd: after one click on the page, moves reach it and :hover matches"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "spaces": [
+    {
+      "id": "44444444-4444-4444-4444-444444444444",
+      "name": "Two",
+      "emoji": "🔢",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135131.0,
+          "url": "http://dl.localhost:8000/checkerboard.html",
+          "title": "Checkerboard"
+        }
+      ]
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 260,
+    "schemaVersion": 1,
+    "activeSpaceID": "44444444-4444-4444-4444-444444444444"
+  }
+}

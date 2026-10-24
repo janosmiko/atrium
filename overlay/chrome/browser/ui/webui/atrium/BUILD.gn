@@ -1,0 +1,44 @@
+# Copyright 2026 The Atrium Authors
+
+import("//chrome/common/features.gni")
+
+assert(!is_android)
+
+source_set("atrium") {
+  sources = [
+    "atrium_ui.cc",
+    "atrium_ui.h",
+  ]
+
+  public_deps = [ "//content/public/browser" ]
+
+  deps = [
+    "//chrome/browser/resources/atrium:resources",
+    "//chrome/browser/ui/atrium:chrome_context",
+    "//chrome/browser/ui/webui/top_chrome",
+    "//chrome/common",
+    "//components/zoom",
+    "//url",
+  ]
+}
+
+if (!is_android) {
+  source_set("browser_tests") {
+    testonly = true
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [ "atrium_ui_browsertest.cc" ]
+
+    deps = [
+      "//base/test:test_support",
+      "//chrome/browser/ui",
+      "//chrome/browser/ui/atrium:chrome_context",
+      "//chrome/browser/ui/atrium:headers",
+      "//chrome/browser/ui/tabs:tab_strip",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//content/test:test_support",
+      "//testing/gtest",
+    ]
+  }
+}

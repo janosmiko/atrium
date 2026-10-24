@@ -1,0 +1,133 @@
+{
+  "name": "space-rows-switch-spaces",
+  "description": "the palette offered a New Space verb and no way to reach a space that already exists. The snapshot carried tabs and favourites and nothing about spaces, so a user who knew the name of the space they wanted had to leave the palette to get there.\n\nThe fixture holds two spaces, 'Daylight' active and 'Zephyr' beside it, one tab each. 'zeph' is the measurement text: it is in no tab title, in no host, in no favourite and in none of the local verbs' keywords, so a space row is the only Atrium row the query can produce. That is what makes the count assertion below mean 'the space producer answered' rather than 'something answered'.\n\nReturn then takes that row while it is the top one. The vlog line names BOTH ends of the move and the destination space by name, so a run that switched nowhere, or switched to the space it was already in, cannot satisfy it.\n\nWhat is NOT claimed: the palette does not rank spaces, it filters them - two spaces matching 'zeph' would both be offered, in rail order. The empty query is covered by the unit test rather than here, because the interesting half of it (no space rows before a key is pressed) is a negative that this window's tab rows would mask.",
+  "fixture": "two-spaces.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "peek-target.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-target.html",
+      "timeout_ms": 20000,
+      "note": "GATE: the active space's tab has committed, so the sidebar model is built"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the reserved chrome context lands about 670ms after startup and the palette's WebContents needs it"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the /commandbar document commit and take the field"
+    },
+    {
+      "type": "type",
+      "text": "zeph"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "the pass answering 'zeph' lands with the autocomplete one"
+    },
+    {
+      "type": "capture",
+      "id": "palette-space-row",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "one space row, glyph and 'Space' label before the omnibox rows"
+    },
+    {
+      "type": "eval",
+      "id": "space-rows",
+      "target": "/commandbar",
+      "expression": "String(document.querySelectorAll('.cbrow.cbspace').length)",
+      "note": "How many spaces the typed text offers"
+    },
+    {
+      "type": "eval",
+      "id": "top-space-row",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbrow.cbspace .cbtitle') || {}).textContent || 'no space rows')",
+      "note": "which space it is, read through a different query than the count"
+    },
+    {
+      "type": "eval",
+      "id": "space-row-is-selected",
+      "target": "/commandbar",
+      "expression": "String(!!document.querySelector('.cbrow.cbspace.cbsel'))",
+      "note": "and it is the row Return is about to take, so the assertion below is about this row"
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "Accept the space row"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "capture",
+      "id": "after-accept",
+      "duration_ms": 300,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "space-rows",
+      "expected": "\"1\"",
+      "desc": "'zeph' names one space and nothing else in this window, so the palette offers exactly that row"
+    },
+    {
+      "type": "eval_equals",
+      "id": "top-space-row",
+      "expected": "\"Zephyr\"",
+      "desc": "the row carries the space's name from the sidebar model, so the count above is not one of something else"
+    },
+    {
+      "type": "eval_equals",
+      "id": "space-row-is-selected",
+      "expected": "\"true\"",
+      "desc": "the space row is highlighted, which is what makes the Return below act on it rather than on an omnibox row"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: active space 0 -> 1 'Zephyr'",
+      "label": "space-row-accept-switched-spaces",
+      "desc": "Return on a space row reached SelectSpace, from the space the fixture starts in to the one the row names. Nothing at launch logs this - the fixture's active space is already 0, and no snoozed tab wakes here."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

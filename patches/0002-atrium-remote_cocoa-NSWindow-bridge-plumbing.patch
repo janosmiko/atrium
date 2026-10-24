@@ -1,0 +1,223 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 23 Jul 2026 13:17:54 +0200
+Subject: [PATCH 002/154] atrium: remote_cocoa NSWindow bridge plumbing
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../app_shim/native_widget_ns_window_bridge.h | 10 +++
+ .../native_widget_ns_window_bridge.mm         | 87 +++++++++++++++++++
+ .../common/native_widget_ns_window.mojom      | 14 +++
+ 3 files changed, 111 insertions(+)
+
+diff --git a/components/remote_cocoa/app_shim/native_widget_ns_window_bridge.h b/components/remote_cocoa/app_shim/native_widget_ns_window_bridge.h
+index 011cbfcb24b7c..f6e6c46a6bc55 100644
+--- a/components/remote_cocoa/app_shim/native_widget_ns_window_bridge.h
++++ b/components/remote_cocoa/app_shim/native_widget_ns_window_bridge.h
+@@ -303,6 +303,7 @@ class REMOTE_COCOA_APP_SHIM_EXPORT NativeWidgetNSWindowBridge
+   void SetOpacity(float opacity) override;
+   void SetWindowLevel(int32_t level) override;
+   void SetActivationIndependence(bool independence) override;
++  void SetExcludedFromWindowCycling(bool excluded) override;
+   void SetAspectRatio(const gfx::SizeF& aspect_ratio,
+                       const gfx::Size& excluded_margin) override;
+   void SetCALayerParams(gfx::CALayerParams ca_layer_params) override;
+@@ -345,6 +346,13 @@ class REMOTE_COCOA_APP_SHIM_EXPORT NativeWidgetNSWindowBridge
+   // update widget and compositor size.
+   void UpdateWindowGeometry();
+ 
++  // Atrium: sync the content view's corner mask with the window frame's
++  // corner radius (see CreateWindowParams::rounds_content_corners_to_window).
++  // `for_fullscreen` is passed explicitly because the fullscreen controller
++  // notifies before its own target state updates. No-op unless the flag was
++  // set at CreateWindow.
++  void UpdateContentCornerMask(bool for_fullscreen);
++
+   bool ShouldUseCustomTitlebarHeightForFullscreen() const;
+ 
+   // Called by the ImmersiveModeController when the toolbar reveal status
+@@ -443,6 +451,8 @@ class REMOTE_COCOA_APP_SHIM_EXPORT NativeWidgetNSWindowBridge
+   std::unique_ptr<CocoaWindowMoveLoop> window_move_loop_;
+   ui::mojom::ModalType modal_type_ = ui::mojom::ModalType::kNone;
+   bool is_translucent_window_ = false;
++  // Atrium: see CreateWindowParams::rounds_content_corners_to_window.
++  bool rounds_content_corners_to_window_ = false;
+   id __strong local_event_monitor_;
+ 
+   raw_ptr<NativeWidgetNSWindowBridge> parent_ =
+diff --git a/components/remote_cocoa/app_shim/native_widget_ns_window_bridge.mm b/components/remote_cocoa/app_shim/native_widget_ns_window_bridge.mm
+index 955e295f85213..9c5e0d4f8185b 100644
+--- a/components/remote_cocoa/app_shim/native_widget_ns_window_bridge.mm
++++ b/components/remote_cocoa/app_shim/native_widget_ns_window_bridge.mm
+@@ -6,6 +6,7 @@
+ 
+ #import <AppKit/AppKit.h>
+ #include <Foundation/Foundation.h>
++#import <QuartzCore/QuartzCore.h>
+ #include <Security/Security.h>
+ #import <SecurityInterface/SecurityInterface.h>
+ #import <objc/runtime.h>
+@@ -82,6 +83,13 @@ CG_EXTERN CGError CGSSetWindowCaptureExcludeShape(CGSConnectionID cid,
+                                                   CGRegionRef region);
+ CG_EXTERN CGRegionRef CGRegionCreateWithRect(CGRect rect);
+ 
++// Atrium: private NSThemeFrame API, the window frame's authoritative corner
++// radius (BrowserWindowFrame overrides it - 20 on macOS 26, native default
++// before; see browser_native_widget_window_mac.mm).
++@interface NSView (AtriumPrivateFrameViewAPI)
++- (CGFloat)_getCachedWindowCornerRadius;
++@end
++
+ namespace {
+ constexpr auto kUIPaintTimeout = base::Milliseconds(500);
+ 
+@@ -552,6 +560,7 @@ void NativeWidgetNSWindowBridge::ShowEmojiPanel() {
+ 
+ void NativeWidgetNSWindowBridge::CreateWindow(
+     mojom::CreateWindowParamsPtr params) {
++  rounds_content_corners_to_window_ = params->rounds_content_corners_to_window;
+   SetWindow(CreateNSWindow(params.get()));
+   if (window_set_callback_) {
+     std::move(window_set_callback_).Run(ns_window());
+@@ -809,6 +818,63 @@ void NativeWidgetNSWindowBridge::CreateContentView(
+   }
+ 
+   [window_ setContentView:bridged_view_];
++  // After setContentView: the frame view is the content view's superview, so
++  // the frame's corner radius is readable.
++  UpdateContentCornerMask(target_fullscreen_state());
++}
++
++// Atrium: translucent windows (liquid-glass browser window) paint their own
++// background, which AppKit's frame does not corner-mask, so the compositor
++// surface would show square corners against the frame's rounded shadow. Clip
++// the content view to the frame's own radius instead of a hardcoded value:
++// -_getCachedWindowCornerRadius is the same source of truth the frame uses
++// and already version-gates (concentric 20 on macOS 26, native default
++// before), so the content stays flush with the window shape across OS
++// versions.
++void NativeWidgetNSWindowBridge::UpdateContentCornerMask(bool for_fullscreen) {
++  if (!bridged_view_) {
++    return;
++  }
++  // A non-opaque window (Atrium's liquid-glass browser window paints its own
++  // clear background) is the case AppKit doesn't corner-mask for us. The
++  // explicit opt-in flag only reaches the out-of-process path, so key off the
++  // window's own opacity here - self-contained and correct for every window
++  // that actually needs it.
++  // Only a non-opaque window (Atrium's liquid-glass browser window paints its
++  // own clear background) needs this - AppKit corner-masks opaque windows for
++  // free. The initial windowed rounding is applied by InstallLiquidGlassBackdrop
++  // when the window first goes non-opaque; this path re-applies across
++  // fullscreen transitions (radius 0 in fullscreen, restored on exit).
++  if (![window_ isOpaque]) {
++    // proceed
++  } else if (!rounds_content_corners_to_window_) {
++    return;
++  }
++  CGFloat radius = 0;
++  // Fullscreen content fills the screen edge-to-edge; no rounding there.
++  if (!for_fullscreen) {
++    NSView* frame_view = [bridged_view_ superview];
++    if ([frame_view
++            respondsToSelector:@selector(_getCachedWindowCornerRadius)]) {
++      radius = [frame_view _getCachedWindowCornerRadius];
++    }
++    // On macOS 26 the window silhouette uses the concentric radius 20
++    // (13pt widget inset + 7pt widget radius, per BrowserWindowFrame's own
++    // -_getCachedWindowCornerRadius override). The frame view can hand back
++    // the legacy ~11pt default here, which leaves the content noticeably
++    // tighter than the Tahoe frame - clamp up so the two stay concentric.
++    if (@available(macOS 26, *)) {
++      if (radius < 20) {
++        radius = 20;
++      }
++    }
++  }
++  bridged_view_.layer.cornerRadius = radius;
++  bridged_view_.layer.masksToBounds = radius > 0;
++  if (@available(macOS 26, *)) {
++    // macOS 26 window corners use continuous (squircle) curvature.
++    bridged_view_.layer.cornerCurve = kCACornerCurveContinuous;
++  }
+ }
+ 
+ void NativeWidgetNSWindowBridge::CloseWindow() {
+@@ -1631,6 +1697,10 @@ void NativeWidgetNSWindowBridge::OnDisplayMetricsChanged(
+ 
+ void NativeWidgetNSWindowBridge::FullscreenControllerTransitionStart(
+     bool is_target_fullscreen) {
++  // Atrium: drop the corner mask as the enter-fullscreen zoom starts (and
++  // restore it when leaving) so the content is square while it fills the
++  // screen.
++  UpdateContentCornerMask(is_target_fullscreen);
+   host_->OnWindowFullscreenTransitionStart(is_target_fullscreen);
+   if (!is_target_fullscreen) {
+     // Immersive full screen needs to be disabled synchronously during the
+@@ -1646,6 +1716,9 @@ void NativeWidgetNSWindowBridge::FullscreenControllerTransitionComplete(
+   DCHECK(!fullscreen_controller_.IsInFullscreenTransition());
+   UpdateWindowGeometry();
+   UpdateWindowDisplay();
++  // Atrium: reapply (or keep cleared) the content corner mask now that the
++  // final fullscreen state is known.
++  UpdateContentCornerMask(is_fullscreen);
+ 
+   // Add any children that were skipped during the fullscreen transition.
+   // A weak pointer is needed because OrderChildren() can synchronously run a
+@@ -1915,6 +1988,20 @@ void NativeWidgetNSWindowBridge::SetActivationIndependence(bool independence) {
+   }
+ }
+ 
++void NativeWidgetNSWindowBridge::SetExcludedFromWindowCycling(bool excluded) {
++  window_.excludedFromWindowsMenu = excluded;
++
++  // Strip the managed/transient collection behavior bits; they will be reset
++  // below. Leaves every other bit (e.g. fullscreen-related, set elsewhere in
++  // this file) untouched.
++  NSWindowCollectionBehavior behavior =
++      window_.collectionBehavior & ~(NSWindowCollectionBehaviorManaged |
++                                     NSWindowCollectionBehaviorTransient);
++  window_.collectionBehavior =
++      behavior | (excluded ? NSWindowCollectionBehaviorTransient
++                           : NSWindowCollectionBehaviorManaged);
++}
++
+ void NativeWidgetNSWindowBridge::SetAspectRatio(
+     const gfx::SizeF& aspect_ratio,
+     const gfx::Size& excluded_margin) {
+diff --git a/components/remote_cocoa/common/native_widget_ns_window.mojom b/components/remote_cocoa/common/native_widget_ns_window.mojom
+index a41254c1f3165..3a49aba4ffa6a 100644
+--- a/components/remote_cocoa/common/native_widget_ns_window.mojom
++++ b/components/remote_cocoa/common/native_widget_ns_window.mojom
+@@ -49,6 +49,12 @@ struct CreateWindowParams {
+ 
+   // Whether or not window animations should be initially enabled.
+   bool animation_enabled;
++
++  // Atrium: clip the content view to the window frame's corner radius.
++  // Translucent windows draw their own background, which AppKit does not
++  // corner-mask, so without this the visible corners render square while
++  // the frame (shadow, traffic lights) assumes the native rounded shape.
++  bool rounds_content_corners_to_window;
+ };
+ 
+ // Ways of changing the visibility of the bridged NSWindow.
+@@ -272,6 +278,14 @@ interface NativeWidgetNSWindow {
+   // NSWindows is set as well.
+   SetActivationIndependence(bool independence);
+ 
++  // Exclude (or re-include) the NSWindow from the app's automatic Window
++  // menu, Cmd-~ window cycling, and Mission Control / App Exposé. Used for
++  // windows an embedder keeps alive off-screen (e.g. a hidden-window pool)
++  // that should not clutter window-enumeration UI while hidden. Sets
++  // `NSWindow.excludedFromWindowsMenu` and adds/removes
++  // NSWindowCollectionBehaviorTransient accordingly.
++  SetExcludedFromWindowCycling(bool excluded);
++
+   // Set the aspect ratio of the NSWindow. `aspect_ratio` must not be empty.
+   // The aspect ratio refers to the client area only; system-drawn window
+   // decorations like a title bar are not considered in the aspect ratio.

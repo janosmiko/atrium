@@ -1,0 +1,112 @@
+{
+  "name": "sidebar-position-right",
+  "description": "The sidebarPosition applier: a stored setting changes where the sidebar IS, not just what the pane draws.\n\nWHAT WAS WRONG. AtriumBrowserWindow::SetSidebarPosition existed and had zero callers - orphaned when the Swift ops table that drove it was removed. The Rust core still parsed sidebarPosition and drew it as a General row, and the window ignored it. It has two callers through the WindowAppearance seam. The one this scenario exercises is SeedFromSettings in PreBrowserStart.\n\nWHY THE SEED AND NOT A MID-LAUNCH TOGGLE. The surface has exactly ONE editable row. settings.js builds a clickable control only where `Boolean(row.toggle) && typeof from[row.key] === 'boolean'` (settings.js:284, :369) and the click handler only reaches elements carrying the resulting `.settings-row-toggle` class (:532) - and `toggle: true` appears on confirmToQuitEnabled and nowhere else. Sidebar position, Native app view and Glass opacity are all read-only rows today, so there is no gesture in the product that fires OnSettingsSaved for any of them. A scenario that clicked at those coordinates would assert that clicking an inert row does nothing. The startup seed is not a weaker substitute here, it is the only caller a scenario can reach.\n\nTHE CONTRAST IS SPATIAL, AND THAT IS WHAT MAKES IT A GATE. One launch gives one stored position, so there is no before/after on the setting itself. Instead the setting decides WHICH COLUMN the Cmd+S collapse empties. With sidebarPosition=right the sidebar occupies the right 280pt and the collapse empties that column while the left stays page content; on a build that ignored the setting the sidebar would sit on the left and both assertions below would flip at once. Neither can pass for the other's reason: one demands change in a region, the other demands stillness in a region 610pt away, and a single Cmd+S produces both readings from one pair of frames.\n\nSIDEBAR WIDTH IS LOAD-BEARING FOR THE COORDINATES. The fixture's appState.sidebarWidth is 280 and reaches the window, where the compiled-in default is 220. The regions below are placed against 280 and verified against the measured edge rather than against the fixture's number.\n\nWHAT THIS SCENARIO DOES NOT COVER. opaqueSurround and glassOpacity, the other two appliers, are not gated here and cannot be gated by this harness as it stands. Their effect is a difference in FLATNESS rather than in colour - opaque-surround measured the two states as delta 0.00 with identical means across the left gutter, the bottom gutter and the pane's corner - so the measurement they need is a one-frame variance gate. pixcmp already computes variance and prints it as evidence, but every assertion here grades a mean delta between two frames, so nothing can act on it. With no editable row to produce a second state in one launch either, both halves of the problem are open, and both live outside build/scenarios. Its own fixture on the harness's example-domain.html, which carries the <title> the gate waits for. Sharing presenter-startup's would wait on a remote page the VM cannot reach, so the gate would never open and everything after it would run against unestablished state.",
+  "fixture": "hotkey-rebind.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "settings": "sidebar-position-right.settings.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "timeout_ms": 20000,
+      "note": "gate on a committed navigation, same line and reason as cmds-sidebar-collapse: past this point the sidebar has real rows rather than a loading placeholder"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the docked sidebar finish rendering on whichever side it landed"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot; without this Cmd+S lands in Finder"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "move",
+      "x": 420,
+      "y": 600,
+      "note": "park the pointer in page content, clear of BOTH candidate sidebar columns - the left 0..280 and the right 744..1024 - so the cursor sprite cannot supply a delta to either region, whichever side the build actually put the sidebar on"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "docked",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the sidebar docked, at the stored position"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "the stock toggleSidebar binding - no hotkeys fixture is staged here, so Cmd+S keeps its default meaning. It collapses whichever column the sidebar is in"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the collapse settle - the same margin cmds-sidebar-collapse uses for this transition"
+    },
+    {
+      "type": "capture",
+      "id": "collapsed",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the sidebar collapsed to width 0, page content in the column it vacated"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-tab-loaded-first",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "note": "THE PREMISE: a docked sidebar with real rows existed before the chord, so the delta below is a collapse rather than a fixture that never rendered"
+    },
+    {
+      "type": "pixels_changed",
+      "before": "docked",
+      "after": "collapsed",
+      "region": [
+        800,
+        200,
+        150,
+        300
+      ],
+      "min_changed_pct": 40.0,
+      "desc": "THE MEASUREMENT: the sidebar is on the RIGHT, so the collapse empties the right column - which can only happen if the stored sidebarPosition reached the window",
+      "note": "THE THRESHOLD IS MEASURED; THIS COLUMN IS NOT YET. On the 2026-08-10 run the app crashed before a window existed, so both frames are bare desktop and this region read changed_pct 0.00, changed 0/45000, with before_var and after_var both 4257.4 - a number about the wallpaper and about nothing in the app. The bar comes instead from the same collapse measured on the mirrored side that night: hotkey-rebind, same 280pt fixture, same 150x300 region shape, scored changed_pct 99.68 (44857 of 45000 pixels, mean_px_dist 56.9, after_var 0.0) when the sidebar column was handed to page content. 40.0 is 2.5x under that. THE RIGHT COLUMN IS NOW VERIFIED TOO, and this is the first reading that is about the app rather than the wallpaper:, on the bundle that fixed the launch crash (libchrome_dll.dylib sha256 59d56ccb, 2026-08-10 09:58), scored changed_pct 96.96 - 43633 of 45000 pixels, mean_px_dist 53.5, before_var 885.4 collapsing to after_var 14.2. The crashed run's 0.00 came with before_var and after_var both 4257.4, the wallpaper's own texture on both sides; 885.4 -> 14.2 is sidebar chrome giving way to flat page content"
+    },
+    {
+      "type": "region_stable",
+      "before": "docked",
+      "after": "collapsed",
+      "region": [
+        40,
+        200,
+        150,
+        300
+      ],
+      "max_delta": 10.0,
+      "desc": "THE OTHER HALF: nothing moves on the LEFT, where the sidebar would have been had the setting reached nothing",
+      "note": "Same derivation as the region above, read the other way round. A sidebar that ignored the setting and docked left would score about 57 here on collapse - that is the mean delta cmds-sidebar-collapse measured twice (56.76, 56.79) and hotkey-rebind reproduced tonight on this fixture - so 10.0 sits about 5.7x under a wrongly-placed sidebar and far above the 0.00 a still region scores. The crashed run of 2026-08-10 passed this at delta 0.00 with means 66.8,74.9,88.5 - the desktop wallpaper photographed twice, not evidence of anything. IT IS EVIDENCE NOW:, the launch that finally worked, the same region reads delta 1.68 with means 237.0,237.0,237.1 -> 238.0,238.0,238.0 and after_var 0.0. Those are page-content greys, the same 238 the content pane reads elsewhere in the suite, so the left column held page content across the collapse instead of a sidebar disappearing from it"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "liveness: still one real window after the toggle"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits - graded by quit_outcome.py, so a SIGTERM fallback fails here rather than passing quietly"
+    }
+  ],
+  "serve_fixtures": true
+}

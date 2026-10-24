@@ -1,0 +1,87 @@
+{
+  "name": "a-committed-swipe-swaps-the-page-before-the-rail-lands",
+  "description": "A trackpad swipe between two spaces takes the outgoing page off the card as soon as the gesture resolves, not when the rail settle animation lands. Before this, swipe.js announced sidebarSpaceSelected only once the settle spring moved spaceIndex, and C++ swaps the pane synchronously on that message - so the space being left kept drawing its page for the whole slide. The fix announces the DECIDED space while the settle runs, which is the finger lift on a flick and the release on a slow drag.\n\nThe claim needs both halves read at the same instant, which is what the last frame of the during capture is for: the card no longer holds the outgoing page, and the sidebar rail has not finished travelling. Either reading alone is satisfiable by a build that simply settles faster.\n\nThe capture outlives the gesture on purpose. A capture started after the gesture spends its first ~170ms warming up and misses the settle entirely, so the mid-slide frame has to come from a stream that was already running.\n\nWhat this does NOT assert: that the incoming page is on the card by then. Measured 2026-09-15, the card is blank at that frame - hiding the old WebContents and painting the new one are separate steps, and only the first is on the announce path this task moves.\n\nThe gesture and the fixture are copied from swipe-blends-the-backdrop-under-the-finger, because that scenario commits a swipe every run. The fixture's two spaces load different pages, so the content region really does change.",
+  "fixture": "space-cycle.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "a276b001-0000-0000-0000-000000000001",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the first space render"
+    },
+    {
+      "type": "activate",
+      "note": "an ssh-launched Atrium is not frontmost, so the gesture would land in Finder"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the first space's page"
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 100,
+      "y": 200,
+      "dx": -45,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "during",
+      "duration_ms": 620,
+      "note": "negative dx travels toward the next space. The capture outlives the gesture on purpose - its last frame is the mid-slide reading, taken by a stream already running, because a capture started after the gesture spends its first ~160ms warming up and misses the settle."
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "longer than the settle spring and every push this surface makes"
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 400,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-switch-happened",
+      "pattern": "Atrium: active space 0 -> 1 "
+    },
+    {
+      "type": "pixels_changed",
+      "before": "before",
+      "after": "during",
+      "region": [
+        280,
+        80,
+        320,
+        160
+      ],
+      "min_changed_pct": 40.0,
+      "label": "the-page-changed-before-the-rail-landed",
+      "desc": "the outgoing space's page is already gone from the card mid-slide. Announcing on arrival leaves it drawing here, which is the regression this guards."
+    },
+    {
+      "type": "pixels_changed",
+      "before": "during",
+      "after": "after",
+      "region": [
+        20,
+        220,
+        170,
+        380
+      ],
+      "min_changed_pct": 5.0,
+      "label": "the-rail-was-still-travelling",
+      "desc": "the half that makes this a timing claim. A build that merely settles faster lands the rail by that frame and fails here. The during capture must end before the rail lands, about 770-850ms after the gesture starts. Measured ~8.6% with the last frame at ~690ms, so the 5% bar has headroom. The page blanks at ~566ms, so the capture must not end before that either."
+    }
+  ]
+}

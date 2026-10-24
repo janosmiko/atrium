@@ -1,0 +1,173 @@
+{
+  "name": "the-devbar-hint-follows-a-held-modifier",
+  "description": "The floating address bar's back/forward/reload swap glyph and title for a held modifier, and the open hover hint must follow: the label switches to the variant's, and its key drops since none of the variants carry one. window.atriumSetNavModifiers is the receiver AtriumBrowserWindow::SetSidebarNavModifiers pushes from the native flagsChanged monitor - the devbar rarely holds the keyboard, so this is the realistic path, not a DOM keydown, and driving it directly avoids a real chord's flaky release. This run pushes that receiver and checks the hint's text and key before, during and after.",
+  "fixture": "icon-tint-none.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "startup_space": "437b0002-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d",
+      "note": "Developer Mode: brings up the floating address bar"
+    },
+    {
+      "type": "eval_until",
+      "id": "devbar-back-ready",
+      "target": "/devbar",
+      "expression": "String(!!document.querySelector('.dvnav .nb.sbback'))",
+      "expected": "true",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "hover-devbar-back",
+      "target": "/devbar",
+      "expression": "(() => { const b = document.querySelector('.dvnav .nb.sbback'); if (!b) { return 'no-button'; } b.dispatchEvent(new PointerEvent('pointerover', {bubbles: true})); return 'hovered'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 900,
+      "note": "past HOVER_DELAY_MS (600ms) in hint-triggers.js"
+    },
+    {
+      "type": "eval_until",
+      "id": "plain-hint-text",
+      "target": "/hint",
+      "expression": "String((document.querySelector('.hint .hint-text') || {}).textContent || 'no hint')",
+      "expected": "Back",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "eval",
+      "id": "plain-hint-keys",
+      "target": "/hint",
+      "expression": "[...document.querySelectorAll('.hint .hint-keys .ov-key')].map((k) => k.textContent).join('')"
+    },
+    {
+      "type": "eval",
+      "id": "push-option",
+      "target": "/devbar",
+      "expression": "(() => { window.atriumSetNavModifiers(false, false, true); return 'pushed'; })()",
+      "note": "the same push AtriumBrowserWindow::SetSidebarNavModifiers sends from a real flagsChanged - no DOM key event at all"
+    },
+    {
+      "type": "eval_until",
+      "id": "variant-hint-text",
+      "target": "/hint",
+      "expression": "String((document.querySelector('.hint .hint-text') || {}).textContent || 'no hint')",
+      "expected": "Back to the first page of this tab",
+      "timeout_ms": 6000,
+      "note": "The pointer never moved - only the native push changed"
+    },
+    {
+      "type": "eval",
+      "id": "variant-hint-keys",
+      "target": "/hint",
+      "expression": "String(document.querySelectorAll('.hint .hint-keys .ov-key').length)"
+    },
+    {
+      "type": "eval",
+      "id": "release-option",
+      "target": "/devbar",
+      "expression": "(() => { window.atriumSetNavModifiers(false, false, false); return 'released'; })()"
+    },
+    {
+      "type": "eval_until",
+      "id": "restored-hint-text",
+      "target": "/hint",
+      "expression": "String((document.querySelector('.hint .hint-text') || {}).textContent || 'no hint')",
+      "expected": "Back",
+      "timeout_ms": 6000,
+      "note": "Releasing restores the plain label and key, pointer still never moved"
+    },
+    {
+      "type": "eval",
+      "id": "restored-hint-keys",
+      "target": "/hint",
+      "expression": "[...document.querySelectorAll('.hint .hint-keys .ov-key')].map((k) => k.textContent).join('')"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "devbar-back-ready",
+      "expected": "true",
+      "desc": "the devbar came up with its nav group"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hover-devbar-back",
+      "expected": "\"hovered\"",
+      "desc": "the Back button was found and hovered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "plain-hint-text",
+      "expected": "Back",
+      "desc": "baseline: the plain hint before any modifier"
+    },
+    {
+      "type": "eval_equals",
+      "id": "plain-hint-keys",
+      "expected": "\"⌘[\"",
+      "desc": "baseline: the plain reload/back key sbback owns in FALLBACK_KEYS"
+    },
+    {
+      "type": "eval_equals",
+      "id": "push-option",
+      "expected": "\"pushed\"",
+      "desc": "the native-push receiver exists and ran"
+    },
+    {
+      "type": "eval_equals",
+      "id": "variant-hint-text",
+      "expected": "Back to the first page of this tab",
+      "desc": "The open hint followed the variant with no pointer movement"
+    },
+    {
+      "type": "eval_equals",
+      "id": "variant-hint-keys",
+      "expected": "\"0\"",
+      "desc": "The option variant has no key of its own, so the plain key must not show"
+    },
+    {
+      "type": "eval_equals",
+      "id": "release-option",
+      "expected": "\"released\"",
+      "desc": "the release push ran"
+    },
+    {
+      "type": "eval_equals",
+      "id": "restored-hint-text",
+      "expected": "Back",
+      "desc": "Releasing the modifier restored the plain label"
+    },
+    {
+      "type": "eval_equals",
+      "id": "restored-hint-keys",
+      "expected": "\"⌘[\"",
+      "desc": "Releasing the modifier restored the plain key"
+    }
+  ]
+}

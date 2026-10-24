@@ -1,0 +1,41 @@
+{
+  "spaces": [
+    {
+      "id": "94494494-9449-4449-8449-944944944944",
+      "name": "Real Origins",
+      "emoji": "🌐",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135200.0,
+          "url": "http://127.0.0.1:8000/favicon-page.html",
+          "title": "Blue Favicon Site"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "favorites": [
+    { "url": "https://gitlab.itg.cloud/dashboard/projects/starred", "title": "GitLab", "profileID": "Default" },
+    { "url": "https://outlook.office365.com/mail/", "title": "Outlook 365", "profileID": "Default" },
+    { "url": "https://bitbucket.org/team-itegration/workspace/overview/", "title": "Bitbucket", "profileID": "Default" },
+    { "url": "https://itegration.atlassian.net/wiki/home", "title": "Confluence", "profileID": "Default" },
+    { "url": "https://app.clockify.me/calendar", "title": "Clockify", "profileID": "Default" },
+    { "url": "https://app-new.calamari.io/", "title": "Calamari", "profileID": "Default" },
+    { "url": "https://teams.cloud.microsoft/", "title": "Teams", "profileID": "Default" },
+    { "url": "https://outlook.office.com/mail/?deeplink=owa%2F", "title": "Outlook", "profileID": "Default" },
+    { "url": "https://jira.eventim.tech/projects/DOIT/issues/DOIT-73769", "title": "Jira", "profileID": "Default" },
+    { "url": "https://eventim.atlassian.net/wiki/welcome", "title": "Confluence 2", "profileID": "Default" },
+    { "url": "https://flavorus.atlassian.net/browse/ONE-66", "title": "Tempo", "profileID": "Default" },
+    { "url": "https://eventim.awsapps.com/start/", "title": "AWS", "profileID": "Default" },
+    { "url": "https://git.eventim.net/", "title": "Git Eventim", "profileID": "Default" }
+  ],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "94494494-9449-4449-8449-944944944944"
+  }
+}

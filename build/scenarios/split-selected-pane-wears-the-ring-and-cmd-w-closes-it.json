@@ -1,0 +1,115 @@
+{
+  "name": "split-selected-pane-wears-the-ring-and-cmd-w-closes-it",
+  "description": "The command bar's /note opens the notes pad beside the page, which is the one keyboard path into a split. The page keeps the primary card on the left and stays the selected pane, so the accent ring draws on the left card's edge: the two columns at x=266, white before the split, reads crimson after. A Cmd+Opt link click opens a little window now, and a row dropped on its own window tears off, so neither opens a split here. The click-then-Cmd+W half lives in AtriumBrowserWindowBrowserTest.TheSelectedSplitPaneWearsTheRingAndCmdWClosesOnlyIt.\n\nThe fixture stages 260, so the card starts at x=267 and its top edge sits around y=40.",
+  "fixture": "split-link.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://dl\\.localhost",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "single",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "type",
+      "text": "/note"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget closing",
+      "timeout_ms": 8000,
+      "note": "/note closes the palette itself once the fifth key lands, and the query never reaches the bridge's length log"
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "move",
+      "x": 900,
+      "y": 650,
+      "note": "park the pointer off the card edge that is read"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "split",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "pixels_changed",
+      "before": "single",
+      "after": "split",
+      "region": [
+        600,
+        300,
+        100,
+        200
+      ],
+      "min_changed_pct": 30,
+      "label": "the-note-opened-a-split"
+    },
+    {
+      "type": "region_mean",
+      "capture": "single",
+      "x": 267,
+      "y": 300,
+      "w": 2,
+      "h": 200,
+      "min_mean": 240,
+      "max_mean": 256,
+      "label": "no-ring-on-a-single-card"
+    },
+    {
+      "type": "region_mean",
+      "capture": "split",
+      "x": 266,
+      "y": 300,
+      "w": 2,
+      "h": 200,
+      "min_mean": 60,
+      "max_mean": 170,
+      "label": "the-selected-card-wears-the-accent-ring"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

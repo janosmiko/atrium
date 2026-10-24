@@ -1,0 +1,105 @@
+{
+  "name": "cmd-d-pins-and-unpins-a-tab",
+  "description": "Cmd+D on the shown regular tab moves its row into the pinned section, and Cmd+D again returns it to the regular list. The reading is the sidebar DOM - the row counts under the pinned dropzone and under the tabs dropzone - and the window's own log names each move. The fixture starts with two regular rows and nothing pinned, so both counts change in a direction only the toggle can produce.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval_until",
+      "id": "before",
+      "target": "/sidebar",
+      "expression": "(() => { const n = s => document.querySelectorAll(s).length; return 'pinned=' + n('[data-dropzone=\"pinned\"] .row.tabrow') + ' tabs=' + n('[data-dropzone=\"tabs\"] .row.tabrow'); })()",
+      "expected": "pinned=0 tabs=2",
+      "timeout_ms": 8000,
+      "note": "THE CONTROL: nothing is pinned yet, so a later pinned row cannot be one the fixture already had."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+d"
+    },
+    {
+      "type": "eval_until",
+      "id": "after-pin",
+      "target": "/sidebar",
+      "expression": "(() => { const n = s => document.querySelectorAll(s).length; return 'pinned=' + n('[data-dropzone=\"pinned\"] .row.tabrow') + ' tabs=' + n('[data-dropzone=\"tabs\"] .row.tabrow'); })()",
+      "expected": "pinned=1 tabs=1",
+      "timeout_ms": 8000,
+      "note": "The shown row left the regular list for the pinned one. Both counts move, so a redraw that dropped a row reads differently from a pin."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+d"
+    },
+    {
+      "type": "eval_until",
+      "id": "after-unpin",
+      "target": "/sidebar",
+      "expression": "(() => { const n = s => document.querySelectorAll(s).length; return 'pinned=' + n('[data-dropzone=\"pinned\"] .row.tabrow') + ' tabs=' + n('[data-dropzone=\"tabs\"] .row.tabrow'); })()",
+      "expected": "pinned=0 tabs=2",
+      "timeout_ms": 8000,
+      "note": "The same key on the now-pinned row sends it back."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "before",
+      "expected": "pinned=0 tabs=2",
+      "desc": "THE CONTROL: the space started with nothing pinned."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: hotkey pinToggleTab fired",
+      "label": "the-chord-reached-the-map",
+      "desc": "Cmd+D ran the Atrium action rather than Bookmark This Tab."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: cmd\\+d pinned tab [0-9]+ moved",
+      "label": "the-window-pinned-it",
+      "desc": "The core moved the row into the pinned list."
+    },
+    {
+      "type": "eval_equals",
+      "id": "after-pin",
+      "expected": "pinned=1 tabs=1",
+      "desc": "The sidebar draws the tab in its pinned section."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: cmd\\+d unpinned row [0-9]+ moved",
+      "label": "the-window-unpinned-it",
+      "desc": "The second press moved the row back."
+    },
+    {
+      "type": "eval_equals",
+      "id": "after-unpin",
+      "expected": "pinned=0 tabs=2",
+      "desc": "The sidebar draws the tab in its regular list again."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

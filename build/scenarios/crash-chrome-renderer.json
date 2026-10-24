@@ -1,0 +1,105 @@
+{
+  "name": "crash-chrome-renderer",
+  "description": "proves the crash_renderer action. The sidebar, command bar, pill, foyer and settings all share one renderer process, and until now nothing in the harness could kill it - the action set stopped at pkill -x Atrium, which takes the whole app, and these surfaces have no address bar so chrome://crash is not reachable through the UI. The recovery cannot be measured without first provoking the crash it recovers from, which is why this scenario exists. What it gates on is what a crash actually leaves in the log, not that a command exited 0: the renderer's own fatal-signal report, and the browser noticing a child process die - each required to appear AFTER the sidebar route committed, so neither can be satisfied by startup noise. The action itself carries the pid-exact half, which no assertion here can express: it records which renderer pids existed before and after the signal and fails if anything other than the one it named went away. NOTE on the 'Task died' gate: that line is a DVLOG, so it needs dchecks compiled in. build/args.gn sets no is_official_build, and dcheck_always_on defaults on for non-official builds, so it is present in every build this repo produces - if that ever changes, this gate is the thing that says so.\n\nAdded 2026-08-10: the same crash now also grades the RECOVERY, in the same run rather than a second scenario. One crash is the whole event - provoking it twice to ask two questions would measure two different crashes, and the surfaces that must come back are the ones this crash took.\n\nWHY THE LINE AND NOT JUST THE SURFACE. AtriumChromeContentsObserver is attached inside AtriumChromeContext::CreateChromeContents. When it is not attached the failure shape is ABSENCE - no 'chrome renderer died' anywhere and every chrome surface blank forever - not a different line. So a scenario that only asked whether the sidebar came back would pass on a build that observes nothing the day something else reloads the route. The graded claim is therefore the observer's own line, and it is asserted as ONE line carrying BOTH halves: 'atrium: chrome renderer died (status=N)' and 'reload 1/3'. assert_vlog_after greps line by line, so a spec that matched the two halves separately would also pass on a build that logged the death and never reloaded. Measured against the pre-wiring build of 02:55 the same day: that run log has zero matches for 'chrome renderer died' and exactly two chrome route commits, both from startup.\n\nBOTH SURFACES, SEPARATELY. The sidebar and the pill hold two WebContents in one renderer, so one crash takes both and each carries its own observer. A SECOND commit of each route, required to appear after the death line, is what says each one reloaded - the first commit of each is startup, five seconds earlier, which is why these are ordered rather than plain presence checks.",
+  "fixture": "two-tabs.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Committed provisional load: chrome://atrium\\.top-chrome/sidebar",
+      "timeout_ms": 25000,
+      "note": "GATE ITS OWN SETUP: the chrome-layer renderer must exist and have committed its route before there is anything to crash. Without this the crash action would report 'no chrome renderer found' on a slow boot, which reads as the action being broken rather than early."
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the pill commits into the same process a moment after the sidebar; crashing between the two would take a surface that had not finished loading, and the log would be harder to read for it."
+    },
+    {
+      "type": "capture",
+      "id": "before-crash",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence only, not graded: the sidebar and pill as they stand with a live renderer, so the after-recovery frames have something to be read against by eye"
+    },
+    {
+      "type": "crash_renderer",
+      "target": "chrome",
+      "note": "THE MEASUREMENT. Resolved by lib/pick_renderer.py from --top-chrome-webui plus a committed chrome://*.top-chrome/ route - two signals, so a spare renderer carrying the switch and hosting nothing is never the one that dies."
+    },
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "the fatal-signal report and its stack trace are written by the dying process, and crashpad reads its memory afterwards; measured at about 1.2s on the probe VM."
+    },
+    {
+      "type": "activate",
+      "note": "the crash does not change which app is frontmost, but the quit assertion sends Cmd+Q to whatever is - and something else being in front is how a quit gate fails for a reason that has nothing to do with the app."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "after-recovery",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence only, not graded: the same two surfaces after the reload. The graded recovery claims are the log assertions below - a pixel compare tuned here would have to be tuned against a blank surface nobody has a frame of yet"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog_after",
+      "label": "renderer-took-a-fatal-signal",
+      "pattern": "Received signal 11",
+      "after_pattern": "Committed provisional load: chrome://atrium\\.top-chrome/sidebar",
+      "note": "base/debug/stack_trace_posix.cc writes this from inside the process that took the signal, so it is present only if something really crashed. Ordered after the sidebar commit because presence alone would also be satisfied by a crash during startup, which is a different event with the same line."
+    },
+    {
+      "type": "vlog_after",
+      "label": "browser-saw-a-child-die",
+      "pattern": "Task died, PID=[0-9]+",
+      "after_pattern": "Received signal 11",
+      "note": "The other half, from the browser side: content/browser/child_process_task_port_provider_mac.cc tracks CHILD processes only, so this line says a child died and never says it about the browser itself. Chained on the SIGNAL, not on the sidebar commit, and that is the whole difference between this gate and a vacuous one - anchored at the commit it matched 'Task died, PID=3420', a utility process that exited during startup five seconds before anything crashed. The pid cannot be named in a spec, so ordering is what pins it: the first child death after a fatal-signal report is the process that took the signal. The action itself carries the pid-exact version, in results.log."
+    },
+    {
+      "type": "vlog_after",
+      "label": "the-observer-saw-the-death-and-reloaded",
+      "pattern": "atrium: chrome renderer died \\(status=-?[0-9]+\\), reload 1/3",
+      "after_pattern": "Received signal 11",
+      "note": "And the assertion the recovery stands or falls on. ONE line, both halves: the status the observer was handed and the reload it decided on. Written by AtriumChromeContentsObserver::PrimaryMainFrameRenderProcessGone, so nothing but that observer running can produce it - an unwired build has no such line at all rather than a different one. 'reload 1' rather than any reload also says this crash was the first inside the one-minute window, so the cap did not swallow it."
+    },
+    {
+      "type": "vlog_after",
+      "label": "the-sidebar-route-came-back",
+      "pattern": "Committed provisional load: chrome://atrium\\.top-chrome/sidebar",
+      "after_pattern": "atrium: chrome renderer died \\(status=-?[0-9]+\\), reload 1/3",
+      "note": "the sidebar's own repaint: a SECOND commit of its route, after the death line. The first commit is the setup gate at the top of this file, so ordering is the whole assertion - a plain presence check would already be true from startup."
+    },
+    {
+      "type": "vlog_after",
+      "label": "the-pill-route-came-back",
+      "pattern": "Committed provisional load: chrome://atrium\\.top-chrome/pill",
+      "after_pattern": "atrium: chrome renderer died \\(status=-?[0-9]+\\), reload 1/3",
+      "note": "the other half of one crash takes both surfaces, so proving only the sidebar returned would leave the pill unmeasured. Separate WebContents, separate observer, separate commit."
+    },
+    {
+      "type": "vlog_absent",
+      "label": "the-reload-cap-did-not-fire",
+      "pattern": "atrium: chrome renderer died [0-9]+ times within",
+      "note": "the cap's own message, which the observer logs INSTEAD of reloading once four crashes land inside a minute. One crash must never reach it, and if it ever does the reload assertions above would be failing for a reason that is not the wiring."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "desc": "the browser survived. A crash that took the browser process would leave no window at all, and this is the assertion that separates 'crashed the renderer' from 'crashed the app' - which is the whole difference between this action and the quit action."
+    },
+    {
+      "type": "quit",
+      "desc": "and it was still responsive enough to quit on Cmd+Q with a dead chrome-layer renderer behind it"
+    }
+  ]
+}

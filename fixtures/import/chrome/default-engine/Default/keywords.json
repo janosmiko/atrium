@@ -1,0 +1,3 @@
+[
+  {"created_by_policy": 0, "is_active": 1, "keyword": "custom", "prepopulate_id": 0, "safe_for_autoreplace": 0, "short_name": "Custom", "starter_pack_id": 0, "sync_guid": "G-CUSTOM", "url": "https://custom.example.test/?q={searchTerms}"}
+]

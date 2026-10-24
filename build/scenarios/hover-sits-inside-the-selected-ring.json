@@ -1,0 +1,82 @@
+{
+  "name": "hover-sits-inside-the-selected-ring",
+  "description": "A hovered row must leave the selected ring's own width clear on all four sides, so the two never share an edge and the filled box cannot read as the larger one. The scenario parks a real pointer on a tab row and measures the painted fill against the row's own border box through the live layout: the pseudo-element that carries the fill reports its rect, and each side must stand inset by --selring. Geometry only - the colour ladder is covered by hover-stays-quieter-than-the-selection. A small fixture with plain rows, because the 60-tab one pushes snapshots as favicons arrive and a rebuild drops the hover mid-measurement. The row hovered is deliberately NOT the selected one: a selected row keeps its own fill and is excluded from the hover fill.",
+  "fixture": "chevron-holds-through-a-fold.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "80880880-8088-4088-8088-808808808808",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "example-domain.html?g1",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/example-domain.html?g1"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "ring-width",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.row.tabrow'); if (!r) return 'NOROW'; return getComputedStyle(r).getPropertyValue('--selring').trim() || 'UNSET'; })()",
+      "note": "the token both the ring and the inset read, so the assertion below is stated in the number the design uses"
+    },
+    {
+      "type": "eval",
+      "id": "row-rect",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.row.tabrow')].filter((r) => !r.classList.contains('sel')); if (!rows.length) return 'NOPLAINROW'; const b = rows[0].getBoundingClientRect(); return JSON.stringify([Math.round(b.x + b.width / 2), Math.round(b.y + b.height / 2)]); })()",
+      "note": "page-space centre of the first NON-selected tab row, to correct the pointer park below when it misses (screen = page + 0,+35 on this VM)"
+    },
+    {
+      "type": "move",
+      "x": 113,
+      "y": 183,
+      "note": "park a REAL pointer on the first non-selected tab row - :hover is the browser's own bookkeeping and no synthetic event sets it. Centre [113,148] from the row-rect eval, +35 for the window offset"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval_until",
+      "id": "hovering",
+      "target": "/sidebar",
+      "expression": "(() => document.querySelector('.row.tabrow:hover') ? 'yes' : 'no')()",
+      "expected": "yes",
+      "note": "THE CONTROL, polled: Chromium runs its hover update on its own schedule, so one sample can miss a pointer that has already landed"
+    },
+    {
+      "type": "eval",
+      "id": "inset",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.row.tabrow:hover'); if (!row) return 'NOHOVER'; if (row.classList.contains('sel')) return 'HOVERED-THE-SELECTED-ROW'; const cs = getComputedStyle(row, '::before'); const paints = cs.backgroundColor && cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundColor !== 'transparent'; if (!paints) return 'no-fill:' + cs.backgroundColor; const want = parseFloat(getComputedStyle(row).getPropertyValue('--selring')); const w = parseFloat(cs.width), h = parseFloat(cs.height); const rb = row.getBoundingClientRect(); const dx = (rb.width - w) / 2, dy = (rb.height - h) / 2; const near = (a, b) => Math.abs(a - b) < 0.6; if (!near(dx, want) || !near(dy, want)) return 'inset:' + dx.toFixed(2) + ',' + dy.toFixed(2) + ' want ' + want; const radius = parseFloat(cs.borderTopLeftRadius); const outer = parseFloat(getComputedStyle(row).borderTopLeftRadius); return near(radius, outer - want) ? 'inset-by-the-ring' : 'radius:' + radius + ' want ' + (outer - want); })()",
+      "note": "Measures the painted layer against the row's own border box on both axes, then checks the corner is concentric rather than the outer radius. no-fill means the layer is not painting at all, which would look like a hover that vanished."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "ring-width",
+      "expected": "\"2px\"",
+      "desc": "THE SETUP: the ring token resolves on a live row, so the inset below is measured against the number the ring itself draws"
+    },
+    {
+      "type": "eval_equals",
+      "id": "inset",
+      "expected": "\"inset-by-the-ring\"",
+      "desc": "THE RULE: the hover fill stands the ring's width inside the row on both axes, with a concentric corner. inset:0,0 is the reported bug - a fill flush to the selected row's own edge."
+    }
+  ]
+}

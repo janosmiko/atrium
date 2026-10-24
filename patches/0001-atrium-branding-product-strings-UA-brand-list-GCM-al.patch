@@ -1,0 +1,257 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 23 Jul 2026 13:17:50 +0200
+Subject: [PATCH 001/154] atrium: branding, product strings, UA brand list, GCM
+ allowlist
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/app/chromium_strings.grd               |  18 +--
+ chrome/app/theme/chromium/BRANDING            |   8 +-
+ .../embedder_support/user_agent_utils.cc      |   8 ++
+ components/gcm_driver/gcm_client_impl.cc      | 118 ++----------------
+ 4 files changed, 28 insertions(+), 124 deletions(-)
+
+diff --git a/chrome/app/chromium_strings.grd b/chrome/app/chromium_strings.grd
+index 12a62d6803668..ccc298c2b2079 100644
+--- a/chrome/app/chromium_strings.grd
++++ b/chrome/app/chromium_strings.grd
+@@ -294,10 +294,10 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
+         </then>
+         <else>
+           <message name="IDS_PRODUCT_NAME" desc="The Chrome application name" translateable="false">
+-            Chromium
++            Atrium
+           </message>
+           <message name="IDS_SHORT_PRODUCT_NAME" desc="The Chrome application short name." translateable="false">
+-            Chromium
++            Atrium
+           </message>
+         </else>
+       </if>
+@@ -1062,15 +1062,15 @@ Chromium is unable to recover your settings.
+ 
+       <!-- Main Chrome menu -->
+       <message name="IDS_APPMENU_TOOLTIP" desc="The tooltip to show for the browser menu">
+-        Customize and control Chromium
++        Customize and control Atrium
+       </message>
+ 
+       <message name="IDS_APPMENU_TOOLTIP_UPDATE_AVAILABLE" desc="The tooltip to show for the browser menu when an update is available">
+-        Customize and control Chromium. Update is available.
++        Customize and control Atrium. Update is available.
+       </message>
+ 
+       <message name="IDS_APPMENU_TOOLTIP_ALERT" desc="The tooltip to show for the browser menu when a non-update alert is displayed">
+-        Customize and control Chromium. Something needs your attention - click for details.
++        Customize and control Atrium. Something needs your attention - click for details.
+       </message>
+ 
+       <message name="IDS_OPEN_IN_CHROME" desc="The text label of the Open in Chrome menu item for the Hosted App app menu">
+@@ -1086,12 +1086,12 @@ Chromium is unable to recover your settings.
+           </then>
+           <else>
+             <message name="IDS_ABOUT" desc="In Title Case: The text label of the About Chrome menu item">
+-              About &amp;Chromium
++              About &amp;Atrium
+             </message>
+           </else>
+         </if>
+         <message name="IDS_RELAUNCH_TO_UPDATE" desc="In Title Case: The text label of the relaunch to update Chrome menu item">
+-          Relaunch to Update &amp;Chromium
++          Relaunch to Update &amp;Atrium
+         </message>
+       </if>
+       <if expr="not use_titlecase and not is_chromeos">
+@@ -1103,12 +1103,12 @@ Chromium is unable to recover your settings.
+           </then>
+           <else>
+             <message name="IDS_ABOUT" desc="The text label of the About Chrome menu item">
+-              About &amp;Chromium
++              About &amp;Atrium
+             </message>
+           </else>
+         </if>
+         <message name="IDS_RELAUNCH_TO_UPDATE" desc="The text label of the relaunch to update Chrome menu item">
+-          Relaunch to update &amp;Chromium
++          Relaunch to update &amp;Atrium
+         </message>
+       </if>
+       <if expr="is_chromeos">
+diff --git a/chrome/app/theme/chromium/BRANDING b/chrome/app/theme/chromium/BRANDING
+index f8363d5b294fe..4f2db953fe0d0 100644
+--- a/chrome/app/theme/chromium/BRANDING
++++ b/chrome/app/theme/chromium/BRANDING
+@@ -1,9 +1,9 @@
+ COMPANY_FULLNAME=The Chromium Authors
+ COMPANY_SHORTNAME=The Chromium Authors
+-PRODUCT_FULLNAME=Chromium
+-PRODUCT_SHORTNAME=Chromium
+-PRODUCT_INSTALLER_FULLNAME=Chromium Installer
+-PRODUCT_INSTALLER_SHORTNAME=Chromium Installer
++PRODUCT_FULLNAME=Atrium
++PRODUCT_SHORTNAME=Atrium
++PRODUCT_INSTALLER_FULLNAME=Atrium Installer
++PRODUCT_INSTALLER_SHORTNAME=Atrium Installer
+ COPYRIGHT=Copyright @LASTCHANGE_YEAR@ The Chromium Authors. All rights reserved.
+ MAC_BUNDLE_ID=org.chromium.Chromium
+ MAC_CREATOR_CODE=Cr24
+diff --git a/components/embedder_support/user_agent_utils.cc b/components/embedder_support/user_agent_utils.cc
+index 608bea5cb3864..45f7c92bc7478 100644
+--- a/components/embedder_support/user_agent_utils.cc
++++ b/components/embedder_support/user_agent_utils.cc
+@@ -165,6 +165,14 @@ const blink::UserAgentBrandList GetUserAgentBrandList(
+   std::optional<std::string> brand;
+ #if !BUILDFLAG(CHROMIUM_BRANDING)
+   brand = version_info::GetProductName();
++#else
++  // Atrium: a Chromium-branded fork still reports its own product brand in the
++  // UA client-hints brand list, like Edge/Brave/Vivaldi. Sites that gate on a
++  // named product brand (e.g. the Chrome Web Store install button) need this.
++  // Guarded on the product name so a stock Chromium build stays unaffected.
++  if (version_info::GetProductName() != "Chromium") {
++    brand = version_info::GetProductName();
++  }
+ #endif
+ 
+   std::string brand_version =
+diff --git a/components/gcm_driver/gcm_client_impl.cc b/components/gcm_driver/gcm_client_impl.cc
+index d3fb7da106971..a55faa852b114 100644
+--- a/components/gcm_driver/gcm_client_impl.cc
++++ b/components/gcm_driver/gcm_client_impl.cc
+@@ -71,7 +71,6 @@ enum MessageType {
+   SEND_ERROR,        // Error sending a message.
+ };
+ 
+-const int kMaxRegistrationRetries = 5;
+ const int kMaxUnregistrationRetries = 5;
+ const char kDeletedCountKey[] = "total_deleted";
+ const char kMessageTypeDataMessage[] = "gcm";
+@@ -795,116 +794,13 @@ void GCMClientImpl::Register(
+   DCHECK_EQ(state_, READY);
+   DCHECK(io_task_runner_->RunsTasksInCurrentSequence());
+ 
+-  // Registrations should never pass as an app_id the special category used
+-  // internally when registering with a subtype. See security note in
+-  // GCMClientImpl::HandleIncomingMessage.
+-  CHECK_NE(registration_info->app_id,
+-           chrome_build_info_.product_category_for_subtypes);
+-
+-  // Find and use the cached registration ID.
+-  RegistrationInfoMap::const_iterator registrations_iter =
+-      registrations_.find(registration_info);
+-  if (registrations_iter != registrations_.end()) {
+-    bool matched = true;
+-
+-    // For GCM registration, we also match the sender IDs since multiple
+-    // registrations are not supported.
+-    const GCMRegistrationInfo* gcm_registration_info =
+-        GCMRegistrationInfo::FromRegistrationInfo(registration_info.get());
+-    if (gcm_registration_info) {
+-      const GCMRegistrationInfo* cached_gcm_registration_info =
+-          GCMRegistrationInfo::FromRegistrationInfo(
+-              registrations_iter->first.get());
+-      DCHECK(cached_gcm_registration_info);
+-      if (gcm_registration_info->sender_ids !=
+-          cached_gcm_registration_info->sender_ids) {
+-        matched = false;
+-        // Senders IDs don't match existing registration.
+-        RecordRegistrationRequestToUMA(
+-            RegistrationCacheStatus::REGISTRATION_FOUND_BUT_SENDERS_DONT_MATCH);
+-      }
+-    }
+-
+-    if (matched) {
+-      // Skip registration if token is fresh.
+-      base::TimeDelta token_invalidation_period =
+-          features::GetTokenInvalidationInterval();
+-      base::TimeDelta time_since_last_validation =
+-          clock_->Now() - registrations_iter->first->last_validated;
+-      if (token_invalidation_period.is_zero() ||
+-          time_since_last_validation < token_invalidation_period) {
+-        // Token is fresh, or token invalidation is disabled.
+-        // Use cached registration.
+-        delegate_->OnRegisterFinished(registration_info,
+-                                      registrations_iter->second, SUCCESS);
+-        RecordRegistrationRequestToUMA(
+-            RegistrationCacheStatus::REGISTRATION_FOUND_AND_FRESH);
+-        return;
+-      } else {
+-        // Token is stale.
+-        RecordRegistrationRequestToUMA(
+-            RegistrationCacheStatus::REGISTRATION_FOUND_BUT_STALE);
+-      }
+-    }
+-  } else {
+-    // New Registration request (no existing registration)
+-    RecordRegistrationRequestToUMA(
+-        RegistrationCacheStatus::REGISTRATION_NOT_FOUND);
+-  }
+-
+-  std::unique_ptr<RegistrationRequest::CustomRequestHandler> request_handler;
+-  std::string source_to_record;
+-
+-  const GCMRegistrationInfo* gcm_registration_info =
+-      GCMRegistrationInfo::FromRegistrationInfo(registration_info.get());
+-  if (gcm_registration_info) {
+-    std::string senders;
+-    for (const auto& kv : gcm_registration_info->sender_ids) {
+-      if (!senders.empty())
+-        senders.append(",");
+-      senders.append(kv);
+-    }
+-    request_handler = std::make_unique<GCMRegistrationRequestHandler>(senders);
+-    source_to_record = senders;
+-  }
+-
+-  const InstanceIDTokenInfo* instance_id_token_info =
+-      InstanceIDTokenInfo::FromRegistrationInfo(registration_info.get());
+-  if (instance_id_token_info) {
+-    auto instance_id_iter = instance_id_data_.find(registration_info->app_id);
+-    CHECK(instance_id_iter != instance_id_data_.end());
+-
+-    request_handler = std::make_unique<InstanceIDGetTokenRequestHandler>(
+-        instance_id_iter->second.first,
+-        instance_id_token_info->authorized_entity,
+-        instance_id_token_info->scope,
+-        ConstructGCMVersion(chrome_build_info_.version),
+-        instance_id_token_info->time_to_live);
+-    source_to_record = instance_id_token_info->authorized_entity + "/" +
+-                       instance_id_token_info->scope;
+-  }
+-
+-  bool use_subtype = instance_id_token_info &&
+-                     InstanceIDUsesSubtypeForAppId(registration_info->app_id);
+-  std::string category = use_subtype
+-                             ? chrome_build_info_.product_category_for_subtypes
+-                             : registration_info->app_id;
+-  std::string subtype = use_subtype ? registration_info->app_id : std::string();
+-  RegistrationRequest::RequestInfo request_info(device_checkin_info_.android_id,
+-                                                device_checkin_info_.secret,
+-                                                category, subtype);
+-
+-  std::unique_ptr<RegistrationRequest> registration_request(
+-      new RegistrationRequest(
+-          gservices_settings_.GetRegistrationURL(), request_info,
+-          std::move(request_handler), GetGCMBackoffPolicy(),
+-          base::BindOnce(&GCMClientImpl::OnRegisterCompleted,
+-                         weak_ptr_factory_.GetWeakPtr(), registration_info),
+-          kMaxRegistrationRetries, url_loader_factory_, io_task_runner_,
+-          &recorder_, source_to_record));
+-  registration_request->Start();
+-  pending_registration_requests_.insert(
+-      std::make_pair(registration_info, std::move(registration_request)));
++  // Atrium: Google's GCM registration+checkin backend rejects all
++  // registration attempts with DEPRECATED_ENDPOINT, and Atrium ships no
++  // feature that consumes push messaging/GCM. Fail every registration here,
++  // before any network request is built, instead of flooding the log with
++  // per-attempt registration_request.cc errors on a retry loop.
++  delegate_->OnRegisterFinished(registration_info, std::string(),
++                                GCM_DISABLED);
+ }
+ 
+ void GCMClientImpl::OnRegisterCompleted(

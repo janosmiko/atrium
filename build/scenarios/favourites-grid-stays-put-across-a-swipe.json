@@ -1,0 +1,124 @@
+{
+  "name": "favourites-grid-stays-put-across-a-swipe",
+  "description": "A favourite is one tab on the PROFILE, so two spaces of one profile draw the same tiles. Every rail pane has its own grid, to stop a swipe between DIFFERENT profiles showing the outgoing space's tiles until the animation ended. That design is right for a profile change and wrong for a swipe inside one: the two grids are identical, so the swipe animated something that had not changed, and the tiles slid away and back for no reason.\n\nSo there are TWO grids. Every pane keeps its own, which is what carries the tiles off on a swipe into another profile, and a pinned copy sits beside the rail where the address row was hoisted for the same reason. Inside one profile the pane grids are hidden and the pinned copy shows; across a profile change the stylesheet swaps which of the two is visible. A swipe translates .rail alone, so the pinned copy cannot travel with it.\n\nWHY THE READ IS A COMPARISON MADE INSIDE THE PAGE, not two positions compared by the grader. The grid's absolute position depends on the window the harness happens to give this run, so a literal would pin the harness rather than the layout. The first eval stores the rect on the sidebar renderer's own window, and the second answers whether it still holds. That renderer is ONE document across a space switch - the switch redraws the sidebar, it does not reload it - so the stored value is still there to compare against.\n\nWHY VISIBILITY IS ASSERTED AND NOT THE COUNT. Three grids is the correct count here and says nothing about which one is on screen. A pane grid showing while both spaces share a profile IS the defect, so both reads answer with that instead when they find one.\n\nTHE FIXTURE HAS A THIRD SPACE, and it is the point. Spaces one and two share a profile and space three does not. The cycle below runs 1 -> 2, and the settle spring sweeps PAST space two into space three - a different profile. A two-space fixture cannot produce that overshoot, so it would pass whether or not the spring's position decides which grid shows.",
+  "fixture": "three-spaces-two-profiles.json",
+  "startup_space": "3ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the sidebar draws and the startup space's tab restores"
+    },
+    {
+      "type": "activate",
+      "note": "an ssh-launched Atrium is not frontmost on a clean snapshot, and the chord below would land in Finder"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "grid-before",
+      "target": "/sidebar",
+      "expression": "(() => { const pinned = document.querySelector('#atrium-root > .favgrid'); if (!pinned) { return 'no pinned grid'; } const shown = [...document.querySelectorAll('.railpane .favgrid')].filter(g => getComputedStyle(g).visibility !== 'hidden'); if (shown.length) { return 'a pane grid shows inside one profile: ' + shown.length; } const box = pinned.getBoundingClientRect(); window.__gridLeft = Math.round(box.left); window.__gridTop = Math.round(box.top); return 'pinned at ' + window.__gridLeft + ',' + window.__gridTop; })()",
+      "note": "THE BASELINE. Every pane still draws its own grid, for the swipe into another PROFILE that has to carry the tiles off - so the count is not the read. What matters is that inside one profile those are all hidden and the pinned copy is the one on screen. Its rect is stored on the renderer's own window rather than returned, because the absolute position belongs to whatever window this run got."
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the tiles where they start, so a reader can see what the read below is about"
+    },
+    {
+      "type": "eval",
+      "id": "watch-the-settle",
+      "target": "/sidebar",
+      "expression": "(() => { const root = document.getElementById('atrium-root'); if (!root) { return 'no root'; } window.__sawXprofile = root.classList.contains('xprofile'); window.__deepestPx = 0; new MutationObserver(() => { if (root.classList.contains('xprofile')) { window.__sawXprofile = true; } const rail = root.querySelector('.rail'); const m = rail && /translateX\\((-?[0-9.]+)px\\)/.exec(rail.style.transform || ''); if (m) { window.__deepestPx = Math.min(window.__deepestPx, parseFloat(m[1])); } }).observe(root, {attributes: true, subtree: true, attributeFilter: ['class', 'style']}); return 'watching'; })()",
+      "note": "THE BOUNCE CATCHER. The settle spring is underdamped, so it sweeps past the space it lands on into the next one. If that neighbour is read as another profile the pane grids - which move with the rail - flick visible for a few frames, which is what a bounce looks like. A read taken after the settle cannot see those frames, so this records every class change from here until the read below. The observer watches the ROOT's attributes and a rebuild replaces only its children, so it survives the redraw."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "the shipped space-cycle default, into the second space of the SAME profile"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 0 -> 1",
+      "timeout_ms": 8000,
+      "note": "gate the setup: the document really moved. Without it a chord that went nowhere would leave the grid trivially unmoved and the scenario would pass on nothing."
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "past the glide and the rebuild the switch posts, so the read below is of a settled sidebar rather than a frame mid-animation"
+    },
+    {
+      "type": "eval",
+      "id": "grid-after",
+      "target": "/sidebar",
+      "expression": "(() => { const pinned = document.querySelector('#atrium-root > .favgrid'); if (!pinned) { return 'no pinned grid'; } const shown = [...document.querySelectorAll('.railpane .favgrid')].filter(g => getComputedStyle(g).visibility !== 'hidden'); if (shown.length) { return 'a pane grid shows inside one profile: ' + shown.length; } const box = pinned.getBoundingClientRect(); return (Math.round(box.left) === window.__gridLeft && Math.round(box.top) === window.__gridTop) ? 'unmoved' : 'moved to ' + Math.round(box.left) + ',' + Math.round(box.top); })()",
+      "note": "THE READ THIS SCENARIO EXISTS FOR. The switch rebuilds the sidebar, so this is a new element - what must hold is that it is drawn in the same place, and that no pane grid took over, which is what a swipe across profiles would leave behind."
+    },
+    {
+      "type": "eval",
+      "id": "settle-stayed-pinned",
+      "target": "/sidebar",
+      "expression": "(() => { const w = document.getElementById('atrium-root').clientWidth; const past = -(window.__deepestPx || 0) - w; return (past > 1 ? 'overshot ' : 'no overshoot ') + (window.__sawXprofile === false ? 'and stayed pinned' : 'and switched'); })()",
+      "note": "Two answers in one, because either alone can pass on nothing. The rail's own transform says how far the settle spring carried it: past one pane width means it really did reach into the third space, whose profile differs. Without that this scenario would pass on a run where no overshoot happened at all."
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the second space, for the eye: same tiles, same place, different rows below them"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window throughout",
+      "label": "one-window-still"
+    },
+    {
+      "type": "eval_equals",
+      "id": "grid-before",
+      "expected": "\"pinned at 8,90\"",
+      "desc": "THE CONTROL, and it pins both halves: the pinned copy is the one showing, at the leading inset (--sb-pad-lead, 8px) and below the address row (46 traffic lights + 34 bar + 10 gap). Any other answer names what went wrong instead of failing blind."
+    },
+    {
+      "type": "eval_equals",
+      "id": "grid-after",
+      "expected": "\"unmoved\"",
+      "desc": "THE DEFECT, stated as its absence: after a swipe inside one profile the tiles are where they were, and no pane grid has taken over. A 'moved to' answer is the grid travelling with the rail, which is what drawing only per-pane ones did."
+    },
+    {
+      "type": "eval_equals",
+      "id": "watch-the-settle",
+      "expected": "\"watching\"",
+      "desc": "the observer was really installed, so the read below is a measurement rather than an untouched initial value"
+    },
+    {
+      "type": "eval_equals",
+      "id": "settle-stayed-pinned",
+      "expected": "\"overshot and stayed pinned\"",
+      "desc": "THE BOUNCE, stated as its absence, with its own precondition. 'overshot' proves the settle spring really carried the rail past the destination into the third space, whose profile differs - the exact condition that produced the reported bounce. 'stayed pinned' says the sidebar never switched to the sliding grids across the whole animation, including frames a settled read cannot see. A 'no overshoot' answer fails the run rather than passing it, because the test would have proved nothing."
+    },
+    {
+      "type": "vlog",
+      "label": "the-rail-really-changed-space",
+      "pattern": "Atrium: active space 0 -> 1",
+      "note": "the setup gate again as a graded assertion, so a run whose chord never landed fails here rather than passing the unmoved read"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

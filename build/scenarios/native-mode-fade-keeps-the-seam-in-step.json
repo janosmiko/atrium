@@ -1,0 +1,106 @@
+{
+  "name": "native-mode-fade-keeps-the-seam-in-step",
+  "description": "Toggling Native app view crossfades the window chrome over 300ms, and the 6px seam column between the sidebar and the pane showed as a lit resize handle for the length of the fade. The column is bare root view. The root painted the surround cover at the eased alpha, and the pane container and the sidebar page each painted a second cover on top, so both neighbours ran ahead of the seam. The root now stays on the backdrop for the whole fade, the grip view carries the seam's own cover at the pane's alpha, and the sidebar's CSS transition runs on ease-in-out, the same curve as the window's tween.\n\nThis captures both fades at 30fps and grades EVERY frame with regions_track: the seam column (x 221..225) against the empty sidebar column on one side and the pane container's strip on the other must stay within max_delta on each frame, and the seam must swing by at least min_swing across the burst, or the burst missed the fade and proves nothing. The last frame alone is the settled state, where a lagging seam has already caught up - which is why region_mean cannot grade this. Measured 2026-09-09 with the fix: seam, sidebar and pane strip within 1 level of each other on every frame of both fades, swing 78 (backdrop 78 to surround 156 in the VM's appearance).\n\nThe toggle is the Appearance pane's own switch, clicked from a setTimeout so the capture is already rolling when the fade starts - a plain eval-then-capture pair is two ssh round trips and the 300ms fade fits inside the gap. Geometry: the browser window is moved to 0,40 and sized 560x500 while it is the only window. The docked sidebar is 220px in this run (the app logs 'sidebar grip band 216,0 10x678', and the band reaches 4px back over the sidebar), so the bare seam column is screen x 220..226 and the pane container's own strip starts at 226. Settings opens at 860x620, the largest window, and is resized to 440x700 then moved to 580,40 - still the largest at 308000px against the browser's 280000 - so it sits beside the browser window and covers neither region.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so the app is up"
+    },
+    { "type": "settle", "ms": 4000 },
+    { "type": "activate", "note": "Atrium frontmost, so the chord reaches it" },
+    { "type": "settle", "ms": 1000 },
+    { "type": "move_window", "x": 0, "y": 40, "note": "the browser window, the only one yet - a known origin for the seam's screen x" },
+    { "type": "resize", "w": 560, "h": 500, "note": "the browser window - under the 860x620 settings window that opens next" },
+    { "type": "settle", "ms": 1000 },
+    { "type": "key", "combo": "cmd+comma", "vlog": "Atrium: settings surface ready" },
+    { "type": "settle", "ms": 3000 },
+    { "type": "resize", "w": 440, "h": 700, "note": "the settings window, now the largest - narrow enough to sit beside the browser window" },
+    { "type": "settle", "ms": 800 },
+    { "type": "move_window", "x": 580, "y": 40, "note": "still the largest at 308000px, moved clear of the browser window's seam and sidebar" },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "open-appearance",
+      "target": "/settings",
+      "expression": "(() => { const item = document.querySelector('.settings-rail-item[data-pane=\"appearance\"]'); if (!item) { return 'no appearance rail item'; } item.click(); return 'clicked'; })()"
+    },
+    { "type": "settle", "ms": 800 },
+    {
+      "type": "eval",
+      "id": "arm-toggle-on",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.settings-row[data-key=\"opaqueSurround\"] .settings-row-toggle'); if (!b) { return 'no toggle'; } const was = b.getAttribute('aria-pressed'); setTimeout(() => b.click(), 1500); return 'armed from ' + was; })()",
+      "note": "the click fires 1500ms from now, inside the capture below"
+    },
+    {
+      "type": "capture",
+      "id": "fade-in",
+      "duration_ms": 3000,
+      "fps": 30,
+      "note": "THE MEASUREMENT (in): the burst that holds the 300ms fade into native mode"
+    },
+    { "type": "wait_vlog", "pattern": "Atrium: surround fade in finished", "timeout_ms": 8000 },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "arm-toggle-off",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.settings-row[data-key=\"opaqueSurround\"] .settings-row-toggle'); if (!b) { return 'no toggle'; } const was = b.getAttribute('aria-pressed'); setTimeout(() => b.click(), 1500); return 'armed from ' + was; })()"
+    },
+    {
+      "type": "capture",
+      "id": "fade-out",
+      "duration_ms": 3000,
+      "fps": 30,
+      "note": "THE MEASUREMENT (out): the burst that holds the 300ms fade back to glass"
+    },
+    { "type": "wait_vlog", "pattern": "Atrium: surround fade out finished", "timeout_ms": 8000 }
+  ],
+  "assertions": [
+    { "type": "ax_window_count", "expected": 2, "min_area": 200000, "note": "the browser window and the settings window" },
+    { "type": "eval_equals", "label": "the-switch-was-off-before-the-first-click", "id": "arm-toggle-on", "expected": "\"armed from false\"" },
+    { "type": "vlog", "label": "the-fade-in-ran", "pattern": "Atrium: surround fade in started" },
+    { "type": "eval_equals", "label": "the-switch-was-on-before-the-second-click", "id": "arm-toggle-off", "expected": "\"armed from true\"" },
+    { "type": "vlog", "label": "the-fade-out-ran", "pattern": "Atrium: surround fade out started" },
+    {
+      "type": "regions_track",
+      "capture": "fade-in",
+      "ax": 221, "ay": 420, "aw": 4, "ah": 50,
+      "bx": 120, "by": 420, "bw": 40, "bh": 50,
+      "max_delta": 6, "min_swing": 40,
+      "label": "the-seam-fades-in-step-with-the-sidebar-on-the-way-in"
+    },
+    {
+      "type": "regions_track",
+      "capture": "fade-in",
+      "ax": 221, "ay": 420, "aw": 4, "ah": 50,
+      "bx": 228, "by": 420, "bw": 6, "bh": 50,
+      "max_delta": 6, "min_swing": 40,
+      "label": "the-seam-fades-in-step-with-the-pane-strip-on-the-way-in"
+    },
+    {
+      "type": "regions_track",
+      "capture": "fade-out",
+      "ax": 221, "ay": 420, "aw": 4, "ah": 50,
+      "bx": 120, "by": 420, "bw": 40, "bh": 50,
+      "max_delta": 6, "min_swing": 40,
+      "label": "the-seam-fades-in-step-with-the-sidebar-on-the-way-out"
+    },
+    {
+      "type": "regions_track",
+      "capture": "fade-out",
+      "ax": 221, "ay": 420, "aw": 4, "ah": 50,
+      "bx": 228, "by": 420, "bw": 6, "bh": 50,
+      "max_delta": 6, "min_swing": 40,
+      "label": "the-seam-fades-in-step-with-the-pane-strip-on-the-way-out"
+    },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

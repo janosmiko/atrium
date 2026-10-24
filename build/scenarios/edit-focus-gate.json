@@ -1,0 +1,189 @@
+{
+  "name": "edit-focus-gate",
+  "description": "Essential live check: with focus in a PAGE text field, a gated combo must NOT fire and the keystroke must reach the field. The hotkeys fixture rebinds cmd+shift+left - macOS's moveToLeftEndOfLineAndModifySelection: - onto BOTH dispatch routes at once (openCommandBar goes through the raw-NSEvent hook, nextSpace through SwiftUI's keyboardShortcut), so one keypress exercises both and neither can hide the other's hole. Deliberately a REBIND, not a shipped default: the gate binds no combo of its own, and gating is a property of the chord, so a rebind is the honest way to exercise it. Phase 0 loads the fixture page via cmd+l (left at its default, and NOT a text-editing chord - so it also shows an ungated chord still working). Phase 1 is the positive control: with nothing editable focused the same gated chord DOES fire, which is what stops phase 2 passing vacuously just because the hotkey never worked. Phase 2 is the real check. The gate logs BOTH outcomes for a gated chord, so 'gated and allowed' and 'gated and blocked' are separately assertable instead of one being inferred from the other's absence.",
+  "fixture": "edit-focus.spaces.json",
+  "hotkeys": "edit-focus.hotkeys.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "a2860001-0000-0000-0000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the sidebar render and the initial tab commit"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot; without this every key/click lands in Finder"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+l",
+      "note": "SETUP: open the palette with the URL selected (editCurrentURL, left at its default cmd+l). Not a text-editing chord, so the gate short-circuits to fire before consulting any focus state - an ungated chord must keep working untouched."
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the palette render and its query field take first responder"
+    },
+    {
+      "type": "click",
+      "x": 400,
+      "y": 312,
+      "note": "Dismiss the first-run search-engine picker by choosing Google, the same way the traffic-routing scenario does. seed_prefs usually pre-empts the picker, but not reliably - and while it is up it renders INSIDE the palette, whose scrim swallows every click aimed at the page, so a later click meant for the text input silently dismisses the palette instead of focusing the field (observed: no kPageEditable push at all, and the chord then firing because nothing was focused). Harmless when no picker is showing: these coordinates are empty page background."
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/edit-focus-field.html",
+      "note": "the fixture page: a text input prefilled with \"hello world\" that reports its selection into document.title"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let autocomplete resolve a row for the typed URL"
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "commit the navigation - this also closes the palette"
+    },
+    {
+      "type": "eval_until",
+      "id": "typed-page",
+      "target": "edit-focus-field.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/edit-focus-field.html",
+      "timeout_ms": 10000,
+      "note": "poll for the page actually committing rather than guessing a settle - everything below is meaningless if it did not load"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the committed page finish laying out - the click below is at measured pixel coordinates, so it must not land before the input is where it will be"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: edit focus kind 1 tab",
+      "timeout_ms": 8000,
+      "note": "C++ pushed a positive kNone for the freshly-committed page - absence of a focused editable element is an ANSWER, not an unknown (see atrium_bridge.h's EDIT FOCUS doc). Also the proof the page is up and reporting before anything is clicked."
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "belt-and-braces dismiss: on some runs the palette is still up after the commit, and if it is, every click below lands on IT rather than on the page"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "click",
+      "x": 450,
+      "y": 180,
+      "note": "PHASE 1: click into the page's text input (measured off the captures: the field spans roughly x 240-660, y 155-205, so 450,180 is its centre). Its focus handler puts the caret at the end of \"hello world\" and reports the collapsed range into document.title."
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: edit focus kind 2 tab",
+      "timeout_ms": 8000,
+      "note": "the renderer reported an editable element focused (kPageEditable) and C++ pushed it - the signal under test actually arriving, sourced from WebContents::IsFocusedElementEditable()"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left",
+      "note": "THE CHECK: the gated chord with a page text field focused. It must NOT open the palette and must NOT switch space - it must extend the field's selection to the start of the line instead."
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "capture",
+      "id": "phase1-blocked",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "still the fixture page, no palette, one window, with \"hello world\" selected in the field"
+    },
+    {
+      "type": "click",
+      "x": 450,
+      "y": 420,
+      "note": "PHASE 2 SETUP (the control): click a NEUTRAL part of the page - empty background, no editable element - to blur the input. Both phases are preceded by a click into this same window, so the ONLY difference between them is WHERE it lands, which is the variable under test. The click also matters mechanically: a chord issued without one having just landed gets swallowed (a press straight after the navigation above produced no dispatch at all, the palette's closing child window having left no key window behind)."
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: edit focus kind 1 tab",
+      "timeout_ms": 8000,
+      "note": "the blur was observed - back to kNone, so nothing typable holds the keyboard"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left",
+      "note": "THE CONTROL: the very same gated chord, same bindings, same run, now that nothing editable has focus. It must FIRE (opening the palette), which is what proves phase 1's block came from the gate reading live focus state rather than from the hotkey being dead."
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "phase2-fired",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "palette up - the same chord that was blocked moments ago now fires"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "pattern": "Atrium: edit focus gate pass-page-editable \\(native route\\)",
+      "label": "gate-blocked-native-route",
+      "desc": "THE CHECK, route 1 of 2: the raw-NSEvent hook - which runs before Chrome's accelerator lookup and before any renderer sees the key - matched the chord, consulted the gate, and declined, naming the reason. Falling through to super instead of returning kDrop is what lets the key travel on to the field."
+    },
+    {
+      "type": "vlog",
+      "pattern": "ATRIUM-SEL-0-11",
+      "label": "keystroke-reached-the-field",
+      "desc": "THE CHECK, effect: the fixture page reports its input's selection into document.title, which crosses the bridge and lands in the run log via TabEventForwarder::TitleWasSet. 0-11 is the whole of \"hello world\", so cmd+shift+left performed its real AppKit moveToLeftEndOfLineAndModifySelection: job INSIDE the field. This also independently proves neither route fired: had the palette opened or the space switched, the field would have blurred and reported ATRIUM-SEL-blurred instead."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: edit focus gate fire \\(native route\\)",
+      "label": "control-gated-chord-allowed",
+      "desc": "POSITIVE CONTROL: the gate was consulted for a GATED chord and ALLOWED it, because nothing editable had focus - the same chord, same bindings, same run that was blocked moments earlier. This is what stops the block assertions passing vacuously: without it they would also pass if the hotkey simply never worked. Unambiguous in the log because phase 2 produces pass-page-editable and phase 0's cmd+l is ungated (the gate short-circuits before logging)."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "One window, because the command palette is NOT an AX window. Measured 2026-08-18 with axresize's identify verb: with the palette visibly open - its input box over a dimmed page in the capture - AX still reports the same two entries it reports with the palette shut, one of them the untitled AXUnknown phantom the harness filters out. This assertion previously expected 2 and was counting that phantom, while its note claimed the second window was the palette and that its presence proved the chord fired. It never could. The vlog gate below is what actually says the palette opened."
+    },
+    {
+      "type": "vlog",
+      "label": "the-control-chord-opened-the-palette",
+      "pattern": "Atrium: command bar widget showing",
+      "note": "The corroboration the window count was wrongly credited with. The palette's own line, from the widget that shows it, rather than an inference from how many windows AX happens to list"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q actually quits (process gone)"
+    }
+  ]
+}

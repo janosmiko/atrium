@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atrium Settings Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Three directions for the Settings route. Written the way settings.css would
+   be written, so the winner ports across rather than getting rebuilt. Tokens
+   are overlay.css verbatim, and every radius names its ladder step. */
+
+:root {
+  --ov-accent: #B03A48;
+  --ov-accent-ink: #ffffff;
+  --ov-soft: color-mix(in srgb, var(--ov-accent) 60%, white);
+  --ov-ink: 34 16 22;
+  --ov-paper: color-mix(in srgb, var(--ov-accent) 6%, #FBF7F8);
+  --ov-ground: color-mix(in srgb, var(--ov-accent) 12%, rgb(219 222 229));
+  --ov-fg: rgb(var(--ov-ink) / .92);
+  --ov-mute: rgb(var(--ov-ink) / .55);
+  --ov-sel: color-mix(in srgb, var(--ov-accent) 14%, transparent);
+  --ov-border: rgb(var(--ov-ink) / .12);
+  --ov-shadow: 0 14px 36px rgb(var(--ov-ink) / .22);
+  --ov-font: 'Archivo', system-ui, sans-serif;
+
+  --ov-radius-card: 18px;
+  --ov-radius-chip: 12px;
+  --ov-radius-row: 11px;
+  --ov-radius-anchor: 8px;
+  --ov-radius-swatch: 7px;
+
+  --ov-ease: cubic-bezier(.22, .61, .36, 1);
+  --ov-expand-ms: 120ms;
+}
+
+body {
+  margin: 0;
+  background: #f2eeec;
+  font-family: var(--ov-font);
+  color: var(--ov-fg);
+}
+
+/* ---- lab chrome, not part of any variant ---- */
+
+#bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, .92);
+  border-bottom: 1px solid rgba(0, 0, 0, .08);
+  font-size: 13px;
+}
+
+#bar select {
+  font: 400 13px var(--ov-font);
+  padding: 4px 6px;
+  border: 1px solid rgba(0, 0, 0, .12);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.sheet {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 40px 20px 80px;
+}
+
+.sheet > h2 {
+  font: 600 15px var(--ov-font);
+  margin: 0 0 4px;
+}
+
+.sheet > p {
+  margin: 0 0 18px;
+  max-width: 62ch;
+  color: #6b5a5e;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+/* ---- shared by every variant ---- */
+
+/* The window the route paints into. --ov-ground is the full-window backdrop
+   overlay.css already defines for a surface that is not a card. */
+.win {
+  position: relative;
+  border-radius: var(--ov-radius-card);
+  overflow: hidden;
+  border: 1px solid var(--ov-border);
+  background: var(--ov-ground);
+  font-size: 13px;
+}
+
+/* The corner settings.css already puts it in, as an icon. The rail is a list
+   of places to go, and staying on top is not one of them. */
+.pin {
+  position: absolute;
+  inset-block-start: 12px;
+  inset-inline-end: 14px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-row);
+  background: var(--ov-paper);
+  color: var(--ov-mute);
+  cursor: default;
+}
+
+.pin.on {
+  border-color: transparent;
+  background: var(--ov-accent);
+  color: var(--ov-accent-ink);
+}
+
+.pin svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pane-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 14px;
+}
+
+.group-title {
+  margin: 0 0 7px 2px;
+  color: var(--ov-mute);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+/* Only the card carries a corner. The rows inside it carry none, so the
+   group reads as one object rather than a stack. */
+.group {
+  background: var(--ov-paper);
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-card);
+  overflow: hidden;
+}
+
+.group + .group-title {
+  margin-top: 22px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 14px;
+}
+
+.row + .row {
+  border-top: 1px solid var(--ov-border);
+}
+
+.row-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.row-hint {
+  color: var(--ov-mute);
+  font-size: 11.5px;
+}
+
+.row-value {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ---- controls, shared ---- */
+
+/* The anchor step: it is the address bar's radius, so it is the radius an
+   input has. 4px was the old settings value and belonged to nothing. */
+.field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px 5px 10px;
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-anchor);
+  background: var(--ov-paper);
+  color: var(--ov-fg);
+  font: 400 12.5px var(--ov-font);
+  cursor: default;
+}
+
+.field:hover {
+  border-color: var(--ov-soft);
+}
+
+/* The glyph the old row appended as text sat at a different weight from every
+   drawn icon on the page. Same stroke as .ov-icon instead. */
+.field svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--ov-mute);
+}
+
+/* inline-grid, so the strip is as wide as its own labels rather than the box
+   holding it, and every segment is one column of equal width. Equal columns
+   are what let the thumb be pure CSS: measuring it in JS raced the webfont,
+   which loads after the first paint and reflows every label under it. */
+.seg {
+  position: relative;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 3px;
+  padding: 3px;
+  border-radius: var(--ov-radius-chip);
+  background: var(--ov-sel);
+}
+
+/* :not(.thumb) because the thumb is a span too. Without it the thumb takes
+   this padding, ends up 20px wider than a column, and the transform below
+   resolves its percentage against that inflated width and oversteps. */
+.seg > span:not(.thumb) {
+  position: relative;
+  padding: 3px 10px;
+  border-radius: var(--ov-radius-anchor);
+  font: 500 12px var(--ov-font);
+  text-align: center;
+  cursor: default;
+  transition: color var(--ov-expand-ms) var(--ov-ease);
+}
+
+.seg > span.on {
+  color: var(--ov-accent-ink);
+}
+
+/* One element sliding under the labels rather than a class hopping between
+   them, so the fill travels. --w is one column, written with the count
+   resolved because dividing by a var() is newer CSS than multiplying by one.
+   The travel percentage resolves against the thumb's own width, so it is one
+   column plus one gap per step, measured by the browser rather than by us. */
+.seg .thumb {
+  position: absolute;
+  inset-block: 3px;
+  inset-inline-start: 3px;
+  width: var(--w);
+  transform: translateX(calc(var(--i) * (100% + 3px)));
+  border-radius: var(--ov-radius-anchor);
+  background: var(--ov-accent);
+  transition: transform var(--ov-expand-ms) var(--ov-ease);
+}
+
+/* The list a field opens. Same card and row the context menus wear, because a
+   choice list is a menu and there is no second menu language. */
+.menu {
+  position: absolute;
+  z-index: 20;
+  min-width: 128px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--ov-paper);
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-card);
+  box-shadow: var(--ov-shadow);
+  font-size: 12.5px;
+  transform-origin: top center;
+  animation: menu-in var(--ov-expand-ms) var(--ov-ease);
+}
+
+/* It grows out of the field it belongs to rather than dropping onto it. */
+@keyframes menu-in {
+  from { opacity: 0; transform: scale(.96) translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* 6px, so a label starts where the field's label starts: 1 border plus the
+   menu's own 4 plus this 6 is the field's 1 border plus 10 of padding. */
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  border-radius: var(--ov-radius-row);
+  font: 400 12.5px var(--ov-font);
+  cursor: default;
+}
+
+.menu-item:hover {
+  background: var(--ov-sel);
+}
+
+/* Trailing, not leading: a tick column in front would inset every label past
+   the field's own, and the list would read as offset from the control it
+   belongs to. It still holds its width on every row so nothing shifts as the
+   selection moves. */
+.menu-item .tick {
+  flex: none;
+  margin-inline-start: auto;
+  width: 13px;
+  height: 13px;
+  color: var(--ov-accent);
+}
+
+.menu-item .tick svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Every control answers a press the same way, so the whole page has one
+   physics. Scale rather than a colour flash: a tint change on press competes
+   with the accent already carrying state. */
+.sw:active,
+.btn:active,
+.field:active,
+.pin:active,
+.swatches i:active {
+  transform: scale(.96);
+}
+
+.sw,
+.btn,
+.field,
+.pin,
+.swatches i {
+  transition: transform 90ms var(--ov-ease),
+              background var(--ov-expand-ms) var(--ov-ease),
+              border-color var(--ov-expand-ms) var(--ov-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sw,
+  .sw i,
+  .btn,
+  .field,
+  .pin,
+  .seg .thumb,
+  .slider .fill,
+  .slider .knob,
+  .swatches i {
+    transition: none;
+  }
+
+  .menu,
+  .a-body.swap {
+    animation: none;
+  }
+}
+
+/* Was an underlined text link. A bordered button on the row step, the shape
+   .ov-button already has. */
+.btn {
+  padding: 5px 11px;
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-row);
+  background: var(--ov-paper);
+  color: var(--ov-fg);
+  font: 500 12.5px var(--ov-font);
+  cursor: default;
+}
+
+/* The track is a pill and the knob a circle, so neither is on the ladder.
+   border-box because the height is the whole control, not the space left
+   inside the padding. */
+.sw {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  width: 38px;
+  height: 22px;
+  padding: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ov-fg) 20%, transparent);
+  cursor: default;
+  transition: background var(--ov-expand-ms) var(--ov-ease);
+}
+
+/* The knob does not change colour, the track does. A knob that greys out on
+   the off state reads as a disabled control rather than an open one. */
+.sw i {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(var(--ov-ink) / .28);
+  transition: transform var(--ov-expand-ms) var(--ov-ease);
+}
+
+.sw.on {
+  background: var(--ov-accent);
+}
+
+/* 38 wide, less 4 of padding, less the 18 knob. */
+.sw.on i {
+  transform: translateX(16px);
+}
+
+/* The value sits after the track rather than above the knob, so the row keeps
+   one baseline. */
+.slider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slider .track {
+  position: relative;
+  width: 120px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--ov-sel);
+}
+
+.slider .fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: var(--ov-accent);
+  transition: right var(--ov-expand-ms) var(--ov-ease);
+}
+
+.slider .knob {
+  position: absolute;
+  inset-block-start: 50%;
+  width: 15px;
+  height: 15px;
+  margin: -7.5px 0 0 -7.5px;
+  border-radius: 50%;
+  background: var(--ov-paper);
+  box-shadow: 0 1px 4px rgb(var(--ov-ink) / .3), 0 0 0 1px var(--ov-border);
+  transition: inset-inline-start var(--ov-expand-ms) var(--ov-ease),
+              transform 90ms var(--ov-ease);
+}
+
+/* A class rather than :active, because pointerdown calls preventDefault to
+   stop the drag selecting text, and that suppresses :active with it. */
+.slider .track.dragging .knob {
+  transform: scale(1.25);
+}
+
+.slider .num {
+  min-width: 30px;
+  color: var(--ov-mute);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+
+
+.gallery {
+  display: grid;
+  grid-template-columns: 120px repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--ov-border);
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-card);
+  overflow: hidden;
+}
+
+.gallery > * {
+  background: var(--ov-paper);
+  padding: 14px 16px;
+}
+
+.gallery .head {
+  color: var(--ov-mute);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.gallery .kind {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.cell .tag {
+  color: var(--ov-mute);
+  font-size: 11px;
+}
+
+.swatches {
+  display: flex;
+  gap: 6px;
+}
+
+.swatches i {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--ov-radius-swatch);
+  border: 2px solid transparent;
+  display: block;
+}
+
+.swatches i.on {
+  border-color: var(--ov-accent);
+}
+
+/* ---- A: left rail, grouped cards ---- */
+
+.a-shell {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  min-height: 460px;
+}
+
+.a-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 10px;
+  border-inline-end: 1px solid var(--ov-border);
+}
+
+.a-rail-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: var(--ov-radius-row);
+  font-weight: 500;
+  cursor: default;
+}
+
+.a-rail-item {
+  transition: background var(--ov-expand-ms) var(--ov-ease),
+              color var(--ov-expand-ms) var(--ov-ease);
+}
+
+.a-rail-item:hover {
+  background: color-mix(in srgb, var(--ov-accent) 7%, transparent);
+}
+
+.a-rail-item.on {
+  background: var(--ov-sel);
+  color: var(--ov-accent);
+}
+
+/* The pane fades in on a rail change. Only opacity and a short lift, because
+   a pane that slides in from the side fights the rail the pointer just left. */
+@keyframes pane-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.a-body.swap {
+  animation: pane-in 160ms var(--ov-ease);
+}
+
+.a-rail-item svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--ov-accent);
+}
+
+.a-rail-item.on svg {
+  color: inherit;
+}
+
+.a-body {
+  padding: 24px 26px;
+  overflow: auto;
+}
+
+</style>
+</head>
+<body>
+
+<div id="bar">
+  <label for="theme">Theme</label>
+  <select id="theme"></select>
+  <span style="color: #6b5a5e;">Pick a control treatment per row, then look at how the pane reads below.</span>
+</div>
+
+<div id="root"></div>
+
+<script>
+const themes = {
+  Crimson: '#B03A48', Vermilion: '#E8481C', Magenta: '#D62D8A', Ultraviolet: '#6C4CE8',
+  Cyan: '#00A6C0', Lime: '#7CB518', Amber: '#E8960C', 'Tokyo Night': '#7AA2F7',
+  Catppuccin: '#CBA6F7', Gruvbox: '#D65D0E', Kanagawa: '#7E9CD8', Nord: '#88C0D0',
+  Dracula: '#BD93F9', 'Rosé Pine': '#EB6F92', Everforest: '#A7C080', Solarized: '#268BD2',
+};
+
+// The ink C++ grades against the tint, so a filled control stays readable on a
+// pale one. Same job, by luminance.
+function accentInk(hex) {
+  const l = [1, 3, 5].reduce((s, i, k) =>
+      s + [.299, .587, .114][k] * parseInt(hex.substr(i, 2), 16), 0) / 255;
+  return l > 0.6 ? '#221016' : '#FFFFFF';
+}
+
+const ICONS = {
+  general: '<circle cx="8" cy="8" r="2.6"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M12.6 3.4l-1.4 1.4M4.8 11.2l-1.4 1.4"/>',
+  appearance: '<circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 0 0 12Z" fill="currentColor" stroke="none"/>',
+  spaces: '<rect x="2" y="2.5" width="5" height="5" rx="1.4"/><rect x="9" y="2.5" width="5" height="5" rx="1.4"/><rect x="2" y="9" width="5" height="5" rx="1.4"/><rect x="9" y="9" width="5" height="5" rx="1.4"/>',
+  engines: '<circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/>',
+  ai: '<path d="M8 1.8v12.4M1.8 8h12.4M3.6 3.6l8.8 8.8M12.4 3.6l-8.8 8.8"/>',
+  inputs: '<rect x="1.8" y="4" width="12.4" height="8" rx="2"/><path d="M4.5 7h.01M7 7h.01M9.5 7h.01M5 9.5h6"/>',
+  routing: '<path d="M2 5h7l-2-2M14 11H7l2 2"/>',
+  about: '<circle cx="8" cy="8" r="6"/><path d="M8 7.2v4M8 5h.01"/>',
+};
+
+const PANES = [
+  ['general', 'General'], ['appearance', 'Appearance'], ['spaces', 'Spaces'],
+  ['engines', 'Search engines'], ['ai', 'AI'], ['inputs', 'Inputs'],
+  ['routing', 'Routing'], ['about', 'About'],
+];
+
+const icon = id => `<svg viewBox="0 0 16 16">${ICONS[id]}</svg>`;
+
+// The Appearance pane's real rows, from settings.js. `group` is the only thing
+// this lab adds: the pane table has no grouping today.
+const ROWS = [
+  { group: 'The window', rows: [
+    { label: 'Page tint', hint: 'Drift the window colour toward the page in front', control: 'switch-on' },
+    { label: 'Native app view', hint: 'System neutral chrome instead of tinted glass', control: 'switch-off' },
+    { label: 'Glass opacity', hint: 'How much of the desktop shows through', control: 'slider' },
+  ]},
+  { group: 'Overlays', rows: [
+    { label: 'Overlay accent', hint: "Overlay cards wear the brand colour or the space's tint", control: 'seg:brand,space' },
+  ]},
+  { group: 'The backdrop', rows: [
+    { label: 'Night Shift', hint: 'The backdrop follows the hour of the day', control: 'switch-on' },
+    { label: 'Weather', hint: 'Drifts over the backdrop', control: 'field:clear' },
+  ]},
+  { group: 'The icon', rows: [
+    { label: 'App icon', hint: 'Shown in the Dock and the app switcher', control: 'swatches' },
+    { label: 'Credits', hint: 'Open source notices this build reproduces', control: 'btn:Open' },
+  ]},
+];
+
+function control(spec, accent) {
+  if (spec === 'switch-on') return '<span class="sw on"><i></i></span>';
+  if (spec === 'switch-off') return '<span class="sw"><i></i></span>';
+  if (spec === 'slider') return slider(55, '0.55');
+  if (spec === 'swatches') {
+    return `<span class="swatches"><i class="on" style="background: #221016;"></i>`
+      + `<i style="background: #FBF7F8; box-shadow: inset 0 0 0 1px var(--ov-border);"></i>`
+      + `<i style="background: ${accent};"></i></span>`;
+  }
+  if (spec.startsWith('field:')) return `<span class="field"><span>${spec.slice(6)}</span>${CHEVRON}</span>`;
+  if (spec.startsWith('btn:')) return `<span class="btn">${spec.slice(4)}</span>`;
+  if (spec.startsWith('seg:')) {
+    const names = spec.slice(4).split(',');
+    const at = names.length - 1;
+    // 3px of padding each side, and a 3px gap between every pair.
+    const w = `calc((100% - ${6 + (names.length - 1) * 3}px) / ${names.length})`;
+    return `<span class="seg" style="--i: ${at}; --w: ${w};"><span class="thumb"></span>`
+      + names.map((n, i) => `<span class="${i === at ? 'on' : ''}">${n}</span>`).join('')
+      + '</span>';
+  }
+  return '';
+}
+
+const WEATHER = ['clear', 'cloudy', 'rain', 'snow'];
+const TICK = '<svg viewBox="0 0 16 16"><path d="m3 8.5 3.5 3.5L13 5"/></svg>';
+
+function closeList() {
+  document.querySelector('.menu')?.remove();
+}
+
+// Placed against the page rather than the field, because the field sits inside
+// the pane's own scroller and a menu clipped by it would be worse than one
+// that follows the scroll.
+let fieldSeq = 0;
+
+function openList(field) {
+  // Before the comparison, never after: an id read while it is still unset
+  // matches the undefined owner of a menu that does not exist, and the first
+  // click returns instead of opening.
+  field.dataset.id = field.dataset.id || `f${++fieldSeq}`;
+  const reopening = document.querySelector('.menu')?.dataset.owner === field.dataset.id;
+  closeList();
+  if (reopening) {
+    return;
+  }
+  const label = field.firstElementChild;
+  const menu = document.createElement('div');
+  menu.className = 'menu';
+  menu.dataset.owner = field.dataset.id;
+  for (const name of WEATHER) {
+    const item = document.createElement('div');
+    item.className = 'menu-item';
+    item.innerHTML = `<span>${name}</span>`
+        + `<span class="tick">${name === label.textContent ? TICK : ''}</span>`;
+    item.addEventListener('click', (event) => {
+      event.stopPropagation();
+      label.textContent = name;
+      closeList();
+    });
+    menu.appendChild(item);
+  }
+  document.body.appendChild(menu);
+  const box = field.getBoundingClientRect();
+  menu.style.left = `${box.left + scrollX}px`;
+  menu.style.top = `${box.bottom + scrollY + 5}px`;
+  menu.style.minWidth = `${box.width}px`;
+}
+
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('.menu') && !event.target.closest('.field')) {
+    closeList();
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    closeList();
+  }
+});
+
+function wire(root) {
+  root.addEventListener('click', (event) => {
+    const sw = event.target.closest('.sw');
+    if (sw) {
+      sw.classList.toggle('on');
+      return;
+    }
+
+    const segItem = event.target.closest('.seg > span:not(.thumb)');
+    if (segItem) {
+      const seg = segItem.parentElement;
+      seg.querySelector('span.on')?.classList.remove('on');
+      segItem.classList.add('on');
+      seg.style.setProperty('--i', [...seg.children].indexOf(segItem) - 1);
+      return;
+    }
+
+    const field = event.target.closest('.field');
+    if (field) {
+      openList(field);
+      return;
+    }
+
+    const swatch = event.target.closest('.swatches i');
+    if (swatch) {
+      swatch.parentElement.querySelector('.on')?.classList.remove('on');
+      swatch.classList.add('on');
+      return;
+    }
+
+    const pin = event.target.closest('.pin');
+    if (pin) {
+      pin.classList.toggle('on');
+      return;
+    }
+
+    const railItem = event.target.closest('.a-rail-item');
+    if (railItem) {
+      const rail = railItem.parentElement;
+      rail.querySelector('.on')?.classList.remove('on');
+      railItem.classList.add('on');
+      const body = rail.parentElement.querySelector('.a-body');
+      body.querySelector('.pane-title').textContent =
+          railItem.lastElementChild.textContent;
+      body.classList.remove('swap');
+      void body.offsetWidth;
+      body.classList.add('swap');
+    }
+  });
+
+  // Delegated like the clicks above. Per-element listeners would need
+  // re-attaching after every render, and wire runs once.
+  root.addEventListener('pointerdown', (event) => {
+    const track = event.target.closest('.slider .track');
+    if (!track) {
+      return;
+    }
+    dragging = track;
+    track.classList.add('dragging');
+    setSliderTo(track, event.clientX);
+    // Otherwise the drag selects the label text either side of the track.
+    event.preventDefault();
+  });
+}
+
+let dragging = null;
+
+// Glass opacity runs 0.02 to 1, so the track's left end is 0.02 rather than 0.
+function setSliderTo(track, clientX) {
+  const box = track.getBoundingClientRect();
+  const pct = Math.min(100, Math.max(0, (clientX - box.left) / box.width * 100));
+  track.querySelector('.fill').style.right = `${100 - pct}%`;
+  track.querySelector('.knob').style.insetInlineStart = `${pct}%`;
+  track.parentElement.querySelector('.num').textContent =
+      (0.02 + pct / 100 * 0.98).toFixed(2);
+}
+
+// On the document, not the track: a drag that leaves the track still has to
+// move the value, the way every real slider behaves.
+document.addEventListener('pointermove', (event) => {
+  if (dragging) {
+    setSliderTo(dragging, event.clientX);
+  }
+});
+
+document.addEventListener('pointerup', () => {
+  dragging?.classList.remove('dragging');
+  dragging = null;
+});
+
+function row(r, accent) {
+  return `<div class="row"><span class="row-label"><span>${r.label}</span>`
+    + `<span class="row-hint">${r.hint}</span></span>`
+    + `<span class="row-value">${control(r.control, accent)}</span></div>`;
+}
+
+function leftRail() {
+  return `<nav class="a-rail">`
+    + PANES.map(([id, title]) =>
+        `<span class="a-rail-item${id === 'appearance' ? ' on' : ''}">${icon(id)}<span>${title}</span></span>`).join('')
+    + '</nav>';
+}
+
+function variantA(accent) {
+  return `<div class="win"><span class="pin on" title="Keep this window above every other window">${PIN}</span><div class="a-shell">${leftRail()}<div class="a-body">`
+    + `<h1 class="pane-title">Appearance</h1>`
+    + ROWS.map(g => `<div class="group-title">${g.group}</div>`
+        + `<div class="group">${g.rows.map(r => row(r, accent)).join('')}</div>`).join('')
+    + `</div></div></div>`;
+}
+
+// Up and down rather than a single chevron down: the control opens a menu
+// over the row, it does not expand downward.
+const CHEVRON = '<svg viewBox="0 0 16 16"><path d="m4.5 6.5 3.5-3 3.5 3M4.5 9.5l3.5 3 3.5-3"/></svg>';
+const PIN = '<svg viewBox="0 0 16 16"><path d="M5.5 2h5M7 2v4.5L5 8.2c-.4.3-.6.8-.6 1.3h7.2c0-.5-.2-1-.6-1.3L9 6.5V2"/><path d="M8 10.5V14"/></svg>';
+
+function slider(pct, value) {
+  return `<span class="slider"><span class="track"><span class="fill" style="right: ${100 - pct}%;"></span>`
+    + `<span class="knob" style="inset-inline-start: ${pct}%;"></span></span>`
+    + `<span class="num">${value}</span></span>`;
+}
+
+// The settled set. Click any of them: the lab wires the same transitions the
+// route would, so a choice is judged moving rather than still.
+const SETTLED = [
+  ['Toggle', '<span class="sw on"><i></i></span><span class="sw" style="margin-inline-start: 10px;"><i></i></span>'],
+  ['Number', slider(55, '0.55')],
+  ['Action', '<span class="btn">Open</span>'],
+  ['Choice, three or more', `<span class="field"><span>clear</span>${CHEVRON}</span>`],
+  ['Choice, under three', control('seg:brand,space')],
+];
+
+function gallery() {
+  return '<div class="gallery"><div class="head">Controls</div>'
+    + SETTLED.map(([k, html]) =>
+        `<div class="cell"><span class="tag">${k}</span><span>${html}</span></div>`).join('')
+    + '</div>';
+}
+
+const SHEETS = [
+  ['Controls',
+   'The settled set, live. Click a switch, drag the track, step the field, pick a segment. A choice row takes the field when its list holds three or more and the segmented form under that, which today catches Sidebar position, Restore tabs on launch and Overlay accent.',
+   gallery],
+  ['A · Left rail, grouped cards',
+   'Panes move to a left rail, the way a settings window with more than a handful of sections usually goes. Rows collect into titled groups on their own cards, so a pane reads as three or four objects rather than one ladder. The card rounds at 18 and the rows inside carry no corner, so a group is one thing.',
+   variantA],
+];
+
+function render() {
+  const accent = themes[document.getElementById('theme').value];
+  document.documentElement.style.setProperty('--ov-accent', accent);
+  document.documentElement.style.setProperty('--ov-accent-ink', accentInk(accent));
+  document.getElementById('root').innerHTML = SHEETS.map(([title, note, fn]) =>
+    `<div class="sheet"><h2>${title}</h2><p>${note}</p>${fn(accent)}</div>`).join('');
+}
+
+const select = document.getElementById('theme');
+for (const name of Object.keys(themes)) {
+  const opt = document.createElement('option');
+  opt.value = name;
+  opt.textContent = name;
+  select.appendChild(opt);
+}
+select.value = 'Crimson';
+select.addEventListener('change', render);
+// Once, not per render: #root survives every rebuild, so wiring it inside
+// render stacked a listener per theme change and each click ran twice, which
+// left a switch toggling straight back to where it started.
+wire(document.getElementById('root'));
+render();
+</script>
+</body>
+</html>

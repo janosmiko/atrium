@@ -1,0 +1,96 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 23 Jul 2026 13:18:05 +0200
+Subject: [PATCH 005/154] atrium: slot/tab presentation + session-restore hooks
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/sessions/session_service_base.h |  8 ++++++++
+ chrome/browser/ui/tab_helpers.cc               |  7 ++++++-
+ chrome/browser/ui/tabs/tab_features.cc         | 11 ++++++++++-
+ 3 files changed, 24 insertions(+), 2 deletions(-)
+
+diff --git a/chrome/browser/sessions/session_service_base.h b/chrome/browser/sessions/session_service_base.h
+index 1f90f983125d1..275cff2c13e0d 100644
+--- a/chrome/browser/sessions/session_service_base.h
++++ b/chrome/browser/sessions/session_service_base.h
+@@ -46,6 +46,10 @@ class SessionCommand;
+ struct SessionWindow;
+ }  // namespace sessions
+ 
++namespace atrium {
++class ProfileBootstrap;
++}  // namespace atrium
++
+ // SessionServiceBase -----
+ // SessionServiceBase is used by SessionService and AppSessionService to
+ // restore browser windows and apps respectively. Base is never intended
+@@ -298,6 +302,10 @@ class SessionServiceBase : public sessions::CommandStorageManagerDelegate,
+  private:
+   friend class SessionServiceBaseTestHelper;
+   friend class SessionServiceTestHelper;
++  // Atrium (chrome/browser/ui/atrium/atrium_profile_bootstrap.{h,mm}) needs
++  // to disable saving per profile before any window opens; SetSavingEnabled
++  // above is otherwise only reachable from tests.
++  friend class atrium::ProfileBootstrap;
+ 
+   // If supported by the platform, initializes windowing system level session
+   // and requests `discarded_window_ids` to be removed from the session. If it
+diff --git a/chrome/browser/ui/tab_helpers.cc b/chrome/browser/ui/tab_helpers.cc
+index 229fe0b4438ec..1a69d4bc34dda 100644
+--- a/chrome/browser/ui/tab_helpers.cc
++++ b/chrome/browser/ui/tab_helpers.cc
+@@ -85,6 +85,7 @@
+ #include "chrome/browser/task_manager/web_contents_tags.h"
+ #include "chrome/browser/translate/chrome_translate_client.h"
+ #include "chrome/browser/trusted_vault/trusted_vault_encryption_keys_tab_helper.h"
++#include "chrome/browser/ui/atrium/atrium_feature_check.h"
+ #include "chrome/browser/ui/autofill/autofill_client_provider.h"
+ #include "chrome/browser/ui/autofill/autofill_client_provider_factory.h"
+ #include "chrome/browser/ui/find_bar/find_bar_state.h"
+@@ -709,7 +710,11 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
+     SearchEngineChoiceTabHelper::CreateForWebContents(web_contents);
+   }
+ 
+-  if (!webui_browser::IsWebUIBrowserEnabled()) {
++  // atrium::IsAtriumBrowserWindowEnabled() is per-process (connected()),
++  // not per-window, but at M2a scope a connected dylib implies every window
++  // is an Atrium window, so the check is equivalent here.
++  if (!webui_browser::IsWebUIBrowserEnabled() &&
++      !atrium::IsAtriumBrowserWindowEnabled()) {
+     SadTabHelper::CreateForWebContents(web_contents);
+   }
+   SearchTabHelper::CreateForWebContents(web_contents);
+diff --git a/chrome/browser/ui/tabs/tab_features.cc b/chrome/browser/ui/tabs/tab_features.cc
+index d34918751cd83..2326fa0824889 100644
+--- a/chrome/browser/ui/tabs/tab_features.cc
++++ b/chrome/browser/ui/tabs/tab_features.cc
+@@ -128,6 +128,7 @@
+ #include "chrome/browser/glic/selection/selection_overlay_controller.h"
+ #include "chrome/browser/glic/service/glic_instance_helper.h"
+ #include "chrome/browser/skills/skills_ui_tab_controller.h"
++#include "chrome/browser/ui/atrium/atrium_feature_check.h"
+ #include "chrome/browser/ui/contextual_search/tab_contextualization_controller.h"
+ #include "chrome/browser/ui/tabs/features.h"
+ #include "chrome/browser/ui/tabs/tab_attachment_tracker.h"
+@@ -661,7 +662,15 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
+     skills_update_observer_ =
+         std::make_unique<skills::SkillsUpdateObserver>(tab);
+   }
+-  if (base::FeatureList::IsEnabled(features::kIndigo)) {
++  // Atrium: IndigoOnboardingDialog::Show() calls TabDialogManager::
++  // CreateTabScopedDialog(), which CHECKs a non-null host widget from
++  // BrowserElementsViews - only wired up for BrowserView-backed windows
++  // (BrowserWindowFeatures::InitPostBrowserViewConstruction). Atrium's
++  // AtriumBrowserWindow is not a BrowserView, so that CHECK fires as soon
++  // as onboarding eligibility triggers on a real page. Skip indigo
++  // entirely for Atrium windows, same pattern as the other atrium guards.
++  if (base::FeatureList::IsEnabled(features::kIndigo) &&
++      !atrium::IsAtriumBrowserWindowEnabled()) {
+     indigo_page_action_controller_ =
+         std::make_unique<indigo::IndigoPageActionController>(
+             tab, *page_action_controller_);

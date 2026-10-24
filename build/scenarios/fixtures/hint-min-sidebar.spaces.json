@@ -1,0 +1,25 @@
+{
+  "spaces": [
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "name": "Foreign",
+      "emoji": "🧭",
+      "tint": "oceanBlue",
+      "profileID": "Profile 1",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135094.0,
+          "url": "http://127.0.0.1:8000/brand-dark-red-icon.html",
+          "title": "Example Domain"
+        }
+      ]
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 160,
+    "schemaVersion": 1,
+    "activeSpaceID": "11111111-1111-1111-1111-111111111111"
+  }
+}

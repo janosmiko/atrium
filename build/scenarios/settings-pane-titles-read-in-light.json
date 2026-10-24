@@ -1,0 +1,185 @@
+{
+  "name": "settings-pane-titles-read-in-light",
+  "description": "Settings in light appearance: the pane titles and the Import card text contrast with the pane ground. The recorded bug drew them dark on dark.",
+  "system_appearance": "light",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so the app is up"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "activate",
+      "note": "Atrium frontmost, so the chord reaches it"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "no vlog wait, so the capture below starts before the page is ready"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings surface ready",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings window vibrancy installed",
+      "timeout_ms": 10000,
+      "note": "gate: the native settings window was created"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "eval",
+      "id": "renderer-appearance",
+      "target": "/settings",
+      "expression": "matchMedia('(prefers-color-scheme: dark)').matches",
+      "note": "gate: the appearance reached the app"
+    },
+    {
+      "type": "eval",
+      "id": "open-general",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.settings-rail-item[data-pane=\"general\"]'); if (!b) { return 'no-pane'; } b.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "general-heading-reads",
+      "target": "/settings",
+      "expression": "(() => { const rgba = (s) => { const n = (s.match(/[\\d.]+/g) || []).map(Number); const c = s.startsWith('color(') ? n.slice(0, 3).map((v) => v * 255) : n.slice(0, 3); return [...c, n.length > 3 ? n[3] : 1]; }; const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; const gap = (el) => { const g = rgba(getComputedStyle(document.querySelector('.settings-body')).backgroundColor); const f = rgba(getComputedStyle(el).color); return Math.abs(lum(f.map((v, i) => f[3] * v + (1 - f[3]) * g[i])) - lum(g)); }; const el = document.querySelector('.settings-heading'); if (!el) { return 'missing'; } return gap(el) >= 100; })()",
+      "note": "the pane title contrasts with the ground"
+    },
+    {
+      "type": "eval",
+      "id": "general-group-title-reads",
+      "target": "/settings",
+      "expression": "(() => { const rgba = (s) => { const n = (s.match(/[\\d.]+/g) || []).map(Number); const c = s.startsWith('color(') ? n.slice(0, 3).map((v) => v * 255) : n.slice(0, 3); return [...c, n.length > 3 ? n[3] : 1]; }; const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; const gap = (el) => { const g = rgba(getComputedStyle(document.querySelector('.settings-body')).backgroundColor); const f = rgba(getComputedStyle(el).color); return Math.abs(lum(f.map((v, i) => f[3] * v + (1 - f[3]) * g[i])) - lum(g)); }; const el = document.querySelector('.settings-group-title'); if (!el) { return 'missing'; } return gap(el) >= 60; })()",
+      "note": "a group title contrasts with the ground"
+    },
+    {
+      "type": "eval",
+      "id": "general-colours",
+      "target": "/settings",
+      "expression": "(() => { const cs = (s) => { const el = document.querySelector(s); return el ? getComputedStyle(el).color : 'none'; }; return 'ground=' + getComputedStyle(document.querySelector('.settings-body')).backgroundColor + ' heading=' + cs('.settings-heading') + ' title=' + cs('.settings-group-title') + ' card=' + cs('.import-title, .import-empty'); })()",
+      "note": "recorded: the numbers behind the checks"
+    },
+    {
+      "type": "capture",
+      "id": "general",
+      "note": "the General pane, for the eye"
+    },
+    {
+      "type": "eval",
+      "id": "open-import",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.settings-rail-item[data-pane=\"import\"]'); if (!b) { return 'no-pane'; } b.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: import arc previewed",
+      "timeout_ms": 10000,
+      "note": "gate: the Arc card is drawn"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval",
+      "id": "import-heading-reads",
+      "target": "/settings",
+      "expression": "(() => { const rgba = (s) => { const n = (s.match(/[\\d.]+/g) || []).map(Number); const c = s.startsWith('color(') ? n.slice(0, 3).map((v) => v * 255) : n.slice(0, 3); return [...c, n.length > 3 ? n[3] : 1]; }; const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; const gap = (el) => { const g = rgba(getComputedStyle(document.querySelector('.settings-body')).backgroundColor); const f = rgba(getComputedStyle(el).color); return Math.abs(lum(f.map((v, i) => f[3] * v + (1 - f[3]) * g[i])) - lum(g)); }; const el = document.querySelector('.settings-heading'); if (!el) { return 'missing'; } return gap(el) >= 100; })()",
+      "note": "the Import pane title contrasts with the ground"
+    },
+    {
+      "type": "eval",
+      "id": "import-card-text-reads",
+      "target": "/settings",
+      "expression": "(() => { const rgba = (s) => { const n = (s.match(/[\\d.]+/g) || []).map(Number); const c = s.startsWith('color(') ? n.slice(0, 3).map((v) => v * 255) : n.slice(0, 3); return [...c, n.length > 3 ? n[3] : 1]; }; const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; const gap = (el) => { const g = rgba(getComputedStyle(document.querySelector('.settings-body')).backgroundColor); const f = rgba(getComputedStyle(el).color); return Math.abs(lum(f.map((v, i) => f[3] * v + (1 - f[3]) * g[i])) - lum(g)); }; const el = document.querySelector('.import-card .import-title'); if (!el) { return 'missing'; } return gap(el) >= 100; })()",
+      "note": "the card text contrasts with the ground"
+    },
+    {
+      "type": "eval",
+      "id": "import-card-counts-read",
+      "target": "/settings",
+      "expression": "(() => { const rgba = (s) => { const n = (s.match(/[\\d.]+/g) || []).map(Number); const c = s.startsWith('color(') ? n.slice(0, 3).map((v) => v * 255) : n.slice(0, 3); return [...c, n.length > 3 ? n[3] : 1]; }; const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; const gap = (el) => { const g = rgba(getComputedStyle(document.querySelector('.settings-body')).backgroundColor); const f = rgba(getComputedStyle(el).color); return Math.abs(lum(f.map((v, i) => f[3] * v + (1 - f[3]) * g[i])) - lum(g)); }; const el = document.querySelector('.import-card .import-counts'); if (!el) { return 'missing'; } return gap(el) >= 60; })()",
+      "note": "the muted card counts contrast with the ground"
+    },
+    {
+      "type": "eval",
+      "id": "import-colours",
+      "target": "/settings",
+      "expression": "(() => { const cs = (s) => { const el = document.querySelector(s); return el ? getComputedStyle(el).color : 'none'; }; return 'ground=' + getComputedStyle(document.querySelector('.settings-body')).backgroundColor + ' heading=' + cs('.settings-heading') + ' title=' + cs('.settings-group-title') + ' card=' + cs('.import-card .import-title'); })()",
+      "note": "recorded: the numbers behind the checks"
+    },
+    {
+      "type": "capture",
+      "id": "import",
+      "note": "the Import pane, for the eye"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "renderer-appearance",
+      "expected": "false",
+      "desc": "gate: the run is really light"
+    },
+    {
+      "type": "eval_equals",
+      "id": "general-heading-reads",
+      "expected": "true",
+      "desc": "THE MEASUREMENT: the General pane title reads on the ground"
+    },
+    {
+      "type": "eval_equals",
+      "id": "general-group-title-reads",
+      "expected": "true",
+      "desc": "the General group titles read on the ground"
+    },
+    {
+      "type": "eval_equals",
+      "id": "import-heading-reads",
+      "expected": "true",
+      "desc": "the Import pane title reads on the ground"
+    },
+    {
+      "type": "eval_equals",
+      "id": "import-card-text-reads",
+      "expected": "true",
+      "desc": "THE MEASUREMENT: the Import card text reads on the ground"
+    },
+    {
+      "type": "eval_equals",
+      "id": "import-card-counts-read",
+      "expected": "true",
+      "desc": "the Import card counts read on the ground"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ],
+  "import_arc_dir": "fixtures/import/arc/basic"
+}

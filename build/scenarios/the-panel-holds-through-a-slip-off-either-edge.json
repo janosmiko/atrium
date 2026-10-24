@@ -1,0 +1,108 @@
+{
+  "name": "the-panel-holds-through-a-slip-off-either-edge",
+  "description": "The reporter parks the pointer on the panel's left border and the panel disappears and reappears, over and over. A grace cap closed it after 1.2 seconds of the pointer sitting in the tolerance band; the arming strip underneath then revealed it again, and the pair repeated. The panel's own window buttons live on that border, so the dots were unclickable for the same reason - the panel slid out from under the pointer on its way to them.\n\nThe lab has no cap. It looks once, 280ms after the pointer leaves, and a pointer inside the expanded rect keeps the sidebar open for as long as it stays (swipe-lab.html:5368-5375).\n\nBoth edges are read here. The docked one is the reporter's; the trailing one is the zone they asked for, where the pointer is off the sidebar and the sidebar stays.",
+  "fixture": "two-tabs.spaces.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "collapse, so the edge zone arms"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 400,
+      "note": "the left window edge, where the reveal is armed"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 415,
+      "note": "a wiggle inside the strip - a move that lands without crossing the boundary fires no mouseEntered"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar edge reveal opening at",
+      "timeout_ms": 20000,
+      "note": "the gate: the panel is up"
+    },
+    {
+      "type": "move",
+      "x": 120,
+      "y": 400,
+      "note": "onto the panel, so leaving it later produces a real mouseExited"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "move",
+      "x": 4,
+      "y": 400,
+      "note": "THE REPORT. Just outside the panel's left border - the panel starts kOverlayHorizontalInset, 5, points in - and inside the arming strip underneath it. This is where the window dots are."
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "past the 280ms grace and past the 1.2s the cap used to allow, so a cap would have closed it twice over by now"
+    },
+    {
+      "type": "move",
+      "x": 275,
+      "y": 400,
+      "note": "the trailing side, off the panel - it ends at 265 with the fixture's 260 - and inside the tolerance band"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog_absent",
+      "pattern": "Atrium: sidebar overlay closing",
+      "label": "neither-slip-closed-the-panel",
+      "desc": "The panel prints this whenever it starts sliding out. A pointer resting in the band on either side must not produce one."
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "min": 1,
+      "max": 1,
+      "label": "and-it-never-had-to-be-revealed-twice",
+      "desc": "The PANEL's own line, not the edge zone's. The zone prints its intent before asking, and a re-entry with the panel already up is answered by cancelling the pending hide - so the zone's line appears twice on a run where nothing reopened. Only Show prints this one, so a second means the first closed and the strip brought it back."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "DCHECK failed",
+      "label": "no-dcheck-fired"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+name: Tier 1 - repo gates
+
+# Everything that needs no Chromium checkout. Seconds to run, so it goes on
+# every push. The runner clones into its own _work directory, which is what
+# keeps a CI job away from the working tree the host builds in.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tier1-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repo-gates:
+    runs-on: [self-hosted, macOS]
+    timeout-minutes: 20
+    env:
+      # Point every script away from the host checkout. These gates must not
+      # read it, and a job that silently picks it up would pass for the wrong
+      # reason.
+      ATRIUM_CHROMIUM_SRC: ${{ github.workspace }}/.no-chromium-src
+      CHROMIUM_DIR: ${{ github.workspace }}/.no-chromium-src
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Assert no Chromium checkout is in reach
+        run: |
+          mkdir -p "$ATRIUM_CHROMIUM_SRC"
+          test ! -d "$ATRIUM_CHROMIUM_SRC/chrome" \
+            || { echo "tier 1 must not see a Chromium tree"; exit 1; }
+
+      - name: Rust core
+        run: make rust-test
+
+      - name: Golden store corpus
+        run: make rust-corpus
+
+      # Python unit tests and shell suites under build/scenarios/lib.
+      - name: Scenario harness unit tests
+        run: make scenario-lib-test
+
+      - name: Makefile .PHONY drift guard
+        run: make phony-verify
+
+      - name: Shell, Python and Rust lint
+        run: make lint
+
+      - name: Lab interaction contract
+        run: make lab-probe
+
+      - name: Lab probe selftest
+        run: make lab-probe-selftest
+
+      - name: Linux source-list guard selftest
+        run: make linux-verify-selftest
+
+      - name: Codec posture selftest
+        run: make codec-posture-selftest
+
+      - name: License header selftest
+        run: make license-verify-selftest

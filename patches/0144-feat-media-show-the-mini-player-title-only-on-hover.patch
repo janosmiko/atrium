@@ -1,0 +1,99 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 21 Sep 2026 16:39:48 +0200
+Subject: [PATCH 144/154] feat(media): show the mini player title only on hover
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../overlay/video_overlay_window_views.cc     | 15 +++-----
+ .../video_overlay_window_views_unittest.cc    | 37 ++++++-------------
+ 2 files changed, 17 insertions(+), 35 deletions(-)
+
+diff --git a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
+index d54b016106b53..a172b9a01a667 100644
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
+@@ -835,16 +835,11 @@ void VideoOverlayWindowViews::UpdateControlsVisibility(bool is_visible,
+     initial_title_hide_timer_.Stop();
+   }
+ 
+-  // The title and controls top scrim are visible if:
+-  //   * The controls are, or
+-  //   * We are in the initial "show" period, or
+-  //   * The overlay window does not meet the user interaction criteria and is
+-  //   not trusted for media playback
+-  const bool title_is_visible =
+-      force_title_and_scrim_visible_.has_value()
+-          ? force_title_and_scrim_visible_.value()
+-          : wanted_visibility || initial_title_hide_timer_.IsRunning() ||
+-                !can_hide_title_and_scrim;
++  // The title tracks the same hover-driven visibility as the controls,
++  // not Chromium's trust/interaction spoof guard.
++  const bool title_is_visible = force_title_and_scrim_visible_.has_value()
++                                    ? force_title_and_scrim_visible_.value()
++                                    : wanted_visibility;
+ 
+   if (should_animate) {
+     // Animate the title and top scrim.
+diff --git a/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc b/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
+index 74ada1f2865b9..136a3de70a874 100644
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_views_unittest.cc
+@@ -1588,27 +1588,8 @@ TEST_F(VideoOverlayWindowViewsTest, InitialTitleAndScrimVisibility) {
+   overlay_window().ShowInactive();
+   WaitForLayout();
+ 
+-  // The initial title hide timer should be running.
+-  EXPECT_TRUE(
+-      overlay_window().initial_title_hide_timer_for_testing().IsRunning());
+-
+-  // Title and scrim should be visible.
+-  EXPECT_TRUE(overlay_window().AreTitleAndScrimVisibleForTesting());
+-}
+-
+-TEST_F(VideoOverlayWindowViewsTest, TitleAndScrimHideAfterTimer) {
+-  overlay_window().ShowInactive();
+-  WaitForLayout();
+-
+-  // Fast forward time to fire the timer.
+-  task_environment()->FastForwardBy(
+-      VideoOverlayWindowViews::kTitleShowDuration);
+-
+-  // Timer should not be running anymore.
+-  EXPECT_FALSE(
+-      overlay_window().initial_title_hide_timer_for_testing().IsRunning());
+-
+-  // Title and scrim should now be animating to hidden.
++  // Without hover, the title and scrim stay hidden with the rest of the
++  // controls.
+   EXPECT_FALSE(overlay_window().AreTitleAndScrimVisibleForTesting());
+   EXPECT_FALSE(overlay_window().AreControlsVisible());
+ }
+@@ -1626,13 +1607,19 @@ TEST_F(VideoOverlayWindowViewsTest, MouseHoverShowsAllControls) {
+                              ui::EF_NONE);
+   overlay_window().OnMouseEvent(&moved_event);
+ 
+-  // Timer should not be running anymore.
+-  EXPECT_FALSE(
+-      overlay_window().initial_title_hide_timer_for_testing().IsRunning());
+-
+   // All controls should now be visible or animating to visible.
+   EXPECT_TRUE(overlay_window().AreTitleAndScrimVisibleForTesting());
+   EXPECT_TRUE(overlay_window().AreControlsVisible());
++
++  // Leaving the window hides the title and scrim together with the controls.
++  const gfx::Point exited_location(-10, -10);
++  ui::MouseEvent exited_event(ui::EventType::kMouseExited, exited_location,
++                              exited_location, ui::EventTimeForNow(),
++                              ui::EF_NONE, ui::EF_NONE);
++  overlay_window().OnMouseEvent(&exited_event);
++
++  EXPECT_FALSE(overlay_window().AreTitleAndScrimVisibleForTesting());
++  EXPECT_FALSE(overlay_window().AreControlsVisible());
+ }
+ 
+ TEST_F(VideoOverlayWindowViewsTest, PlaybackControlsContainerVisibility) {

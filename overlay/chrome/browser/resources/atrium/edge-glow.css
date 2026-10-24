@@ -1,0 +1,90 @@
+/* Copyright 2026 The Atrium Authors */
+
+/* edgeGlow(), ported from docs/lab/swipe-lab.html. ring =
+   border + inset-shadow fade, pulse = double inset-shadow pulse, sweep =
+   fade wrapping a continuous conic-gradient spin. Colors come from the
+   caller via --efc; none of these rules hardcode one. */
+
+.edgefx {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 60;
+}
+
+.edgefx.ring {
+  border: 3px solid var(--efc);
+  opacity: 0;
+  box-shadow: inset 0 0 44px color-mix(in srgb, var(--efc) 60%, transparent);
+  animation: atrium-edgefx-ring 2.2s ease;
+}
+
+@keyframes atrium-edgefx-ring {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  60% { opacity: .55; }
+  100% { opacity: 0; }
+}
+
+.edgefx.pulse {
+  opacity: 0;
+  box-shadow: inset 0 0 0 3px var(--efc),
+      inset 0 0 52px color-mix(in srgb, var(--efc) 65%, transparent);
+  animation: atrium-edgefx-pulse 4s ease;
+}
+
+@keyframes atrium-edgefx-pulse {
+  0%, 100% { opacity: 0; }
+  15%, 40% { opacity: 1; }
+  58% { opacity: .35; }
+  75% { opacity: .9; }
+}
+
+.edgefx.sweep {
+  opacity: 0;
+  animation: atrium-edgefx-sweep-fade 8s ease;
+}
+
+@property --atrium-edgefx-sweep-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.edgefx.sweep::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 3.5px;
+  background: conic-gradient(from var(--atrium-edgefx-sweep-angle, 0deg),
+      transparent 0deg, var(--efc) 45deg,
+      color-mix(in srgb, var(--efc) 65%, transparent) 95deg,
+      transparent 135deg) border-box;
+  filter: drop-shadow(0 0 7px var(--efc));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: atrium-edgefx-comet-spin 3.6s linear infinite;
+}
+
+@keyframes atrium-edgefx-sweep-fade {
+  0% { opacity: 0; }
+  8%, 85% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes atrium-edgefx-comet-spin {
+  to { --atrium-edgefx-sweep-angle: 360deg; }
+}
+
+/* The reduced-motion convention: the signal still shows and clears, only the
+   animated transition drops. edge-glow.js swaps to a timer-based removal
+   here, since animation:none never fires animationend. */
+@media (prefers-reduced-motion: reduce) {
+  .edgefx { animation: none !important; }
+  .edgefx.ring, .edgefx.pulse, .edgefx.sweep { opacity: 1; }
+  .edgefx.sweep::before { animation: none !important; }
+}

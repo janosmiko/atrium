@@ -1,0 +1,72 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 20 Aug 2026 14:08:15 +0200
+Subject: [PATCH 075/154] refactor(core): split mutate.rs by subsystem, and
+ raise the grd id range
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+mutate.rs ran 3336 lines and held fourteen unrelated concerns, so nothing
+local told a reader that sweep_archive and set_sidebar_width belonged to
+different subsystems. Its module doc described only index translation, which
+by then covered a fifth of the file.
+
+Eight submodules, each with a doc about what it actually holds: favorites
+(with doorways, which share the per-profile rule), notes (with marginalia,
+because a marginal IS a note about a page and shares its caps), shelf,
+archive (archived and snoozed together - one operation, two reasons), groups,
+space_settings, live_tabs, chrome. mod.rs keeps what the index rule applies
+to: Section, the translation functions, the row moves and pins that use them,
+space create/rename/reorder/active, locate_token. 1570 production lines
+become 460 there.
+
+Re-exported rather than re-pathed, so mutate::add_favorite still resolves.
+Moving the code is a smaller change to review than moving the code and sixty
+callers.
+
+Tests moved with their code, attributed by which functions they CALL rather
+than by name - a test named for the behaviour it checks does not mention the
+function it drives. One spans subsystems and stays in mod.rs, where all the
+caps it asserts are in scope. Their shared fixtures are one test_support
+module, because a fixture that drifts makes two test modules agree about a
+document the code never sees.
+
+restore::apply's loop body becomes apply_slice: 134 lines nested four deep
+become 31 and 121, with the five phases named. Its contract is still
+all-or-nothing and still checked by eye, but over a function whose phases have
+names. The two favourite accumulators become one value, because they are only
+correct together - a profile listed as written with no rows CLEARS that
+profile's grid.
+
+The grd allocation goes from 70 to 90 because clock.js took the count to 71.
+Grit fails at RESOURCE GENERATION, so the node suites cannot see it, which is
+how that landed one over the line.
+
+The BUILD.gn drift guard now recurses one level. It read only the top of src/,
+so every file under a directory module would have escaped it - proven by
+dropping notes.rs from the list and watching it fail.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ tools/gritsettings/resource_ids.spec | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/tools/gritsettings/resource_ids.spec b/tools/gritsettings/resource_ids.spec
+index ff404801ac217..f6096c56c9fe2 100644
+--- a/tools/gritsettings/resource_ids.spec
++++ b/tools/gritsettings/resource_ids.spec
+@@ -1810,7 +1810,11 @@
+   # Atrium chrome layer. Placed at the end of this section so the
+   # real IDs land after the placeholder block and nothing downstream realigns.
+   "chrome/browser/resources/atrium/atrium_resources.grd": {
+-    "META": {"sizes": {"includes": [70]}},
++    # Headroom, not a fit: the grd holds 71 includes and grit fails the BUILD
++    # when the count passes the allocation. It fails at RESOURCE GENERATION, so
++    # a change that only runs the node suites will not see it - which is how
++    # clock.js landed one over the line.
++    "META": {"sizes": {"includes": [90]}},
+     "includes": [12020],
+   },
+ 

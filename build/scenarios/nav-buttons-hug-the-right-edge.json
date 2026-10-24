@@ -1,0 +1,146 @@
+{
+  "name": "nav-buttons-hug-the-right-edge",
+  "description": "back/forward/reload stay flush with .sbnav's own right edge, at whatever width the sidebar is currently docked at. .sbnav now spans left:clearance to right:10px instead of shrinking to its content, and .sbback carries the lab's first class (margin-left: auto, swipe-lab.html:58) so the group is pushed against that edge rather than sitting packed next to the traffic lights. The reading is relative - the group's right edge against the row's own right edge, not an absolute pixel - so it holds at any width the resize below lands on, the same reasoning a-resize-carries-the-sidebar-contents-with-it uses for the pane. The reload click below is a REAL OS click (cgevent) at the button's on-screen position, which crosses AtriumClientView::NonClientHitTest before it ever reaches the DOM - a DOM-dispatched click would bypass that native carve entirely and prove nothing about it.",
+  "fixture": "two-tabs.spaces.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the nav row announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "shape",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.sbnav'); if (!row) { return 'no row'; } return [...row.children].map((b) => b.className.split(' ').filter((c) => c !== 'navdim').join(' ')).join('|'); })()",
+      "note": "order and the first class do not move with a resize, so this is checked once. navdim (back/forward greyed out with nowhere to go) is stripped before comparing - a structural check on order and base classes, not on the transient nav-ability state a fresh fixture happens to start in"
+    },
+    {
+      "type": "eval",
+      "id": "flush-before",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.sbnav'); const reload = row && row.querySelector('.sbreload'); if (!row || !reload) { return 'no row'; } const pad = parseFloat(getComputedStyle(row).paddingRight) || 0; return Math.round(row.getBoundingClientRect().right - pad - reload.getBoundingClientRect().right); })()",
+      "note": "the control, at the fixture's own 260pt width"
+    },
+    {
+      "type": "capture",
+      "id": "narrow",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the row at the fixture's own width"
+    },
+    {
+      "type": "eval",
+      "id": "pane-before",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.clientWidth)",
+      "note": "the pane's own width, so a drag that did nothing is not read as a second width"
+    },
+    {
+      "type": "drag",
+      "x1": 263,
+      "y1": 400,
+      "x2": 343,
+      "y2": 400,
+      "note": "the docked grip's band. The fixture stages 260, so the grip spans 260-266 and its centre is 263. Dragging 80 points right asks for 340."
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "the commit lands and the page re-lays-out at the width it was pushed"
+    },
+    {
+      "type": "eval",
+      "id": "pane-after",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.clientWidth)",
+      "note": "the same reading after the drag"
+    },
+    {
+      "type": "eval",
+      "id": "flush-after",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.sbnav'); const reload = row && row.querySelector('.sbreload'); if (!row || !reload) { return 'no row'; } const pad = parseFloat(getComputedStyle(row).paddingRight) || 0; return Math.round(row.getBoundingClientRect().right - pad - reload.getBoundingClientRect().right); })()",
+      "note": "THE MEASUREMENT: the same reading at the wider, dragged-to width"
+    },
+    {
+      "type": "capture",
+      "id": "wide",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the row at the wider, dragged-to width"
+    },
+    {
+      "type": "click",
+      "x": 319,
+      "y": 50,
+      "note": "THE MEASUREMENT: reload's centre at the dragged-to width 340. x = 340 - kNavGroupRightInset(10) - half a 22px button(11) = 319. y = window top on screen(30) + .sbnav's top inset(9) + half the button height(11) = 50, click coordinates are screen-absolute. A real OS click, so it must clear AtriumClientView::NonClientHitTest's carve before the page ever sees it."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "reload-dom-check-at-wide",
+      "target": "/sidebar",
+      "expression": "document.querySelector('.sbnav .sbreload') ? 'present' : 'no-button'",
+      "note": "presence only, no DOM click: a dispatched click would reload too and hide a missed OS click behind the same vlog line"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "shape",
+      "expected": "\"sbtd|nb sbtoggle|nb first sbback|nb sbfwd|nb sbreload\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "flush-before",
+      "expected": "0",
+      "label": "the-group-is-flush-at-the-narrow-width"
+    },
+    {
+      "type": "eval_equals",
+      "id": "flush-after",
+      "expected": "0",
+      "label": "the-group-is-still-flush-at-the-wider-width",
+      "desc": "margin-left: auto tracks .sbnav's own right edge, so this holds at whatever width the resize landed on"
+    },
+    {
+      "type": "eval_changed",
+      "before": "pane-before",
+      "after": "pane-after",
+      "label": "the-drag-actually-resized-something",
+      "note": "separates a drag that did nothing from one that moved the pane - both would otherwise read 0 above"
+    },
+    {
+      "type": "eval_equals",
+      "id": "reload-dom-check-at-wide",
+      "expected": "\"present\""
+    },
+    {
+      "type": "vlog",
+      "label": "reload-at-wide-reached-the-visible-tab",
+      "pattern": "Atrium: sidebar reload on tab [0-9]+",
+      "note": "the OS click above already produces this line if it cleared NonClientHitTest and landed on the button - the DOM check's own click would produce it too, so a build that only passes via the DOM path is not what this proves"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

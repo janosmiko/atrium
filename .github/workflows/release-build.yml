@@ -1,0 +1,298 @@
+name: Release build (hosted macOS)
+
+# Hosted runners only. Up to 8 chained stages resume ninja from a checkpoint
+# artifact, because a job ends at 6 hours. Only the sign job reads secrets.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      target:
+        description: ninja target
+        type: string
+        default: chrome
+      stage_minutes:
+        description: Minutes of ninja time per stage, 0 for the automatic budget
+        type: number
+        default: 0
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: macos-15
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      # Fails before the build hours when a tag is not on main.
+      - name: Verify the tag is on main
+        if: github.ref_type == 'tag'
+        run: build/scripts/ci-release.sh verify-tag
+
+      - name: Fetch, patch and configure Chromium
+        env:
+          CKPT_DIR: ${{ runner.temp }}/ckpt
+        run: build/scripts/ci-release.sh prepare
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: ckpt-0
+          path: ${{ runner.temp }}/ckpt/ckpt.tar.zst
+          retention-days: 2
+          compression-level: 0
+          overwrite: true
+
+  stage1:
+    needs: prepare
+    uses: ./.github/workflows/release-build-stage.yml
+    with:
+      stage: 1
+      prev_stage: 0
+      target: ${{ inputs.target || 'chrome' }}
+      stage_minutes: ${{ inputs.stage_minutes || 0 }}
+
+  stage2:
+    needs: stage1
+    if: needs.stage1.outputs.status == 'running'
+    uses: ./.github/workflows/release-build-stage.yml
+    with:
+      stage: 2
+      prev_stage: 1
+      target: ${{ inputs.target || 'chrome' }}
+      stage_minutes: ${{ inputs.stage_minutes || 0 }}
+
+  stage3:
+    needs: stage2
+    if: needs.stage2.outputs.status == 'running'
+    uses: ./.github/workflows/release-build-stage.yml
+    with:
+      stage: 3
+      prev_stage: 2
+      target: ${{ inputs.target || 'chrome' }}
+      stage_minutes: ${{ inputs.stage_minutes || 0 }}
+
+  stage4:
+    needs: stage3
+    if: needs.stage3.outputs.status == 'running'
+    uses: ./.github/workflows/release-build-stage.yml
+    with:
+      stage: 4
+      prev_stage: 3
+      target: ${{ inputs.target || 'chrome' }}
+      stage_minutes: ${{ inputs.stage_minutes || 0 }}
+
+  stage5:
+    needs: stage4
+    if: needs.stage4.outputs.status == 'running'
+    uses: ./.github/workflows/release-build-stage.yml
+    with:
+      stage: 5
+      prev_stage: 4
+      target: ${{ inputs.target || 'chrome' }}
+      stage_minutes: ${{ inputs.stage_minutes || 0 }}
+
+  stage6:
+    needs: stage5
+    if: needs.stage5.outputs.status == 'running'
+    uses: ./.github/workflows/release-build-stage.yml
+    with:
+      stage: 6
+      prev_stage: 5
+      target: ${{ inputs.target || 'chrome' }}
+      stage_minutes: ${{ inputs.stage_minutes || 0 }}
+
+  stage7:
+    needs: stage6
+    if: needs.stage6.outputs.status == 'running'
+    uses: ./.github/workflows/release-build-stage.yml
+    with:
+      stage: 7
+      prev_stage: 6
+      target: ${{ inputs.target || 'chrome' }}
+      stage_minutes: ${{ inputs.stage_minutes || 0 }}
+
+  stage8:
+    needs: stage7
+    if: needs.stage7.outputs.status == 'running'
+    uses: ./.github/workflows/release-build-stage.yml
+    with:
+      stage: 8
+      prev_stage: 7
+      target: ${{ inputs.target || 'chrome' }}
+      stage_minutes: ${{ inputs.stage_minutes || 0 }}
+
+  # A failed job can still expose a finished status that an earlier step
+  # wrote, so the job results decide first.
+  done:
+    needs: [prepare, stage1, stage2, stage3, stage4, stage5, stage6, stage7, stage8]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      status: ${{ steps.result.outputs.status }}
+      app_artifact: atrium-macos-arm64
+      app_digest: ${{ steps.result.outputs.app_digest }}
+    steps:
+      - name: Check stages
+        id: result
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          if jq -e 'any(.[]; .result == "failure" or .result == "cancelled")' <<<"$NEEDS" >/dev/null; then
+            echo "::error::a job failed or was cancelled"
+            exit 1
+          fi
+          if ! jq -e 'any(.[]; .outputs.status == "finished" and .result == "success")' <<<"$NEEDS" >/dev/null; then
+            echo "::error::no stage finished the build"
+            exit 1
+          fi
+          echo "status=finished" >>"$GITHUB_OUTPUT"
+          digest="$(jq -r '[.[].outputs.app_digest // empty | select(. != "")] | first // ""' <<<"$NEEDS")"
+          echo "app_digest=$digest" >>"$GITHUB_OUTPUT"
+
+  # The only job with secrets. The release environment holds them and gates
+  # the job on a reviewer and on v* tags.
+  sign:
+    needs: done
+    if: github.ref_type == 'tag' && needs.done.outputs.app_digest != ''
+    runs-on: macos-15
+    timeout-minutes: 60
+    environment: release
+    permissions:
+      contents: read
+    outputs:
+      dmg_digest: ${{ steps.upload_dmg.outputs.artifact-digest }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Verify the tag is on main
+        run: build/scripts/ci-release.sh verify-tag
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: ${{ needs.done.outputs.app_artifact }}
+          path: ${{ runner.temp }}/app-dl
+          skip-decompress: true
+
+      # The raw archive hash must equal the digest the build job reported.
+      # The app is only unpacked here and never run.
+      - name: Check the app digest and unpack it
+        env:
+          APP_DIGEST: ${{ needs.done.outputs.app_digest }}
+        run: |
+          set -euo pipefail
+          [ "$(find "$RUNNER_TEMP/app-dl" -type f | wc -l | tr -d ' ')" = 1 ]
+          raw="$(find "$RUNNER_TEMP/app-dl" -type f)"
+          got="$(shasum -a 256 "$raw" | cut -d' ' -f1)"
+          [ "$got" = "${APP_DIGEST#sha256:}" ] || { echo "::error::app artifact digest mismatch"; exit 1; }
+          ditto -x -k "$raw" "$RUNNER_TEMP/app-x"
+          [ "$(find "$RUNNER_TEMP/app-x" -type f -name '*.zip' | wc -l | tr -d ' ')" = 1 ]
+          ditto -x -k "$(find "$RUNNER_TEMP/app-x" -type f -name '*.zip')" "$RUNNER_TEMP/app"
+          test -d "$RUNNER_TEMP/app/Atrium.app"
+
+      - name: Import the certificate and the notary key
+        env:
+          P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.MACOS_CERT_P12_PASSWORD }}
+          NOTARY_P8: ${{ secrets.NOTARY_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          kc="$RUNNER_TEMP/atrium-sign.keychain-db"
+          pw="$(openssl rand -base64 32)"
+          echo "::add-mask::$pw"
+          security create-keychain -p "$pw" "$kc"
+          security set-keychain-settings -lut 21600 "$kc"
+          security unlock-keychain -p "$pw" "$kc"
+          printf '%s' "$P12_BASE64" | base64 --decode >"$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$kc" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$pw" "$kc" >/dev/null
+          printf '%s\n' "$NOTARY_P8" >"$RUNNER_TEMP/notary-key.p8"
+
+      - name: Sign, notarize and build the DMG
+        env:
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          NOTARY_API_KEY_ID: ${{ secrets.NOTARY_API_KEY_ID }}
+          NOTARY_API_ISSUER_ID: ${{ secrets.NOTARY_API_ISSUER_ID }}
+        run: build/scripts/ci-release.sh sign
+
+      # Runs on failure too. The upload below skips after a failed step.
+      - name: Remove the keychain and the keys
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/atrium-sign.keychain-db" || true
+          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notary-key.p8"
+
+      - name: Upload DMG
+        id: upload_dmg
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: atrium-dmg
+          path: ${{ runner.temp }}/release/*.dmg
+          retention-days: 7
+
+  # No environment and no secrets. It only publishes what the sign job built.
+  release:
+    needs: sign
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: atrium-dmg
+          path: ${{ runner.temp }}/dmg-dl
+          skip-decompress: true
+
+      - name: Create the release
+        env:
+          DMG_DIGEST: ${{ needs.sign.outputs.dmg_digest }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [ "$(find "$RUNNER_TEMP/dmg-dl" -type f | wc -l | tr -d ' ')" = 1 ]
+          raw="$(find "$RUNNER_TEMP/dmg-dl" -type f)"
+          got="$(sha256sum "$raw" | cut -d' ' -f1)"
+          [ "$got" = "${DMG_DIGEST#sha256:}" ] || { echo "::error::DMG artifact digest mismatch"; exit 1; }
+          unzip -q "$raw" -d "$RUNNER_TEMP/dmg"
+          [ "$(find "$RUNNER_TEMP/dmg" -type f -name '*.dmg' | wc -l | tr -d ' ')" = 1 ]
+          gh release create "$TAG" "$(find "$RUNNER_TEMP/dmg" -type f -name '*.dmg')" \
+            --verify-tag --generate-notes --title "$TAG"
+
+  cleanup:
+    needs: done
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: write
+    steps:
+      - name: Delete checkpoint artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -o pipefail
+          gh api --paginate "repos/$GH_REPO/actions/runs/$RUN_ID/artifacts" \
+            --jq '.artifacts[] | select(.name | startswith("ckpt-")) | .id' |
+            while read -r id; do
+              gh api -X DELETE "repos/$GH_REPO/actions/artifacts/$id"
+            done

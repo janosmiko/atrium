@@ -1,0 +1,48 @@
+{
+  "spaces": [
+    {
+      "id": "20000000-0000-4000-8000-000000000001",
+      "name": "Accent",
+      "emoji": "A",
+      "tint": "sunsetOrange",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?accent",
+          "title": "Accent Page"
+        }
+      ],
+      "groups": []
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000002",
+      "name": "Second",
+      "emoji": "S",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 1,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000003",
+      "name": "Third",
+      "emoji": "T",
+      "tint": "meadowGreen",
+      "profileID": "Default",
+      "order": 2,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    }
+  ],
+  "favorites": [],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "20000000-0000-4000-8000-000000000001"
+  }
+}

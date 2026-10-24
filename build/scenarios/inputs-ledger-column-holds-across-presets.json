@@ -1,0 +1,157 @@
+{
+  "name": "inputs-ledger-column-holds-across-presets",
+  "description": "The shortcut ledger's key column starts at the same x under the Arc preset and under the Atrium preset. The column is sized max-content, so under a preset with only narrow chords it used to collapse against the icon buttons, and the keys of every row jumped right. A fixed width keeps it a column, and a row with two chords wraps inside it. Same launch and preset-switch steps as inputs-pane-switches-hotkey-presets.",
+  "fixture": "hotkey-rebind.spaces.json",
+  "hotkeys": "sidebar-rebind.hotkeys.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 600
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings surface ready",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: hotkeys pushed",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "open-inputs-pane",
+      "target": "/settings",
+      "expression": "(() => { const item = document.querySelector('.settings-rail-item[data-pane=\"inputs\"]'); if (!item) { return 'no inputs rail item'; } item.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval",
+      "id": "pick-arc",
+      "target": "/settings",
+      "expression": "(() => { const btn = document.querySelector('.hotkey-preset[data-preset=\"arc\"]'); if (!btn) { return 'no arc button'; } btn.click(); const ok = document.querySelector('.hotkey-preset-confirm'); if (ok) { ok.click(); } return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: hotkeys written",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "col-arc",
+      "target": "/settings",
+      "expression": "(() => { const on = (document.querySelector('.hotkey-preset.on') || {dataset: {}}).dataset.preset; const v = document.querySelector('.hotkey-ledger > .settings-row[data-action] .settings-row-value'); const a = document.querySelector('.hotkey-ledger > .settings-row[data-action] .hotkey-actions'); if (!v || !a) { return 'no row'; } window.__colArc = Math.round(v.getBoundingClientRect().left); return on + ':' + (a.getBoundingClientRect().left - window.__colArc >= 200 ? 'column' : 'collapsed'); })()"
+    },
+    {
+      "type": "eval",
+      "id": "pick-atrium",
+      "target": "/settings",
+      "expression": "(() => { const btn = document.querySelector('.hotkey-preset[data-preset=\"atrium\"]'); if (!btn) { return 'no atrium button'; } btn.click(); const ok = document.querySelector('.hotkey-preset-confirm'); if (ok) { ok.click(); } return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: hotkeys written",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "col-same",
+      "target": "/settings",
+      "expression": "(() => { const on = (document.querySelector('.hotkey-preset.on') || {dataset: {}}).dataset.preset; const v = document.querySelector('.hotkey-ledger > .settings-row[data-action] .settings-row-value'); if (!v) { return 'no row'; } const l = Math.round(v.getBoundingClientRect().left); return on + ':' + (l === window.__colArc ? 'same' : 'moved ' + window.__colArc + ' -> ' + l); })()"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "open-inputs-pane",
+      "expected": "\"clicked\"",
+      "desc": "gates the measurement: the Inputs pane opened"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pick-arc",
+      "expected": "\"clicked\"",
+      "desc": "gates the measurement: the Arc preset was picked and confirmed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "col-arc",
+      "expected": "\"arc:column\"",
+      "desc": "under Arc, where no chord is wide, the keys still sit in a column at least 200px left of the buttons"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pick-atrium",
+      "expected": "\"clicked\"",
+      "desc": "gates the measurement: the Atrium preset was picked and confirmed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "col-same",
+      "expected": "\"atrium:same\"",
+      "desc": "THE MEASUREMENT: the key column starts at the same x under both presets"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "the settings window closed on cmd+w, the browser window remains"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

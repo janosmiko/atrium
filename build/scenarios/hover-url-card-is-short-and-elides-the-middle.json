@@ -1,0 +1,185 @@
+{
+  "name": "hover-url-card-is-short-and-elides-the-middle",
+  "description": "the hover URL card is a status line, not a notification, so it should read noticeably shorter than a confirmation card. a URL that fits shows in full, and one that does not keeps its start and its end with the ellipsis in the middle, rather than truncating the tail the way CSS text-overflow:ellipsis would.\n\nHeights are read off getBoundingClientRect rather than asserted against a literal number the report can misquote - the actual pixel value is recorded as a diagnostic and the assertion is a generous threshold well under a confirmation card's 48px.\n\nThe eliding assertions read the shown text back and check it is a genuine prefix/suffix of the real URL rather than asserting one hardcoded elided string, since the exact cut point depends on real font metrics measured at run time.",
+  "fixture": "long-page.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "past the show debounce the hover path keeps"
+    },
+    {
+      "type": "eval",
+      "id": "arm-two-links",
+      "target": "long-page",
+      "expression": "(() => { const mk = (href, top, h) => { const a = document.createElement('a'); a.href = href; a.textContent = href; a.style.cssText = 'position:fixed;left:0;width:100%;top:' + top + ';height:' + h + ';z-index:99;background:rgba(0,0,0,.02)'; document.body.appendChild(a); return a; }; mk('https://short.example/a', '0', '50%'); mk('https://telex.hu/g7/vallalat/2026/09/01/nemet-autogyartok-kozos-fejlesztese-uj-akkumulator-technologiajarol-europai-piac-versenyehez-hosszan', '50%', '50%'); return 'a short link and a very long one'; })()",
+      "note": "the long link's slug is long enough that no reasonable window width shows it whole"
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 250,
+      "note": "REAL pointer move into the short link, top half of the web card"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "past the hover show debounce"
+    },
+    {
+      "type": "eval_until",
+      "id": "short-card-shows-full-url",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? t.textContent : 'no card'; })()",
+      "expected": "https://short.example/a",
+      "timeout_ms": 6000,
+      "note": "Of a URL that fits is shown in full, with no ellipsis"
+    },
+    {
+      "type": "eval",
+      "id": "short-card-height",
+      "target": "/toast",
+      "expression": "(() => { const c = document.querySelector('.toasts .toast'); return c ? String(Math.round(c.getBoundingClientRect().height)) : 'no card'; })()",
+      "note": "diagnostic: the actual rendered height of a status-line card, recorded rather than asserted to an exact number"
+    },
+    {
+      "type": "eval",
+      "id": "short-card-shorter-than-a-confirmation",
+      "target": "/toast",
+      "expression": "(() => { const c = document.querySelector('.toasts .toast'); if (!c) { return 'no card'; } return String(c.getBoundingClientRect().height < 40); })()",
+      "note": "Of noticeably shorter than the 48px a confirmation card measures (a recorded number). Two runs read 40px because Archivo's own line-height reads close to 2x the font-size, not because of the always-empty .ctu (hiding it alone changed nothing) - a pinned line-height on .ctl brought a real run down to 36px, chosen for margin under this threshold rather than sitting right at it."
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 560,
+      "note": "REAL pointer move to the long link, bottom half - exercises the in-place retarget too"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "long-card-elided",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? String(t.textContent.includes('\\u2026')) : 'no card'; })()",
+      "expected": "true",
+      "timeout_ms": 6000,
+      "note": "Of a URL that does not fit is elided"
+    },
+    {
+      "type": "eval",
+      "id": "long-card-text",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? t.textContent : 'no card'; })()",
+      "note": "diagnostic: the actual elided string, for the report"
+    },
+    {
+      "type": "eval",
+      "id": "long-card-keeps-real-prefix-and-suffix",
+      "target": "/toast",
+      "expression": "(() => { const full = 'https://telex.hu/g7/vallalat/2026/09/01/nemet-autogyartok-kozos-fejlesztese-uj-akkumulator-technologiajarol-europai-piac-versenyehez-hosszan'; const t = document.querySelector('.toasts .toast .ctl'); if (!t) { return 'no card'; } const shown = t.textContent; const parts = shown.split('\\u2026'); if (parts.length !== 2) { return 'not one ellipsis: ' + shown; } const [pre, suf] = parts; return String(pre.length > 0 && suf.length > 0 && full.startsWith(pre) && full.endsWith(suf)); })()",
+      "note": "Of both ends kept are real substrings of the actual URL, not a guessed split"
+    },
+    {
+      "type": "eval",
+      "id": "long-card-width",
+      "target": "/toast",
+      "expression": "(() => { const c = document.querySelector('.toasts .toast'); return c ? String(Math.round(c.getBoundingClientRect().width)) : 'no card'; })()",
+      "note": "diagnostic: the card's actual width once elided"
+    },
+    {
+      "type": "capture",
+      "id": "shorter-hover-card-over-a-link",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "Of a screenshot of the shorter card over a hovered link"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "move",
+      "x": 110,
+      "y": 300,
+      "note": "off the page onto the sidebar, which clears the card"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "card-cleared",
+      "target": "/toast",
+      "expression": "String(document.querySelectorAll('.toasts .toast').length)"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "short-card-shows-full-url",
+      "expected": "https://short.example/a",
+      "desc": "a URL that fits the available width is shown in full, no ellipsis"
+    },
+    {
+      "type": "eval_equals",
+      "id": "short-card-shorter-than-a-confirmation",
+      "expected": "\"true\"",
+      "desc": "the hover card is noticeably shorter than a confirmation card"
+    },
+    {
+      "type": "eval_equals",
+      "id": "long-card-elided",
+      "expected": "true",
+      "desc": "a URL that does not fit is elided"
+    },
+    {
+      "type": "eval_equals",
+      "id": "long-card-keeps-real-prefix-and-suffix",
+      "expected": "\"true\"",
+      "desc": "the card keeps its start and its end, ellipsis in the middle"
+    },
+    {
+      "type": "eval_equals",
+      "id": "card-cleared",
+      "expected": "\"0\"",
+      "desc": "unhover still clears the card"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

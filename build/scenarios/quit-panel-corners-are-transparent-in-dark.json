@@ -1,0 +1,110 @@
+{
+  "name": "quit-panel-corners-are-transparent-in-dark",
+  "description": "the corner is measured in dark appearance, not only light.\n\nWHY A SECOND SCENARIO RATHER THAN A FLAG ON THE FIRST. The panel picks its ink and paper per appearance, and the near-white dark ink is what produced the lightening wedge. So dark is not a variant of the light case, it is the case that produced the defect. Its sibling stays on Light so both paths are measured every run rather than one being chosen.\n\nThe VM is fixed at Light, so system_appearance below switches the appearance through System Events before Atrium starts. NOT `defaults write` - that sets the key and a launched app still reads Light, even after a cfprefsd flush, because the appearance is a session property loginwindow owns rather than a preference the process reads.\n\nHOW A LIGHT RUN IS PREVENTED FROM PASSING AS A DARK ONE. This is the whole risk of the new field, and it is not hypothetical: the first two runs of this scenario read back Dark from the key and measured a Light card anyway, because the write never reached the session. The card control is what closes that. In brand mode the card surface is --ov-paper with the accent mixed in, which computes to about (50,24,29) in dark and (247,236,238) in light (atrium_confirm_quit_panel_style.cc, kBrandPaperDark/Light at the dark/light tint alphas). A ceiling on the RED channel therefore fails on both ways this run can be worthless: a light-appearance card reads R about 242, and an absent panel leaves pure red at R 255. Only a genuinely dark card passes it. The appearance is read from the renderer as well, but only as a diagnostic - if Chromium's WebUI turns out not to track AppleInterfaceStyle that is not a product defect, and it must not fail the run.\n\nPROBE GEOMETRY is inherited from the light sibling, which measured it off a real capture: pure red until x=393, a flat plateau at x=394-401, then the curve's antialiasing from about x=402. The corner bounds are inherited too, including the rim light - macOS 26 draws a 1-2px arc outside every window's alpha shape which lifts G/B to about 10 there. Whether it lifts them by the SAME amount in dark is not something this scenario assumes, which is why a plain-red patch from the same frame is read beside the corner as a diagnostic. If the corner probe fails, that reading is what says whether the rim moved or a wedge came back.",
+  "fixture": "quit-panel-over-red.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "settings": "confirm-quit-on.settings.json",
+  "app_process": "Atrium",
+  "system_appearance": "dark",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "red-page-up",
+      "target": "peek-scrim-red.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-scrim-red.html",
+      "timeout_ms": 25000,
+      "note": "GATE: the red page really committed, as in the light sibling"
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "eval",
+      "id": "renderer-colour-scheme",
+      "target": "/sidebar",
+      "expression": "String(window.matchMedia('(prefers-color-scheme: dark)').matches)",
+      "note": "DIAGNOSTIC ONLY, deliberately not asserted. It says whether the renderer resolved the same appearance the shell asked for, which narrows a corner failure to the appearance rather than the panel. It is not the control: WebUI not tracking AppleInterfaceStyle would be a Chromium behaviour, not the defect this scenario measures, and the card's own pixel proves the appearance where it matters."
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key_during_capture",
+      "combo": "cmd+q",
+      "capture_id": "hold-cmd-q-panel",
+      "duration_ms": 2000,
+      "fps": 20,
+      "key_delay_ms": 400,
+      "mid_at_ms": 800,
+      "note": "released at 400ms, under the ~500ms commit mark, so the panel dismisses instead of the app quitting. mid_at_ms=800 for the reason the light sibling records: two runs' visible-panel windows measured 615-944ms and 657-1042ms, and 600 lands before the panel in the second."
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "let the panel's fade-out finish before the run ends"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "the browser window is still there - the release beat the quit"
+    },
+    {
+      "type": "vlog",
+      "label": "confirm-to-quit-is-armed",
+      "pattern": "Atrium: confirm-to-quit is now on",
+      "note": "the panel that appeared is the confirm-to-quit HUD and not some other window"
+    },
+    {
+      "type": "region_mean",
+      "capture": "hold-cmd-q-panel_mid",
+      "x": 500,
+      "y": 210,
+      "w": 10,
+      "h": 10,
+      "min_mean": 0,
+      "max_mean": 150,
+      "max_r": 150,
+      "label": "the-card-is-painted-and-it-is-dark",
+      "desc": "THE CONTROL, and it carries two jobs. The card's own middle, well inside the rounded rect. max_r 150 fails on a light-appearance card (R about 242 there, so a system_appearance that never took cannot pass as dark) and on an absent panel (pure red is R 255, and the corner probe below would then pass vacuously on plain page). A dark brand card computes to about R 50 and measures higher only by however much of the near-white ink falls in the patch - the light sibling's glyph coverage moved its R by about 4."
+    },
+    {
+      "type": "region_mean",
+      "capture": "hold-cmd-q-panel_mid",
+      "x": 395,
+      "y": 187,
+      "w": 5,
+      "h": 5,
+      "min_mean": 0,
+      "max_mean": 95,
+      "min_r": 250,
+      "max_g": 20,
+      "max_b": 20,
+      "label": "the-corner-is-not-a-wedge-in-dark",
+      "desc": "the band just outside the top-left rounded corner, in dark appearance, where the near-white dark ink drives the lightening wedge. Same bounds as the light sibling: a darkening wedge drops R below 250, an added light fill lifts G/B past the rim light's 20, and the panel's own paint would push the mean past 95. Whether the rim lifts G/B by the same amount in dark is not assumed here - the diagnostic below reads plain red from this same frame, and if this probe fails that reading is what separates a moved rim from a returned wedge."
+    },
+    {
+      "type": "region_mean",
+      "capture": "hold-cmd-q-panel_mid",
+      "x": 800,
+      "y": 500,
+      "w": 8,
+      "h": 8,
+      "min_mean": 0,
+      "max_mean": 256,
+      "label": "diag-plain-red-away-from-the-panel",
+      "desc": "DIAGNOSTIC: the same frame, well clear of the 350x70 panel, so bare page. Bounds that cannot fail, present to print what pure red reads as in this appearance and this capture pipeline. The corner probe's channel bounds were calibrated against the light run's numbers, and this is what says whether they still describe plain red here."
+    }
+  ]
+}

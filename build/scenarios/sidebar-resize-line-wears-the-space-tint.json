@@ -1,0 +1,251 @@
+{
+  "name": "sidebar-resize-line-wears-the-space-tint",
+  "description": "The mark on the sidebar's seam is a tint-coloured pill, inset from the window's top and bottom, not a full-height grey hairline.\n\nWHY THE HOVER HALF COMES FIRST, AT THE FIXTURE'S OWN WIDTH. The seam column is six points wide and the pill inside it is four, so an assertion that reads its colour has to know where it is to the pixel. A synthetic drag lands short by a different amount each run (the runner's own expect_width loop exists for that), so the frame that answers 'what colour' is taken before anything moves, at the staged 260: the column is 260..266 and the pill is 261..265. The grip paints the same pill for a hover as for a drag - one OnPaint, one hovered_||dragging_ gate - so the colour read here is the colour a drag shows.\n\nWHAT THE DRAG HALF ADDS. That the pill goes with the edge. It is read over a band wide enough to hold every width the graded drag can settle on, so it does not inherit the drag's slop.\n\nTHE POINTER IS PARKED, NOT LEFT WHERE IT WAS. Every 'dark' frame here is a baseline for a mark that only exists while the pointer holds the seam, and a baseline that still has the pointer on the band is not one. The park spot is blank page, clear of all four regions and clear of the screen edge, so no Dock reveal rides on it.\n\nTHE INSET IS THE HALF A SINGLE REGION CANNOT SAY. A pill and a full-height line both light the middle of the column. What separates them is the top and bottom strips staying byte-stable while the middle moves, in the same pair of frames - which is why the stable regions and the changed region share the rest/lit captures rather than being read off frames of their own.",
+  "cannot_pass": "PARTLY MEASURED NOW. The 2026-08-30 01:55 run read the pill's geometry off the frames and it is right: at a 260-wide sidebar the seam column runs 260..266, the card's white starts at 266, and exactly four columns - 261,262,263,264 - differ between the un-hovered and hovered frames, with both inset strips byte-identical. What that run got wrong was the colour, and it is fixed here rather than retuned: the line picked its ink arm off the raw tint, so oceanBlue took the glow, landing at 109,122,138 against a surface of 102,120,137 - the same tint through the glass. Ten units apart, under pixcmp's 12-unit tolerance, which is why a correct paint measured as no paint at all. The arm now goes to whichever of the guide's two inks lands further from the composited backdrop. STILL PREDICTED, not measured: the two region_mean bands, computed in their own notes from that run's background pixels and the new colour. They assume the light appearance base this VM runs on, which the composite 102,120,137 confirms for oceanBlue at glass alpha 163 - in dark mode the arm flips back to the glow and both bands would be wrong. NOT YET MEASURED: the relit/unhovered pair at the end, added once the grip started clearing hover on a move into the page. and-the-column-reads-sidebar-background-not-the-tint's 85..130 bound is derived, not read off a frame - no run has captured the unhovered seam column, because the bug it tests for made that capture byte-identical to the lit one every time it was tried before.",
+  "fixture": "two-tabs.spaces.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "move",
+      "x": 900,
+      "y": 640,
+      "note": "park in blank page content. Clear of the seam column, of both inset strips, and of the screen's own edges"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "rest",
+      "duration_ms": 400,
+      "fps": 10,
+      "note": "the seam with nothing on it, at the fixture's staged 260"
+    },
+    {
+      "type": "eval",
+      "id": "pane-before",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.clientWidth)",
+      "note": "so a drag that moved nothing is not read as a second width"
+    },
+    {
+      "type": "move",
+      "x": 263,
+      "y": 500,
+      "note": "the seam column's centre at 260 wide (260..266). y=500 keeps the cursor out of the region read at 180..340"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "lit",
+      "duration_ms": 400,
+      "fps": 10,
+      "note": "the pill, at a column whose x is the fixture's own number rather than a drag's"
+    },
+    {
+      "type": "drag",
+      "x1": 263,
+      "y1": 400,
+      "x2": 343,
+      "y2": 400,
+      "expect_width": 324,
+      "tolerance": 12,
+      "note": "324 is the band's x for a 340-wide sidebar: the column starts at the width and the band reaches 16 back over the sidebar, which is what the runner reads out of the grip-band line"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "the commit lands and the pane settles at the width it was pushed"
+    },
+    {
+      "type": "capture",
+      "id": "dragged",
+      "duration_ms": 400,
+      "fps": 10,
+      "note": "the release leaves the pointer on the band, so the pill is still lit - now at the seam's new place"
+    },
+    {
+      "type": "eval",
+      "id": "pane-after",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.clientWidth)"
+    },
+    {
+      "type": "move",
+      "x": 343,
+      "y": 500,
+      "note": "re-hover the seam at the drag's settled 340 wide (band 340..346), independent of wherever the release left the pointer"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "relit",
+      "duration_ms": 400,
+      "fps": 10,
+      "note": "the pill again, at the seam's post-drag place"
+    },
+    {
+      "type": "move",
+      "x": 600,
+      "y": 400,
+      "note": "off the band into the content pane - the move that used to leave the pill lit with no exit event at all"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "unhovered",
+      "duration_ms": 400,
+      "fps": 10,
+      "note": "the seam after the pointer has left it for the page"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "pixels_changed",
+      "before": "rest",
+      "after": "lit",
+      "region": [
+        261,
+        180,
+        4,
+        160
+      ],
+      "min_changed_pct": 80,
+      "label": "the-pill-fills-the-seam-column",
+      "desc": "the 4pt pill covers this region edge to edge, so nearly every pixel in it moves when the line comes up",
+      "note": "640 pixels, over moved_outcome's 400 floor. The pill spans 261.0 to 265.0 on whole pixels, so no antialiased column dilutes the count and a bar of 80 sits under a signal of ~100 rather than being tuned to it. A 2pt line would top out near 50 and fail here, which is the point"
+    },
+    {
+      "type": "region_mean",
+      "capture": "lit",
+      "x": 261,
+      "y": 180,
+      "w": 4,
+      "h": 160,
+      "max_mean": 60,
+      "min_mean": 25,
+      "label": "the-pill-carries-the-space-tint-not-a-grey",
+      "desc": "the tint 60% into the guide's LIGHT ink, which is the arm this tint's own glass composite calls for; the surface beside it reads 120 and the card beyond it 235",
+      "note": "Derived from the 01:55 run's own pixels. The seam column's background there is 102,120,137 falling to 90,106,121 under the card's shadow, and the line is 23,32,51 at the guide's .92 alpha over it, dimmed by the same shadow: 27,37,55, a channel mean near 40. 25..60 brackets that and excludes both the bare surface and the 116.4 the wrong arm measured. This assertion takes x/y/w/h, not the `region` array its neighbours take, and the spec validator checks neither - written as a region it reaches pixcmp with no coordinates and reports 'pixcmp stats failed', which reads like a broken frame rather than a malformed assertion"
+    },
+    {
+      "type": "region_mean",
+      "capture": "dragged",
+      "x": 341,
+      "y": 180,
+      "w": 4,
+      "h": 160,
+      "max_mean": 60,
+      "min_mean": 25,
+      "label": "and-the-pill-is-at-the-seams-new-place-after-the-drag",
+      "desc": "the same reading at 341, where a 340-wide sidebar puts the pill",
+      "note": "THE ISOLATING HALF of the drag claim. The region below says the content at the new seam changed, which the sidebar widening explains on its own; this says what is there is the line. If the line had stayed behind at 261 this region would read the card's white at 235, and if it had gone out it would read the sidebar's own 120 - both are outside the band by a wide margin"
+    },
+    {
+      "type": "region_stable",
+      "before": "rest",
+      "after": "lit",
+      "region": [
+        255,
+        33,
+        16,
+        12
+      ],
+      "max_delta": 1.0,
+      "label": "the-pill-stops-short-of-the-top",
+      "desc": "window-local y 3..15, inside the 18pt inset the guide's card radius sets",
+      "note": "Not vacuous: the same capture pair moves ~100% of the column's middle above. A full-height line would light this strip too"
+    },
+    {
+      "type": "region_stable",
+      "before": "rest",
+      "after": "lit",
+      "region": [
+        255,
+        694,
+        16,
+        10
+      ],
+      "max_delta": 1.0,
+      "label": "and-short-of-the-bottom",
+      "desc": "window-local y 664..674, inside the bottom inset whether the window stands 678 or 680 tall - both have been observed on this VM"
+    },
+    {
+      "type": "eval_changed",
+      "before": "pane-before",
+      "after": "pane-after",
+      "label": "the-drag-actually-moved-the-edge",
+      "note": "separates a drag that resized from one the band never received, which the region below cannot tell apart on its own"
+    },
+    {
+      "type": "pixels_changed",
+      "before": "lit",
+      "after": "dragged",
+      "region": [
+        329,
+        180,
+        28,
+        160
+      ],
+      "min_changed_pct": 9,
+      "label": "the-seam-repainted-where-the-edge-landed",
+      "desc": "at 340 wide the new seam holds the pill and its shadow; at 260 the same strip was the content card's white",
+      "note": "Measured 65.87% changed on the 01:55 frames, so a bar of 9 sits 7x under the signal. The pair is lit->dragged rather than dragged->a dark control: the line does NOT go out when the pointer leaves the band for the content pane. Moving from the band to 900,640 produced no OnMouseExited at all - the 'after' capture was byte-identical to 'dragged' across this region, mean delta 0.00 - so there is no dark frame to compare against and asking for one measured nothing"
+    },
+    {
+      "type": "pixels_changed",
+      "before": "relit",
+      "after": "unhovered",
+      "region": [
+        341,
+        180,
+        4,
+        160
+      ],
+      "min_changed_pct": 80,
+      "label": "the-pill-goes-out-off-the-band",
+      "desc": "the same column the pill filled on the way in empties on the way off, at the fill's own 80% bar",
+      "note": "mirrors the-pill-fills-the-seam-column, read against the opposite transition"
+    },
+    {
+      "type": "region_mean",
+      "capture": "unhovered",
+      "x": 341,
+      "y": 180,
+      "w": 4,
+      "h": 160,
+      "max_mean": 130,
+      "min_mean": 85,
+      "label": "and-the-column-reads-sidebar-background-not-the-tint",
+      "desc": "back in the bare surface's range, clear of the pill's 25..60",
+      "note": "PREDICTED, not measured (see cannot_pass) - from this file's own 102,120,137 falling to 90,106,121 under the card's shadow. Wide enough to hold either reading with no overlap against the lit band, so a line that stayed lit still fails this bound"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

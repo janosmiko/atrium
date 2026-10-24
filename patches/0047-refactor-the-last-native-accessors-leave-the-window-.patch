@@ -1,0 +1,40 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 18:44:33 +0200
+Subject: [PATCH 047/154] refactor: the last native accessors leave the window
+ body
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+HasRealizedWindow and SetExcludedFromWindowCycling have portable signatures
+and platform-shaped bodies, so they go on the seam. Their CHECKs are copied
+across unchanged - they state that an Atrium window is always in-process, and
+that is not something to soften for tidiness.
+
+GetNSWindowForAnimation cannot go on the seam: its signature names an AppKit
+type. It moves to atrium_browser_window_mac.mm instead, with a comment saying
+why it stays whole. Its only caller asks about a parent it has every reason to
+expect realised.
+
+Verified by little-window-hotkey 2 of 2 and devtools-dock 2 of 2 - Cmd+Q and
+window creation, which is the Hide and cycling path these two serve.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 35583f7ee0e58..22c272de81112 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3508,6 +3508,7 @@ static_library("ui") {
+       "atrium/atrium_window_platform_mac.mm",
+       "atrium/atrium_native_widget_mac.h",
+       "atrium/atrium_native_widget_mac.mm",
++      "atrium/atrium_browser_window_mac.mm",
+       "atrium/atrium_window_metrics.h",
+       "atrium/atrium_browser_window.h",
+       "atrium/atrium_browser_window.mm",

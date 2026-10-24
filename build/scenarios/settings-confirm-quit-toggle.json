@@ -1,0 +1,182 @@
+{
+  "name": "settings-confirm-quit-toggle",
+  "description": "toggling 'Warn before quitting' persists, and the value survives a relaunch.\n\nWHICH WAY THE TOGGLE IS DRIVEN CHANGED, and it is not cosmetic. The row used to store a byte nothing read, so a run could turn confirm-to-quit ON and still be stopped by a plain Cmd+Q tap. Now the stored value reaches Chromium's browser.confirm_to_quit pref, and a tap with it on is CANCELLED by the hold-to-quit gate - which is what the relaunch below sends. Staging true and clicking the row OFF keeps this scenario asking its own question (does the byte survive a relaunch) instead of failing on a shutdown it never set out to test. That confirm-to-quit really gates the chord is measured next door, by settings-confirm-quit-takes-effect.\n\nThe settings fixture is staged with confirmToQuitEnabled true and handed over as ATRIUM_SETTINGS_FILE, so the row's first reading is a measurement rather than a default. The click goes to the row's VALUE - a button.settings-row-value.settings-row-toggle - at a coordinate read off the General capture of settings-cmd-comma, the way that scenario reads its rail coordinates. The toggle's CSS is padding 0, border 0, font inherit, so the button occupies the same box the static value did.\n\nThe row repaints optimistically on the click, so no capture and no log line about the WINDOW can tell a write from a repaint - both fire whether or not the byte reached disk. Two features of the harness settle it. file_contains reads the staged file back out of the VM and compares one JSON path to one expected value, AS JSON, against the STAGED copy as a baseline - a fixture that already held the answer is a FAILED assertion, not a passed one, which is exactly the case here since the fixture stages true. relaunch stops the app with Cmd+Q (a write may only flush on the way out) and starts it again against the SAME files, with nothing restaged, so a second read has nowhere to come from but the first launch's write.\n\nWHAT A RELAUNCH DOES NOT LEAVE STANDING: the settings window. Cmd+Q closes every window, so launch 2 comes up with one window like launch 1 did, not frontmost (ssh-launched, same as the first launch), and the chord has to be sent again - cmd+comma a second time, with no click, to read rather than to write. The wait_vlog for the startup tab gates launch 2 the same way it gated launch 1, and because wait_vlog greps the LIVE log it can only be matched by the process currently running.\n\nTHE ASSERTION THAT SEPARATES PERSISTENCE FROM REPAINT is file_contains on confirmToQuitEnabled: false, read after every action including the relaunch. Every vlog assertion here - written, pushed, the absence of the three save warnings and the read-side one - is satisfied by a build that repaints the row and writes nothing; stubbing the relaunch out left exactly one assertion green, vlog_absent, 'on a build that wrote nothing'. The relaunch-side read is checked with vlog_after, not vlog, because a plain presence check for 'Atrium: settings pushed' would already be true from launch 1's own open and would stay true whether or not launch 2 read anything at all. Anchoring it after the harness's own launch-2 marker is what makes it a claim about the SECOND launch specifically.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "settings": "confirm-quit-on.settings.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so launch 1 is up"
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate",
+      "note": "Atrium frontmost, so the chord reaches it"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "open the settings window on General"
+    },
+    {
+      "type": "settle",
+      "ms": 7000,
+      "note": "the window builds, the route loads, and the core's values land a beat after the labels"
+    },
+    {
+      "type": "capture",
+      "id": "quit-on",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "THE BEFORE MEASUREMENT: Warn before quitting must read On here. Without it a later Off proves nothing"
+    },
+    {
+      "type": "eval",
+      "id": "toggle-the-warn-before-quitting-row",
+      "target": "/settings",
+      "expression": "(() => { const row = [...document.querySelectorAll('.settings-row')].find((r) => /warn before quitting/i.test(r.textContent || '')); if (!row) { return 'no Warn before quitting row'; } const btn = row.querySelector('button.settings-row-toggle'); if (!btn) { return 'row has no toggle button: ' + row.innerHTML.slice(0, 120); } const was = btn.getAttribute('aria-checked') || btn.textContent.trim(); btn.click(); return 'clicked, was ' + was; })()",
+      "note": "Dispatched on the BUTTON, not at a screen coordinate. The old (888, 570) missed: the settings window sits at screen 82,37 with a 32px title bar, so that point is document 806,501 while the row spans x 44..786 and y 504..557 - 20px past its right edge and 3px above its top. Nothing was toggled, the page sent no save, and the run looked exactly like a broken write path."
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the click repaints at once; the write is a round trip through the thread pool and back"
+    },
+    {
+      "type": "capture",
+      "id": "quit-off",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the row after the click, and the absence of a .settings-alert box above the rows"
+    },
+    {
+      "type": "relaunch",
+      "note": "Cmd+Q, then Atrium again against the SAME staged settings file - nothing restaged. This is the half a click and a capture cannot reach: whether the byte from the click above actually reached disk. The chord only stops the app because the click turned confirm-to-quit off first; with it on, a plain tap is cancelled and this shutdown would need the SIGTERM fallback."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed a second time, so launch 2 is up. wait_vlog greps the LIVE log, so this cannot be a stale match from launch 1"
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate",
+      "note": "launch 2 is ssh-started too and is not frontmost by itself, same as launch 1"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "the settings window did not survive Cmd+Q - open it again, with NO click, so this is a read rather than a second write"
+    },
+    {
+      "type": "settle",
+      "ms": 7000,
+      "note": "same build/route/core-values delay as the first open"
+    },
+    {
+      "type": "capture",
+      "id": "quit-off-relaunch",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "Warn before quitting after a relaunch and no click - the visual half of the relaunch measurement. The graded half is the file_contains and vlog_after assertions below"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-window-was-built",
+      "pattern": "Atrium: settings window built"
+    },
+    {
+      "type": "vlog",
+      "label": "the-route-answered",
+      "pattern": "Atrium: settings surface ready",
+      "note": "settingsReady only arrives when the /settings module ran and chrome.send reached the host"
+    },
+    {
+      "type": "vlog",
+      "label": "the-core-supplied-the-values",
+      "pattern": "Atrium: settings pushed, [0-9]+ bytes",
+      "note": "the staged file was read, so the On the capture shows came from it rather than from a default. True of either launch - the relaunch-specific read is checked by the vlog_after below, not this one"
+    },
+    {
+      "type": "vlog",
+      "label": "the-core-reported-the-file-written",
+      "pattern": "Atrium: settings written",
+      "note": "Logged only for code 1 from atrium_core_save_settings, which is returned after the merge and rename. Necessary but not sufficient - a build that logs this and writes the wrong bytes still passes it, which is why file_contains exists"
+    },
+    {
+      "type": "vlog_after",
+      "label": "the-write-followed-the-read",
+      "pattern": "Atrium: settings written",
+      "after_pattern": "Atrium: settings pushed",
+      "note": "ordering within launch 1, so a line from some other moment cannot stand in for this click's answer"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-unusable-argument-refusal",
+      "pattern": "Atrium: the settings surface sent an object the core",
+      "note": "code 0 - the page sent a partial object and nothing was written"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-write-failure",
+      "pattern": "Atrium: the settings write failed",
+      "note": "code -1 - the edit is in the surface only"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-schema-decline",
+      "pattern": "Atrium: settings\\.json is at a schema this build cannot",
+      "note": "code -2 - an unreadable fixture would otherwise read as a wiring failure, because the reader answers such a file with defaults"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "the-fixture-was-readable",
+      "pattern": "Atrium: settings could not be read",
+      "note": "the read side of the same trap: defaults behind an editable row. Checked across the whole run, so it also guards launch 2's read"
+    },
+    {
+      "type": "file_contains",
+      "label": "the-write-changed-the-bytes-on-disk",
+      "file": "settings",
+      "path": "confirmToQuitEnabled",
+      "value": false,
+      "note": "THE ASSERTION THAT SEPARATES PERSISTENCE FROM REPAINT. Every assertion above it is satisfied by a build that repaints the row and writes nothing - stubbing the relaunch out leaves everything but this class of check green. The fixture stages true, so a match here cannot be the fixture's own value; the grader fails the scenario outright if it ever is. Read once, after every action including the relaunch, so it also confirms the relaunch did not somehow alter the file"
+    },
+    {
+      "type": "vlog_after",
+      "label": "the-second-launch-read-the-file",
+      "pattern": "Atrium: settings pushed, [0-9]+ bytes",
+      "after_pattern": "atrium harness: launch 2 begins here",
+      "note": "THE RELAUNCH HALF. A plain vlog for 'settings pushed' would already be true from launch 1's own open, whether or not launch 2 read anything at all. Anchoring after the harness's launch-2 marker makes it a claim about the SECOND cmd+comma specifically: the core answered a query THIS launch made, over a file only the first launch could have written true into"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "note": "evaluated at the very end: the browser window AND the settings window, reopened after the relaunch. One would mean the second cmd+comma did nothing and quit-on-relaunch shows a browser window rather than a reading"
+    }
+  ]
+}

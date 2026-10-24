@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sat, 12 Sep 2026 13:40:08 +0200
+Subject: [PATCH 131/154] chore: land the outstanding sidebar, peek and
+ settings work
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/metrics/tab_stats/tab_stats_tracker.cc | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/chrome/browser/metrics/tab_stats/tab_stats_tracker.cc b/chrome/browser/metrics/tab_stats/tab_stats_tracker.cc
+index c2701e5f37286..03bec98134626 100644
+--- a/chrome/browser/metrics/tab_stats/tab_stats_tracker.cc
++++ b/chrome/browser/metrics/tab_stats/tab_stats_tracker.cc
+@@ -607,7 +607,15 @@ class TabStatsTracker::WebContentsUsageObserver
+         tab_stats_tracker_(tab_stats_tracker),
+         ukm_source_id_(
+             web_contents->GetPrimaryMainFrame()->GetPageUkmSourceId()),
+-        was_playing_video_(web_contents->GetCurrentlyPlayingVideoCount() > 0) {}
++        was_playing_video_(false) {
++    // Atrium: a peek promoted into the strip can already be playing video or
++    // audio. Announce that start, or the later stop trips
++    // TabUsageScenarioTracker's DCHECK that it saw the start.
++    MaybeNotifyVideoStartedStoppedPlaying();
++    if (web_contents->IsCurrentlyAudible()) {
++      OnAudioStateChanged(true);
++    }
++  }
+ 
+   WebContentsUsageObserver(const WebContentsUsageObserver&) = delete;
+   WebContentsUsageObserver& operator=(const WebContentsUsageObserver&) = delete;

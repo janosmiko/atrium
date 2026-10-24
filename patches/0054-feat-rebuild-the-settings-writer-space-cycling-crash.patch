@@ -1,0 +1,80 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 10 Aug 2026 05:23:20 +0200
+Subject: [PATCH 054/154] feat: rebuild the settings writer, space cycling,
+ crash recovery and the quit route
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+H4 finished tonight: all five chrome surfaces are back as HTML surfaces and a
+settings edit now survives a relaunch, proven by reading the byte off disk
+rather than by the app reporting success.
+
+What is in here:
+
+- Settings persist. SaveSettingsJSON reaches atrium_core_save_settings, the
+  window posts through one sequenced runner, and a refusal reaches the user
+  rather than only the log. The save has no lock, so a bare thread-pool post
+  dropped the newer of two fast toggles.
+- Space cycling works again. CycleSpace and SelectSpace give the two hotkey
+  routes and the rail one path, and the new space's first row is materialised
+  so live tabs follow the rail.
+- The sidebar's active-row pill paints again. LiveStrip carries the active
+  flag and --selfill mirrors the fill the Swift palette used to produce.
+- Renderer crash recovery is wired. AtriumChromeContentsObserver attaches at
+  CreateChromeContents, the one chokepoint all five surfaces pass through. It
+  had never been constructed since the day it was written.
+- Cmd+Q reaches the menu again. A surface with a live renderer was claiming
+  the chord, because CommandDispatcher only calls postPerformKeyEquivalent
+  when the view hierarchy declines and a live RenderWidgetHostViewCocoa never
+  does. One shared decision now serves the palette, peek and the delegate.
+- Three command decisions moved to the Rust core and their C++ bodies are
+  gone. ABI 6 to 8.
+
+Verified as a whole rather than per-slice: the bundle builds, 196 C++ tests
+pass, and the scenario suite runs 43 with 31 clean.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 9d1490eb25268..0e09b501d64db 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -624,13 +624,11 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:extension_popup_watchdog_policy",
+     "//chrome/browser/ui/atrium:little_marker",
+     "//chrome/browser/ui/atrium:command_bar_matches",
+-    "//chrome/browser/ui/atrium:command_intercept_decision",
+     "//chrome/browser/ui/atrium:tab_cycle",
+-    "//chrome/browser/ui/atrium:command_target_decision",
+     "//chrome/browser/ui/atrium:peek_decision",
+-    "//chrome/browser/ui/atrium:routing_navigation_decision",
+     "//chrome/browser/ui/atrium:slot_presentation_table",
+     "//chrome/browser/ui/atrium:status_bubble_color_math",
++    "//chrome/browser/ui/atrium:surface_key_route",
+     "//chrome/browser/ui/autofill",
+     "//chrome/browser/ui/autofill:impl",
+     "//chrome/browser/ui/autofill/payments",
+@@ -3481,8 +3479,6 @@ static_library("ui") {
+       "atrium/atrium_capture_overlay_widget.h",
+       "atrium/atrium_capture_overlay_widget.cc",
+       "atrium/atrium_command_bar_open_reason.h",
+-      "atrium/atrium_chrome_contents_observer.h",
+-      "atrium/atrium_chrome_contents_observer.cc",
+       "atrium/atrium_dock_reopen_hook.h",
+       "atrium/atrium_dock_reopen_hook.cc",
+       "atrium/atrium_extension_bridge.h",
+@@ -3528,6 +3524,8 @@ static_library("ui") {
+       "atrium/atrium_extension_popup_host.h",
+       "atrium/atrium_native_hotkey_map.h",
+       "atrium/atrium_native_hotkey_map.mm",
++      "atrium/atrium_surface_key_route_mac.h",
++      "atrium/atrium_surface_key_route_mac.mm",
+       "atrium/atrium_peek_intercept.h",
+       "atrium/atrium_peek_navigation_throttle.h",
+       "atrium/atrium_settings_window.h",

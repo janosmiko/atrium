@@ -1,0 +1,95 @@
+{
+  "name": "a-favourite-click-reuses-its-tab",
+  "description": "Clicking a favourite opened another tab every time. The page was found again by comparing its stored URL against what the tab shows, and a favourite that redirects on load shows something else - so the lookup missed and opened a second copy, and a third.\n\nThe fixture holds exactly ONE favourite, so the tile is the first cell of the grid and its position is not a guess. That favourite redirects: redirect-to-lab.html sends the tab to swipe-lab.html, so after the first click the page no longer carries the URL on the tile. The tab now remembers which favourite opened it, and that key does not move when the URL does.\n\nThe two clicks are the whole scenario. The first has nothing to reuse and must open the page once. The second must find it by that key.",
+  "fixture": "redirecting-favourite.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the window finish first paint and the sidebar announce itself"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the grid before any click, so the tile that gets pressed is on record"
+    },
+    {
+      "type": "click",
+      "x": 40,
+      "y": 121,
+      "note": "The only favourite tile. Measured from a settled frame: the address bar sits above the grid, so the first cell is at about x=40,y=121. The old y=145 landed on the Favs label and clicked nothing, so all three vlog assertions failed with zero opens."
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "long enough for the page to load AND for the meta refresh to commit, which is what moves the URL away from the tile's"
+    },
+    {
+      "type": "capture",
+      "id": "after-first",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "click",
+      "x": 40,
+      "y": 121,
+      "note": "the same tile again - this is the click that used to stack a second copy"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "capture",
+      "id": "after-second",
+      "duration_ms": 400,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: cold sidebar row opening",
+      "max": 1,
+      "label": "the-page-was-opened-at-most-once",
+      "desc": "THE assertion. Two clicks, one open at most. Before the fix this line appeared once per click, which is the second tab the user reported. The ceiling is what pins it - asserting the line is merely present passes on the broken build too, which is why the presence check below is a separate assertion. The line no longer carries a URL; the fixture holds only this one favourite, so the bare prefix names the same event."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: cold sidebar row opening",
+      "label": "the-page-was-opened-at-least-once",
+      "desc": "The floor beside that ceiling. Without it a run where the click missed the tile entirely opens nothing, counts zero, and passes the ceiling."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: favourite activated its own tab",
+      "label": "the-second-click-activated-by-id",
+      "desc": "Which path answered, not just the outcome. The URL scan is still in place as a fallback and would also avoid a second tab for a favourite that never moved, so without this the scenario could pass while the redirect case stayed broken. The answer is read here, not from the by-key line: the tile carries the live tab id, so the click resolves before the claim is consulted. The claim is still the fallback for a tile that has no id yet."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "Liveness, and a guard against a click landing somewhere that spawned a window.",
+      "label": "still-one-window"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

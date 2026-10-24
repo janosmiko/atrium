@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Hover Probe</title>
+<style>
+html, body { margin: 0; height: 100%; background: #fff; }
+button { position: fixed; inset: 16px; border: 0; font: 32px sans-serif; color: #fff; background: rgb(0, 0, 255); }
+button:hover { background: rgb(255, 0, 0); }
+</style>
+</head>
+<body>
+<button id="b">hover me</button>
+<script>
+window.moves = 0;
+window.log = [];
+window.samples = {};
+const now = () => Math.round(performance.now());
+const note = (what) => window.log.push(what + '@' + now());
+// Focus at 100ms and 600ms after a show or a load: the reattach heal runs at about 250ms.
+const sample = (tag) => {
+  setTimeout(() => { window.samples[tag + '100'] = document.hasFocus(); }, 100);
+  setTimeout(() => { window.samples[tag + '600'] = document.hasFocus(); }, 600);
+};
+addEventListener('mousemove', (e) => { window.moves++; window.lastMove = e.clientX + ',' + e.clientY + '@' + now(); });
+addEventListener('focus', () => note('focus'));
+addEventListener('blur', () => note('blur'));
+addEventListener('keydown', (e) => note('keydown:' + e.key));
+addEventListener('load', () => { note('load'); sample('load'); });
+// The reattach heal flips visibility again about 250ms after a show, so only the first show in a second samples.
+let lastShow = -1e9;
+document.addEventListener('visibilitychange', () => {
+  note('vis:' + document.visibilityState);
+  if (document.visibilityState === 'visible' && now() - lastShow > 1000) { lastShow = now(); sample('show'); }
+});
+let focused = document.hasFocus();
+note('hasFocus:' + focused);
+setInterval(() => {
+  const h = document.hasFocus();
+  if (h !== focused) { focused = h; note('hasFocus:' + h); }
+}, 20);
+</script>
+</body>
+</html>

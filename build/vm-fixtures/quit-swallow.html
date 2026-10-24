@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Quit Swallow</title></head>
+<body style="margin:0;padding:40px;font-family:sans-serif;font-size:24px;background:#ffd7d7;">
+<p>Negative control: this page refuses to be unloaded.</p>
+<p id="marker">click anywhere first</p>
+<script>
+  // A beforeunload handler that returns a string makes Chromium put up a
+  // "Leave site?" confirmation and hold the shutdown until someone answers it.
+  // The scenario answers nothing, so Cmd+Q reaches the app, starts the quit,
+  // and the app is still running fifteen seconds later - which is the shape
+  // under test: a chord that did not end the process, where only the
+  // harness's SIGTERM did.
+  //
+  // THE CLICK IS LOAD-BEARING, and for the same reason the settings swallow
+  // needed one. Chromium suppresses this dialog until the
+  // frame has sticky user activation, so a page that merely loaded is unloaded
+  // without a murmur. The click both activates the frame and puts the page's
+  // RenderWidgetHostViewCocoa in first responder.
+  window.addEventListener('beforeunload', function (event) {
+    event.preventDefault();
+    event.returnValue = 'stay';
+    return 'stay';
+  });
+
+  // Reported through document.title because the title crosses the bridge and
+  // lands in the run log via TabEventForwarder::TitleWasSet's VLOG. That makes
+  // "the click landed in the page" a gate the scenario can assert on instead of
+  // a screenshot someone has to eyeball.
+  document.addEventListener('click', function () {
+    document.getElementById('marker').textContent = 'ATRIUM-SWALLOW-ARMED';
+    document.title = 'ATRIUM-SWALLOW-ARMED';
+  });
+</script>
+</body>
+</html>

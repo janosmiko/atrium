@@ -1,0 +1,146 @@
+{
+  "name": "the-accent-theme-reaches-a-rendered-surface",
+  "description": "Settings.json says overlayAccent nord, and this asks a REAL overlay surface what it resolved - not what the stylesheet says, and not what the push emitted.\n\nWHY ALL FOUR TOKENS. The criterion is that a theme repaints the surfaces to its OWN values, not only its accent. The brand book's themes differ in ink and paper as much as in accent, so a run that checked --ov-accent alone would pass on half a theme, which reads as wrong rather than as subtle. Nord is #88C0D0 on #ECEFF4 with ink 46 52 64, values the test suite pins to docs/brand/brand-book.html.\n\nWHY THE BRAND CLASS IS CHECKED TOO. html.atrium-overlay-accent-brand pins --ov-accent to the crimson fallback at the same specificity as a theme class, so if both are on the winner is decided by which rule sits later in overlay.css. The push turns the brand one off when a theme is set, and this is what says it actually did.\n\nThe choice must survive a restart. The relaunch below reads the same tokens from a second launch against the same staged file, with no click in between.",
+  "fixture": "two-tabs.spaces.json",
+  "settings": "accent-theme-nord.settings.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "the theme push runs after the document is up"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "tokens-first-launch",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(r); const t = (n) => (s.getPropertyValue(n) || '').trim().toLowerCase(); return 'accent=' + t('--ov-accent') + ' paper=' + t('--ov-paper') + ' soft=' + t('--ov-soft') + ' ink=' + t('--ov-ink') + ' classes=' + [...r.classList].filter((c) => c.startsWith('atrium-')).join(',') ; })()",
+      "note": "the four tokens and every atrium- class, so a failure names what it got rather than only that it differed"
+    },
+    {
+      "type": "eval",
+      "id": "theme-class-is-on",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.classList.contains('atrium-theme-nord'))"
+    },
+    {
+      "type": "eval",
+      "id": "brand-class-is-off",
+      "target": "/sidebar",
+      "expression": "String(!document.documentElement.classList.contains('atrium-overlay-accent-brand'))"
+    },
+    {
+      "type": "eval",
+      "id": "accent-is-nords",
+      "target": "/sidebar",
+      "expression": "String((getComputedStyle(document.documentElement).getPropertyValue('--ov-accent') || '').trim().toLowerCase() === '#88c0d0')"
+    },
+    {
+      "type": "eval",
+      "id": "paper-is-nords",
+      "target": "/sidebar",
+      "expression": "String((getComputedStyle(document.documentElement).getPropertyValue('--ov-paper') || '').trim().toLowerCase() === '#eceff4')"
+    },
+    {
+      "type": "eval",
+      "id": "ink-is-nords",
+      "target": "/sidebar",
+      "expression": "String((getComputedStyle(document.documentElement).getPropertyValue('--ov-ink') || '').trim() === '46 52 64')",
+      "note": "a triplet, not a colour, because it is consumed as rgb(var(--ov-ink) / alpha)"
+    },
+    {
+      "type": "relaunch",
+      "note": "Cmd+Q then Atrium again against the SAME staged settings, with nothing clicked"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "tokens-after-relaunch",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(r); const t = (n) => (s.getPropertyValue(n) || '').trim().toLowerCase(); return 'accent=' + t('--ov-accent') + ' paper=' + t('--ov-paper') + ' soft=' + t('--ov-soft') + ' ink=' + t('--ov-ink') + ' classes=' + [...r.classList].filter((c) => c.startsWith('atrium-')).join(',') ; })()"
+    },
+    {
+      "type": "eval",
+      "id": "accent-survived-the-restart",
+      "target": "/sidebar",
+      "expression": "String((getComputedStyle(document.documentElement).getPropertyValue('--ov-accent') || '').trim().toLowerCase() === '#88c0d0')"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "theme-class-is-on",
+      "expected": "\"true\"",
+      "desc": "the push put the theme's class on the document"
+    },
+    {
+      "type": "eval_equals",
+      "id": "brand-class-is-off",
+      "expected": "\"true\"",
+      "desc": "and turned the brand accent class off, so the two are not both pinning --ov-accent at equal specificity"
+    },
+    {
+      "type": "eval_equals",
+      "id": "accent-is-nords",
+      "expected": "\"true\"",
+      "desc": "--ov-accent resolved to Nord's #88C0D0"
+    },
+    {
+      "type": "eval_equals",
+      "id": "paper-is-nords",
+      "expected": "\"true\"",
+      "desc": "And --ov-paper to Nord's #ECEFF4. Accent alone would pass on half a theme."
+    },
+    {
+      "type": "eval_equals",
+      "id": "ink-is-nords",
+      "expected": "\"true\"",
+      "desc": "And --ov-ink to Nord's 46 52 64"
+    },
+    {
+      "type": "eval_equals",
+      "id": "accent-survived-the-restart",
+      "expected": "\"true\"",
+      "desc": "A second launch against the same file resolves the same accent, with nothing clicked in between"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "name": "a-row-title-uses-the-whole-row",
+  "description": "The close button used to hold 17px of every row whether or not anything was hovering, so a title that would have fitted was cut with an ellipsis. It is laid over the title's tail now instead of sitting in the flow.\n\nMeasures the title box with the pointer away from the row and again with the pointer on it: the box must not change, or the text reflows under the hand. The title uses a padding rather than a mask fade, so the hovered title's text ends before the button rather than fading out under it.",
+  "fixture": "repeated-row-drags.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "move",
+      "x": 600,
+      "y": 400
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "eval",
+      "id": "rest",
+      "target": "/sidebar",
+      "expression": "(() => { const pane = document.querySelector('.railpane:not(.ovrailpane)'); const row = pane.querySelector('[data-dropzone=\"tabs\"] .tabrow'); const t = row.querySelector('.tl'); const rb = row.getBoundingClientRect(); const tb = t.getBoundingClientRect(); return Math.round(tb.width) + ' of ' + Math.round(rb.width); })()"
+    },
+    {
+      "type": "eval",
+      "id": "gap-at-rest",
+      "target": "/sidebar",
+      "expression": "(() => { const pane = document.querySelector('.railpane:not(.ovrailpane)'); const row = pane.querySelector('[data-dropzone=\"tabs\"] .tabrow'); const t = row.querySelector('.tl'); const rb = row.getBoundingClientRect(); const tb = t.getBoundingClientRect(); return String(Math.round(rb.right - tb.right)); })()"
+    },
+    {
+      "type": "move",
+      "x": 113,
+      "y": 235
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "eval",
+      "id": "hovered",
+      "target": "/sidebar",
+      "expression": "(() => { const pane = document.querySelector('.railpane:not(.ovrailpane)'); const row = pane.querySelector('[data-dropzone=\"tabs\"] .tabrow'); const t = row.querySelector('.tl'); const rb = row.getBoundingClientRect(); const tb = t.getBoundingClientRect(); return Math.round(tb.width) + ' of ' + Math.round(rb.width); })()"
+    },
+    {
+      "type": "eval",
+      "id": "button-over-the-tail",
+      "target": "/sidebar",
+      "expression": "(() => { const pane = document.querySelector('.railpane:not(.ovrailpane)'); const row = pane.querySelector('[data-dropzone=\"tabs\"] .tabrow'); const t = row.querySelector('.tl'); const x = row.querySelector('.x'); if (!x) { return 'no button'; } const xb = x.getBoundingClientRect(); const tb = t.getBoundingClientRect(); const over = xb.left < tb.right && xb.right > tb.left; const shown = Number(getComputedStyle(x).opacity) > 0; return (over ? 'over' : 'beside') + ',' + (shown ? 'shown' : 'hidden'); })()"
+    },
+    {
+      "type": "eval",
+      "id": "tail-clear",
+      "target": "/sidebar",
+      "expression": "(() => { const pane = document.querySelector('.railpane:not(.ovrailpane)'); const row = pane.querySelector('[data-dropzone=\"tabs\"] .tabrow'); const t = row.querySelector('.tl'); const x = row.querySelector('.x'); if (!x) { return 'no button'; } const pad = parseFloat(getComputedStyle(t).paddingRight); const textRight = t.getBoundingClientRect().right - pad; return x.getBoundingClientRect().left >= textRight ? 'clear' : 'under'; })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "gap-at-rest",
+      "expected": "\"8\"",
+      "desc": "THE MEASUREMENT: only the row's own 8px padding sits past the title, not the button's 17px too"
+    },
+    {
+      "type": "eval_equals",
+      "id": "button-over-the-tail",
+      "expected": "\"over,shown\"",
+      "desc": "the button appears over the title's tail rather than beside it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "tail-clear",
+      "expected": "\"clear\"",
+      "desc": "and the title's text ends before the button, so no glyph lands on text"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

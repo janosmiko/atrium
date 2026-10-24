@@ -1,0 +1,77 @@
+{
+  "name": "a-cold-row-click-rings-once",
+  "description": "a rAF trace of the ring across a cold tab open, because the recorded diagnosis does not match the code and the fix must not rest on inference.\n\nWHAT THE DIAGNOSIS SAYS AND WHAT IS THERE. It reads 'sidebar.js:1944 calls markLoading(row), which marks the ELEMENT' and builds a handover-gap theory on it. That line is in the elsewhereTabId branch - a tab live in ANOTHER window. The cold branch, the one this scenario is about, sends sidebarColdTabClicked and marks nothing at all. So there may be no handover to lose: the ring would simply be absent until the browser reports loading. The trace decides it.\n\nWHAT IS SAMPLED. Every animation frame for four seconds: the clicked row's .brdr computed opacity, the row's own classList, and whether the row element is still the same object. That last one matters because the theory on file turns on the snapshot push replacing the element - if the identity changes mid-trace, the rebuild is real and its timing is visible.\n\nThe row is chosen by DATA, not position: the first .tabrow carrying a data-url and no data-tab-id is by definition the cold case. Picking by index would silently sample a live row and produce a clean trace that means nothing.\n\nTHE COLD TAB POINTS AT AN UNROUTABLE ADDRESS, and that is the whole point. A first run used two-tabs.spaces.json, whose cold row is a local fixture file: the click, the rebuild and the settle were over in 117ms and the trace read '2ms 0.00 same | 117ms 1.00 sel REBUILT'. No loading class ever appeared, so there was nothing to blink. The report is about a load slow enough for the browser's own signal to arrive, be wiped by the snapshot rebuild, and come back. 10.255.255.1 does not answer, so the load hangs in its waiting phase and every handover is visible.\n\nNothing here is asserted beyond the sampler having run and the click having landed. This pass only produces the trace.",
+  "fixture": "cold-tab-slow-load.spaces.json",
+  "serve_fixtures": true,
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "cold-row-census",
+      "target": "/sidebar",
+      "expression": "[...document.querySelectorAll('.tabrow')].map((r) => (r.dataset.tabId ? 'live:' + r.dataset.tabId : 'cold') + (r.dataset.elsewhereTabId ? '+elsewhere' : '') + ' url=' + (r.dataset.url || '(none)').slice(0, 40)).join(' | ')",
+      "note": "which rows exist and which branch each would take. A run with no cold row cannot measure this task at all."
+    },
+    {
+      "type": "eval",
+      "id": "arm-the-rab-sampler",
+      "target": "/sidebar",
+      "expression": "(() => { const row = [...document.querySelectorAll('.tabrow')].find((r) => r.dataset.url && !r.dataset.tabId && !r.dataset.elsewhereTabId); if (!row) { return 'no cold row'; } window.__ringRow = row; window.__ringLog = []; const url = row.dataset.url; const t0 = performance.now(); let first = null; const tick = () => { const live = document.querySelector('.tabrow[data-url=\"' + url + '\"]'); const b = live && live.querySelector('.brdr'); if (first === null) { first = live; } const two = (v) => Number(v).toFixed(2); const op = b ? two(getComputedStyle(b).opacity) : 'x'; const be = b ? two(getComputedStyle(b, '::before').opacity) : 'x'; const af = b ? two(getComputedStyle(b, '::after').opacity) : 'x'; const anyLoading = live ? (live.classList.contains('loading') || !!live.querySelector('.loading') || (b && b.parentElement && b.parentElement.classList.contains('loading'))) : false; const cls = live ? [...live.classList].filter((c) => c !== 'tabrow' && c !== 'row').join('.') : 'gone'; const rec = 'brdr=' + op + ' before=' + be + ' after=' + af + ' load=' + (anyLoading ? 'YES' : 'no') + ' [' + cls + '] ' + (live === first ? 'same' : 'REBUILT'); const last = window.__ringLog[window.__ringLog.length - 1]; if (!last || last.slice(last.indexOf(' ') + 1) !== rec) { window.__ringLog.push(Math.round(performance.now() - t0) + 'ms ' + rec); } if (performance.now() - t0 < 8000) { requestAnimationFrame(tick); } }; requestAnimationFrame(tick); return 'armed on ' + url; })()",
+      "note": "Samples all THREE ring layers. A first version read only .brdr's own opacity, but the flicker on file is described as .brdr::after cross-fading against .brdr::before, and a pseudo-element cross-fade never moves the parent's opacity - it was the one layer that could not show the effect. Also reports whether ANY element on the row carries .loading, since '.loading > .brdr' puts the class on the parent."
+    },
+    {
+      "type": "eval",
+      "id": "click-the-cold-row",
+      "target": "/sidebar",
+      "expression": "(() => { const row = window.__ringRow; if (!row) { return 'no row held'; } row.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true})); return 'clicked ' + row.dataset.url; })()",
+      "note": "a DOM event on the element rather than a screen coordinate, which has drifted in this sidebar before"
+    },
+    {
+      "type": "settle",
+      "ms": 9000,
+      "note": "past the sampler window, which is longer now that the load hangs"
+    },
+    {
+      "type": "eval",
+      "id": "ring-trace",
+      "target": "/sidebar",
+      "expression": "(window.__ringLog || ['sampler never armed']).join(' | ')",
+      "note": "THE MEASUREMENT: every change in the ring's opacity, the row's classes, and the element's identity"
+    },
+    {
+      "type": "eval",
+      "id": "trace-length",
+      "target": "/sidebar",
+      "expression": "String((window.__ringLog || []).length)"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

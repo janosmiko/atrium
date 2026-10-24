@@ -1,0 +1,64 @@
+{
+  "name": "swipe-between-two-themes-holds-its-colour",
+  "description": "A committed swipe between two themed spaces lands the backdrop on the new picture and holds it. Before this, the backdrop kept getting darker for about 200 ms after the rail landed and then jumped back to the final colour.",
+  "fixture": "space-cycle.spaces.json",
+  "themes": "swipe-between-two-themes.themes.json",
+  "settings": "swipe-between-two-themes.settings.json",
+  "serve_fixtures": true,
+  "startup_space": "a276b001-0000-0000-0000-000000000001",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 100,
+      "y": 200,
+      "dx": -45,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "during",
+      "duration_ms": 1500,
+      "fps": 30
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 400,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-switch-happened",
+      "pattern": "Atrium: active space 0 -> 1 "
+    },
+    {
+      "type": "theme_changed",
+      "before": "before",
+      "after": "after",
+      "region": "16,250,180,120",
+      "min_delta": 6
+    }
+  ]
+}

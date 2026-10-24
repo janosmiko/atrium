@@ -1,0 +1,221 @@
+{
+  "name": "scrubber-open-drag-commit",
+  "description": "The first three quarters of the scrubber behaviour: the history scrubber OPENS on a hold, a DRAG moves the selection to an earlier stop, and the RELEASE navigates the shown tab to that stop. back-presses-and-holds already proved the gesture reaches C++; this proves what comes back is a usable surface.\n\nEverything is measured off the rendered scrubber DOM rather than off pixels. A stop is found by the TITLE it draws, which is the same string the stop must show, so an assertion that locates a stop has already proven the title is there. The commit is then read off the PAGE - location.pathname on the tab's own target - because the tab having moved is the claim, and a log line saying a navigation was requested is not that.\n\nTHE THUMBNAIL ASSERTION IS ON THE src ATTRIBUTE, not on the picture. Each stop must show a thumbnail, and the capture path is C++'s; what this surface can honestly answer is whether what arrived is a real data:image payload rather than the neutral tile history-scrubber.js draws when a stop has none. The screenshot in this run is for the human record only and nothing asserts on it - the top-right OS banner can occlude that corner, and a gate that fails on a system notification is not a gate.\n\nWHY THE PAGES ARE SERVED LOCALLY: the probe VM has no outbound access, and three distinct titles are what make a stop identifiable by name.",
+  "fixture": "scrubber.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "43843843-4384-4384-8384-438438438438",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the space and its tab render"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot, and the capture below wants the window on screen"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "a-page",
+      "target": "example-domain.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/example-domain.html",
+      "timeout_ms": 20000,
+      "note": "GATE: the startup page really committed, so stop one exists before anything navigates"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "past DidStopLoading, which is where this stop's thumbnail is captured"
+    },
+    {
+      "type": "click",
+      "x": 900,
+      "y": 660,
+      "note": "Empty page, and the click is the point: a renderer navigation out of a document that never saw a gesture marks the entry it leaves as skippable, and Back then walks straight past it."
+    },
+    {
+      "type": "eval",
+      "id": "nav-b",
+      "target": "127.0.0.1:8000",
+      "expression": "(() => { setTimeout(() => { location.href = 'http://127.0.0.1:8000/favicon-page.html'; }, 50); return 'sent'; })()",
+      "note": "The page moves itself. The address row carries no submit message any more, and the palette's own accept opens a tab of its own, which would leave this run with no history to scrub. The timer is so the eval answers before the document unloads under it."
+    },
+    {
+      "type": "eval_until",
+      "id": "b-page",
+      "target": "favicon-page.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/favicon-page.html",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "let the title arrive and the thumbnail land on this stop"
+    },
+    {
+      "type": "click",
+      "x": 900,
+      "y": 660,
+      "note": "the new document needs its own gesture, for the reason above"
+    },
+    {
+      "type": "eval",
+      "id": "nav-c",
+      "target": "127.0.0.1:8000",
+      "expression": "(() => { setTimeout(() => { location.href = 'http://127.0.0.1:8000/theme-color-teal.html'; }, 50); return 'sent'; })()"
+    },
+    {
+      "type": "eval_until",
+      "id": "c-page",
+      "target": "theme-color-teal.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/theme-color-teal.html",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "hold",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbback'); if (!b) { return 'no-button'; } b.dispatchEvent(new PointerEvent('pointerdown', {clientX: 8, clientY: 8, bubbles: true})); return 'holding'; })()",
+      "note": "down and NOT up - the timer has to be what opens the scrubber, and the pointer stays down through the drag as it does under a real finger"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "past the 500ms threshold, plus the round trip to C++ and back through atriumSetVisitTimeline"
+    },
+    {
+      "type": "eval",
+      "id": "scrubber-open",
+      "target": "/sidebar",
+      "expression": "(() => { const wraps = document.querySelectorAll('.histscrubwrap').length; const stops = document.querySelectorAll('.histstop').length; return wraps === 1 && stops >= 3 ? 'open with 3+ stops' : wraps + ' wrap ' + stops + ' stops'; })()",
+      "note": "open. Three is the floor the criterion needs - the three pages this run visited - and asking for a floor rather than an exact count keeps the assertion true whether or not the tab records an about:blank before its first real commit."
+    },
+    {
+      "type": "eval",
+      "id": "sel-initial",
+      "target": "/sidebar",
+      "expression": "(() => { const stops = [...document.querySelectorAll('.histstop')]; const i = stops.findIndex(s => s.classList.contains('sel')); return i === stops.length - 1 ? 'newest selected' : 'selected ' + i + ' of ' + stops.length; })()",
+      "note": "The starting point the drag has to move OFF. Without this, a selection that never moved and one that started where it ended would read the same."
+    },
+    {
+      "type": "eval",
+      "id": "thumbs",
+      "target": "/sidebar",
+      "expression": "(() => { const imgs = [...document.querySelectorAll('.histthumbimg')]; const real = imgs.filter(i => (i.getAttribute('src') || '').startsWith('data:image/') && i.getAttribute('src').length > 500); return real.length >= 1 ? 'a stop carries a data image' : real.length + ' data images among ' + imgs.length + ' thumbs'; })()",
+      "note": "The length floor is what separates a real JPEG payload from a data: url that encodes nothing."
+    },
+    {
+      "type": "capture",
+      "id": "scrubber",
+      "duration_ms": 600,
+      "fps": 10,
+      "note": "FOR THE HUMAN RECORD ONLY - no assertion reads this. The scrubber open over the page with its thumbnails."
+    },
+    {
+      "type": "eval",
+      "id": "drag",
+      "target": "/sidebar",
+      "expression": "(() => { const stops = [...document.querySelectorAll('.histstop')]; const i = stops.findIndex(s => s.querySelector('.histtitle').textContent === 'Blue Favicon Site'); if (i < 0) { return 'no such stop among ' + stops.map(s => s.querySelector('.histtitle').textContent).join(' | '); } const r = stops[i].getBoundingClientRect(); window.dispatchEvent(new PointerEvent('pointermove', {clientX: (r.left + r.right) / 2, clientY: (r.top + r.bottom) / 2, bubbles: true})); return 'dragged onto the favicon stop'; })()",
+      "note": "On window, and window is where the scrubber listens: the hold that opened it is still down, so the pointer travels off the control it started on. The stop is located by the title it draws rather than by an index, so a leading about:blank stop cannot silently shift what this drags to."
+    },
+    {
+      "type": "eval",
+      "id": "sel-after-drag",
+      "target": "/sidebar",
+      "expression": "(() => { const stops = [...document.querySelectorAll('.histstop')]; const i = stops.findIndex(s => s.classList.contains('sel')); const t = i >= 0 ? stops[i].querySelector('.histtitle').textContent : '(none)'; return i >= 0 && i !== stops.length - 1 ? 'earlier stop selected: ' + t : 'selected ' + i + ' of ' + stops.length + ' -> ' + t; })()",
+      "note": "Drag, in one value: the selection is no longer the newest AND it is on the page the drag aimed at."
+    },
+    {
+      "type": "eval",
+      "id": "release",
+      "target": "/sidebar",
+      "expression": "(() => { window.dispatchEvent(new PointerEvent('pointerup', {clientX: 8, clientY: 8, bubbles: true})); return 'released'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let sidebarTimelineCommit reach C++ and the tab finish loading the stop it picked"
+    },
+    {
+      "type": "eval",
+      "id": "closed",
+      "target": "/sidebar",
+      "expression": "(() => { const wraps = document.querySelectorAll('.histscrubwrap').length; const imgs = document.querySelectorAll('.histthumbimg').length; return wraps === 0 && imgs === 0 ? 'scrubber closed' : wraps + ' wrap ' + imgs + ' thumbs still in the document'; })()",
+      "note": "As far as this surface can see it: the wrap is gone and so are the nodes that held the data urls."
+    },
+    {
+      "type": "eval",
+      "id": "page-after-commit",
+      "target": "127.0.0.1:8000",
+      "expression": "location.pathname",
+      "note": "THE MEASUREMENT for the first half, asked of the page itself. The tab is the thing that had to move, and only the page can say where it ended up."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "hold-answered",
+      "pattern": "Atrium: back held, timeline is [0-9]+ bytes",
+      "note": "GATE: the hold reached C++ and it answered. Without this a closed scrubber and one that never opened would both fail the same way."
+    },
+    {
+      "type": "eval_equals",
+      "id": "hold",
+      "expected": "\"holding\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "scrubber-open",
+      "expected": "\"open with 3+ stops\"",
+      "note": "Open."
+    },
+    {
+      "type": "eval_equals",
+      "id": "sel-initial",
+      "expected": "\"newest selected\"",
+      "note": "A hold with no drag selects where the tab already is, so releasing without moving is a no-op rather than a silent step back."
+    },
+    {
+      "type": "eval_equals",
+      "id": "thumbs",
+      "expected": "\"a stop carries a data image\"",
+      "note": "The thumbnails are real captures, not the neutral tile."
+    },
+    {
+      "type": "eval_equals",
+      "id": "drag",
+      "expected": "\"dragged onto the favicon stop\"",
+      "note": "GATE for the assertion below: it names the stops it found when it cannot find that one, so a failure here says which timeline the run actually had."
+    },
+    {
+      "type": "eval_equals",
+      "id": "sel-after-drag",
+      "expected": "\"earlier stop selected: Blue Favicon Site\"",
+      "note": "Drag."
+    },
+    {
+      "type": "eval_equals",
+      "id": "closed",
+      "expected": "\"scrubber closed\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "page-after-commit",
+      "expected": "\"/favicon-page.html\"",
+      "note": "Release navigates the shown tab to the selected stop. The required ordering (favicon-page.html again, and only after teal) is already carried by the action sequence above: c-page's eval_until proves the tab was on teal immediately before the hold, so this location.pathname read landing back on favicon-page.html can only be the release's own commit, not the original visit."
+    }
+  ]
+}

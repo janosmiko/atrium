@@ -1,0 +1,91 @@
+{
+  "name": "the-red-traffic-light-closes-a-tabless-window",
+  "description": "The other user-initiated close of the selected window. The red traffic light (and File > Close Window, which is the same AppKit performClose: item) reaches the window through windowShouldClose:, NOT through Widget::CloseWithReason, so it never met the user-initiated flag that Cmd+Shift+W sets - AtriumClientView::OnWindowCloseRequested is where the two routes join. Same fixture and palette gate as close-window-tabless.json, which covers the chord.",
+  "fixture": "empty-window-quit.spaces.json",
+  "themes": "empty-window-quit.themes.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "33333333-3333-3333-3333-333333333333",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 8000,
+      "note": "long enough that the auto-opened palette is definitely up before the dismiss attempts"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not always frontmost - without this the dismiss clicks can land elsewhere"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "first dismiss attempt"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "click",
+      "x": 900,
+      "y": 660,
+      "note": "second dismiss attempt: a press on the palette's scrim, clear of the panel and the sidebar"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget closing",
+      "timeout_ms": 10000,
+      "note": "GATE: with the palette up its scrim covers the traffic lights, so the click below would land on the scrim and measure nothing"
+    },
+    {
+      "type": "click",
+      "x": 20,
+      "y": 50,
+      "note": "THE MEASUREMENT: the red traffic light. The window sits at 0,30 and the titlebar band is kTitlebarHeight=40 tall with the lights centred in it, so the close button's centre is 20 in and 20 down from the window's top."
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the close is posted, not run inside windowShouldClose:, so it lands a turn later"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-light-reached-the-window",
+      "pattern": "Atrium: user-initiated window close requested",
+      "note": "separates 'the window is still standing' from 'the click missed the button' - without it a miss reads exactly like a veto"
+    },
+    {
+      "type": "vlog",
+      "label": "user-initiated-close-taken",
+      "pattern": "Atrium: user-initiated close beats the last-tab-out keep-open",
+      "note": "THE MEASUREMENT: the AppKit route now carries the same flag the chord sets, so the empty-strip veto steps aside for it too"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "suppression-did-not-fire",
+      "pattern": "Atrium: suppressing auto-close",
+      "note": "the keep-open veto must not have fired for this close. It still must for an automatic empty-strip close - a sibling scenario is that half."
+    },
+    {
+      "type": "vlog_after",
+      "label": "browser-keep-alive-released",
+      "after_pattern": "Atrium: user-initiated window close requested",
+      "pattern": "KeepAlives=\\[APP_CONTROLLER \\(1\\)\\]",
+      "note": "THE WINDOW IS REALLY GONE, and gone through the Browser rather than by AppKit tearing the NSWindow down behind its back - the registry only loses BROWSER when Browser::OnWindowClosing runs. vlog_after, not vlog: the same line appears at launch."
+    },
+    {
+      "type": "quit",
+      "desc": "LIVENESS: the app survived the close and still answers Cmd+Q, so the reentrancy of closing from inside windowShouldClose: did not leave it wedged"
+    }
+  ]
+}

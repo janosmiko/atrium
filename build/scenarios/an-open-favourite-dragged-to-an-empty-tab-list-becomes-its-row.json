@@ -1,0 +1,183 @@
+{
+  "name": "an-open-favourite-dragged-to-an-empty-tab-list-becomes-its-row",
+  "description": "A real cgevent drag of a favourite whose page is open and shown, down into a tab list with no rows. The drop used to remove the tile and draw no row: the tab was in the strip already, so nothing opened a row for it, and the pane went blank. The ghost row also stood in the middle of the empty pane, far below where the row lands.\n\nWhat it measures: the ghost row stands directly under New Tab, and after the drop the page has a selected tab row, the tile is gone, and the page is still shown.",
+  "fixture": "two-favourites-no-tabs.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [0-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "open-tile",
+      "target": "/sidebar",
+      "expression": "(() => { const t = document.querySelector('[data-dropzone=\"favorites\"] .fav'); if (!t) { return 'no tile'; } t.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "eval",
+      "id": "dismiss-bar",
+      "target": "/commandbar",
+      "expression": "(() => { chrome.send('commandBarDismiss', []); return 'dismissed'; })()",
+      "note": "A window with no tabs opens the command bar at launch. It is not key, so an Escape misses it, and the drag's mousedown only closed it."
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval_until",
+      "id": "layout",
+      "target": "/sidebar",
+      "expression": "(() => { const grid = document.querySelector('[data-dropzone=\"favorites\"]'); const rows = document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow'); return (grid ? grid.querySelectorAll('.fav').length : 0) + ' tiles, ' + rows.length + ' rows'; })()",
+      "expected": "2 tiles, 0 rows",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "tile-point",
+      "target": "/sidebar",
+      "expression": "(() => { const t = document.querySelector('[data-dropzone=\"favorites\"] .fav'); const b = t.getBoundingClientRect(); return Math.round((b.left + b.right) / 2) + ',' + Math.round((b.top + b.bottom) / 2 + 30); })()"
+    },
+    {
+      "type": "eval",
+      "id": "drop-point",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.railpane:not(.ovrailpane) .newtab').getBoundingClientRect(); return Math.round((b.left + b.right) / 2) + ',' + Math.round(b.bottom + 160 + 30); })()"
+    },
+    {
+      "type": "eval",
+      "id": "spy",
+      "target": "/sidebar",
+      "expression": "(() => { window.__ev = []; window.__gap = []; window.__cs = []; for (const t of ['pointerdown','dragstart','dragover','drop','dragend']) { document.addEventListener(t, () => { if (window.__ev[window.__ev.length-1] !== t) { window.__ev.push(t); } }, true); } document.addEventListener('dragover', () => requestAnimationFrame(() => { if (window.__ev.includes('drop')) { return; } const ghost = document.querySelector('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .rowghost'); const nt = document.querySelector('.railpane:not(.ovrailpane) .newtab'); if (!ghost || !nt) { return; } const v = String(Math.round(ghost.getBoundingClientRect().top - nt.getBoundingClientRect().bottom)); if (window.__gap[window.__gap.length-1] !== v) { window.__gap.push(v); } }), true); const orig = chrome.send.bind(chrome); chrome.send = (name, args) => { if (name === 'sidebarFavoriteMovedOut') { window.__cs.push(name + ':' + args.map((a) => String(a).split('/').pop()).join(',')); } return orig(name, args); }; return 'spying'; })()"
+    },
+    {
+      "type": "drag",
+      "from_eval": "tile-point",
+      "to_eval": "drop-point",
+      "steps": 40
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "events",
+      "target": "/sidebar",
+      "expression": "window.__ev.join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "gaps",
+      "target": "/sidebar",
+      "expression": "window.__gap.join(',') || 'no ghost'"
+    },
+    {
+      "type": "eval",
+      "id": "sends",
+      "target": "/sidebar",
+      "expression": "window.__cs.join(';')"
+    },
+    {
+      "type": "eval_until",
+      "id": "after",
+      "target": "/sidebar",
+      "expression": "(() => { const grid = document.querySelector('[data-dropzone=\"favorites\"]'); const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; const sel = rows.find((r) => r.classList.contains('sel')); return grid.querySelectorAll('.fav').length + ' tiles, ' + rows.length + ' rows, ' + (sel ? 'selected ' + sel.querySelector('.tl').textContent : 'none selected'); })()",
+      "expected": "1 tiles, 1 rows, selected Blue Favicon Site",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "eval",
+      "id": "shown",
+      "target": "favicon-page.html",
+      "expression": "document.visibilityState"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "open-tile",
+      "expected": "\"clicked\"",
+      "desc": "the favourite's page opened"
+    },
+    {
+      "type": "eval_equals",
+      "id": "dismiss-bar",
+      "expected": "\"dismissed\"",
+      "desc": "the launch command bar closed before the drag"
+    },
+    {
+      "type": "eval_equals",
+      "id": "layout",
+      "expected": "2 tiles, 0 rows",
+      "desc": "gates the drag: the open favourite has no row and the tab list is empty"
+    },
+    {
+      "type": "eval_equals",
+      "id": "spy",
+      "expected": "\"spying\"",
+      "desc": "the spies installed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "events",
+      "expected": "\"pointerdown,dragstart,dragover,drop,dragend\"",
+      "desc": "the drag reached drop"
+    },
+    {
+      "type": "eval_equals",
+      "id": "gaps",
+      "expected": "\"4\"",
+      "desc": "the ghost row stood directly under New Tab, one list gap below it, the whole way"
+    },
+    {
+      "type": "eval_equals",
+      "id": "sends",
+      "expected": "\"sidebarFavoriteMovedOut:favicon-page.html,tabs,0\"",
+      "desc": "one move out of the grid, to the top of the tab list"
+    },
+    {
+      "type": "eval_equals",
+      "id": "after",
+      "expected": "1 tiles, 1 rows, selected Blue Favicon Site",
+      "desc": "THE MEASUREMENT: the open page became the selected tab row and its tile went"
+    },
+    {
+      "type": "eval_equals",
+      "id": "shown",
+      "expected": "\"visible\"",
+      "desc": "the page is still shown in the content pane"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

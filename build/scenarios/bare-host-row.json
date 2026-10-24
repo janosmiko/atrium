@@ -1,0 +1,81 @@
+{
+  "name": "bare-host-row",
+  "description": "a bare host typed into the palette must be offered as something to open. command-bar already proves the path for a FULL url - it types http://127.0.0.1:8000/peek-target.html and Return opens it - so a bare host is the one input left unmeasured, and it is the input the reporter used. The gate is the bridge's own results line: the query length says the text arrived, the results line says what came back, and an empty answered pass is the failure the reporter sees as a blank list.",
+  "fixture": "two-tabs.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "chromium_flags": "--vmodule=atrium_command_bar_widget=1,atrium_autocomplete_bridge=1,atrium_browser_controller=1",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "GATE: the app started and reached a committed page."
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the reserved chrome context lands about 670ms after startup and the palette's WebContents needs it."
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "let the /commandbar document load and announce itself"
+    },
+    {
+      "type": "type",
+      "text": "google.com"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar query length [1-9]",
+      "timeout_ms": 15000,
+      "note": "the text reached the bridge"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar results [1-9][0-9]* answered",
+      "timeout_ms": 15000,
+      "note": "THE MEASUREMENT. A finished pass that carries at least one row. Zero here is the reporter's blank list, and it fails loud instead of looking like a key that went missing."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ added",
+      "timeout_ms": 15000,
+      "note": "Return accepted the row and opened a tab. The url is not gated: the VM may have no route to google.com, and whether the page loads is not what this scenario measures."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "palette-took-key",
+      "pattern": "Atrium: command bar gained key"
+    },
+    {
+      "type": "quit",
+      "desc": "and it was responsive enough to quit on Cmd+Q"
+    }
+  ]
+}

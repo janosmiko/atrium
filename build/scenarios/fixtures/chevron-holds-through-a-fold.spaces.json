@@ -1,0 +1,55 @@
+{
+  "spaces": [
+    {
+      "id": "80880880-8088-4088-8088-808808808808",
+      "name": "Chevron Test",
+      "emoji": "🗂",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?pin1",
+          "title": "Pinned One"
+        },
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?pin2",
+          "title": "Pinned Two"
+        }
+      ],
+      "tabs": [
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?g1",
+          "title": "Grouped One",
+          "groupID": "11111111-8088-4088-8088-808808808808"
+        },
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?g2",
+          "title": "Grouped Two",
+          "groupID": "11111111-8088-4088-8088-808808808808"
+        },
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?plain1",
+          "title": "Plain One"
+        },
+        {
+          "url": "http://127.0.0.1:8000/example-domain.html?plain2",
+          "title": "Plain Two"
+        }
+      ],
+      "groups": [
+        {
+          "id": "11111111-8088-4088-8088-808808808808",
+          "name": "News",
+          "collapsed": false
+        }
+      ]
+    }
+  ],
+  "favorites": [],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "80880880-8088-4088-8088-808808808808"
+  }
+}

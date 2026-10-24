@@ -1,0 +1,92 @@
+# Copyright 2026 The Atrium Authors.
+#
+# GN builds the copy of this crate at //third_party/atrium/core. This file
+# travels with the crate so `make rust-verify` can compare the two directories
+# byte for byte; in the Atrium repo it does nothing.
+#
+# The C++ test that calls across this ABI lives with the other atrium C++
+# tests, in //chrome/browser/ui/atrium:unit_tests, so this directory stays a
+# plain crate that can be copied whole.
+
+import("//build/rust/rust_static_library.gni")
+
+# The C ABI header, on its own so a C++ target can include it without linking
+# the Rust library. Include it by its full path from the source root:
+#   #include "third_party/atrium/core/include/atrium_core.h"
+source_set("atrium_core_header") {
+  public = [ "include/atrium_core.h" ]
+  sources = [ "include/atrium_core.h" ]
+}
+
+rust_static_library("atrium_core") {
+  crate_root = "src/lib.rs"
+  sources = [
+    "src/cache.rs",
+    "src/commands.rs",
+    "src/launch.rs",
+    "src/lib.rs",
+    "src/lifecycle.rs",
+    "src/choices.rs",
+    "src/icon_links.rs",
+    "src/import/apply.rs",
+    "src/import/arc.rs",
+    "src/import/chrome.rs",
+    "src/import/firefox.rs",
+    "src/import/mod.rs",
+    "src/import/mozilla.rs",
+    "src/import/mozlz4.rs",
+    "src/import/places.rs",
+    "src/import/zen.rs",
+    "src/mutate/archive.rs",
+    "src/mutate/favorites.rs",
+    "src/mutate/groups.rs",
+    "src/mutate/live_tabs.rs",
+    "src/mutate/mod.rs",
+    "src/mutate/notes.rs",
+    "src/mutate/profiles.rs",
+    "src/mutate/shelf.rs",
+    "src/mutate/test_support.rs",
+    "src/navigation.rs",
+    "src/persist.rs",
+    "src/redact.rs",
+    "src/restore.rs",
+    "src/schema.rs",
+    "src/search_engines.rs",
+    "src/settings.rs",
+    "src/sidebar.rs",
+    "src/small_stores.rs",
+    "src/spaces.rs",
+    "src/tab_recency.rs",
+    "src/visits.rs",
+    "src/tabs.rs",
+    "src/test_temp_dir.rs",
+    "src/theme_math.rs",
+    "src/tint.rs",
+    "src/tokens.rs",
+  ]
+
+  # `#[unsafe(no_mangle)]` on the exported functions.
+  allow_unsafe = true
+
+  build_native_rust_unit_tests = true
+
+  # A test reads the header with include_str! to check the ABI number on both
+  # sides. That makes the header a build input, and GN rejects a Rust input it
+  # was not told about.
+  # lib.rs also reads ITSELF, to check the header declares exactly the
+  # functions the crate exports.
+  test_inputs = [
+    "include/atrium_core.h",
+    "src/lib.rs",
+  ]
+
+  deps = [
+    # Chromium vendors this one and the full regex crate. A handful of host
+    # rules does not need the larger one.
+    "//third_party/rust/regex_lite/v0_1:lib",
+    "//third_party/rust/serde/v1:lib",
+    "//third_party/rust/serde_json/v1:lib",
+  ]
+
+  public_deps = [ ":atrium_core_header" ]
+}

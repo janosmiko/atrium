@@ -1,0 +1,41 @@
+{
+    "spaces": [
+        {
+            "id": "33333333-3333-3333-3333-333333333333",
+            "name": "Research",
+            "emoji": "🔍",
+            "tint": "oceanBlue",
+            "profileID": "Default",
+            "order": 0,
+            "pinnedTabs": [
+                {
+                    "url": "http://127.0.0.1:8000/example-domain.html?pinned",
+                    "title": "Pinned Example"
+                }
+            ],
+            "tabs": [
+                {
+                    "url": "http://127.0.0.1:8000/example-domain.html?grouped",
+                    "title": "Grouped Example",
+                    "groupID": "44444444-4444-4444-4444-444444444444"
+                },
+                {
+                    "url": "http://127.0.0.1:8000/example-domain.html?plain",
+                    "title": "Plain Example"
+                }
+            ],
+            "groups": [
+                {
+                    "id": "44444444-4444-4444-4444-444444444444",
+                    "name": "News",
+                    "collapsed": false
+                }
+            ]
+        }
+    ],
+    "appState": {
+        "sidebarWidth": 380,
+        "schemaVersion": 1,
+        "activeSpaceID": "33333333-3333-3333-3333-333333333333"
+    }
+}

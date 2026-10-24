@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 20:57:11 +0200
+Subject: [PATCH 051/154] feat: the settings window, and Cmd+comma to open it
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+ONE PER PROCESS, not one per browser window. That is what Cmd+comma means on
+this platform - it brings the settings window forward rather than opening
+another - so this does not follow CommandBarWidget's shape, which is parented
+to a browser window, covers it, and dies with it.
+
+The chord is claimed in prePerformKeyEquivalent, on the raw NSEvent. A probe
+measured why: on an HTML surface it reaches prePerform and never postPerform,
+so the IDC intercept never sees it and un-gating that alone would have brought
+nothing back. IsSettingsKeyEquivalent already existed, feeding only a
+diagnostic probe; it has a caller now.
+
+The window and its implementation are portable - no AppKit type in either -
+so the Aura port inherits it. Only the chord that opens it is Mac-specific.
+
+atrium.html was missing the stylesheet link, which the first run showed as an
+unstyled row of buttons. Caught by looking at the capture, not by the
+assertions, which were all green either way.
+
+Verified by settings-cmd-comma, 4 of 4: the chord claimed, the window built,
+settingsReady received, and TWO AXStandardWindows - the second titled 'Atrium
+Settings' at 860x652. The three log lines land 34ms and 57ms after the chord,
+which is the order that says one caused the next.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 24221b1e05b32..5c179d1b2ee4d 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3495,6 +3495,7 @@ static_library("ui") {
+       "atrium/atrium_main_extra_parts.cc",
+       "atrium/atrium_peek_intercept.cc",
+       "atrium/atrium_peek_navigation_throttle.cc",
++      "atrium/atrium_settings_window.cc",
+       "atrium/atrium_profile_bootstrap.h",
+       "atrium/atrium_profile_bootstrap.cc",
+       "atrium/atrium_status_bubble_hook.h",
+@@ -3527,6 +3528,7 @@ static_library("ui") {
+       "atrium/atrium_native_hotkey_map.mm",
+       "atrium/atrium_peek_intercept.h",
+       "atrium/atrium_peek_navigation_throttle.h",
++      "atrium/atrium_settings_window.h",
+       "atrium/atrium_peek_widget.h",
+       "atrium/atrium_peek_widget.mm",
+       "atrium/atrium_sidebar_overlay_widget.h",

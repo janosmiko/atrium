@@ -1,0 +1,106 @@
+{
+  "name": "foyer-move-to-space",
+  "description": "pressing the foyer strip's 'Move to space' button hands the little window's tab to the resident same-profile space window and closes the little window - a same-profile LIVE move (the exact WebContents, no reload), not a reopen. No space picker exists yet (the real space list isn't wired to this surface), so BrowserController::MoveLittleTabToSpace picks whichever OTHER live, non-little controller Registry() holds - here that is the one and only startup space window, same profile as the little window CreateLittleWindowForExternalLink resolved it on.\n\nDrives the real path end to end: the handover (open_url, same as external-link-little-window.json) opens the little window, then a KEYBOARD gesture (Tab, Return) fires foyerMoveToSpace through chrome.send - not a coordinate click. A coordinate measured on frame-006-t538.4.png from a throwaway measurement scenario (deleted after use) landed on the button in one capture and on the OS's own Screen & System Audio Recording reminder HUD in the next - that HUD is a periodic system reminder ('accessed 8 times in the past 30 days'), not a one-time first-launch banner the existing 'warming up ScreenCaptureKit' step absorbs, so no fixed settle time makes a coordinate click reliable here. The foyer page has exactly one focusable element (the button - traffic lights are native, not DOM), so a single Tab reliably lands on it, sidestepping the HUD's screen region entirely. full_keyboard_access is required for Tab to stop on a <button> on macOS (settings-tab-row-keyboard-focus-ring's own finding); this is a plain top-level browser window rather than a settings sheet, so it does not carry that scenario's separate focus-layer failure.\n\n--force-renderer-accessibility is a MEASUREMENT flag (see external-link-little-window's own note): without it no window's AX subtree can be read past the native views, so ax_window_kind would answer nothing rather than the wrong thing.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "settings": "external-links-absent.settings.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "chromium_flags": "--force-renderer-accessibility",
+  "full_keyboard_access": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the browser window finish first paint"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "open_url",
+      "url": "http://dl.localhost:8000/example-domain.html?handed-over",
+      "note": "the handover, through the real openURLs Apple Event - opens a little window"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the little window builds, the foyer route loads, and installFoyer's foyerReady handshake lands"
+    },
+    {
+      "type": "capture",
+      "id": "foyer-before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "two windows, the little one's strip showing the handed-over URL and the button"
+    },
+    {
+      "type": "activate",
+      "note": "the little window is the newest window and should already be key, but re-assert frontmost before the keyboard gesture regardless - same reasoning other scenarios added their own re-activates for"
+    },
+    {
+      "type": "key",
+      "combo": "tab",
+      "note": "the foyer page's only focusable element is the button - lands on it directly"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "activates the focused button - fires the same click event a real press would"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "foyer-after",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the little window should be gone; one window left, holding both tabs"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "desc": "THE MEASUREMENT: the little window closed after the move. Before this fix the button did nothing but log - two windows would remain."
+    },
+    {
+      "type": "ax_window_kind",
+      "pattern": "/foyer",
+      "expected": 0,
+      "desc": "No little window left - the 'Little window closes' rule."
+    },
+    {
+      "type": "ax_window_kind",
+      "pattern": "/sidebar",
+      "expected": 1,
+      "desc": "The one remaining window is the space, still whole - not a crash reducing the count from a different cause."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: foyer tab moved live into same-profile space",
+      "desc": "Corroboration: MoveLittleTabToSpace took the same-profile branch, not the cross-profile reopen."
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-space-list-stub",
+      "pattern": "no space list yet",
+      "note": "the old log-only stub's line must not appear - if it does, the click landed but ran dead code (a stale binary), not the new handoff"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits after the move"
+    }
+  ]
+}

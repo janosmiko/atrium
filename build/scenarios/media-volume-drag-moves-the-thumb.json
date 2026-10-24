@@ -1,0 +1,84 @@
+{
+  "name": "media-volume-drag-moves-the-thumb",
+  "description": "A real mouse drag on the volume slider. The range answers a synthetic input event in the unit suite and in the controller scenario, so the surface wiring is proven and the report that the slider does not work must come from something the page never sees: a press that never reaches the thumb.\n\nchrome.send is stubbed for the whole run. Every command the row sends comes back as a hub push otherwise, and the records here are fake, so a live answer would clear the rows mid-drag.\n\nThe drag runs from the thumb at full volume to the low end of the track. It must produce input events, a lower value, a mediaVolume command and an open band: the press must not close the band, and it must not be swallowed before the range gets it.",
+  "fixture": "repeated-row-drags.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "seed",
+      "target": "/sidebar",
+      "expression": "(() => { window.sbmSent = []; chrome.send = (n, a) => window.sbmSent.push(n + ':' + (a || []).join(',')); window.atriumMediaSessionsChanged([{id:'98',title:'Older Track',faviconURL:'',host:'one.example',playing:true,muted:false,canPrev:true,canNext:true,canSeek:false,pictureInPicture:false,volume:1},{id:'99',title:'Newer Track',faviconURL:'',host:'two.example',playing:true,muted:false,canPrev:true,canNext:true,canSeek:false,pictureInPicture:false,volume:1}]); const item = document.querySelectorAll('body > .sbm-block .sbm-item')[1]; item.querySelector('.sbm-vol-btn').click(); const range = item.querySelector('.sbm-vol-range'); window.sbmInputs = 0; range.addEventListener('input', () => { window.sbmInputs++; }); return item.classList.contains('sbm-vol-open') ? 'open' : 'closed'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "eval",
+      "id": "grab",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelectorAll('body > .sbm-block .sbm-item')[1].querySelector('.sbm-vol-range').getBoundingClientRect(); return Math.round(r.right - 8) + ',' + Math.round(30 + (r.top + r.bottom) / 2); })()",
+      "note": "the thumb sits at the trailing end at full volume; +30 turns the sidebar's client y into a screen y, as the split-row drags do"
+    },
+    {
+      "type": "eval",
+      "id": "drop",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelectorAll('body > .sbm-block .sbm-item')[1].querySelector('.sbm-vol-range').getBoundingClientRect(); return Math.round(r.left + 8) + ',' + Math.round(30 + (r.top + r.bottom) / 2); })()"
+    },
+    {
+      "type": "drag",
+      "from_eval": "grab",
+      "to_eval": "drop",
+      "steps": 40
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "eval",
+      "id": "after",
+      "target": "/sidebar",
+      "expression": "(() => { const item = document.querySelectorAll('body > .sbm-block .sbm-item')[1]; const range = item.querySelector('.sbm-vol-range'); const sent = window.sbmSent.filter((s) => s.startsWith('mediaVolume')); return (window.sbmInputs > 0 ? 'moved' : 'dead') + ',' + (Number(range.value) < 0.3 ? 'low' : 'stuck:' + range.value) + ',' + (item.classList.contains('sbm-vol-open') ? 'open' : 'closed') + ',' + (sent.length > 0 ? 'sent' : 'nosend'); })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "seed",
+      "expected": "\"open\"",
+      "desc": "the volume button opens the band the drag needs"
+    },
+    {
+      "type": "eval_equals",
+      "id": "after",
+      "expected": "\"moved,low,open,sent\"",
+      "desc": "a real drag reaches the thumb, lowers the level, keeps the band open and sends the command"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

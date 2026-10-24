@@ -1,0 +1,99 @@
+{
+  "name": "sidebar-drag-keeps-the-page-on-the-grip-frame",
+  "description": "A grip drag filmed at 30fps over a page with a 60px red bar fixed to its right edge. Each frame is read by build/scripts/drag-lag-frames.py: the card's left edge is where the white page starts after the sidebar, and the bar's left edge is where the red starts. A page that has not reflowed yet still draws at its old width from the new left edge, so its bar sits past the card's right edge and is clipped. Frames where the card edge moved and the bar is not at the card's right edge minus 60 are the lag.\n\nThe fixture stages 260, so the grip spans 260-266 and its centre is 263. Forty steps over 80 points is 2 points a step at cgevent's 20ms cadence, slow enough that a 30fps burst sees several frames per reflow.\n\nTwo tabs: the heavy one (3000 paragraphs) is active at launch, the light one (200) is the first row. The heavy page reflows slower than any deadline can bridge and shows the raw lag. The light page is the regime the drag deadline targets.",
+  "fixture": "right-marker.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://dl\\.localhost",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "rest",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "drag_during_capture",
+      "x1": 263,
+      "y1": 400,
+      "x2": 343,
+      "y2": 400,
+      "steps": 40,
+      "capture_id": "drag",
+      "duration_ms": 2500,
+      "fps": 30,
+      "drag_delay_ms": 400
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "click",
+      "x": 78,
+      "y": 235,
+      "note": "the first row, the light page"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "drag_during_capture",
+      "x1": 343,
+      "y1": 400,
+      "x2": 263,
+      "y2": 400,
+      "steps": 40,
+      "capture_id": "drag-light",
+      "duration_ms": 2500,
+      "fps": 30,
+      "drag_delay_ms": 400,
+      "note": "back from 340 to 260 over the light page"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "pixels_changed",
+      "before": "rest",
+      "after": "after",
+      "region": [
+        262,
+        300,
+        80,
+        200
+      ],
+      "min_changed_pct": 50,
+      "label": "the-drag-moved-the-card-edge"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Wed, 30 Sep 2026 23:02:45 +0200
+Subject: [PATCH 150/154] fix(window): give a shown page the keyboard and live
+ hover
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 07e3b51cb0c94..7c2cac10b8bea 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3616,6 +3616,8 @@ static_library("ui") {
+       "atrium/atrium_command_bar_widget.mm",
+       "atrium/atrium_find_bar_widget.h",
+       "atrium/atrium_find_bar_widget.mm",
++      "atrium/atrium_child_widget_focus.h",
++      "atrium/atrium_child_widget_focus.mm",
+       "atrium/atrium_theme_studio_widget.h",
+       "atrium/atrium_theme_studio_widget.mm",
+       "atrium/atrium_overlay_key_mac.h",

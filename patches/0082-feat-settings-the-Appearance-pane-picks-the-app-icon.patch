@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Fri, 28 Aug 2026 20:22:35 +0200
+Subject: [PATCH 082/154] feat(settings): the Appearance pane picks the app
+ icon and the Dock follows
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The Swift package took the picker and its Dock consumer with it. Only the
+appIconVariant setting survived, so a user could not pick an icon and a
+hand-edited value changed nothing.
+
+The pane shows the 21 tiles, served through the chrome://atrium request
+filter from Contents/Resources/atrium-icons, which inject-icns.sh stages.
+A click writes appIconVariant. At startup and after a save the browser
+reads the PNG on the thread pool and sets applicationIconImage. A reply
+for an older pick cannot overwrite a newer one. A stored slug that the
+list retired still lets a click pick a new one.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 1bbfe5a50ae92..ec3acd9d6b975 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3558,6 +3558,8 @@ static_library("ui") {
+       "atrium/atrium_pinch_gesture_monitor.h",
+       "atrium/atrium_pinch_gesture_monitor.mm",
+       "atrium/atrium_browser_window_mac.mm",
++      "atrium/atrium_app_icon_mac.h",
++      "atrium/atrium_app_icon_mac.mm",
+       "atrium/atrium_accelerator_lookup.h",
+       "atrium/atrium_accelerator_lookup_mac.mm",
+       "atrium/atrium_window_metrics.h",

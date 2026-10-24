@@ -1,0 +1,98 @@
+{
+  "name": "devtools-docks-while-a-foreign-tab-is-presented",
+  "description": "PARTIALLY. DevTools docks correctly while space 2's foreign-profile tab is presented in the slot: it docks rather than opening a window, one window remains, and the presented page is inset by the docked pane's width.\n\nWHAT THIS DOES NOT PROVE, and it is the actual AC. MaybeUpdateAtriumDockedDevtools resolves its window through PresentedWindowForBrowser rather than browser->window(), for the case where the inspected tab's own window is off screen and another window presents it. Replacing that call with a plain static_cast of browser->window() leaves every assertion here passing, with byte-identical numbers - 62.33% of the same 37397 pixels. So in this fixture the two resolutions name the SAME window, and nothing below can tell them apart.\n\nDistinguishing them needs a state this fixture does not reach: two windows, with the inspected tab's own one off screen. cmd+shift+right moves the slot to another space - the route cmdw-foreign-profile uses, and the only chord found to work, since presenter-startup.json recorded kNextSpace returning false - but it leaves a single window, which ax_window_count confirms.\n\nKept because it is worth having: it pins that docking survives the presented state at all, and it would catch a crash or a silent fall back to an undocked window there.",
+  "fixture": "cmdw-foreign-profile.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the startup space finish rendering"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "SETUP: switch the slot to space 2 (Default profile), which presents a FOREIGN profile's tab in place"
+    },
+    {
+      "type": "eval_until",
+      "id": "presented-page",
+      "target": "example-domain-tall.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/example-domain-tall.html",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the swapped-in tab settle before the chord"
+    },
+    {
+      "type": "capture",
+      "id": "before-dock",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the presented page at full width"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+alt+i",
+      "note": "THE MEASUREMENT: open DevTools while a foreign profile's tab is presented"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "let the dock land and the pane re-lay-out"
+    },
+    {
+      "type": "capture",
+      "id": "after-dock",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the same page, narrowed by the docked pane beside it"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "pattern": "Atrium: devtools pane 0x[0-9a-f]+ docked=1",
+      "note": "it docked at all, rather than opening a separate window"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 100000,
+      "note": "one window: a dock that fell back to undocked would add a second"
+    },
+    {
+      "type": "pixels_changed",
+      "before": "before-dock",
+      "after": "after-dock",
+      "region": [
+        240,
+        200,
+        200,
+        300
+      ],
+      "min_changed_pct": 30.0,
+      "desc": "The presented page is inset by the docked pane - the log says 233px - so content moves under this band, which sits inside the content pane (starting near x=220) where the inset bites first. It does NOT separate the presenting window from the tab's own: a mutation swapping PresentedWindowForBrowser for browser->window() gives the identical 62.33%, because this fixture has one window."
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

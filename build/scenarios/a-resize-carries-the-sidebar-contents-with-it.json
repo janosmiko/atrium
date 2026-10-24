@@ -1,0 +1,124 @@
+{
+  "name": "a-resize-carries-the-sidebar-contents-with-it",
+  "description": "The page holds the width the native side pushes rather than laying out at 100%, so that a collapse slides the sidebar out instead of re-flowing the favourites and the rows on every tick. Only the commit pushed it. A drag moved the slot and left the page at the pre-drag width, so the contents sat in a pane that was no longer that wide - narrower than it, or overflowing it - and stayed that way until the next Cmd+S.\n\nThe reading is the page's own: the sidebar element's width against the viewport it lives in. Equal means aligned, whatever the number is, so the assertion does not care what the drag settled on.\n\nDocked here rather than floating. Both paths now push, and the docked one is the one a screenshot cannot argue with - the panel's own width is harder to read from outside than the pane's.\n\nDOCKED ONLY. The reveal half lived here and could not be made to run: the chord that collapses the pane does not land after a synthetic drag on a loaded machine, so the pane stayed docked and every reading after it measured the wrong thing. the-floating-sidebar-resizes-by-its-edge covers the panel, and AtriumSidebarOverlayBrowserTest.ThePagesOwnHandleResizesThePanelAndCommitsTheWidth covers the width a reveal opens at.",
+  "fixture": "two-tabs.spaces.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "aligned-before",
+      "target": "/sidebar",
+      "expression": "(() => { const s = document.querySelector('.sidebar'); return s ? (s.clientWidth - document.documentElement.clientWidth) : 'no sidebar'; })()",
+      "note": "the control. 0 before the drag, or the drag proves nothing"
+    },
+    {
+      "type": "capture",
+      "id": "dots-narrow",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the space dots at the fixture's own width"
+    },
+    {
+      "type": "eval",
+      "id": "pane-before",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.clientWidth)",
+      "note": "the pane's own width, so a drag that did nothing is not read as aligned"
+    },
+    {
+      "type": "drag",
+      "x1": 263,
+      "y1": 400,
+      "x2": 343,
+      "y2": 400,
+      "note": "the docked grip's band. The fixture stages 260, so the grip spans 260-266 and its centre is 263. Dragging 80 points right asks for 340."
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "the commit lands and the page re-lays-out at the width it was pushed"
+    },
+    {
+      "type": "eval",
+      "id": "aligned-after",
+      "target": "/sidebar",
+      "expression": "(() => { const s = document.querySelector('.sidebar'); return s ? (s.clientWidth - document.documentElement.clientWidth) : 'no sidebar'; })()",
+      "note": "the measurement. A page still holding 260 inside a 340 pane reads -80 here"
+    },
+    {
+      "type": "eval",
+      "id": "pane-after",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.clientWidth)",
+      "note": "the same reading after the drag"
+    },
+    {
+      "type": "eval",
+      "id": "dots-offset",
+      "target": "/sidebar",
+      "expression": "(() => { const bar = document.querySelector('.spacedots'); const dots = bar ? [...bar.querySelectorAll('.sdot')] : []; if (!dots.length) return 'no dots'; const row = bar.getBoundingClientRect(); const a = dots[0].getBoundingClientRect(); const b = dots[dots.length - 1].getBoundingClientRect(); return Math.round((a.left + b.right) / 2 - (row.left + row.width / 2)); })()",
+      "note": "how far the chips sit from the middle of their row. The .sdot chips only: the row also holds an absolutely-positioned glow whose rect follows the active dot, and including it measures the glow rather than the layout."
+    },
+    {
+      "type": "capture",
+      "id": "dots-wide",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the same row after the drag, to see what the extra width does to it"
+    },
+    {
+      "type": "activate",
+      "note": "after the drag. The chord went nowhere on three loaded runs and the pane stayed docked, which the grip band kept printing - and the reveal that follows only arms on a collapsed pane."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "aligned-before",
+      "expected": "0",
+      "label": "the-contents-fill-the-pane-to-start-with"
+    },
+    {
+      "type": "eval_equals",
+      "id": "aligned-after",
+      "expected": "0",
+      "label": "the-contents-still-fill-the-pane-after-a-resize",
+      "desc": "The page lays out at the width the native side pushes. Pushed only on commit, a drag left this at the difference between the pre-drag width and the new pane."
+    },
+    {
+      "type": "eval_equals",
+      "id": "dots-offset",
+      "expected": "0",
+      "label": "the-space-dots-sit-in-the-middle",
+      "desc": "Measured against the row rather than a pixel, so it holds at any width the drag lands on."
+    },
+    {
+      "type": "eval_changed",
+      "before": "pane-before",
+      "after": "pane-after",
+      "label": "the-drag-actually-resized-something",
+      "note": "separates a drag that did nothing from one that moved the pane and the page together - both read 0 above"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

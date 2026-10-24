@@ -1,0 +1,124 @@
+{
+  "name": "swipe-scroll-phase",
+  "description": "proves the new cgevent `scroll` primitive (phase-based trackpad scroll: began/changed/ended, plus a momentum tail for a flick) can drive SidebarSwipeCatcher end to end - previously the harness had no way to emit NSEvent.phase/momentumPhase, so the whole workspace-swipe family could not be verified in the VM. Reuses a sibling scenario's 3-space fixture (sidebarWidth 200, starting on the MIDDLE space so both neighbors are cold - a materializing tab URL is the same objective 'did the space really switch' proof a sibling scenario already established) rather than inventing a new fixture. Receipt proof does not depend on app-level phase logging: the temporary per-sample NSLog in SidebarSwipeCatcher ('Atrium: swipe scrub phase kind=...') was removed (a85372c) as release-path spam, so an assertion on it could never match. The only permanent, receipt-independent signal is the space's committed content ACTUALLY changing: Chromium's own atrium_browser_controller.mm VLOG ('Atrium: tab N url ...') fires when a previously-cold tab materializes for the first time, which can only happen if SidebarSwipeCatcher received and correctly classified the whole phase sequence through to a scrubGate commit - a strictly stronger proof than any individual phase sample being logged. This revision also fixes two design bugs found by actually running it: (1) SidebarScrubMath's sign convention empirically resolves opposite to what an earlier revision assumed for this VM's synthetic events - positive `dx` commits `.next` (toward higher `order`), negative `dx` commits `.previous` - confirmed by watching the sidebar's selected space in a captured frame, not by reasoning about the code alone; (2) a single gesture (scrub or flick, momentum tail included) can only ever produce ONE commit - SidebarSwipeCatcher explicitly ignores momentum-tail events once a gesture has already committed - so the original 'one flick, two hops past the middle' design was unreachable regardless of sign. With only 3 linearly-ordered spaces and a middle start, hitting BOTH cold neighbors with genuine single-commit gestures needs a 3-gesture dance: out to one end, an unasserted bridge hop back through the (now warm) middle, then out to the other end - the same shape a sibling scenario's own (keyboard-driven) scenario already uses for this identical fixture. Was wip while no destination tab ever materialized after a commit, even though the sidebar's own active-space indicator genuinely committed to the target space (confirmed visually). That was NOT scrub-specific: re-running the existing, previously-passing, non-wip space-cycle-edit-focus-gate.json scenario (keyboard-driven Cmd+Shift+Right/Left, no scroll/scrub code involved at all) against this exact build reproduces the identical symptom - the sidebar's space selection is the only thing that changes; no destination tab ever materializes. That made it a general regression in the space-switch content pipeline, filed separately. The scenario passes 10/10 and is not wip, so it is a live regression gate rather than a known-failing one.",
+  "cannot_pass": "the OLD claim above (SidebarSwipeCatcher absent, no stub at all) was wrong and is replaced - it has a live replacement: swipe.js's createSwipeMachine drives sidebar.js's chrome.send('sidebarSpaceSelected', ...), received by AtriumBrowserWindow::OnSurfaceMessage (atrium_browser_window.cc:2445) and BrowserController::SelectSpace. Two separate defects were compounding here. (1) HYGIENE BUG, fixed here: this scenario shares space-cycle.spaces.json's fixture, which uses http://127.0.0.1:8000/*.html rather than file:// - but this scenario's own wait_vlog/vlog/vlog_after patterns were never updated to match and it never carried serve_fixtures:true, so every run was polling for URLs the app could never produce regardless of whether the swipe worked. Re-pointed the 5 patterns to http://127\\.0\\.0\\.1:8000/*.html, added serve_fixtures:true. (2) THE REAL CAUSE, visible only once (1) stopped masking it, and already tracked as an open product question: a horizontal scrub and Cmd+Shift+Arrow move spaces in OPPOSITE directions, and always have on this surface (a bisect of every commit of swipe.js found identical behaviour throughout - not a regression, a parked product question about which direction is correct). VM-verified 2026-08-10 (Chromium f9e8ca0da509d, deployed build, SKIP_RESTORE=1 SKIP_DEPLOY=1) reproduces it directly: the slow scrub (dx=+90, this scenario's own note claims '.next: Elsewhere -> Third') actually lands on Editing - tab 2 committed edit-focus-field.html at 233438.253, and the slow-scrub capture's last frame shows the sidebar reading 'Editing'/'Edit Focus Field'. The fast flick (dx=-45, noted '.previous: Elsewhere -> Editing') actually lands on Third - tab 3 committed peek-target.html at 233454.445, captured on-frame as 'Third'/'Peek Target'. Both switches DO happen and DO materialize real content - the mechanism works, only the polarity disagrees with this scenario's assumption (and with the keyboard route). slow-scrub-committed passes only because it checks presence anywhere in the log, not which gesture produced it; fast-flick-committed (the AFTER-ordering check, added specifically to close that hole) correctly fails, since peek-target.html's commit lands after edit-focus-field.html's - the same inversion already recorded from a switchToSpace instrument. Baseline 2026-08-09 (Chromium e155a72b08382): 2 passed, 5 failed. Post-sweep 2026-08-09 (Chromium 461398a6df1a4): 2 passed, 5 failed. VM-verified 2026-08-10 pre-hygiene-fix (Chromium f9e8ca0da509d): 2 passed, 5 failed (unchanged - the stale patterns above masked everything, including the real cause). VM-verified 2026-08-10 post-hygiene-fix (Chromium f9e8ca0da509d, deployed build): 3 passed, 2 failed. The remaining fix is not here: it is parked on a product decision (which direction a rightward scrub should commit), out of this scenario's scope (re-measure and correct markings, not resolve open product questions).",
+  "fixture": "space-cycle.spaces.json",
+  "startup_space": "a276b002-0000-0000-0000-000000000002",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the sidebar render and the startup space's (Elsewhere) tab commit"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 100,
+      "y": 200,
+      "dx": 90,
+      "phase_ms": 900,
+      "momentum_ms": 0,
+      "capture_id": "slow-scrub",
+      "duration_ms": 2000,
+      "fps": 20,
+      "note": "PHASE 1, SLOW SCRUB: long phase_ms, no momentum tail - tracked all the way to a stop. Positive dx commits .next: Elsewhere -> Third."
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval_until",
+      "id": "third-page",
+      "target": "peek-target.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-target.html",
+      "timeout_ms": 8000,
+      "note": "OBJECTIVE PROOF the slow scrub actually committed a workspace change: Third's tab was cold at launch (never active), so this URL can only appear if the space really switched, not just that the gate said fire"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "scroll",
+      "x": 100,
+      "y": 200,
+      "dx": -90,
+      "phase_ms": 900,
+      "momentum_ms": 0,
+      "note": "BRIDGE HOP (unasserted): negative dx commits .previous, Third -> Elsewhere. Elsewhere is warm (visited at launch) so it has no fresh materialize proof of its own - this hop exists only to get back through the middle so phase 2 can reach the OTHER cold neighbor with a genuine single-commit gesture, matching a sibling scenario's own there-and-back shape for this fixture."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ activated on host",
+      "timeout_ms": 300000,
+      "note": "gates on the bridge hop's own completion instead of a fixed sleep. SidebarView.commitScrub's settleSlide fires switchToSpace's host-swap IPC (here, the warm-space fast path, BrowserController::ActivateTab) ONLY inside the settle spring's completion closure - so this VLOG line is emitted at the exact moment activeSpaceID(forSlot:) flips to Elsewhere, not merely when the gesture's CGEvents were sent. A fixed 2000ms sleep assumes the AppKit runloop processes the spring within that budget; a freshly restored Tart VM under boot/disk contention can leave the runloop seconds to minutes behind, so the fast-flick's capture window opened while this spring was still resolving (frame evidence: sidebar visibly sliding to Elsewhere 1.1-1.4s into the fast-flick capture in the mild case; verification runs on a heavily-loaded host saw this line land 16s-140s after the slow-scrub commit). Reproduces the exact silent-failure signature: while stale, activeSpaceID(forSlot:) still reads Third, so the fast flick's .previous resolves back to Elsewhere - already active per app state - hitting ActivateAction::kAlreadyVisible, which logs nothing at all (matches the failing runs' logs: no line whatsoever after this one). 300000ms matches this file's OWN existing precedent for tolerating cold-VM contention exactly: stage_tools' in-VM swiftc compile is retried for up to 300s (`retry 300 3 _tool_built`) with the identical justification (a freshly restored VM sits at high load for its first stretch of life) - not a fresh guess, the same ceiling the harness authors already picked for this class of delay. wait_vlog is poll-based and returns the instant the line appears, so this ceiling only costs time on the contended tail - the common case still matches in under a second."
+    },
+    {
+      "type": "settle",
+      "ms": 300,
+      "note": "small buffer for the settle spring's 'one turn later' slide-layer drop (SidebarView.settleSlide) after the wait_vlog match, not a substitute for it."
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 100,
+      "y": 200,
+      "dx": -45,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "fast-flick",
+      "duration_ms": 1600,
+      "fps": 25,
+      "note": "PHASE 2, FAST FLICK: short phase_ms (a quick physical swipe) + a decaying momentum tail (released-finger inertia). Negative dx commits .previous: Elsewhere -> Editing."
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval_until",
+      "id": "editing-page",
+      "target": "edit-focus-field.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/edit-focus-field.html",
+      "timeout_ms": 8000,
+      "note": "OBJECTIVE PROOF the fast flick actually committed a workspace change: Editing's tab was cold at launch, same materialize-proof technique as phase 1"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "third-page",
+      "expected": "http://127.0.0.1:8000/peek-target.html",
+      "label": "slow-scrub-committed",
+      "desc": "Slow scrub drove a real workspace change end to end (Third's tab, cold at launch, materialized) - this can only happen if SidebarSwipeCatcher received and classified the full began->changed->ended phase sequence through to a scrubGate commit, so it doubles as receipt proof without depending on any app-level phase log"
+    },
+    {
+      "type": "eval_equals",
+      "id": "editing-page",
+      "expected": "http://127.0.0.1:8000/edit-focus-field.html",
+      "label": "fast-flick-committed",
+      "desc": "the fast flick's commit must come AFTER the slow scrub's, which is the order the scenario drives them in. The action list itself now carries that ordering - the fast-flick gesture is not even sent until the third-page eval_until above has already resolved live location.href on the page, so a stale read (the original failure mode this check was added for) cannot satisfy it. fast flick (with a momentum tail) drove a real workspace change end to end (Editing's tab, cold at launch, materialized) - same receipt argument as slow-scrub-committed, exercising the momentum-phase path specifically"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window throughout every hop"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q actually quits (process gone)"
+    }
+  ]
+}

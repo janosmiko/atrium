@@ -1,0 +1,233 @@
+{
+  "name": "frost-wash-floor-search",
+  "description": "with the production frost live, find the lowest --atrium-float-wash-floor at which panel-legibility-type.html's 64px black type stays unreadable. Same fixture, region and page as a sibling scenario's .88/.96 readings, so the numbers are comparable. Sweeps floor values in one reveal via the eval-override technique (decoupling the CSS wash from the AppKit blur), captures one frame per value, and reads all of them offline with pixcmp plus by eye.",
+  "fixture": "panel-legibility.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "tab-opened",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.row'); if (!r) return 'no-row'; r.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "collapse-pressed",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbtoggle'); if (!b) return 'no-button'; b.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar toggle requested from the chrome row",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the collapse animation finishes"
+    },
+    {
+      "type": "capture",
+      "id": "page-alone",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "control: full-width page, no sidebar, no panel - same region a sibling scenario used"
+    },
+    {
+      "type": "move",
+      "x": 300,
+      "y": 400,
+      "note": "park inside the page first"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "move",
+      "x": 20,
+      "y": 400,
+      "note": "cross into the 32pt arming strip from outside it"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "the slide finishes"
+    },
+    {
+      "type": "eval",
+      "id": "force-glass-alpha-zero",
+      "target": "/sidebar",
+      "expression": "(() => { document.documentElement.style.setProperty('--atrium-glass-alpha', '0'); return 'set'; })()",
+      "note": "--atrium-glass-alpha is pushed live from C++ (the user's own Glass opacity setting) and this session's live value clamped every floor below it in an earlier run. Forcing it to 0 tests the floor alone, at the bottom of the range a user can set glass to - the case the floor exists to protect."
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "eval",
+      "id": "confirm-glass-alpha-zero",
+      "target": "/sidebar",
+      "expression": "(() => getComputedStyle(document.documentElement).getPropertyValue('--atrium-glass-alpha').trim())()"
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "capture",
+      "id": "floor-0.96",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "as shipped today"
+    },
+    {
+      "type": "eval",
+      "id": "set-floor-0.85",
+      "target": "/sidebar",
+      "expression": "(() => { document.documentElement.style.setProperty('--atrium-float-wash-floor', '0.85'); return getComputedStyle(document.documentElement).getPropertyValue('--atrium-float-wash-floor').trim(); })()"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "floor-0.85",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "eval",
+      "id": "set-floor-0.70",
+      "target": "/sidebar",
+      "expression": "(() => { document.documentElement.style.setProperty('--atrium-float-wash-floor', '0.70'); return getComputedStyle(document.documentElement).getPropertyValue('--atrium-float-wash-floor').trim(); })()"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "floor-0.70",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "eval",
+      "id": "set-floor-0.55",
+      "target": "/sidebar",
+      "expression": "(() => { document.documentElement.style.setProperty('--atrium-float-wash-floor', '0.55'); return getComputedStyle(document.documentElement).getPropertyValue('--atrium-float-wash-floor').trim(); })()"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "floor-0.55",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "eval",
+      "id": "set-floor-0.40",
+      "target": "/sidebar",
+      "expression": "(() => { document.documentElement.style.setProperty('--atrium-float-wash-floor', '0.40'); return getComputedStyle(document.documentElement).getPropertyValue('--atrium-float-wash-floor').trim(); })()"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "floor-0.40",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "eval",
+      "id": "set-floor-0.25",
+      "target": "/sidebar",
+      "expression": "(() => { document.documentElement.style.setProperty('--atrium-float-wash-floor', '0.25'); return getComputedStyle(document.documentElement).getPropertyValue('--atrium-float-wash-floor').trim(); })()"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "floor-0.25",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "eval",
+      "id": "set-floor-0.10",
+      "target": "/sidebar",
+      "expression": "(() => { document.documentElement.style.setProperty('--atrium-float-wash-floor', '0.10'); return getComputedStyle(document.documentElement).getPropertyValue('--atrium-float-wash-floor').trim(); })()"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "floor-0.10",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "eval",
+      "id": "set-floor-0.00",
+      "target": "/sidebar",
+      "expression": "(() => { document.documentElement.style.setProperty('--atrium-float-wash-floor', '0.0'); return getComputedStyle(document.documentElement).getPropertyValue('--atrium-float-wash-floor').trim(); })()",
+      "note": "the frost alone, no wash at all - the floor of the search"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "floor-0.00",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

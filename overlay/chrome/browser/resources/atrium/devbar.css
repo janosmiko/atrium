@@ -1,0 +1,401 @@
+/* Copyright 2026 The Atrium Authors
+ *
+ * Ported from swipe-lab.html's .devbar (~596-602). Ink uses var(--fg), same
+ * fallback convention as sidebar.css's #sbUrl - no push exists. */
+
+/* the bar floats over the card as a bubble, so the page around it
+   stays clear and the card shows through the corners. */
+html, body {
+  background: transparent;
+  margin: 0;
+}
+
+/* No padding for the shadow to fall into: the WebView is sized to the bubble
+   exactly, so anything drawn past its edge is clipped. devbar.js reads the
+   box-shadow below and pushes it to AtriumOverlayShadowLayer, which paints it
+   outside this document. */
+
+.devbar {
+  position: relative;
+  overflow: hidden;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  /* A 16px card curve nearly capsules this 34px strip. Compact floating
+     surfaces share a tighter silhouette instead. Do not reach for
+     backdrop-filter to glass it: the page under it lives in another
+     compositor, so there is nothing here to blur. */
+  border-radius: var(--ov-radius-compact);
+  /* Invisible here (the viewport is exactly this box, nothing past its
+     edge to render into) - devbar.js reads the resolved value and pushes it
+     to AtriumOverlayShadowLayer, which paints it over the page instead. */
+  box-shadow: var(--ov-shadow-tight);
+  font: 12.5px var(--ov-font);
+  transition: transform .2s ease, opacity .2s ease;
+  /* Readable without applying .away, which is how devbar.js can push it to the
+     native shadow so that shadow slides the same distance. */
+  --dv-away-shift: -60px;
+}
+
+.devbar.away {
+  transform: translateY(var(--dv-away-shift));
+  opacity: 0;
+}
+
+/* The native View appears in one frame, so the bar earns its entrance here.
+   Keyframes rather than a class flip: the from-state paints on the very first
+   frame, with no resting frame before it to flash and no bounce after. Same
+   shift and curve as .away, so leaving and arriving mirror each other. */
+@keyframes dvdescend {
+  from {
+    transform: translateY(var(--dv-away-shift));
+    opacity: 0;
+  }
+}
+
+.devbar.descending {
+  animation: dvdescend .2s ease;
+}
+
+/* inset - an outset ring is clipped away, the NSView is sized
+   exactly to BubbleBounds (atrium_browser_window.cc:1316). No transition:
+   the C++ pane switch is instant, so the ring must be too. */
+.devbar.focused {
+  box-shadow: var(--ov-shadow-tight), inset 0 0 0 2px var(--dv-ring);
+}
+
+/* The controls are static, and a positioned sibling paints above static
+   ones whatever the source order says. Giving them a position puts them
+   back in document order, above the fill. */
+.devbar > * {
+  position: relative;
+}
+
+.devbar .loadfill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  background: var(--ov-fg);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+  /* The fill animates, so it gets its own compositing layer and escapes the
+     bar's rounded overflow clip - grey squares at the four corners. */
+  border-radius: inherit;
+}
+
+.devbar .loadfill.waiting {
+  animation: loadbreathe 1.2s ease-in-out infinite;
+}
+
+.devbar .loadfill.receiving {
+  opacity: .2;
+  transition: width .25s ease-out;
+}
+
+.devbar .loadfill.done {
+  opacity: 0;
+  transition: opacity .26s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .devbar .loadfill.waiting {
+    animation: none;
+    opacity: .2;
+  }
+}
+
+.devbar .dvlock {
+  display: flex;
+  flex: none;
+}
+
+/* same resting ink and hover plate as the nav buttons beside it. */
+.devbar .dvgrip {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 22px;
+  margin-left: -6px;
+  border-radius: 6px;
+  opacity: .55;
+  cursor: grab;
+  transition: background-color .12s, opacity .12s;
+}
+
+.devbar .dvgrip:hover {
+  opacity: 1;
+  background: var(--ov-sel);
+}
+
+.devbar .dvgrip:active {
+  cursor: grabbing;
+}
+
+/* The drag image. Parked above the viewport: the browser paints it from its
+   own layout, and it must never show in the bar. The row box comes from
+   sidebar.css, which this document also loads. */
+.dvghost {
+  position: fixed;
+  top: -100px;
+  left: 0;
+  width: 240px;
+  background: var(--ov-paper);
+  color: var(--ov-fg);
+  font-family: var(--ov-font);
+  border-radius: var(--ov-radius-row);
+}
+
+/* the sidebar row's nav group, hosted here while the bar is up.
+   The buttons and their behaviour come from sidebar-nav-row.js buildNavGroup,
+   but the ink does not: that row sits on the dark band and this bar on a light
+   plate, so every colour below is this surface's own. */
+.devbar .dvnav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.devbar .nb {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  /* Same size as .sbnav .nb, and for the reason stated there. */
+  font: 17px/1 var(--sans, system-ui, -apple-system, sans-serif);
+  opacity: .55;
+  cursor: default;
+  transition: background-color .12s, color .12s;
+}
+
+.devbar .nb:hover {
+  opacity: 1;
+  background: var(--ov-sel);
+}
+
+.devbar .nb .g {
+  display: inline-block;
+}
+
+/* svg display:block kills the baseline gap, so the spin axis sits on the
+   visual centre rather than a few px low. */
+.devbar .nb .g svg {
+  display: block;
+}
+
+/* Sidebar's own ghost-fade geometry (sidebar-nav-row.css), ink-agnostic so
+   it applies here unchanged. */
+.devbar .nb .g.gswap,
+.devbar .nb .gl.ghost {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  transition: opacity .12s ease;
+}
+
+.devbar .nb .g.gswap.entering {
+  opacity: 0;
+}
+
+.devbar .nb .gl.ghost.out {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .devbar.descending {
+    animation: none;
+  }
+
+  .devbar .nb {
+    transition: none;
+  }
+
+  .devbar .dvgrip {
+    transition: none;
+  }
+
+  .devbar .nb .g.gswap,
+  .devbar .nb .gl.ghost {
+    transition: none;
+  }
+}
+
+/* The keyframes are sidebar-nav-row.css's - one document serves every route,
+   and @keyframes are document-wide. */
+.devbar .nb .g.nudgeL {
+  animation: navnudgeL .3s ease;
+}
+
+.devbar .nb .g.nudgeR {
+  animation: navnudgeR .3s ease;
+}
+
+.devbar .nb.sbreload .g.spin {
+  animation: reloadspin .45s cubic-bezier(.3, .7, .3, 1);
+}
+
+/* The same filled-plate treatment as sidebar-nav-row.css's [data-mod] rules,
+   kept byte-for-byte identical - one severity ladder, one place its
+   contrast can regress. */
+.devbar .dvnav[data-mod="option"] .nb {
+  opacity: 1;
+  color: #6b4700;
+  background: #e2a648;
+  font-weight: 600;
+}
+
+.devbar .dvnav[data-mod="cmdshift"] .nb {
+  opacity: 1;
+  color: #701400;
+  background: #ff5f57;
+  font-weight: 600;
+}
+
+.devbar .dvnav[data-mod="option"] .nb:hover {
+  background: color-mix(in srgb, #e2a648 85%, white);
+}
+
+.devbar .dvnav[data-mod="cmdshift"] .nb:hover {
+  background: color-mix(in srgb, #ff5f57 85%, white);
+}
+
+/* The row's greyed state on this plate. The modifier selectors are listed for
+   the same reason they are there: they set opacity 1 on the same buttons, and
+   a direction with nowhere to go must stay dead under a held chord. */
+.devbar .nb.navdim,
+.devbar .nb.navdim:hover,
+.devbar .dvnav[data-mod="option"] .nb.navdim,
+.devbar .dvnav[data-mod="cmdshift"] .nb.navdim {
+  opacity: .3;
+  color: inherit;
+  background: transparent;
+}
+
+.devbar .dvexts {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  flex: none;
+}
+
+.devbar .dvexts-strip {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+/* renderExtStrip sets this on whatever container it fills, and the sidebar's
+   own rule only matches .exs-row. */
+.devbar .dvexts-strip.exs-hidden {
+  display: none;
+}
+
+.devbar .qm-open {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.devbar .qm-open:hover {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.devbar .dvurl {
+  /* Mono, where the rest of the bar is not: a URL is read character by
+     character, and the overlay set carries a mono face for exactly this. */
+  font-family: var(--ov-font-mono);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: text;
+}
+
+/* Ground, ring and ink come from .ov-btn. Only the box is this bar's own: a
+   34px capsule cannot host .ov-btn's 26px content box, which its 1px border
+   grows to 28px, beside the 22px nav buttons. */
+.devbar .dvcopy,
+.devbar .dvpin {
+  /* border-box for peek-controls.css's reason: .ov-btn is content-box, so its
+     1px border would render these 24px beside the 22px nav buttons. */
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  padding: 0;
+  flex: none;
+  cursor: pointer;
+}
+
+.devbar .dvcopy {
+  font: 600 13px var(--ov-font);
+}
+
+.devbar .dvcopy:hover,
+.devbar .dvpin:hover {
+  background: var(--ov-sel);
+}
+
+/* Pinned is a resting state, not a hover, so it holds a ground of its own. */
+.devbar .dvpin[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--ov-accent) 24%, transparent);
+}
+
+.devbar.insecure .dvcopy,
+.devbar.insecure .dvpin {
+  color: var(--ov-danger);
+}
+
+.devbar.insecure .dvcopy:hover,
+.devbar.insecure .dvpin:hover,
+.devbar.insecure .dvpin[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--ov-danger) 14%, transparent);
+}
+
+.devbar .dvwarn {
+  display: none;
+  flex: none;
+  font: 600 11px var(--ov-font);
+  letter-spacing: .2px;
+}
+
+/* ported from the lab's .devbar.insecure (swipe-lab.html:604-606)
+   - the bar itself carries the warning, so it cannot be missed. */
+/* An insecure bar wears the same shadow as a secure one: the pushed spec is
+   read off plain .devbar, so a tint added here would never reach it. */
+.devbar.insecure {
+  background: var(--ov-danger-paper);
+  color: var(--ov-danger);
+  border-color: color-mix(in srgb, var(--ov-danger) 30%, transparent);
+}
+
+.devbar.insecure .dvwarn {
+  display: inline;
+}

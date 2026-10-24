@@ -1,0 +1,199 @@
+{
+  "name": "nav-buttons-move-into-the-floating-bar",
+  "description": "with the floating address bar up, back, forward and reload render inside it instead of the sidebar's chrome row, and Cmd+Shift+D moves them back. The two surfaces are separate documents, so the reading has to come from both: the row must have LOST the group and the bar must have GAINED it in the same state. Reading only one side would pass a build that deleted the buttons outright.\n\nWHY EVALS AND NOT A CAPTURE. Which document a button belongs to is not a fact about pixels - both surfaces sit at the top of the window and a screenshot of three glyphs cannot say which page drew them. querySelector on each route answers exactly that, and the toggle's presence in the row is the control that separates 'the group moved' from 'the row is gone'.\n\nBOTH DIRECTIONS ARE DRIVEN. The first chord floats the bar and the second docks it. The third reading is taken after the second chord, so a build that moved the buttons out and never brought them back is still caught.",
+  "fixture": "icon-tint-none.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "docked-row-has-the-group",
+      "target": "/sidebar",
+      "expression": "['sbback', 'sbfwd', 'sbreload'].filter((c) => document.querySelector('.sbnav .' + c)).join(',')",
+      "note": "THE CONTROL: docked, the row draws all three. Without this, an empty row after the chord could mean the buttons never existed."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d",
+      "note": "docked -> floating"
+    },
+    {
+      "type": "eval_until",
+      "id": "went-floating",
+      "target": "/sidebar",
+      "expression": "String(document.querySelector('#atrium-root').classList.contains('devbar-shown'))",
+      "expected": "true",
+      "timeout_ms": 8000,
+      "note": "the chord reached the sidebar document"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval",
+      "id": "floating-row-lost-the-group",
+      "target": "/sidebar",
+      "expression": "['sbback', 'sbfwd', 'sbreload', 'sbmore'].filter((c) => document.querySelector('.sbnav .' + c)).join(',') || 'none'",
+      "note": "The row draws none of them, and no overflow button stood in for them either."
+    },
+    {
+      "type": "eval",
+      "id": "floating-row-kept-the-toggle",
+      "target": "/sidebar",
+      "expression": "String(!!document.querySelector('.sbnav .sbtoggle'))",
+      "note": "And the control for the reading above: the row itself is still there, so 'no group' means moved rather than destroyed."
+    },
+    {
+      "type": "eval_until",
+      "id": "bar-has-the-group",
+      "target": "/devbar",
+      "expression": "Array.from(document.querySelectorAll('.devbar .dvnav .nb')).map((b) => b.className.split(' ').find((c) => c.startsWith('sb'))).join(',')",
+      "expected": "sbback,sbfwd,sbreload",
+      "timeout_ms": 8000,
+      "note": "The floating bar draws the three, in order."
+    },
+    {
+      "type": "eval",
+      "id": "bar-kept-the-pin",
+      "target": "/devbar",
+      "expression": "String(!!document.querySelector('.devbar .dvpin') && !!document.querySelector('.devbar .dvcopy'))",
+      "note": "The pin and the copy control still stand beside the group."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d",
+      "note": "floating -> docked, the direction that has to give the buttons back"
+    },
+    {
+      "type": "eval_until",
+      "id": "came-back-docked",
+      "target": "/sidebar",
+      "expression": "String(document.querySelector('#atrium-root').classList.contains('devbar-shown'))",
+      "expected": "false",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval",
+      "id": "docked-row-has-the-group-again",
+      "target": "/sidebar",
+      "expression": "['sbback', 'sbfwd', 'sbreload'].filter((c) => document.querySelector('.sbnav .' + c)).join(',')",
+      "note": "No restart, the second chord alone brings them home."
+    },
+    {
+      "type": "eval",
+      "id": "mod-state-after-the-chord",
+      "target": "/sidebar",
+      "expression": "String(document.querySelector('.sbnav').dataset.mod || 'plain')",
+      "note": "RECORDED, NOT ASSERTED - this reading is not deterministic. cgevent drives Cmd+Shift+D as synthetic key events and the final all-released flagsChanged never arrives, so the last native push of the run is shift=1 cmd=0 and the row can still be armed here. Left in the results log as evidence rather than cleared silently."
+    },
+    {
+      "type": "eval",
+      "id": "modifier-cleared",
+      "target": "/sidebar",
+      "expression": "(window.dispatchEvent(new KeyboardEvent('keyup', {key: 'Shift'})), String(document.querySelector('.sbnav').dataset.mod || 'plain'))",
+      "note": "the keyup the synthetic chord owed the page. A real key release delivers both this and the native flagsChanged push, so this only makes the VM match a real release - it does not change what the click below exercises."
+    },
+    {
+      "type": "eval",
+      "id": "reload-still-navigates",
+      "target": "/sidebar",
+      "expression": "(document.querySelector('.sbnav .sbreload').click(), 'clicked')",
+      "note": "the rebuilt group is wired, not just drawn. Armed, this same click sends sidebarReloadHard instead - which is exactly what failed the first run."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar reload on tab",
+      "timeout_ms": 8000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "docked-row-has-the-group",
+      "expected": "\"sbback,sbfwd,sbreload\"",
+      "desc": "THE CONTROL: docked, the row really did draw all three. Quoted, because a plain `eval` stores the answer as cdp-eval printed it - the sibling eval_until ids below compare unquoted."
+    },
+    {
+      "type": "eval_equals",
+      "id": "went-floating",
+      "expected": "true",
+      "desc": "the first chord floated the bar, so the state under test was reached"
+    },
+    {
+      "type": "eval_equals",
+      "id": "floating-row-lost-the-group",
+      "expected": "\"none\"",
+      "desc": "With the bar up the chrome row draws no nav button and no overflow button."
+    },
+    {
+      "type": "eval_equals",
+      "id": "floating-row-kept-the-toggle",
+      "expected": "\"true\"",
+      "desc": "The sidebar toggle stays in the row. Quoted, because a plain `eval` stores the answer as cdp-eval printed it."
+    },
+    {
+      "type": "eval_equals",
+      "id": "bar-has-the-group",
+      "expected": "sbback,sbfwd,sbreload",
+      "desc": "The floating bar hosts back, forward and reload, in that order."
+    },
+    {
+      "type": "eval_equals",
+      "id": "bar-kept-the-pin",
+      "expected": "\"true\"",
+      "desc": "the group did not displace the bar's own copy and pin controls."
+    },
+    {
+      "type": "eval_equals",
+      "id": "came-back-docked",
+      "expected": "false",
+      "desc": "the second chord docked it again, so the return direction really ran"
+    },
+    {
+      "type": "eval_equals",
+      "id": "docked-row-has-the-group-again",
+      "expected": "\"sbback,sbfwd,sbreload\"",
+      "desc": "Turning the floating bar off moves the buttons back without a restart."
+    },
+    {
+      "type": "eval_equals",
+      "id": "modifier-cleared",
+      "expected": "\"plain\"",
+      "desc": "THE CONTROL for the reload below: the row is unarmed, so the click that follows exercises the PLAIN variant. Without this the chord's leftover state sends sidebarReloadHard and the plain vlog never appears."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: sidebar reload on tab",
+      "label": "the-returned-group-is-wired",
+      "desc": "The restored reload reaches the window's handler, so the group came back live rather than as three dead glyphs."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

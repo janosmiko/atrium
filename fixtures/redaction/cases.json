@@ -1,0 +1,185 @@
+{
+  "cases" : [
+    {
+      "input" : "https://example.com/path",
+      "expected" : "https://example.com/path"
+    },
+    {
+      "input" : "https://example.com/path?page=2&sort=desc#section-1",
+      "expected" : "https://example.com/path?page=2&sort=desc#section-1"
+    },
+    {
+      "input" : "https://example.com/path/to/page",
+      "expected" : "https://example.com/path/to/page"
+    },
+    {
+      "input" : "",
+      "expected" : ""
+    },
+    {
+      "input" : "https://example.com/?token=abc",
+      "expected" : "https://example.com/"
+    },
+    {
+      "input" : "https://example.com/?page=2&token=abc",
+      "expected" : "https://example.com/?page=2"
+    },
+    {
+      "input" : "https://example.com/?token=abc&page=2",
+      "expected" : "https://example.com/?page=2"
+    },
+    {
+      "input" : "https://example.com/?q=a%20b&token=abc&sort=desc",
+      "expected" : "https://example.com/?q=a%20b&sort=desc"
+    },
+    {
+      "input" : "https://example.com/?Token=abc",
+      "expected" : "https://example.com/"
+    },
+    {
+      "input" : "https://example.com/?ACCESS_TOKEN=abc",
+      "expected" : "https://example.com/"
+    },
+    {
+      "input" : "https://example.com/?monotoken=abc",
+      "expected" : "https://example.com/?monotoken=abc"
+    },
+    {
+      "input" : "https://example.com/?monotoken=abc&token=xyz",
+      "expected" : "https://example.com/?monotoken=abc"
+    },
+    {
+      "input" : "https://example.com/?token=&page=2",
+      "expected" : "https://example.com/?page=2"
+    },
+    {
+      "input" : "https://example.com/?token&page=2",
+      "expected" : "https://example.com/?page=2"
+    },
+    {
+      "input" : "https://example.com/path?token=abc&secret=xyz",
+      "expected" : "https://example.com/path"
+    },
+    {
+      "input" : "https://example.com/path#access_token=abc&token_type=bearer2",
+      "expected" : "https://example.com/path#token_type=bearer2"
+    },
+    {
+      "input" : "https://example.com/path#access_token=abc",
+      "expected" : "https://example.com/path"
+    },
+    {
+      "input" : "https://example.com/callback#access_token=abc&state=xyz",
+      "expected" : "https://example.com/callback#state=xyz"
+    },
+    {
+      "input" : "https://example.com/?token=abc#access_token=xyz",
+      "expected" : "https://example.com/"
+    },
+    {
+      "input" : "https://example.com/?token=abc&page=1#access_token=xyz&state=s1",
+      "expected" : "https://example.com/?page=1#state=s1"
+    },
+    {
+      "input" : "https://example.com/callback?code=AUTHCODE123&state=xyz",
+      "expected" : "https://example.com/callback?state=xyz"
+    },
+    {
+      "input" : "https://example.com/callback#code=AUTHCODE123&state=xyz",
+      "expected" : "https://example.com/callback#state=xyz"
+    },
+    {
+      "input" : "https://example.com/callback?code=SAVE20",
+      "expected" : "https://example.com/callback?code=SAVE20"
+    },
+    {
+      "input" : "https://example.com/?q=hello%20world&token=abc",
+      "expected" : "https://example.com/?q=hello%20world"
+    },
+    {
+      "input" : "https://example.com/?%74oken=abc&page=2",
+      "expected" : "https://example.com/?page=2"
+    },
+    {
+      "input" : "https://example.com/?%2574oken=abc&page=2",
+      "expected" : "https://example.com/?page=2"
+    },
+    {
+      "input" : "https://example.com/?%20token=abc",
+      "expected" : "https://example.com/?%20token=abc"
+    },
+    {
+      "input" : "https://example.com/?a=1;token=SECRET",
+      "expected" : "https://example.com/?a=1"
+    },
+    {
+      "input" : "https://example.com/?token=SECRET;a=1",
+      "expected" : "https://example.com/?a=1"
+    },
+    {
+      "input" : "https://example.com/?a=1;token=SECRET&b=2",
+      "expected" : "https://example.com/?a=1;b=2"
+    },
+    {
+      "input" : "https://example.com/?a=1;b=2;c=3",
+      "expected" : "https://example.com/?a=1;b=2;c=3"
+    },
+    {
+      "input" : "https://user:hunter2@example.com/path",
+      "expected" : "https://example.com/path"
+    },
+    {
+      "input" : "https://user@example.com/path",
+      "expected" : "https://user@example.com/path"
+    },
+    {
+      "input" : "https://user:hunter2@example.com:8443/path?page=1",
+      "expected" : "https://example.com:8443/path?page=1"
+    },
+    {
+      "input" : "https://user:hunter2@example.com/path?token=SECRET",
+      "expected" : "https://example.com/path"
+    },
+    {
+      "input" : "https://example.com/path?page=1",
+      "expected" : "https://example.com/path?page=1"
+    },
+    {
+      "input" : "https://example.com/?token=first&page=2&token=second",
+      "expected" : "https://example.com/?page=2"
+    },
+    {
+      "input" : "chrome://settings/?token=abc",
+      "expected" : "chrome://settings/?token=abc"
+    },
+    {
+      "input" : "about:blank",
+      "expected" : "about:blank"
+    },
+    {
+      "input" : "file:///Users/x/notes.txt?token=abc",
+      "expected" : "file:///Users/x/notes.txt?token=abc"
+    },
+    {
+      "input" : "mailto:foo@example.com?subject=hi&token=abc",
+      "expected" : "mailto:foo@example.com?subject=hi&token=abc"
+    },
+    {
+      "input" : "https://[::1/path?token=abc",
+      "expected" : "https://[::1/path?token=abc"
+    },
+    {
+      "input" : "https://example.com/?key=MAPSKEY&q=x",
+      "expected" : "https://example.com/?q=x"
+    },
+    {
+      "input" : "https://example.com/?jwt=x&bearer=y&otp=z&ticket=w",
+      "expected" : "https://example.com/"
+    },
+    {
+      "input" : "https://example.com/?oauth_token=a&oauth_verifier=b",
+      "expected" : "https://example.com/"
+    }
+  ],
+  "note" : "Inputs taken from URLCredentialRedactorTests. `expected` is what the Swift redactor produces; both implementations are held to it. Refresh with ATRIUM_CORPUS_REGENERATE=1 make test."
+}

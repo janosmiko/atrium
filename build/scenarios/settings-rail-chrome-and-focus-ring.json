@@ -1,0 +1,170 @@
+{
+  "name": "settings-rail-chrome-and-focus-ring",
+  "description": "One defect showing in two states. Every rail item drew as a raised native button (no appearance: none), and no control in settings.css had a :focus-visible rule, so keyboard focus fell back to the browser's own ring. Both are fixed in the same settings.css pass: .settings-rail-item now resets appearance/background/border like every other button family here, and every interactive control takes its focus ring from overlay.css's convention (outline: 2px solid var(--ov-accent); outline-offset: 2px, or -2px on the segmented option whose sliding thumb sits too close for an outward ring).\n\nThree captures, one launch: 'rest' right after open, 'selection' after an eval-driven click moves the selection with the mouse, and 'focus' after the rail's own ArrowDown handler moves it with the keyboard.\n\nA first version of this scenario borrowed the Tab/Shift-Tab sequence from settings-tab-row-keyboard-focus-ring.json and got 'BUTTON, not a rail item' back from both its 'rest' and 'focus' evals - that scenario predates the open-time focus call, which installSettings() now runs at the end of open: root.querySelector('.settings-rail-item[data-pane=\"selected\"]').focus() (settings.js), so the rail already holds DOM focus before any key is pressed, and plain Tab immediately walks OFF it onto whatever plain-tabbable control follows (the roving tabindex leaves every other rail item at tabIndex -1, un-Tab-reachable). Measured instead of assumed this time, and one more assumption fell: both 'rest' (the open-time .focus()) and 'selection' (an eval-driven .click()) came back :focus-visible TRUE, not false. Neither is a real mouse press on the element - Chromium only suppresses :focus-visible on a button when focus arrives FROM an actual pointer press on that element, and a script call to .focus() or .click() carries no such press, so the browser treats both the same as a keyboard arrival. The rule ('selected without relying on a focus ring') therefore has to hold up with the ring ON, not just in the rarer case of a real mouse click - which is exactly why .selected keeps its own background-plus-accent-colour treatment rather than leaning on the ring's absence. PANES order (settings.js) is general, appearance, spaces, ... - the mouse click in 'selection' lands on appearance, so the ArrowDown in 'focus' steps from there to spaces, and railKey() (settings.js) answers ArrowDown/ArrowRight/ArrowUp/ArrowLeft only when the event's target is itself a '.settings-rail-item', calling selectPane(id, {keepFocus: true}) to re-focus the newly selected item synchronously inside the keydown handler.\n\nAssertions read DOM state through cdp-eval rather than a pixel region: the rail was rewritten from the 220px top bar the older settings-rail-keys.json and settings-tab-row-keyboard-focus-ring.json scenarios measured into a 190px left column, so those scenarios' pixel regions are stale for this layout and reusing them would sample empty space. settings-cmd-comma.json already made this same call for the same reason.",
+  "fixture": "presenter-startup.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the browser window finish first paint"
+    },
+    {
+      "type": "activate",
+      "note": "Atrium MUST be frontmost or cmd+comma opens Finder Settings instead - observed in settings-tab-row-keyboard-focus-ring.json"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "open Settings; its menu item is not reachable from a scenario"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "window opens on General - the open-time .focus() already put DOM focus on the General rail item"
+    },
+    {
+      "type": "capture",
+      "id": "rest",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "Evidence: the rail at rest, only General selected - the resting/selected chrome must come from settings.css alone"
+    },
+    {
+      "type": "eval",
+      "id": "rest-selected",
+      "target": "/settings",
+      "expression": "(() => document.querySelector('.settings-rail-item.selected')?.dataset.pane)()",
+      "note": "General is the default pane, confirming the capture is really at the window's opening state"
+    },
+    {
+      "type": "eval",
+      "id": "rest-focus-visible",
+      "target": "/settings",
+      "expression": "(() => document.activeElement.matches(':focus-visible'))()",
+      "note": "The open-time .focus() carries no mouse press, so Chromium treats it as a keyboard-equivalent arrival and the ring is expected ON here too - the selection has to hold up with it showing, not by hiding it"
+    },
+    {
+      "type": "eval",
+      "id": "select-appearance",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.settings-rail-item[data-pane=\"appearance\"]'); if (!b) return 'no-pane'; b.click(); return document.querySelector('.settings-rail-item[data-pane=\"appearance\"].selected') ? 'selected' : 'not-selected'; })()",
+      "note": "same element-targeted click settings-cmd-comma.json uses for this exact rail"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "selection",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "Evidence: Appearance reads as selected (--ov-sel + accent) with General back at rest - the ring is expected to be riding along with this eval-driven click too, since it carries no real mouse press"
+    },
+    {
+      "type": "eval",
+      "id": "click-is-focus-visible",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.settings-rail-item[data-pane=\"appearance\"]'); return b.matches(':focus-visible'); })()",
+      "note": "The selected pane must stay legible as selected even with the ring on, since only a real mouse press (not this eval's .click()) would suppress it"
+    },
+    {
+      "type": "key",
+      "combo": "down",
+      "note": "THE MEASUREMENT. railKey() only answers when the keydown target is a rail item, which the click above already focused - one step moves appearance -> spaces (PANES order in settings.js) and re-focuses it via selectPane's keepFocus"
+    },
+    {
+      "type": "settle",
+      "ms": 1000,
+      "note": "renderSettings() is a synchronous DOM rebuild, no CSS transition on the rail - slack for the ssh/capture round trip, not an animation, same margin settings-rail-keys.json uses"
+    },
+    {
+      "type": "capture",
+      "id": "focus",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "Evidence: Spaces holds real keyboard focus - the ring must be the overlay's, not the browser default"
+    },
+    {
+      "type": "eval",
+      "id": "focus-selected",
+      "target": "/settings",
+      "expression": "(() => document.querySelector('.settings-rail-item.selected')?.dataset.pane)()"
+    },
+    {
+      "type": "eval",
+      "id": "focus-active-pane",
+      "target": "/settings",
+      "expression": "(() => document.activeElement.dataset.pane)()",
+      "note": "confirms activeElement IS the selected rail item, not something else - drive the focus explicitly and prove it landed where the capture claims"
+    },
+    {
+      "type": "eval",
+      "id": "focus-is-focus-visible",
+      "target": "/settings",
+      "expression": "(() => document.activeElement.matches(':focus-visible'))()",
+      "note": "a keydown-driven selectPane() re-focus is keyboard-modality, so the browser itself must agree this is a visible arrival"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "note": "the browser window AND the settings window"
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-window-opens-on-general",
+      "id": "rest-selected",
+      "expected": "\"general\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-open-time-focus-is-treated-as-a-visible-arrival",
+      "id": "rest-focus-visible",
+      "expected": "true"
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-appearance-pane-was-selected",
+      "id": "select-appearance",
+      "expected": "\"selected\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "an-eval-driven-click-is-also-treated-as-a-visible-arrival",
+      "id": "click-is-focus-visible",
+      "expected": "true"
+    },
+    {
+      "type": "eval_equals",
+      "label": "arrowdown-steps-the-rail-from-appearance-to-spaces",
+      "id": "focus-selected",
+      "expected": "\"spaces\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-rail-itself-holds-keyboard-focus-after-arrowdown",
+      "id": "focus-active-pane",
+      "expected": "\"spaces\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "a-real-keydown-driven-refocus-is-a-visible-arrival",
+      "id": "focus-is-focus-visible",
+      "expected": "true"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits with the settings window open"
+    }
+  ]
+}

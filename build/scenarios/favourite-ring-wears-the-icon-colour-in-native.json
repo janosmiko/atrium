@@ -1,0 +1,74 @@
+{
+  "name": "favourite-ring-wears-the-icon-colour-in-native",
+  "description": "The selected favourite tile rings in its favicon's own colour in the native app look too. Same fixture as the glass twin, with opaqueSurround on: the tile sits on the system surround, not on the space tint, so the ring must be graded against the surround. The read is the ring element's ::after border against the tile's background composited over --atrium-surround-color.",
+  "fixture": "favourite-ring-icon-colour.spaces.json",
+  "settings": "task-overlay-opaque-surround.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "dark-page",
+      "target": "example-domain.html?ring",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/example-domain.html?ring",
+      "timeout_ms": 25000
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "click",
+      "x": 40,
+      "y": 121,
+      "note": "the only favourite tile, at a sibling scenario's coordinates. The click OPENS and CLAIMS the tab, which is what selects the tile."
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "the favourite has no live tab, so the click opens and claims one. The page spins for 3s, so this outlasts the load and the icon fetch"
+    },
+    {
+      "type": "capture",
+      "id": "selected-tile"
+    },
+    {
+      "type": "eval",
+      "id": "ring-state",
+      "target": "/sidebar",
+      "expression": "(() => { const t = document.querySelector('.fav.sel'); if (!t) { return 'no selected tile'; } const b = t.querySelector(':scope > .brdr'); if (!b) { return 'no ring element'; } const after = getComputedStyle(b, '::after'); const html = document.documentElement; return JSON.stringify({inline: t.style.getPropertyValue('--ringb'), ring: getComputedStyle(t).getPropertyValue('--ringb').trim(), border: after.borderTopColor, width: after.borderTopWidth, opacity: getComputedStyle(b).opacity + '/' + after.opacity, native: html.classList.contains('atrium-native-chrome'), surround: html.style.getPropertyValue('--atrium-surround-color'), tile: getComputedStyle(t).backgroundColor, selbase: getComputedStyle(t).getPropertyValue('--selbase').trim(), icon: !!t.querySelector('.fvimg.ok')}); })()"
+    },
+    {
+      "type": "eval",
+      "id": "ring-contrast",
+      "target": "/sidebar",
+      "expression": "(() => { const t = document.querySelector('.fav.sel'); if (!t) { return 'no selected tile'; } const b = t.querySelector(':scope > .brdr'); if (!b) { return 'no ring element'; } const rgba = (raw) => { const s = (raw || '').trim(); const h = /^#([0-9a-fA-F]{6})$/.exec(s); if (h) { return [0, 2, 4].map((i) => parseInt(h[1].substr(i, 2), 16)).concat(1); } const m = /^rgba?\\(([^)]*)\\)/.exec(s); const n = m && m[1].match(/[0-9.]+/g); if (!n || n.length < 3) { return null; } return [Number(n[0]), Number(n[1]), Number(n[2]), n.length > 3 ? Number(n[3]) : 1]; }; const lin = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }; const lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]); const html = document.documentElement; const native = html.classList.contains('atrium-native-chrome'); const base = rgba(native ? html.style.getPropertyValue('--atrium-surround-color') : getComputedStyle(t).getPropertyValue('--selbase')); const ring = rgba(getComputedStyle(b, '::after').borderTopColor); if (!ring || !base) { return 'unreadable'; } const wash = rgba(getComputedStyle(t).backgroundColor); const ground = wash && wash[3] > 0 ? [0, 1, 2].map((i) => Math.round(base[i] * (1 - wash[3]) + wash[i] * wash[3])) : base.slice(0, 3); const a = lum(ring); const g = lum(ground); const ratio = (Math.max(a, g) + 0.05) / (Math.min(a, g) + 0.05); const red = ring[0] > 150 && ring[0] - ring[1] > 40 && ring[0] - ring[2] > 40; return (red ? 'red' : 'not red ' + ring.slice(0, 3).join(',')) + (ratio >= 3 ? ' clears 3:1' : ' faint ' + ratio.toFixed(2) + ' on ' + ground.join(',')); })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "ring-contrast",
+      "expected": "\"red clears 3:1\"",
+      "desc": "THE MEASUREMENT: the selected tile's ring is the icon's red and reads at 3:1 against the tile on the surround"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

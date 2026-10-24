@@ -1,0 +1,72 @@
+{
+  "name": "the-window-opens-finished",
+  "description": "The window's first show waits for the sidebar's first painted frame or the 3000ms cap, and logs which. On the VM the render lands within the cap on a warm start and past it on a cold one, so the log line is asserted with either reason and the reason is reported. The sidebar root is drawn and at full opacity by the time the harness looks, and the first capture, taken as soon as the harness can, is for the eye.",
+  "fixture": "two-tabs.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "capture",
+      "id": "first",
+      "duration_ms": 1500,
+      "fps": 20,
+      "note": "for the eye: the earliest frames the harness can take"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: startup show on (drawn|cap)",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar painted",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "eval_until",
+      "id": "root-drawn",
+      "target": "/sidebar",
+      "expression": "document.querySelector('#atrium-root').classList.contains('drawn') ? getComputedStyle(document.querySelector('#atrium-root')).opacity : 'not-drawn'",
+      "expected": "1",
+      "timeout_ms": 8000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: startup show on drawn",
+      "label": "the-hold-let-go",
+      "desc": "the sidebar's own rows let the hold go. The cap is the fallback, and a run that shows on it opened an empty window."
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: startup show on",
+      "min": 1,
+      "max": 1,
+      "label": "shown-once",
+      "desc": "The window showed exactly once."
+    },
+    {
+      "type": "eval_equals",
+      "id": "root-drawn",
+      "expected": "1",
+      "desc": "The sidebar root is drawn and opaque."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

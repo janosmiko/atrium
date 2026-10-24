@@ -1,0 +1,101 @@
+{
+  "name": "the-floating-bar-takes-the-pinned-extensions-off-the-sidebar",
+  "description": "Cmd+Shift+D moves the address bar out of the sidebar and into the floating bar. The floating bar draws its own copy of the pinned extensions, so the sidebar strip must go. The strip is inserted as #atrium-root's SIBLING, not a child, so the old hide rule scoped under #atrium-root reached only the per-pane copies and left the real row on screen. Both bars then showed the same pins at once. This reads the strip's own computed opacity across the chord, and reads it back after the second press.",
+  "fixture": "three-spaces-two-profiles.json",
+  "startup_space": "3ab00002-0000-4000-8000-000000000002",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "started-on-the-second-space",
+      "target": "long-page.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/long-page.html",
+      "timeout_ms": 20000
+    },
+    {"type": "settle", "ms": 2500},
+    {
+      "type": "activate",
+      "note": "an ssh-launched Atrium is not frontmost on a clean snapshot, and the chord below would land in Finder"
+    },
+    {"type": "settle", "ms": 1200},
+    {
+      "type": "eval",
+      "id": "seed-a-pin",
+      "target": "/sidebar",
+      "expression": "(() => { const strip = document.querySelector('body > .exs-row'); if (!strip) { return 'no strip'; } const active = strip.dataset.profileId || ''; window.atriumSetSidebarExtensions([{id: 'ext-one', name: 'Ext one', actionTitle: 'Ext one', visible: true, hasPopup: false, pinned: true}], active); return strip.querySelectorAll('.exs-chip').length === 1 ? 'one pin on the strip' : 'chips:' + strip.querySelectorAll('.exs-chip').length; })()"
+    },
+    {"type": "settle", "ms": 600},
+    {
+      "type": "eval",
+      "id": "strip-up-before",
+      "target": "/sidebar",
+      "expression": "(() => { const strip = document.querySelector('body > .exs-row'); return getComputedStyle(strip).opacity === '1' ? 'the strip is up' : 'opacity ' + getComputedStyle(strip).opacity; })()"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d",
+      "note": "the address bar leaves the sidebar and the floating bar comes up"
+    },
+    {"type": "settle", "ms": 1500, "note": "past the bar's own .16s fade"},
+    {
+      "type": "eval",
+      "id": "strip-gone-with-the-bar-up",
+      "target": "/sidebar",
+      "expression": "(() => { const root = document.querySelector('#atrium-root'); if (!root.classList.contains('devbar-shown')) { return 'the bar never came up'; } const strip = document.querySelector('body > .exs-row'); const s = getComputedStyle(strip); return s.opacity === '0' && s.pointerEvents === 'none' ? 'the strip is gone' : 'opacity ' + s.opacity + ' pointer-events ' + s.pointerEvents; })()"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d",
+      "note": "back to the docked bar"
+    },
+    {"type": "settle", "ms": 1500},
+    {
+      "type": "eval",
+      "id": "strip-back-with-the-bar-down",
+      "target": "/sidebar",
+      "expression": "(() => { const root = document.querySelector('#atrium-root'); if (root.classList.contains('devbar-shown')) { return 'the bar never went down'; } const strip = document.querySelector('body > .exs-row'); return getComputedStyle(strip).opacity === '1' ? 'the strip is back' : 'opacity ' + getComputedStyle(strip).opacity; })()"
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the sidebar with its strip back, for the eye"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window throughout",
+      "label": "one-window-still"
+    },
+    {
+      "type": "eval_equals",
+      "id": "seed-a-pin",
+      "expected": "\"one pin on the strip\"",
+      "desc": "the setup gate: without a pin there is no strip to hide, and every read below would pass on an empty row"
+    },
+    {
+      "type": "eval_equals",
+      "id": "strip-up-before",
+      "expected": "\"the strip is up\"",
+      "desc": "THE CONTROL: the strip really is visible before the chord, so the read after it measures the chord and not a row that was never there"
+    },
+    {
+      "type": "eval_equals",
+      "id": "strip-gone-with-the-bar-up",
+      "expected": "\"the strip is gone\"",
+      "desc": "THE CLAIM. An opacity of 1 here means both bars draw the same pins at once, which is the defect. 'the bar never came up' means the chord missed and the run proves nothing"
+    },
+    {
+      "type": "eval_equals",
+      "id": "strip-back-with-the-bar-down",
+      "expected": "\"the strip is back\"",
+      "desc": "the hide is a gate, not a one-way trip: docking the bar again gives the sidebar its pins back"
+    }
+  ]
+}

@@ -1,0 +1,205 @@
+{
+  "name": "key-census",
+  "description": "which synthetic keys actually reach the application, counted one by one. The task's original 3-of-7 loss figure was measured through the SwiftUI settings window's NSEvent monitor, and that package is deleted, so the instrument no longer exists and the number cannot be reproduced - this replaces it rather than re-litigating it. The reading is fixed before the run: for each key sent N times, the run log must carry ATRIUM422-<key>-<N>. The page reports every keydown into document.title, which crosses the bridge via TabEventForwarder::TitleWasSet - the channel edit-focus-field.html already uses - so nothing has to be built into the app to read this, and a missing key is a named silence rather than an assertion elsewhere failing for an unrelated reason. The key set is chosen to split the question three ways: a plain letter with no traversal meaning, the plain arrows that fail, Tab, and a modified chord. Whichever of those goes missing names the class of loss.",
+  "fixture": "key-census.spaces.json",
+  "startup_space": "42200001-0000-0000-0000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the browser window finish first paint"
+    },
+    {
+      "type": "activate",
+      "note": "Atrium MUST be frontmost or every key below goes to whichever app is"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "click",
+      "x": 500,
+      "y": 400,
+      "note": "page background, right of the 200pt sidebar. Puts the keyboard on the web contents; the page has nothing focusable, so focus rests on the document and stays there."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "key",
+      "combo": "a",
+      "note": "five plain letters. The control: a key with no traversal meaning and no modifier."
+    },
+    {
+      "type": "key",
+      "combo": "a"
+    },
+    {
+      "type": "key",
+      "combo": "a"
+    },
+    {
+      "type": "key",
+      "combo": "a"
+    },
+    {
+      "type": "key",
+      "combo": "a"
+    },
+    {
+      "type": "key",
+      "combo": "down",
+      "note": "THE MEASUREMENT. Five plain arrows, the key the feature needs."
+    },
+    {
+      "type": "key",
+      "combo": "down"
+    },
+    {
+      "type": "key",
+      "combo": "down"
+    },
+    {
+      "type": "key",
+      "combo": "down"
+    },
+    {
+      "type": "key",
+      "combo": "down"
+    },
+    {
+      "type": "key",
+      "combo": "right",
+      "note": "the other axis, three each"
+    },
+    {
+      "type": "key",
+      "combo": "right"
+    },
+    {
+      "type": "key",
+      "combo": "right"
+    },
+    {
+      "type": "key",
+      "combo": "up"
+    },
+    {
+      "type": "key",
+      "combo": "up"
+    },
+    {
+      "type": "key",
+      "combo": "up"
+    },
+    {
+      "type": "key",
+      "combo": "left"
+    },
+    {
+      "type": "key",
+      "combo": "left"
+    },
+    {
+      "type": "key",
+      "combo": "left"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+b",
+      "note": "a MODIFIED key, twice - the class that has never been observed to go missing. Separates 'the harness loses keys' from 'plain keys are consumed above the page'."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+b"
+    },
+    {
+      "type": "key",
+      "combo": "tab",
+      "note": "last, because Tab is the other key that vanished in an earlier run. Sent after every measurement above so it cannot disturb them."
+    },
+    {
+      "type": "key",
+      "combo": "tab"
+    },
+    {
+      "type": "key",
+      "combo": "tab"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the last title push cross the bridge before the log is pulled"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "pattern": "ATRIUM422-ready",
+      "label": "canary",
+      "desc": "THE CANARY, and it must be read first. The fixture page's own <title> at load. If this is absent the title-to-run-log route is dead and every silence below is meaningless rather than evidence. Nothing else here can be believed without it."
+    },
+    {
+      "type": "vlog",
+      "pattern": "ATRIUM422-pagefocus",
+      "label": "page-had-the-keyboard",
+      "desc": "SECOND CONTROL, and it must be read before any silence below. The page reports its own window focus event. If this is absent, the click at (500,400) missed the web contents and the keyboard was never on the page - in which case a silent census says nothing about key delivery and the coordinate is what needs fixing. Only with this line present does a missing key mean a missing key."
+    },
+    {
+      "type": "vlog",
+      "pattern": "ATRIUM422-a-5",
+      "label": "letter-x5",
+      "desc": "Five plain 'a' keys were sent and the page counted five. A count short of 5 is a plain, unmodified, non-traversal key that the harness sent and the application never received - which is what this task is about. This is also the strongest corroboration of page focus: if these five arrive, the keyboard was demonstrably on the page for everything after them."
+    },
+    {
+      "type": "vlog",
+      "pattern": "ATRIUM422-down-5",
+      "label": "arrow-down-x5",
+      "desc": "Five plain Down arrows sent, five counted. This is the key that has failed on four earlier runs. If this passes, the harness delivers arrows and that work is not blocked by this scenario."
+    },
+    {
+      "type": "vlog",
+      "pattern": "ATRIUM422-right-3",
+      "label": "arrow-right-x3",
+      "desc": "Three plain Right arrows. settings-tab-row's original failing key."
+    },
+    {
+      "type": "vlog",
+      "pattern": "ATRIUM422-up-3",
+      "label": "arrow-up-x3",
+      "desc": "Three plain Up arrows."
+    },
+    {
+      "type": "vlog",
+      "pattern": "ATRIUM422-left-3",
+      "label": "arrow-left-x3",
+      "desc": "Three plain Left arrows."
+    },
+    {
+      "type": "vlog",
+      "pattern": "ATRIUM422-meta-2",
+      "label": "modifier-x2",
+      "desc": "The real Cmd key that cgevent's withModifier physically presses, twice. Its own keydown, independent of the key it modifies."
+    },
+    {
+      "type": "vlog",
+      "pattern": "ATRIUM422-cmd_b-2",
+      "label": "modified-key-x2",
+      "desc": "Two Cmd+B chords counted with metaKey set. Modified keys are the class that has always worked; if these arrive while a plain key above does not, the loss is specific to unmodified keys and not to delivery in general."
+    },
+    {
+      "type": "vlog",
+      "pattern": "ATRIUM422-tab-3",
+      "label": "tab-x3",
+      "desc": "Three Tab keys, sent last. An earlier run saw Tab vanish alongside the arrow."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits. The page defaultPrevents plain keys only, never a Cmd chord, so the teardown chord is not something this fixture can swallow."
+    }
+  ]
+}

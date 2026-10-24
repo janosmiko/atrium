@@ -1,0 +1,214 @@
+{
+  "name": "a-burst-of-hovers-leaves-no-shadow-on-the-sidebar",
+  "description": "The hover URL card's widget resizes a round trip after the page inside it has already laid out, so while a burst of retargets is in flight the card is measured against a viewport that is one frame stale. The stack was anchored top-right inside a widget anchored to the pane's LEFT edge, which turned that lag into a sideways slide - and a card wider than the stale viewport reported a NEGATIVE offsetLeft, which the browser added to the widget's own origin and registered the drop shadow tens of pixels inside the sidebar, on a layer that spans the whole window.\n\nWhat it measures: a rAF sampler inside the toast document records the card's own client rect on every frame of the burst. A card that slides out of its surface reports a left below zero, which is the exact reading that becomes a shadow on the sidebar. The sampler is armed before the burst and read after it, so no frame in between is skipped.\n\nTHE BURST IS THE POINT. Every existing hover scenario settles between pushes, which is exactly when the artefact is gone. These modifier flips run in one synchronous loop with no settle at all.\n\nThe three captures are artifacts for a person to look at, with no pixel assertion on them. A region_mean band over the sidebar was tried first and read byte-identical across all three, so it could not have told a ghost from a clean run either way.",
+  "fixture": "long-page.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "arm-link",
+      "target": "long-page",
+      "expression": "(() => { const a = document.createElement('a'); a.href = 'https://example.com/a/path/long/enough/to/outgrow/the/widget/before/it/has/resized/itself'; a.textContent = 'link'; a.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;z-index:99'; document.body.appendChild(a); return 'armed'; })()",
+      "note": "one link over the whole page, so the pointer never has to move again"
+    },
+    {
+      "type": "move",
+      "x": 600,
+      "y": 300,
+      "note": "REAL pointer move onto the link"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval_until",
+      "id": "card-is-up",
+      "target": "/toast",
+      "expression": "document.querySelector('.toasts .toast .ctl') ? 'card' : 'no card'",
+      "expected": "card",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "geometry",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast'); const b = t.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.width), Math.round(window.innerWidth)].join(':'); })()",
+      "note": "calibration, no assertion: the card's resting left, its width and the widget viewport it sits in"
+    },
+    {
+      "type": "eval",
+      "id": "arm-sampler",
+      "target": "/toast",
+      "expression": "(() => { window.__burst = []; const tick = () => { const t = document.querySelector('.toasts .toast'); if (t) { const b = t.getBoundingClientRect(); window.__burst.push([Math.round(b.left), Math.round(b.width)]); } window.__burstRaf = requestAnimationFrame(tick); }; tick(); return 'sampling'; })()",
+      "note": "every frame from here to the reading below, so no intermediate layout is skipped"
+    },
+    {
+      "type": "capture",
+      "id": "before-the-burst",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "eval",
+      "id": "the-burst",
+      "target": "/toast",
+      "expression": "(() => { for (let i = 0; i < 6; i++) { window.atriumSetNavModifiers(false, i % 2 === 0, false); } return 'burst'; })()",
+      "note": "THE BURST: six flips in one synchronous loop, each one changing the hint, the URL's fit budget and so the card's width - with no round trip finishing between them"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "released",
+      "target": "/toast",
+      "expression": "(() => { window.atriumSetNavModifiers(false, false, false); const h = document.querySelector('.toasts .toast .cthint'); return h ? h.textContent : 'no hint'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "after-the-burst",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "eval",
+      "id": "frames-sampled",
+      "target": "/toast",
+      "expression": "(() => { cancelAnimationFrame(window.__burstRaf); return window.__burst.length > 60 ? 'sampled' : 'only ' + window.__burst.length; })()",
+      "note": "THE CONTROL for the two absence readings below: a sampler that never ran would report a clean minimum"
+    },
+    {
+      "type": "eval",
+      "id": "leftmost-frame",
+      "target": "/toast",
+      "expression": "(() => { const min = Math.min.apply(null, window.__burst.map(f => f[0])); return min >= 0 ? 'inside' : 'slid ' + (-min) + 'px past its own start edge'; })()",
+      "note": "A card that slid out of its own surface reports a negative left, and that is the offset the shadow was registered at"
+    },
+    {
+      "type": "eval",
+      "id": "widths-seen",
+      "target": "/toast",
+      "expression": "String(new Set(window.__burst.map(f => f[1])).size)",
+      "note": "calibration, no assertion: how many distinct widths the card wore across the burst"
+    },
+    {
+      "type": "eval",
+      "id": "card-survived",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t && t.textContent ? 'card' : 'no card'; })()",
+      "note": "THE PRESENCE CONTROL: a run that dropped the card would satisfy the absence readings for the wrong reason"
+    },
+    {
+      "type": "eval",
+      "id": "hide-the-card",
+      "target": "/toast",
+      "expression": "(() => { window.atriumHoverUrl(''); return document.querySelector('.toasts .toast') ? 'still up' : 'gone'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "after-the-card-left",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "arm-link",
+      "expected": "\"armed\"",
+      "desc": "the link the whole run hovers exists"
+    },
+    {
+      "type": "eval_equals",
+      "id": "card-is-up",
+      "expected": "card",
+      "desc": "the card came up before the burst"
+    },
+    {
+      "type": "eval_equals",
+      "id": "arm-sampler",
+      "expected": "\"sampling\"",
+      "desc": "the per-frame sampler was installed before the burst, not after it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "the-burst",
+      "expected": "\"burst\"",
+      "desc": "the six flips ran, so the readings below are of a burst and not of a resting card"
+    },
+    {
+      "type": "eval_equals",
+      "id": "released",
+      "expected": "\"\"",
+      "desc": "the burst ended with no modifier held, so the card is back at its resting width"
+    },
+    {
+      "type": "eval_equals",
+      "id": "card-survived",
+      "expected": "\"card\"",
+      "desc": "Presence control: the card is still up and still showing a URL after the burst"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hide-the-card",
+      "expected": "\"gone\"",
+      "desc": "the card really left, so the last capture is of a sidebar with nothing on it"
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "Uncaught TypeError",
+      "label": "no-throw-in-the-burst",
+      "desc": "a throw mid-push would leave the previous registration standing"
+    },
+    {
+      "type": "eval_equals",
+      "id": "frames-sampled",
+      "expected": "\"sampled\"",
+      "desc": "THE CONTROL: the sampler really recorded the burst, so the reading below is of frames and not of an empty list"
+    },
+    {
+      "type": "eval_equals",
+      "id": "leftmost-frame",
+      "expected": "\"inside\"",
+      "desc": "No frame of the burst put the card past its own start edge, which is the negative offset that became a shadow on the sidebar"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

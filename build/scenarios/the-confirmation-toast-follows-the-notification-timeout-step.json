@@ -1,0 +1,331 @@
+{
+  "name": "the-confirmation-toast-follows-the-notification-timeout-step",
+  "description": "PushNotificationTimeoutToSidebar pushed atriumSetNotificationTimeout into the sidebar document only. The confirmation toast lives on its own document (ToastOverlayWidget, toast-surface.js) and never heard the setting, so atriumConfirmToast always fell back to toast-stack.js's CONFIRM_MS (1400ms) no matter what Settings said.\n\nThis drives the real gesture twice with two different steps in one session, then a third time with the step off, and grades every leg by timing rather than pixels - the same DOM-polling method copy-link-confirmation.json already established for this exact widget. The Notification timeout row is a plain <select> (six choices, not in SEGMENTED_CHOICE_ROWS), and settings-choice-and-number.json already recorded that a synthetic mouse click cannot drive a native <select> popup in this harness; the select's value is set and its change event dispatched directly instead, which still runs the real settings.js commitControl -> setRow -> chrome.send('settingsChanged', ...) path, not a hand-rolled push.\n\nLEG ONE (threeSeconds). Set the row, close Settings (its own key focus would otherwise eat the copy chord - profiles-pane-two-engines.json's cmd+w note), copy the link. The toast is checked still up at ~1.8s (past the old CONFIRM_MS default) and gone by ~5.3s (past 3000ms plus the .bye fade) - so this also covers the 'on load' half, since this is the FIRST confirmation of the session and the toast document is built lazily on first use, right here.\n\nLEG TWO (tenSeconds), same window, same session. The toast is checked still up past 3.8s - the point the FIRST leg's step would already have dismissed it, proving the second push actually took effect rather than the widget keeping the first value - and gone by ~12.8s.\n\nLEG THREE (off). The native ShowTransientConfirmation path always logs 'confirmation shown', so the log line cannot distinguish a suppressed toast from a shown one; the DOM card is what is graded, and it must never exist.",
+  "fixture": "cmdf-swallowed.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "settings": "ambilight-off.settings.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "timeout_ms": 20000,
+      "note": "gate: CopyCurrentPageLink needs a committed tab or the chord is a no-op"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the restored tab render"
+    },
+    {
+      "type": "activate",
+      "note": "Atrium must be frontmost or cmd+comma opens the frontmost app's own settings instead"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "open the settings window on General"
+    },
+    {
+      "type": "settle",
+      "ms": 7000,
+      "note": "the window builds, the route loads, and the core's values land a beat after the labels"
+    },
+    {
+      "type": "eval",
+      "id": "set-three-seconds",
+      "target": "/settings",
+      "expression": "(() => { const sel = document.querySelector('.settings-row[data-key=\"notificationTimeout\"] .settings-row-choice'); if (!sel) { return 'no-select'; } sel.value = 'threeSeconds'; sel.dispatchEvent(new Event('change', {bubbles: true})); return sel.value; })()",
+      "note": "sets the <select> and fires the same 'change' commitControl listens for on root - the click half a native popup would otherwise swallow (a sibling scenario's cannot_pass)"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings written",
+      "timeout_ms": 6000,
+      "note": "FAIL LOUDLY HERE if the eval above missed the row, rather than at a DOM-polling timeout several actions later"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w",
+      "note": "closes the key Settings window - cmd+shift+c below needs the browser window, not Settings, holding key"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the close finish and key status pass to the browser window"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+c",
+      "note": "LEG ONE: Copy link with threeSeconds pushed"
+    },
+    {
+      "type": "eval_until",
+      "id": "toast-3s-shown",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? t.textContent : ''; })()",
+      "expected": "Link copied",
+      "timeout_ms": 4000
+    },
+    {
+      "type": "settle",
+      "ms": 1800,
+      "note": "past CONFIRM_MS (1400ms) - the old bug would already have dismissed this"
+    },
+    {
+      "type": "eval_until",
+      "id": "toast-3s-still-up",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? t.textContent : ''; })()",
+      "expected": "Link copied",
+      "timeout_ms": 500,
+      "note": "~1.8s since shown, under the pushed 3000ms - must still be there"
+    },
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "total ~5.3s since shown - past 3000ms plus the .bye fade"
+    },
+    {
+      "type": "eval_until",
+      "id": "toast-3s-gone",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? t.textContent : ''; })()",
+      "expected": "",
+      "timeout_ms": 3000
+    },
+    {
+      "type": "activate",
+      "note": "re-assert Atrium frontmost before reopening Settings"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "reopen Settings for LEG TWO"
+    },
+    {
+      "type": "settle",
+      "ms": 7000
+    },
+    {
+      "type": "eval",
+      "id": "set-ten-seconds",
+      "target": "/settings",
+      "expression": "(() => { const sel = document.querySelector('.settings-row[data-key=\"notificationTimeout\"] .settings-row-choice'); if (!sel) { return 'no-select'; } sel.value = 'tenSeconds'; sel.dispatchEvent(new Event('change', {bubbles: true})); return sel.value; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings written",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+c",
+      "note": "LEG TWO: Copy link with tenSeconds pushed, same session as leg one"
+    },
+    {
+      "type": "eval_until",
+      "id": "toast-10s-shown",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? t.textContent : ''; })()",
+      "expected": "Link copied",
+      "timeout_ms": 4000
+    },
+    {
+      "type": "settle",
+      "ms": 3800,
+      "note": "past 3260ms - where LEG ONE's own step would already have dismissed it"
+    },
+    {
+      "type": "eval_until",
+      "id": "toast-10s-still-up",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? t.textContent : ''; })()",
+      "expected": "Link copied",
+      "timeout_ms": 500,
+      "note": "the pushed step must have actually changed from threeSeconds, not stuck on the first push"
+    },
+    {
+      "type": "settle",
+      "ms": 6500,
+      "note": "total ~10.3s since shown - past 10000ms plus the .bye fade"
+    },
+    {
+      "type": "eval_until",
+      "id": "toast-10s-gone",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? t.textContent : ''; })()",
+      "expected": "",
+      "timeout_ms": 3000
+    },
+    {
+      "type": "activate",
+      "note": "re-assert Atrium frontmost before reopening Settings"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "reopen Settings for LEG THREE"
+    },
+    {
+      "type": "settle",
+      "ms": 7000
+    },
+    {
+      "type": "eval",
+      "id": "set-off",
+      "target": "/settings",
+      "expression": "(() => { const sel = document.querySelector('.settings-row[data-key=\"notificationTimeout\"] .settings-row-choice'); if (!sel) { return 'no-select'; } sel.value = 'off'; sel.dispatchEvent(new Event('change', {bubbles: true})); return sel.value; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings written",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+c",
+      "note": "LEG THREE: Copy link with the step off - the native log line fires either way, only the DOM card tells suppressed from shown"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "generous margin for a card that should never render at all"
+    },
+    {
+      "type": "eval",
+      "id": "toast-off-never-shown",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? t.textContent : ''; })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-window-was-built",
+      "pattern": "Atrium: settings window built"
+    },
+    {
+      "type": "vlog_count",
+      "label": "settings-written-three-times",
+      "pattern": "Atrium: settings written",
+      "min": 3,
+      "max": 3,
+      "note": "one write per leg - a missed select would leave this short"
+    },
+    {
+      "type": "vlog_count",
+      "label": "the-native-path-ran-three-times",
+      "pattern": "Atrium: confirmation shown \\(text=Link copied",
+      "min": 3,
+      "max": 3,
+      "note": "ShowTransientConfirmation is entered on every leg, including the suppressed one - the off step is a JS-side decision, not a native one"
+    },
+    {
+      "type": "eval_equals",
+      "id": "set-three-seconds",
+      "expected": "\"threeSeconds\"",
+      "desc": "the row actually took the pick"
+    },
+    {
+      "type": "eval_equals",
+      "id": "toast-3s-shown",
+      "expected": "Link copied",
+      "desc": "The toast document's atriumConfirmToast ran with the pushed step already known - this is the FIRST confirmation of the session, so the widget picked the step up on load, not from a stale default"
+    },
+    {
+      "type": "eval_equals",
+      "id": "toast-3s-still-up",
+      "expected": "Link copied",
+      "desc": "Past the old CONFIRM_MS (1400ms) fallback, still up - the pushed threeSeconds step is what is timing this, not the hardcoded default"
+    },
+    {
+      "type": "eval_equals",
+      "id": "toast-3s-gone",
+      "expected": "",
+      "desc": "Gone once the pushed 3000ms step plus the fade has actually elapsed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "set-ten-seconds",
+      "expected": "\"tenSeconds\"",
+      "desc": "the second, different pick also took"
+    },
+    {
+      "type": "eval_equals",
+      "id": "toast-10s-shown",
+      "expected": "Link copied",
+      "desc": "The already-built toast document received the CHANGED step too"
+    },
+    {
+      "type": "eval_equals",
+      "id": "toast-10s-still-up",
+      "expected": "Link copied",
+      "desc": "Two different steps in one session - still up past where the FIRST leg's step would have dismissed it, so the second push is the one actually driving this card"
+    },
+    {
+      "type": "eval_equals",
+      "id": "toast-10s-gone",
+      "expected": "",
+      "desc": "Gone once the pushed 10000ms step plus the fade has actually elapsed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "set-off",
+      "expected": "\"off\"",
+      "desc": "the third pick also took"
+    },
+    {
+      "type": "eval_equals",
+      "id": "toast-off-never-shown",
+      "expected": "\"\"",
+      "desc": "Off suppresses the confirmation toast, the same rule notification-timeout.js's shouldShowToast already applies to the sidebar's shelf and snoozed-tab toasts"
+    },
+    {
+      "type": "file_contains",
+      "label": "the-final-step-reached-disk",
+      "file": "settings",
+      "path": "notificationTimeout",
+      "value": "off"
+    },
+    {
+      "type": "quit",
+      "desc": "the window is still alive after three settings edits and three copy chords"
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "name": "quit-content-focus",
+  "description": "Cmd+Q after a click in the CONTENT pane (x=620) rather than the sidebar (x=140) - written as the control for quit-sidebar-focus. It did not control what it was meant to: its Escape never dismissed the palette and the click landed on the first-run search picker INSIDE the palette, so the quit went through the palette's pass-to-main-menu route and the pass said nothing about focus at all. It uses a reliable dismissal and gates, so it controls what it claims to.",
+  "fixture": "empty-window-quit.spaces.json",
+  "themes": "empty-window-quit.themes.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "33333333-3333-3333-3333-333333333333",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 8000,
+      "note": "let the empty space render and the palette auto-open before trying to dismiss it"
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "first dismiss attempt; unreliable on its own, hence the scrim click below"
+    },
+    {
+      "type": "settle",
+      "ms": 1000,
+      "note": "give the Escape time to land"
+    },
+    {
+      "type": "click",
+      "x": 900,
+      "y": 660,
+      "note": "second dismiss attempt - a press on the palette's scrim, clear of both the panel and the sidebar"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the palette close and key focus return to the browser window"
+    },
+    {
+      "type": "click",
+      "x": 620,
+      "y": 430,
+      "note": "THE VARIABLE: click the CONTENT pane. Measured off quit-sidebar-focus's captured frame - the content card spans roughly x 220-1010, y 40-700. This is the only difference from that scenario"
+    },
+    {
+      "type": "settle",
+      "ms": 1000,
+      "note": "let focus settle - same dwell as the sidebar case"
+    },
+    {
+      "type": "capture",
+      "id": "state",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence of where this click landed, to compare against the sidebar frame"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "palette-dismissed",
+      "pattern": "Atrium: command bar widget closing",
+      "note": "Proves the palette really closed, so the content click landed on the page and not on the palette's picker - which is exactly what went wrong the first time."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q quits after a click in the content pane (control for quit-sidebar-focus)"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "not-the-palette-route",
+      "pattern": "Atrium: palette passing key-equivalent to main menu",
+      "note": "Listed AFTER the quit assertion on purpose: the run log is pulled before assertions run, so a line Cmd+Q itself emits is only in the log that assert_quit re-pulls. Placed before it, this gate could never match - and a vlog_absent one would pass trivially, which is exactly the vacuous shape to avoid."
+    }
+  ]
+}

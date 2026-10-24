@@ -1,0 +1,134 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 28 Sep 2026 07:32:15 +0200
+Subject: [PATCH 149/154] fix(a11y): restyle locked content when the screen
+ reader turns on
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../blink/renderer/core/dom/document.cc       | 25 +++++++++--
+ .../modules/accessibility/ax_object_test.cc   | 43 +++++++++++++++++++
+ 2 files changed, 65 insertions(+), 3 deletions(-)
+
+diff --git a/third_party/blink/renderer/core/dom/document.cc b/third_party/blink/renderer/core/dom/document.cc
+index 80e2277cde1d5..1fd58e6782140 100644
+--- a/third_party/blink/renderer/core/dom/document.cc
++++ b/third_party/blink/renderer/core/dom/document.cc
+@@ -3480,6 +3480,22 @@ static ui::AXMode ComputeAXModeFromAXContexts(Vector<AXContext*> ax_contexts) {
+   return ax_mode;
+ }
+ 
++// Without a screen reader, content-visibility: auto subtrees skip style recalc.
++// With one, AX reads their style, so restyle as on cache creation.
++static void SetAXModeOnCache(Document& document,
++                             AXObjectCache& cache,
++                             const ui::AXMode& ax_mode) {
++  const bool screen_reader_turned_on =
++      !cache.GetAXMode().has_mode(ui::AXMode::kScreenReader) &&
++      ax_mode.has_mode(ui::AXMode::kScreenReader);
++  cache.SetAXMode(ax_mode);
++  if (screen_reader_turned_on) {
++    document.GetStyleEngine().MarkAllElementsForStyleRecalc(
++        StyleChangeReasonForTracing::Create(
++            style_change_reason::kAccessibility));
++  }
++}
++
+ namespace {
+ 
+ // Simple count of AXObjectCache objects that are reachable from Documents. The
+@@ -3506,7 +3522,8 @@ void Document::AddAXContext(AXContext* context) {
+   ax_contexts_.push_back(context);
+   if (ax_contexts_.size() != 1) {
+     DCHECK(ax_object_cache_);
+-    ax_object_cache_->SetAXMode(ComputeAXModeFromAXContexts(ax_contexts_));
++    SetAXModeOnCache(*this, *ax_object_cache_,
++                     ComputeAXModeFromAXContexts(ax_contexts_));
+     return;
+   }
+ 
+@@ -3526,7 +3543,8 @@ void Document::AddAXContext(AXContext* context) {
+ void Document::AXContextModeChanged() {
+   DCHECK_GT(ax_contexts_.size(), 0u);
+   DCHECK(ax_object_cache_);
+-  ax_object_cache_->SetAXMode(ComputeAXModeFromAXContexts(ax_contexts_));
++  SetAXModeOnCache(*this, *ax_object_cache_,
++                   ComputeAXModeFromAXContexts(ax_contexts_));
+ }
+ 
+ void Document::RemoveAXContext(AXContext* context) {
+@@ -3537,7 +3555,8 @@ void Document::RemoveAXContext(AXContext* context) {
+     ClearAXObjectCache();
+   } else {
+     DCHECK(ax_object_cache_);
+-    ax_object_cache_->SetAXMode(ComputeAXModeFromAXContexts(ax_contexts_));
++    SetAXModeOnCache(*this, *ax_object_cache_,
++                     ComputeAXModeFromAXContexts(ax_contexts_));
+   }
+ }
+ 
+diff --git a/third_party/blink/renderer/modules/accessibility/ax_object_test.cc b/third_party/blink/renderer/modules/accessibility/ax_object_test.cc
+index 0caabc6400f3b..95576de224bdc 100644
+--- a/third_party/blink/renderer/modules/accessibility/ax_object_test.cc
++++ b/third_party/blink/renderer/modules/accessibility/ax_object_test.cc
+@@ -9,6 +9,7 @@
+ #include "base/containers/adapters.h"
+ #include "testing/gmock/include/gmock/gmock-matchers.h"
+ #include "testing/gtest/include/gtest/gtest.h"
++#include "third_party/blink/renderer/core/display_lock/display_lock_context.h"
+ #include "third_party/blink/renderer/core/display_lock/display_lock_utilities.h"
+ #include "third_party/blink/renderer/core/dom/pseudo_element.h"
+ #include "third_party/blink/renderer/core/fullscreen/fullscreen.h"
+@@ -1283,6 +1284,48 @@ TEST_F(AccessibilityTest, DisplayLockedContentWithoutScreenReaderIsHidden) {
+       << "The <p> element should be display locked.";
+ }
+ 
++TEST_F(AccessibilityTest, ScreenReaderOnRestylesLockedContent) {
++  ax_context_ = std::make_unique<AXContext>(GetDocument(), ui::kAXModeComplete);
++  SetBodyInnerHTML(R"HTML(
++      <div id="row"
++          style="content-visibility: auto; contain-intrinsic-size: auto 46px">
++        <span id="ico" style="display: flex">x</span>
++      </div>
++      <div style="height: 30000px"></div>
++      )HTML");
++  Element* row = GetElementById("row");
++  Element* ico = GetElementById("ico");
++
++  UpdateAllLifecyclePhasesForTest();
++  UpdateAllLifecyclePhasesForTest();
++  ASSERT_FALSE(row->GetDisplayLockContext()->IsLocked());
++  ASSERT_TRUE(ico->GetComputedStyle());
++
++  GetDocument().scrollingElement()->setScrollTop(20000);
++  UpdateAllLifecyclePhasesForTest();
++  UpdateAllLifecyclePhasesForTest();
++  ASSERT_TRUE(row->GetDisplayLockContext()->IsLocked());
++
++  // Without a screen reader the locked row blocks this inherited change.
++  GetDocument().body()->SetInlineStyleProperty(CSSPropertyID::kColor, "red");
++  UpdateAllLifecyclePhasesForTest();
++  ASSERT_TRUE(row->GetDisplayLockContext()->StyleTraversalWasBlocked());
++  ASSERT_TRUE(
++      GetDocument().NeedsLayoutTreeUpdateForNodeIncludingDisplayLocked(*ico));
++
++  ui::AXMode mode(ui::kAXModeComplete);
++  mode.set_mode(ui::AXMode::kScreenReader, true);
++  ax_context_->SetAXMode(mode);
++  GetAXObjectCache().MarkDocumentDirty();
++
++  // With a screen reader, AX reads the span's style, so the next update must
++  // restyle it.
++  UpdateAllLifecyclePhasesForTest();
++  EXPECT_FALSE(
++      GetDocument().NeedsLayoutTreeUpdateForNodeIncludingDisplayLocked(*ico));
++  EXPECT_NE(nullptr, GetAXObjectByElementId("ico"));
++}
++
+ TEST_F(AccessibilityTest, ListMarkerIsNotLineBreakingObject) {
+   SetBodyInnerHTML(R"HTML(
+       <style>

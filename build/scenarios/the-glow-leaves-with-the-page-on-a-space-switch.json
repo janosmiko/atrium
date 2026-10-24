@@ -1,0 +1,130 @@
+{
+  "name": "the-glow-leaves-with-the-page-on-a-space-switch",
+  "description": "Space Run holds a page that is blue over red, space Empty holds nothing. A switch to Empty clears the pane but leaves the strip's active tab where it was, so nothing re-runs the tint: the band beside the empty card keeps the red page's glow. Wanted: the band follows what the pane shows. On Empty it drops to the space tint, and on the return trip the glow comes back.",
+  "fixture": "glow-and-an-empty-space.spaces.json",
+  "settings": "icon-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "ambilight-run.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/ambilight-run.html",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: ambilight edges",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "on-run",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "capture",
+      "id": "on-empty",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "capture",
+      "id": "back-on-run",
+      "duration_ms": 400,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: active space 0 -> 1 ",
+      "label": "the-chord-left-the-space"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: active space 1 -> 0 ",
+      "label": "and-came-back"
+    },
+    {
+      "type": "theme_changed",
+      "before": "on-run",
+      "after": "on-empty",
+      "region": [
+        206,
+        460,
+        16,
+        100
+      ],
+      "min_delta": 5,
+      "label": "the-glow-left-with-the-page",
+      "desc": "THE MEASUREMENT: the band beside the card moved when the page went away. A band that keeps the red page's colours over an empty space reads 0 here."
+    },
+    {
+      "type": "region_mean",
+      "capture": "on-empty",
+      "x": 206,
+      "y": 460,
+      "w": 16,
+      "h": 100,
+      "min_mean": 150,
+      "max_mean": 200,
+      "label": "and-left-the-space-tint-behind",
+      "desc": "The band beside the empty card reads the light space tint (about 178, what ambilight-off-leaves-the-space-alone reads). A cleared tint that stamped the band alpha on transparent black painted a 55% black band here and still passed the delta above."
+    },
+    {
+      "type": "theme_changed",
+      "before": "on-empty",
+      "after": "back-on-run",
+      "region": [
+        206,
+        460,
+        16,
+        100
+      ],
+      "min_delta": 5,
+      "label": "and-came-back-with-it",
+      "desc": "The return trip re-attaches the same tab without a strip notification, so the glow has to be restored by the same path that put the page back."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

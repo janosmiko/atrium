@@ -1,0 +1,415 @@
+{
+  "name": "search-follows-the-active-space",
+  "description": "The reported gesture, end to end: two profiles that START ON THE SAME ENGINE, one of them moved to a second engine through the Profiles pane, and then a plain typed query - no keyword, no Tab - after each of several space switches back and forth. Each search must leave through the engine of the space the user is looking at.\n\nBOTH PROFILES BEGIN ON 'alpha' ON PURPOSE. profiles-pane-two-engines.json hands each profile its own engine in the fixture, so a build that ignored the active space entirely could still land one of the two searches correctly. Here alpha is the engine everything starts on - the stand-in for the reported 'a regular search just opens Google' - and bravo is reachable only through the pane edit this scenario makes. A stale query profile therefore lands on alpha every time, which is the reported symptom rather than a generic wrong answer.\n\nTHE SWITCHES GO BOTH WAYS AND REPEAT. The earlier scenario switched once, Alpha to Bravo, so a fix that repointed the query profile on the first switch and then stuck would have passed it. This one searches at Alpha, Bravo, Alpha, Bravo, which is what the report describes as 'most of the times'.\n\nONE SEARCH RUNS FROM THE ADDRESS PILL instead of the Cmd+T palette. OnSurface_SurfaceAddressRowClicked opens the SAME command bar with CommandBarOpenReason::kEditAtAnchor, so the two gestures share QueryCommandBar and cannot pick different engines - but the anchored open PREFILLS the field with the current page url and selects it, so a keystroke that failed to replace the selection would submit a url instead of a query. That is a difference the palette path cannot show. The click is dispatched on #sbUrl from the sidebar's own context rather than at a pixel, because row heights move (row-heights-move-scenario-clicks).\n\nTHE LAST SEARCH IS A COLD START ON A NON-DEFAULT SPACE. `relaunch` restarts against the files the app just wrote, which carry Bravo as the active space and bravo as Second's stored engine, so the query profile has never seen a space switch when the query is typed. The pane edit path and the boot apply path (ApplyStoredProfileSearchEngine) are different code, and only this half exercises the second one. wait_vlog reads the LIVE log only, so every gate after the relaunch is a real gate rather than a match on a line the first launch already wrote.\n\nEACH SEARCH USES ITS OWN WORD. cdp-eval resolves a target by substring, and every search commits a page under the same two filenames, so a repeated query would let an assertion read the tab an EARLIER search opened and pass on it.",
+  "fixture": "search-follows-the-active-space.spaces.json",
+  "settings": "profiles-two-engines.settings.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-committed",
+      "target": "example-domain.html",
+      "expression": "location.search",
+      "expected": "?alpha",
+      "timeout_ms": 20000,
+      "note": "gate: the app is up on Alpha's own tab, so the fixture's activeSpaceID took effect and the fixture server answers"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: profile 'Default' default engine set to alpha",
+      "timeout_ms": 20000,
+      "note": "gate: the STORED engine reached Chromium at boot, with no settings visit. Without this the first search below would measure the pane edit and Chromium's built-in default, not the fixture's choice"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: profile 'Second' default engine set to alpha",
+      "timeout_ms": 20000,
+      "note": "gate: the other profile boots on the SAME engine, which is what makes a landing on bravo below impossible to reach by accident"
+    },
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "the reserved chrome context lands about 670ms after startup and the palette's WebContents waits for it"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma"
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "let the settings window build and its route load"
+    },
+    {
+      "type": "eval",
+      "id": "pane",
+      "target": "/settings",
+      "expression": "(() => { window.atriumSelectSettingsPane('profiles'); return document.querySelector('.settings-rail-item[data-pane=\"profiles\"].selected') ? 'profiles' : 'not-selected'; })()",
+      "note": "select the pane by its id, not by a coordinate the rail layout can move"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "assign-bravo-to-second",
+      "target": "/settings",
+      "expression": "(() => { const item = document.querySelector('.settings-profile-item[data-profile=\"1\"]'); if (!item) return 'no-item'; item.click(); const sel = document.querySelector('.settings-profile-engine'); if (!sel) return 'no-select'; sel.value = 'bravo'; sel.dispatchEvent(new Event('change', {bubbles: true})); return sel.value; })()",
+      "note": "ONE real change, alpha to bravo, on the Second profile's row. set_profile_choice returns false for a value equal to the stored one, so the earlier scenario had to drive its row off the engine and back - this one does not, because the fixture stores alpha here"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: profile 'Second' default engine set to bravo",
+      "timeout_ms": 15000,
+      "note": "gate: the running Second profile's own TemplateURLService changed its mind, not only spaces.json"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w",
+      "note": "close the Settings window so the browser window takes key status back. Cmd+T opens a tab in the KEY window, and Settings has no tab strip"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the /commandbar document commit and take the field"
+    },
+    {
+      "type": "type",
+      "text": "puppies"
+    },
+    {
+      "type": "eval_until",
+      "id": "alpha-1-ready",
+      "target": "/commandbar",
+      "expression": "(() => { const f = document.querySelector('.cbinput'); if (!f) return 'no-field'; const n = document.querySelectorAll('.cbrow').length; return f.value === 'puppies' && n > 0 ? 'ready' : f.value + ':' + n; })()",
+      "expected": "ready",
+      "timeout_ms": 10000,
+      "note": "gate AND regression guard: the keystrokes reached THIS palette and a pass answered in it. An engine fix that answered from a different, off-screen controller leaves the row count at 0 here even when Return still lands correctly. The failure text names which half went wrong"
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "no Tab, so this never enters a keyword scope - the default engine of whichever profile the query ran against"
+    },
+    {
+      "type": "eval_until",
+      "id": "alpha-1-landed",
+      "target": "engine-alpha.html?q=puppies",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/engine-alpha.html?q=puppies",
+      "timeout_ms": 15000,
+      "note": "THE OUTCOME, search 1 of 5: Alpha's space, Alpha's engine. Read from the committed page's own context because LogSafeUrl reduces an IP-host url to scheme plus bare host before it reaches VLOG, so no log line can tell the two engines apart"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "into Bravo's space, which belongs to the Second profile"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 0 -> 1",
+      "timeout_ms": 8000,
+      "note": "gate: the space really moved, from Alpha to Bravo and not from anywhere else"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "not a wait_vlog: 'command bar widget showing' already matched above, so a second gate on it would return on the first line and wait for nothing. alpha-1-ready's sibling below is the real gate"
+    },
+    {
+      "type": "type",
+      "text": "kittens"
+    },
+    {
+      "type": "eval_until",
+      "id": "bravo-1-ready",
+      "target": "/commandbar",
+      "expression": "(() => { const f = document.querySelector('.cbinput'); if (!f) return 'no-field'; const n = document.querySelectorAll('.cbrow').length; return f.value === 'kittens' && n > 0 ? 'ready' : f.value + ':' + n; })()",
+      "expected": "ready",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "eval_until",
+      "id": "bravo-1-landed",
+      "target": "engine-bravo.html?q=kittens",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/engine-bravo.html?q=kittens",
+      "timeout_ms": 15000,
+      "note": "THE OUTCOME, search 2 of 5: one space switch later, the query leaves through the engine the pane assigned to THIS space's profile. A stale query profile lands on engine-alpha.html instead, which is the reported symptom"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left",
+      "note": "back to Alpha's space"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 1 -> 0",
+      "timeout_ms": 8000,
+      "note": "gate: the return trip really happened"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "settle",
+      "ms": 3500
+    },
+    {
+      "type": "type",
+      "text": "otters"
+    },
+    {
+      "type": "eval_until",
+      "id": "alpha-2-ready",
+      "target": "/commandbar",
+      "expression": "(() => { const f = document.querySelector('.cbinput'); if (!f) return 'no-field'; const n = document.querySelectorAll('.cbrow').length; return f.value === 'otters' && n > 0 ? 'ready' : f.value + ':' + n; })()",
+      "expected": "ready",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "eval_until",
+      "id": "alpha-2-landed",
+      "target": "engine-alpha.html?q=otters",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/engine-alpha.html?q=otters",
+      "timeout_ms": 15000,
+      "note": "THE OUTCOME, search 3 of 5: the query profile came BACK. A fix that repointed once and then stuck lands this on engine-bravo.html"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "into Bravo's space a second time"
+    },
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "graded by the vlog_count assertion below, which counts both trips to Bravo - a second wait_vlog on this pattern would match the first trip's line"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "settle",
+      "ms": 3500
+    },
+    {
+      "type": "type",
+      "text": "badgers"
+    },
+    {
+      "type": "eval_until",
+      "id": "bravo-2-ready",
+      "target": "/commandbar",
+      "expression": "(() => { const f = document.querySelector('.cbinput'); if (!f) return 'no-field'; const n = document.querySelectorAll('.cbrow').length; return f.value === 'badgers' && n > 0 ? 'ready' : f.value + ':' + n; })()",
+      "expected": "ready",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "eval_until",
+      "id": "bravo-2-landed",
+      "target": "engine-bravo.html?q=badgers",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/engine-bravo.html?q=badgers",
+      "timeout_ms": 15000,
+      "note": "THE OUTCOME, search 4 of 5: the second round trip, and the assertion that a single correct switch cannot satisfy"
+    },
+    {
+      "type": "eval",
+      "id": "pill-click",
+      "target": "/sidebar",
+      "expression": "(() => { const bar = document.querySelector('#sbUrl'); if (!bar) return 'no-pill'; bar.click(); return 'clicked'; })()",
+      "note": "the address pill, still in Bravo's space. sidebar.js listens on the root and reads e.target.closest('#sbUrl'), so a synthetic click on the element itself reaches the same handler a real press does"
+    },
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the anchored palette open and select the url it prefilled"
+    },
+    {
+      "type": "type",
+      "text": "marmots"
+    },
+    {
+      "type": "eval_until",
+      "id": "pill-ready",
+      "target": "/commandbar",
+      "expression": "(() => { const f = document.querySelector('.cbinput'); if (!f) return 'no-field'; const n = document.querySelectorAll('.cbrow').length; return f.value === 'marmots' && n > 0 ? 'ready' : f.value + ':' + n; })()",
+      "expected": "ready",
+      "timeout_ms": 10000,
+      "note": "the anchored open prefills the current url AND selects it, so a keystroke that did not replace the selection leaves the field reading the url with 'marmots' appended - which this reports verbatim rather than as a wrong landing"
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "eval_until",
+      "id": "pill-landed",
+      "target": "engine-bravo.html?q=marmots",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/engine-bravo.html?q=marmots",
+      "timeout_ms": 15000,
+      "note": "THE OUTCOME, search 5 of 5 before the cold start: the pill's own gesture picks the same engine the palette did"
+    },
+    {
+      "type": "relaunch",
+      "note": "cold start. Nothing is restaged, so the app comes back on the spaces file it just wrote: Bravo active, bravo stored for Second"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: profile 'Second' default engine set to bravo",
+      "timeout_ms": 25000,
+      "note": "gate on the LIVE log, which the relaunch truncated, so this matches the new launch's own boot apply rather than the pane edit from the first one"
+    },
+    {
+      "type": "eval_until",
+      "id": "cold-startup-committed",
+      "target": "engine-bravo.html?q=marmots",
+      "expression": "location.search",
+      "expected": "?q=marmots",
+      "timeout_ms": 25000,
+      "note": "gate: the restored session came up on BRAVO's space, on the last page used there, so the query below is typed on a non-default space the bridge has never seen a switch to. The pill search above left that page in Bravo's own profile"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000,
+      "note": "a real gate again: the live log starts empty after a relaunch"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "type",
+      "text": "walrus"
+    },
+    {
+      "type": "eval_until",
+      "id": "cold-ready",
+      "target": "/commandbar",
+      "expression": "(() => { const f = document.querySelector('.cbinput'); if (!f) return 'no-field'; const n = document.querySelectorAll('.cbrow').length; return f.value === 'walrus' && n > 0 ? 'ready' : f.value + ':' + n; })()",
+      "expected": "ready",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "eval_until",
+      "id": "cold-landed",
+      "target": "engine-bravo.html?q=walrus",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/engine-bravo.html?q=walrus",
+      "timeout_ms": 15000,
+      "note": "THE OUTCOME for the cold start: the first search of a session, on a non-default space, with no space switch behind it"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "label": "the-profiles-pane-opened",
+      "id": "pane",
+      "expected": "\"profiles\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "seconds-engine-row-really-moved-to-bravo",
+      "id": "assign-bravo-to-second",
+      "expected": "\"bravo\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-address-pill-was-really-clicked",
+      "id": "pill-click",
+      "expected": "\"clicked\""
+    },
+    {
+      "type": "vlog",
+      "label": "seconds-engine-applied-live-from-the-pane",
+      "pattern": "Atrium: profile 'Second' default engine set to bravo",
+      "desc": "the pane edit reached the running profile's TemplateURLService, graded as a named assertion rather than only a pacing gate"
+    },
+    {
+      "type": "vlog_count",
+      "label": "both-trips-into-bravos-space-happened",
+      "pattern": "Atrium: active space 0 -> 1",
+      "min": 2,
+      "max": 3,
+      "desc": "the two Cmd+Shift+Right switches. Without this a build that swallowed the second switch would fail the bravo-2 landing and read as an engine bug"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-unknown-profile-refusal",
+      "pattern": "Atrium: settings names an unknown profile",
+      "desc": "the pane edit reached a real profile id rather than falling through to the refusal branch"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

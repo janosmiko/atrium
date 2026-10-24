@@ -1,0 +1,25 @@
+{
+  "spaces": [
+    {
+      "id": "50200001-0000-0000-0000-000000000001",
+      "name": "Fullscreen",
+      "emoji": "🎥",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "url": "http://127.0.0.1:8000/routing7-fullscreen.html",
+          "title": "Routing7 Fullscreen Gap"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "50200001-0000-0000-0000-000000000001"
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "name": "presenter-startup",
+  "description": "Presenter/window-jump regression (0851a03) plus the theme/resize/Cmd+Q class. Launches on a FOREIGN-profile, UNTHEMED startup space, switches to a THEMED cross-profile space, and asserts one window survives, the backdrop actually changed, resize still works, and Cmd+Q quits. Two traps would make it measure nothing: Cmd+2 is not the space-switch chord (that is Cmd+Shift+Arrow), so the space never switches and theme_changed compares two byte-identical frames, and without `activate` the chord goes to Finder on a clean snapshot. The switch is gated on the target space's tab URL appearing, the same proof a sibling scenario uses, so this cannot silently go back to measuring a switch that did not happen. The chord itself is gone now too: kNextSpace (chrome/browser/ui/atrium/atrium_native_hotkey_map.mm) still returns false, a gap other scenarios hit too, so Cmd+Shift+Right never lands the switch it is asked for. The switch now clicks the sidebar's own space dot instead - `.spacedots .sdot[data-space-index]`, the exact route routing-moves-the-tab.json and a settingsSpaceOpened pick both use - which calls BrowserController::SelectSpace directly and never touches the broken hotkey map. An extra assertion reads SelectSpace's own log line so a vacuous tab-url match can no longer be the only proof the switch happened.",
+  "fixture": "presenter-startup.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the foreign/unthemed startup space finish rendering"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot, so without this the Cmd+2 below lands in Finder and the space never switches - the same note every other scenario in this directory carries. Its absence here is why theme_changed compared two identical frames."
+    },
+    {
+      "type": "settle",
+      "ms": 1000,
+      "note": "let the window come forward before the switch"
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 500,
+      "fps": 20,
+      "note": "backdrop on the unthemed startup space"
+    },
+    {
+      "type": "eval",
+      "id": "switch-to-themed",
+      "target": "/sidebar",
+      "expression": "(() => { const dot = document.querySelector('.spacedots .sdot[data-space-index=\"1\"]'); if (!dot) return 'no-dot'; dot.click(); return 'clicked'; })()",
+      "note": "switch to the next space - the THEMED cross-profile one. Cmd+Shift+Arrow's kNextSpace still returns false, so this clicks the sidebar's own space dot instead, the same BrowserController::SelectSpace route routing-moves-the-tab.json and a settingsSpaceOpened pick both use."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url https://example\\.com",
+      "note": "wait for the SWITCH to actually land rather than sleeping a fixed time: example.com is space 2's tab, example.org space 1's. The URL is logged on navigation start, so it fires even though the VM has no internet and the page never loads."
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "let the cross-profile swap and the theme animation settle after the switch has been confirmed"
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 500,
+      "fps": 20,
+      "note": "backdrop on the themed space"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "switch-to-themed",
+      "expected": "\"clicked\"",
+      "desc": "the sidebar's own dot for the themed space was there to click"
+    },
+    {
+      "type": "vlog",
+      "label": "space-switched",
+      "pattern": "Atrium: tab [0-9]+ url https://example\\.com",
+      "note": "Proves the space switch happened before anything below is worth reading. Without it theme_changed reports UNCHANGED for two different reasons - the theme regressed, or the switch never ran - and cannot tell you which. That ambiguity is what this scenario sat in."
+    },
+    {
+      "type": "vlog",
+      "label": "space-switch-confirmed-by-controller",
+      "pattern": "Atrium: active space 0 -> 1 'Themed'",
+      "note": "the dot click's own proof, independent of the tab-url gate above: BrowserController::SelectSpace names both ends of the move, so a vacuous tab-url match can no longer be the only evidence the switch happened."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "exactly ONE real Atrium window across the switch (a second ordered NSWindow is the presenter/jump regression)"
+    },
+    {
+      "type": "theme_changed",
+      "before": "before",
+      "after": "after",
+      "region": [
+        40,
+        300,
+        200,
+        300
+      ],
+      "min_delta": 12,
+      "desc": "themed backdrop actually changed (raw-pixel region compare, not a VLOG). Region is in frame PIXEL space (2x retina) over the sidebar margin - tune against a real before frame if it overlaps opaque web content"
+    },
+    {
+      "type": "resize_applied",
+      "w": 900,
+      "h": 600,
+      "tolerance": 40,
+      "desc": "window still responds to an AX resize after the switch. the target was 1200x800, which the probe VM's 1024x768 display cannot accommodate - the window was clamped to the screen and the assertion had been red since at least 2026-07-27 for a reason that had nothing to do with Atrium. 900x600 fits with room to spare."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q actually quits (process gone)"
+    }
+  ]
+}

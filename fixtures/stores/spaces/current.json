@@ -1,0 +1,77 @@
+{
+  "appState" : {
+    "activeSpaceID" : "00000000-0000-4000-8000-000000000001",
+    "archiveEpoch" : 788918400,
+    "schemaVersion" : 4,
+    "sidebarWidth" : 220,
+    "sidebarWidthMigrated" : true
+  },
+  "archived" : [
+
+  ],
+  "favorites" : [
+    {
+      "profileID" : "default",
+      "title" : "Example",
+      "url" : "https://example.com/"
+    }
+  ],
+  "notes" : [
+
+  ],
+  "shelf" : [
+
+  ],
+  "snoozed" : [
+
+  ],
+  "spaces" : [
+    {
+      "emoji" : "🏠",
+      "groups" : [
+
+      ],
+      "id" : "00000000-0000-4000-8000-000000000002",
+      "name" : "Personal",
+      "order" : 0,
+      "pinnedCollapsed" : false,
+      "pinnedTabs" : [
+
+      ],
+      "profileID" : "Default",
+      "tabs" : [
+
+      ],
+      "tint" : "atriumSolarized",
+      "tintStrength" : 1
+    },
+    {
+      "emoji" : "*",
+      "groups" : [
+
+      ],
+      "id" : "00000000-0000-4000-8000-000000000001",
+      "name" : "Research",
+      "order" : 1,
+      "pinnedCollapsed" : false,
+      "pinnedTabs" : [
+
+      ],
+      "profileID" : "default",
+      "tabs" : [
+        {
+          "lastActiveAt" : 788918400,
+          "title" : "One",
+          "url" : "https://example.com/one"
+        },
+        {
+          "lastActiveAt" : 788918400,
+          "title" : "Two",
+          "url" : "https://example.com/two"
+        }
+      ],
+      "tint" : "#12282E",
+      "tintStrength" : 1
+    }
+  ]
+}

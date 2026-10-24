@@ -1,0 +1,171 @@
+{
+  "name": "the-panel-gap-reads-five-not-the-gutter",
+  "description": "The panel frame sits kOverlayHorizontalInset, 5, points in from the window edge. The report was that the gap beside it reads as wide as the 10-point window gutter instead. It does not, and this scenario is what settles it.\n\nA mean cannot answer the question. The band and the gutter carry the same colour, so a 5-point band and a 10-point one average alike and only where the colour STEPS separates them. band_step walks the row and reports that offset, which is the band's width. Three earlier runs compared fixed bands by their means and could say nothing either way.\n\nPark the pointer INSIDE the panel, not on the window edge that armed the reveal. A pointer left at the edge puts its own pixels in the measured band and reads as a 24-unit darkening of the panel's leading strip - which is a cursor, not a defect, and is how this probe first fooled its own author.\n\nThe fixture is the reporter's own configuration: space tint #716A6B, sidebarWidth 160, glassOpacity 0.28, chromePageTint on, borderWidth 10, and a white page whose warm brand colour sits away from its left edge so the gutter glow and the page never read alike. An earlier probe used a page that was solid crimson across its whole left half, where any step would have been invisible.",
+  "fixture": "panel-gap-reporter.spaces.json",
+  "settings": "panel-gap-reporter.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, the sidebar announces itself, and the sampler has read the page edge"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "collapse, so the edge zone arms and the window restores its gutter on this side"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "warm-up",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the first stream in a run can deliver no frames"
+    },
+    {
+      "type": "capture",
+      "id": "no-panel",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 400,
+      "note": "the left window edge, where the reveal is armed"
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 415
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar edge reveal opening at",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "move",
+      "x": 100,
+      "y": 620,
+      "note": "onto the panel itself and far below the scan rows. The reveal is held by hovering the panel, and the POINTER's own pixels sat in the measured band at the edge - a 24-unit darkening at x=8 turned out to be the cursor, not the gutter."
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "panel-floats",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.classList.contains('atrium-sidebar-floating'))"
+    },
+    {
+      "type": "eval",
+      "id": "panel-width",
+      "target": "/sidebar",
+      "expression": "String(Math.round(window.innerWidth))"
+    },
+    {
+      "type": "capture",
+      "id": "panel-up",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "panel-floats",
+      "expected": "\"true\"",
+      "label": "the-panel-is-up",
+      "desc": "THE SETUP. Without it every scan below reads window surround and page, and the panel assertions would be measuring nothing."
+    },
+    {
+      "type": "eval_equals",
+      "id": "panel-width",
+      "expected": "\"160\"",
+      "label": "the-panel-is-the-reporter-s-width",
+      "desc": "The fixture's sidebarWidth. A panel of another width puts its far edge where the scans do not expect it."
+    },
+    {
+      "type": "band_step",
+      "capture": "no-panel",
+      "x": 0,
+      "y": 400,
+      "len": 24,
+      "thick": 60,
+      "dir": "right",
+      "expected": 10,
+      "tol": 1,
+      "label": "the-control-steps-at-the-gutter",
+      "desc": "THE CALIBRATION: with no panel the same scan reads the borderWidth of 10. The gutter carries a glow that fades over its whole width, so only a jump far past that gradient counts here - the glow reaches about 82 by x=9 and the page edge is 135. It proves the scan can see a band that wide, so a smaller number below is a measurement and not a scanner stopping early.",
+      "colour_tol": 100
+    },
+    {
+      "type": "band_step",
+      "capture": "panel-up",
+      "x": 0,
+      "y": 400,
+      "len": 24,
+      "thick": 60,
+      "dir": "right",
+      "expected": 5,
+      "tol": 2,
+      "label": "the-surround-band-ends-at-the-panel-frame",
+      "desc": "The band between the window edge and the panel is the frame inset, 5, not the gutter's 10. The gutter carries a glow that fades over its whole width, so only a jump past that gradient counts - beside the panel the glow runs to about 16 and the panel's edge line is two to three times that.",
+      "colour_tol": 50
+    },
+    {
+      "type": "band_step",
+      "capture": "panel-up",
+      "x": 8,
+      "y": 400,
+      "len": 14,
+      "thick": 60,
+      "dir": "right",
+      "expected": -1,
+      "tol": 0,
+      "label": "the-panel-leading-strip-matches-its-body",
+      "desc": "And the one the report turned on: the panel's leading points sit over the window gutter rather than the page, so if the gutter read through them the row would step at the borderWidth. It does not. The strip drifts 4.7 over 14 points, against the default noise tolerance of 12."
+    },
+    {
+      "type": "band_step",
+      "capture": "panel-up",
+      "x": 14,
+      "y": 400,
+      "len": 14,
+      "thick": 60,
+      "dir": "right",
+      "expected": -1,
+      "tol": 0,
+      "label": "the-panel-body-is-uniform",
+      "desc": "THE CONTROL for the assertion above: past the gutter the panel holds one colour, so a no-step gate can pass at all and the failure above names a real step rather than a scanner that always finds one."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "DCHECK failed",
+      "label": "no-dcheck-fired"
+    },
+    {
+      "type": "quit"
+    }
+  ],
+  "startup_space": "11650001-0000-4000-8000-000000000001"
+}

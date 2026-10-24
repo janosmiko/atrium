@@ -1,0 +1,37 @@
+{
+  "name": "a-canvas-drag-reorders-the-sidebar",
+  "description": "The canvas card drag has to move a SIDEBAR row, not only a card on the plane. The plane re-renders itself from every snapshot push, so a check that only reads the Courtyard passes even when no message ever leaves the page. This drags the first card of room 0 down three card steps, past both of the other rows, and then reads the row order back out of the sidebar, which is the surface the order actually belongs to. The Courtyard is opened through the space menu rather than a pinch, because a cgevent scroll produces no NSEvent the AppKit monitor can see.",
+  "fixture": "canvas.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "settle", "ms": 3000 },
+    { "type": "activate" },
+    { "type": "settle", "ms": 1000 },
+    { "type": "eval_until", "id": "rows-before", "target": "/sidebar",
+      "expression": "[...document.querySelectorAll('.railpane[data-space-index=\"0\"] .row .tl')].map((e) => e.textContent).join(',')",
+      "expected": "Alpha,Bravo,Charlie", "timeout_ms": 5000 },
+    { "type": "rightclick", "x": 110, "y": 620 },
+    { "type": "settle", "ms": 600 },
+    { "type": "eval", "id": "open-courtyard", "target": "/sidebar",
+      "expression": "(() => { const item = [...document.querySelectorAll('.ctxitem')].find((b) => b.textContent === 'Courtyard'); if (!item) { return 'no entry'; } item.click(); return 'clicked'; })()" },
+    { "type": "settle", "ms": 1200 },
+    { "type": "eval", "id": "cards-drawn", "target": "/courtyard",
+      "expression": "String(document.querySelectorAll('.room[data-room=\"0\"] .rlane[data-section=\"tabs\"] .rtab').length)" },
+    { "type": "eval", "id": "drag", "target": "/courtyard",
+      "expression": "(() => { const lane = document.querySelector('.room[data-room=\"0\"] .rlane[data-section=\"tabs\"]'); if (!lane) { return 'no lane'; } const card = lane.querySelector('.rtab[data-index=\"0\"]'); if (!card) { return 'no card'; } const box = lane.getBoundingClientRect(); const send = (t, x, y) => card.dispatchEvent(new PointerEvent(t, {bubbles: true, pointerId: 1, clientX: x, clientY: y})); send('pointerdown', box.left + 8, box.top + 34); send('pointermove', box.left + 8, box.top + 202); send('pointerup', box.left + 8, box.top + 202); return 'dragged'; })()" },
+    { "type": "settle", "ms": 1200 },
+    { "type": "eval_until", "id": "rows-after", "target": "/sidebar",
+      "expression": "[...document.querySelectorAll('.railpane[data-space-index=\"0\"] .row .tl')].map((e) => e.textContent).join(',')",
+      "expected": "Bravo,Charlie,Alpha", "timeout_ms": 8000 }
+  ],
+  "assertions": [
+    { "type": "ax_window_count", "expected": 1, "min_area": 200000, "desc": "sanity: one real window rendered" },
+    { "type": "eval_equals", "id": "rows-before", "expected": "Alpha,Bravo,Charlie", "desc": "gates the setup: the sidebar drew the fixture order the drag below assumes" },
+    { "type": "eval_equals", "id": "open-courtyard", "expected": "\"clicked\"", "desc": "gates the setup: the space menu really carried a Courtyard entry and it took the click" },
+    { "type": "eval_equals", "id": "cards-drawn", "expected": "\"3\"", "desc": "gates the measurement: the plane drew all three cards, so there is an order to change" },
+    { "type": "eval_equals", "id": "drag", "expected": "\"dragged\"", "desc": "gates the measurement: the pointer sequence reached a real card in a real lane" },
+    { "type": "eval_equals", "id": "rows-after", "expected": "Bravo,Charlie,Alpha", "desc": "THE MEASUREMENT: a real drag on the plane moved a row in the SIDEBAR. An unchanged order is the failure the plane's own re-render would hide." },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

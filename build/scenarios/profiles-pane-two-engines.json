@@ -1,0 +1,293 @@
+{
+  "name": "profiles-pane-two-engines",
+  "description": "two profiles, each on its own search engine. The Profiles pane lists both, the selected profile's engine reads back from the DOM, and a real change of the running Default profile's default provider reaches Chromium - not only the file - before a typed query is shown to actually leave through that engine's own page. The same is then checked for the Second profile after switching to Bravo's space.\n\nDEFAULT'S ROW IS PICKED ONCE, ON THE ENGINE THE FIXTURE ALREADY STORES. mutate::profiles::set_profile_choice (rust/atrium-core/src/mutate/profiles.rs) still returns false for a value equal to the stored one, so this pick writes nothing new - and it must still reach the live TemplateURLService, because re-picking is exactly how a user retries a switch that did not take. Second's row is driven off its engine and back instead, so the write half stays covered too.\n\nTHE FINAL READ IS eval_until ON THE FIXTURE PAGE ITSELF, not a wait_vlog on the tab-committed line's path. atrium_log_safe_url.cc's LogSafeUrl reduces an IP-host URL to scheme+bare-host before it reaches VLOG - AtriumLogSafeUrlTest.IpAddressFallsBackToBareHost pins 'http://127.0.0.1:8000/redirect-to-lab.html' down to 'http://127.0.0.1' - so 'Atrium: tab N url ...' can never carry '/engine-alpha.html?q=' or tell the two engines apart by their query string. eval_until reads location.href out of the committed page's own JS context instead, the way favourites-slide-across-a-profile-change.json's own startup gate does, and a substring match on the page's own filename (cdp-eval.mjs's target resolution) finds it even with the query string cdp-eval.mjs never has to parse.\n\nTHE ENGINE URLS ARE PLAIN HTTP ON LOOPBACK, AND THAT IS ALLOWED. Both validators once demanded https, which dropped these two engines before either became a TemplateURL and made this scenario unrunnable. atrium_search_engine_mirror.cc's IsAllowedEngineUrl and search_engines.rs's allowed_engine_url now take http to 127.0.0.1, ::1 or localhost and nothing else, so the VM's own fixture server is reachable while a real plain-http engine still is not.",
+  "fixture": "profiles-two-engines.spaces.json",
+  "settings": "profiles-two-engines.settings.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "alpha-tab-committed",
+      "target": "example-domain.html",
+      "expression": "location.search",
+      "expected": "?alpha",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab is Alpha's own fixture tab, so the app is up and the fixture's activeSpaceID took effect. NOT a vlog gate: LogSafeUrl strips an IP-host url to scheme and bare host (AtriumLogSafeUrlTest.IpAddressFallsBackToBareHost), so no logged line can tell the alpha tab from the bravo one. The page's own context can, the way the engine gates below already do."
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma"
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "let the window build and its route load"
+    },
+    {
+      "type": "eval",
+      "id": "pane",
+      "target": "/settings",
+      "expression": "(() => { window.atriumSelectSettingsPane('profiles'); return document.querySelector('.settings-rail-item[data-pane=\"profiles\"].selected') ? 'profiles' : 'not-selected'; })()",
+      "note": "select the pane by its id, not by a coordinate the rail layout can move"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "list",
+      "target": "/settings",
+      "expression": "(() => { const items = [...document.querySelectorAll('.settings-profile-item:not(.settings-profile-new)')]; return items.map((item) => item.children[0].textContent + ' ' + item.children[1].textContent).join('|'); })()",
+      "note": "both profiles and their space counts, in the order profiles.json carries them"
+    },
+    {
+      "type": "eval",
+      "id": "engine",
+      "target": "/settings",
+      "expression": "(() => { const sel = document.querySelector('.settings-profile-engine'); return sel ? sel.value : 'no-select'; })()",
+      "note": "Default (selected by default) reads the fixture's own choice before anything here changes it"
+    },
+    {
+      "type": "eval",
+      "id": "apply-default-engine",
+      "target": "/settings",
+      "expression": "(() => { const sel = document.querySelector('.settings-profile-engine'); if (!sel) return 'no-select'; sel.value = 'alpha'; sel.dispatchEvent(new Event('change', {bubbles: true})); return 'reselected'; })()",
+      "note": "ONE pick of the engine the fixture already stores - the gesture a user makes to retry a switch that did not take. THE MEASUREMENT for Default."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: profile 'Default' default engine set to alpha",
+      "timeout_ms": 10000,
+      "note": "gate: the running Default profile's own TemplateURLService changed its mind, not only spaces.json"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the route's push reach the pane before the row is read back"
+    },
+    {
+      "type": "eval",
+      "id": "engine-after-pick",
+      "target": "/settings",
+      "expression": "(() => { const sel = document.querySelector('.settings-profile-engine'); return sel ? sel.value : 'no-select'; })()",
+      "note": "the row rebuilds from the pushed document, so without a push after the write it reads the pre-edit engine back at the user"
+    },
+    {
+      "type": "eval",
+      "id": "apply-bravo-engine",
+      "target": "/settings",
+      "expression": "(() => { const item = document.querySelector('.settings-profile-item[data-profile=\"1\"]'); if (!item) return 'no-item'; item.click(); const sel = document.querySelector('.settings-profile-engine'); if (!sel) return 'no-select'; sel.value = 'alpha'; sel.dispatchEvent(new Event('change', {bubbles: true})); sel.value = 'bravo'; sel.dispatchEvent(new Event('change', {bubbles: true})); return 'reselected'; })()",
+      "note": "Both engines are set in ONE settings visit. Reopening settings between the two searches handed key focus back to the window that had it before, so the second search ran in the first profile's window and used its engine - which looked like the engine not following the space."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: profile 'Second' default engine set to bravo",
+      "timeout_ms": 10000,
+      "note": "gate: the running Second profile's own TemplateURLService changed its mind"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w",
+      "note": "closes the key Settings window. cmd+t opens a tab in the KEY window, and Settings does not have one - it did nothing while Settings stayed key, which is why no earlier scenario combined an open Settings window with a later main-window key event."
+    },
+    {
+      "type": "settle",
+      "ms": 1000,
+      "note": "let the close finish and key status pass to the browser window"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the /commandbar document commit and take the field"
+    },
+    {
+      "type": "type",
+      "text": "puppies"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval_until",
+      "id": "alpha-dropdown-has-rows",
+      "target": "/commandbar",
+      "expression": "String(document.querySelectorAll('.cbrow').length > 0)",
+      "expected": "true",
+      "timeout_ms": 8000,
+      "note": "control for bravo-dropdown-has-rows below: baseline for a query in this window's own profile, no space switch involved yet"
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "accept the default-engine query - no Tab, so this never enters a keyword scope"
+    },
+    {
+      "type": "eval_until",
+      "id": "alpha-committed",
+      "target": "engine-alpha.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/engine-alpha.html?q=puppies",
+      "timeout_ms": 15000,
+      "note": "THE OUTCOME for Default: the query actually left through the alpha engine's own url, read from the committed page rather than the redacted tab-url log line"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "into Bravo's space, which belongs to the Second profile"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 0 -> 1",
+      "timeout_ms": 8000,
+      "note": "gate: the space really moved, from Alpha to Bravo and not from anywhere else"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the /commandbar document commit and take the field"
+    },
+    {
+      "type": "type",
+      "text": "puppies"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval_until",
+      "id": "bravo-dropdown-has-rows",
+      "target": "/commandbar",
+      "expression": "String(document.querySelectorAll('.cbrow').length > 0)",
+      "expected": "true",
+      "timeout_ms": 8000,
+      "note": "Regression guard: an engine fix that answers the query from a DIFFERENT (off-screen) controller than the one owning this visible palette would leave this dropdown empty even if Return still lands correctly - see bravo-committed below"
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "eval_until",
+      "id": "bravo-committed",
+      "target": "engine-bravo.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/engine-bravo.html?q=puppies",
+      "timeout_ms": 15000,
+      "note": "THE OUTCOME for Second: the same query, from the same command bar, now leaves through Bravo's own engine - proving the two profiles kept two independently-set defaults rather than sharing one"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "reopen Settings once more so ax_window_count still finds two windows at assertion time - the second search closed it the same way the first did"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "give the window time to exist before the assertions run"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "desc": "sanity: the browser window and the settings window"
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-profiles-pane-opened",
+      "id": "pane",
+      "expected": "\"profiles\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "both-profiles-listed-with-their-counts",
+      "id": "list",
+      "expected": "\"Alpha 1 space|Bravo 1 space\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "default-profile-reads-its-own-engine",
+      "id": "engine",
+      "expected": "\"alpha\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "default-engine-row-was-really-edited",
+      "id": "apply-default-engine",
+      "expected": "\"reselected\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "default-engine-row-still-reads-the-picked-engine",
+      "id": "engine-after-pick",
+      "expected": "\"alpha\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "second-engine-row-was-really-edited",
+      "id": "apply-bravo-engine",
+      "expected": "\"reselected\""
+    },
+    {
+      "type": "vlog",
+      "label": "default-engine-applied-live",
+      "pattern": "Atrium: profile 'Default' default engine set to alpha",
+      "desc": "the same gate as the wait_vlog above, graded as a named assertion rather than only a pacing check"
+    },
+    {
+      "type": "vlog",
+      "label": "second-engine-applied-live",
+      "pattern": "Atrium: profile 'Second' default engine set to bravo",
+      "desc": "the same gate as the wait_vlog above, graded as a named assertion rather than only a pacing check"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-unknown-profile-refusal",
+      "pattern": "Atrium: settings names an unknown profile",
+      "desc": "paired with the two positive vlog assertions above: this run reached both profiles by a real id, never fell through to the refusal branch"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

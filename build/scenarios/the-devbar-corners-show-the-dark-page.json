@@ -1,0 +1,202 @@
+{
+  "name": "the-devbar-corners-show-the-dark-page",
+  "description": "Extended by over a dark page, the pixels just outside EACH of the bubble's rounded corners are the page's, not a light square. The bubble is 560 wide centred in the card, 34 tall, 10 below the card's top, so it spans x=335..895, y=50..84 in this window. The control is the bar's middle, which reads light.\n\nWHY ALL FOUR AND NOT THE TOP TWO. Clearing the widget's own background when the devbar page reports ready settled the top corners and looked like the whole answer. The bottom two kept a square because a SECOND thing painted there: the bar's box-shadow, offset 2px downward, reached past the widget's bottom edge and was clipped flat by it. Clearing a background cannot fix a clipped shadow, and a shadow that fits cannot fix an opaque background, so each corner needs its own reading.\n\nWHAT CHANGED. The bar's radius dropped from a 17px capsule to the 8px address-row value, and that broke the bottom-RIGHT reading rather than both bottoms, because the two probes are not symmetric about the box: the left ones sit inside it and the right one just outside. The deeper problem is that this whole technique depends on a large radius. It reads the sliver a rounded corner excludes inside the bounding box, which is about 5px deep at 17px and about 2px at 8px, thinner than the antialiasing. So the right-hand reading moved out into the widget's padding, which is 18px at the sides and 32px below and does not scale with the radius. The two left corner readings still work at 8px and are kept, so the corner curve itself is still measured.\n\nThe shadow half no longer rests on pixels at all. devbar-test.mjs reads every --ov-shadow definition in overlay.css, plus the insecure variant's own restatement, against the kDevBarShadowPad constants, and fails if any of them reaches past the room reserved for it. That is a stronger guard than a probe, and it cannot go stale when a radius moves.",
+  "fixture": "ambilight-brand.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d"
+    },
+    {
+      "type": "eval_until",
+      "id": "bubble-width",
+      "target": "/devbar",
+      "expression": "String(Math.round(document.querySelector('.devbar').getBoundingClientRect().width))",
+      "expected": "560",
+      "timeout_ms": 8000,
+      "note": "the bubble's own box, not the viewport - the widget is wider than the bubble so the drop shadow has room to fall."
+    },
+    {
+      "type": "eval",
+      "id": "bubble-box",
+      "target": "/devbar",
+      "expression": "(() => { const b = document.querySelector('.devbar'); const r = b.getBoundingClientRect(); const cs = getComputedStyle(b); return Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.right) + ',' + Math.round(r.bottom) + ' r=' + cs.borderTopLeftRadius; })()",
+      "note": "the bubble's own edges and corner radius, written into the log. The corner probes below are placed from these numbers, and a radius change moves the paint boundary inside them without moving the box, which is how the capsule-era coordinates went stale."
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "capture",
+      "id": "bubble-dark",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bubble-width",
+      "expected": "560",
+      "desc": "the bubble is up"
+    },
+    {
+      "type": "region_mean",
+      "capture": "bubble-dark",
+      "x": 560,
+      "y": 60,
+      "w": 40,
+      "h": 12,
+      "min_mean": 120,
+      "max_mean": 256,
+      "label": "the-bar-is-light",
+      "desc": "THE CONTROL: the bar's middle reads light, so the capture caught the bubble."
+    },
+    {
+      "type": "region_mean",
+      "capture": "bubble-dark",
+      "x": 336,
+      "y": 51,
+      "w": 3,
+      "h": 3,
+      "min_mean": 0,
+      "max_mean": 90,
+      "label": "the-corner-shows-the-page",
+      "desc": "Outside the rounded corner the dark page shows. A widget painting its own square reads near 233 here."
+    },
+    {
+      "type": "region_mean",
+      "capture": "bubble-dark",
+      "x": 336,
+      "y": 80,
+      "w": 3,
+      "h": 3,
+      "min_mean": 0,
+      "max_mean": 90,
+      "label": "the-bottom-left-corner-shows-the-page",
+      "desc": "the bottom corners were the two the top-corner fix left behind. The bar's own drop shadow reached past the widget's edge and was clipped there, and the straight cut across the round corner read as a square."
+    },
+    {
+      "type": "region_mean",
+      "capture": "bubble-dark",
+      "x": 900,
+      "y": 88,
+      "w": 4,
+      "h": 4,
+      "min_mean": 0,
+      "max_mean": 90,
+      "label": "the-widget-paints-nothing-past-the-bubble",
+      "desc": "Re-sited. Inside the widget, past the bubble's bottom-right corner entirely, where an opaque widget background reads 233. This replaces a probe that sat in the sliver a rounded corner excludes INSIDE the box. That sliver is about 5px deep at a 17px capsule but only about 2px at the 8px address-row radius, which is thinner than the antialiasing, so no coordinate in it separates page from paint any more: the best spot found read a mixed 56 at variance 2216, against 16.4 at variance 0.1 here. The padding does not shrink with the radius. The shadow-fits half is guarded arithmetically instead, by devbar-test.mjs reading every --ov-shadow against the C++ pad constants."
+    },
+    {
+      "type": "region_mean",
+      "capture": "bubble-dark",
+      "x": 894,
+      "y": 83,
+      "w": 2,
+      "h": 2,
+      "min_mean": 0,
+      "max_mean": 256,
+      "label": "diag-right-corner-894-83",
+      "desc": "DIAGNOSTIC, always passes: the best spot the corner sliver still offers at an 8px radius. Reads a mixed 56 at variance 2216, which is why it is not load-bearing."
+    },
+    {
+      "type": "region_mean",
+      "capture": "bubble-dark",
+      "x": 893,
+      "y": 82,
+      "w": 2,
+      "h": 2,
+      "min_mean": 0,
+      "max_mean": 256,
+      "label": "diag-right-corner-893-82",
+      "desc": "DIAGNOSTIC, always passes: prints its mean so the corner probe above can be re-placed from a measurement rather than from geometry, if the radius moves again."
+    },
+    {
+      "type": "region_mean",
+      "capture": "bubble-dark",
+      "x": 896,
+      "y": 80,
+      "w": 3,
+      "h": 3,
+      "min_mean": 0,
+      "max_mean": 256,
+      "label": "diag-right-corner-896-80-the-old-spot",
+      "desc": "DIAGNOSTIC, always passes: the pre-857 spot. Reads about 132 at an 8px radius and about 16 at 17px, which is the reading that showed the coordinates had gone stale rather than the corners having broken."
+    },
+    {
+      "type": "region_mean",
+      "capture": "bubble-dark",
+      "x": 890,
+      "y": 78,
+      "w": 2,
+      "h": 2,
+      "min_mean": 0,
+      "max_mean": 256,
+      "label": "diag-right-corner-890-78",
+      "desc": "DIAGNOSTIC, always passes: further inside the curve, so this one is expected to read the bar rather than the page. It brackets the boundary from the lit side."
+    },
+    {
+      "type": "region_mean",
+      "capture": "bubble-dark",
+      "x": 905,
+      "y": 95,
+      "w": 4,
+      "h": 4,
+      "min_mean": 0,
+      "max_mean": 256,
+      "label": "diag-pad-outside-box-905-95",
+      "desc": "DIAGNOSTIC: further out in the same padding, so the pair brackets how far the shadow darkens the page before it fades."
+    },
+    {
+      "type": "region_mean",
+      "capture": "bubble-dark",
+      "x": 615,
+      "y": 100,
+      "w": 6,
+      "h": 6,
+      "min_mean": 0,
+      "max_mean": 256,
+      "label": "diag-pad-below-centre-615-100",
+      "desc": "DIAGNOSTIC: the padding directly under the bubble's middle, 16px below its bottom edge, which is the deepest part of the shadow's path."
+    },
+    {
+      "type": "region_mean",
+      "capture": "bubble-dark",
+      "x": 320,
+      "y": 60,
+      "w": 6,
+      "h": 6,
+      "min_mean": 0,
+      "max_mean": 256,
+      "label": "diag-pad-left-of-box-320-60",
+      "desc": "DIAGNOSTIC: the padding to the left of the bubble, level with its middle. The sideways reach of the shadow is smaller than the downward one, so this should read closest to the bare page."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

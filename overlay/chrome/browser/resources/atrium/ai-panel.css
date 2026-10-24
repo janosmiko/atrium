@@ -1,0 +1,426 @@
+/* Copyright 2026 The Atrium Authors */
+
+#atrium-root.aipanelroot {
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+}
+
+/* Window chrome beside the sidebar, not an overlay card: a theme's paper
+   outranks the native class in overlay.css and ignores the space. */
+#atrium-root.aipanelroot {
+  --ov-paper: var(--fill);
+  --ov-fg: var(--fg);
+  --ov-accent: var(--fg);
+  --ov-border: rgb(var(--atrium-ink) / .12);
+}
+
+html.atrium-native-chrome #atrium-root.aipanelroot {
+  --ov-paper: var(--atrium-surround-color, #F6F6F6);
+}
+
+.aipanel {
+  position: relative;
+  display: none;
+  flex-direction: column;
+  /* The browser sizes ai_panel_container_, and this document is that
+     container - a width of its own clips the header, grip and prompt row
+     against the edge of the strip the user actually sees. */
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  /* Same outer gap the web card keeps from the window edge. The window
+     pushes the borderWidth setting into --atrium-content-edge-inset, so the
+     10px here is only the pre-push value from tokens.css, not a second copy
+     of the number. This container has no native inset of its own. */
+  padding: var(--atrium-content-edge-inset, 10px);
+  color: var(--fg);
+  background: none;
+  overflow: hidden;
+}
+
+/* Nothing on the seam side: the grip band has to start at the container's true
+   edge, which ApplyContentInsets makes the web card's edge while the panel is
+   open. The card's own margin below supplies the gutter. Padding here as well
+   was the doubled gutter, measured at 36px. */
+#atrium-root.aionleft .aipanel { padding-right: 0; }
+#atrium-root.aionright .aipanel { padding-left: 0; }
+
+/* the panel takes the window's left edge whenever the sidebar
+   leaves it, and the native traffic lights sit over that corner - the header's
+   close button ended up behind the green one. Docked right nothing overlaps,
+   so the reserve follows the side rather than being constant. */
+#atrium-root.aionleft .aipanel {
+  padding-top: var(--atrium-content-top-padding, 44px);
+}
+
+#atrium-root.aipopen .aipanel {
+  display: flex;
+}
+
+/* The sidebar's own wash on the glass, so the panel follows the space the
+   sidebar beside it follows. The --fg and --fill tokens come from
+   sidebar.css. */
+.aipcard {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  /* Same horizontal padding as the HTML sidebar's own root (--sb-pad-lead,
+     sidebar.css) - applied on every side, since the card has no lead/trail
+     edge of its own. */
+  padding: var(--sb-pad-lead, 8px);
+  overflow: hidden;
+  background: var(--fill);
+  border-radius: var(--ov-radius-card);
+}
+
+/* Native app view: a wash of the surround ink reads as a grey slab, so the
+   card takes the settings card instead, the surround's own paper. */
+html.atrium-native-chrome .aipcard {
+  background: var(--ov-paper);
+  border: 1px solid var(--ov-border);
+  box-shadow: var(--ov-shadow-tight);
+}
+
+.aiphead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.aiptitle {
+  font: 600 12.5px var(--sans, system-ui, -apple-system, sans-serif);
+}
+
+.aipactions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.aippin.on {
+  background: color-mix(in srgb, var(--ov-accent) 24%, transparent);
+  color: var(--ov-accent);
+}
+
+.aictx {
+  font: 12px var(--sans, system-ui, -apple-system, sans-serif);
+  opacity: 0.75;
+  margin-bottom: 8px;
+}
+
+.aisum {
+  font: 12.5px var(--sans, system-ui, -apple-system, sans-serif);
+  margin-bottom: 12px;
+}
+
+.aichatlog {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.aibubble {
+  font: 12.5px var(--sans, system-ui, -apple-system, sans-serif);
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: var(--fill);
+  max-width: 90%;
+}
+
+.aibubble-me {
+  align-self: flex-end;
+  background: var(--selfill);
+}
+
+/* the model's working-out, folded. Closed by default - the answer
+   is what was asked for, and the thinking is there for whoever wants it. */
+.aithink {
+  font: 11.5px var(--sans, system-ui, -apple-system, sans-serif);
+  opacity: .7;
+  margin-bottom: 6px;
+}
+
+.aithink-label {
+  cursor: default;
+  user-select: none;
+}
+
+.aithink-body {
+  margin-top: 4px;
+  padding-left: 8px;
+  border-left: 2px solid currentColor;
+  white-space: pre-wrap;
+  /* A long chain of thought must not push the answer off screen. */
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+/* the reason a stream stopped, under the text it managed to send. */
+.aierrnote {
+  font: 11.5px var(--sans, system-ui, -apple-system, sans-serif);
+  color: var(--ov-danger, rgb(150 32 31));
+  margin-top: 6px;
+}
+
+/* a rule with the new page's name on it, so an answer above the
+   mark still reads as being about the page it was written for. Not a bubble -
+   nothing in the thread was said by anyone here. */
+.aipagemark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 11px var(--sans, system-ui, -apple-system, sans-serif);
+  opacity: .6;
+  margin: 4px 0;
+}
+
+.aipagemark::before,
+.aipagemark::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: currentColor;
+  opacity: .4;
+}
+
+.aiquick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* .ov-btn carries the whole 26px icon-square look. Only the corner is this
+   row's own, so the actions match the picker they sit beside. */
+.aiquickbtn {
+  border-radius: var(--ov-radius-anchor);
+}
+
+/* The settings choice look (settings.css's .settings-row-choice), at the
+   action row's own scale - the chevron is drawn here because a WebUI page
+   cannot reach another page's stylesheet. */
+.aiplang {
+  appearance: none;
+  background: var(--ov-paper);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m4.5 6.5 3.5-3 3.5 3M4.5 9.5l3.5 3 3.5-3' fill='none' stroke='%23837079' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: right 4px center;
+  background-repeat: no-repeat;
+  background-size: 11px;
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-anchor);
+  color: var(--ov-fg);
+  cursor: default;
+  font: 11.5px var(--sans, system-ui, -apple-system, sans-serif);
+  max-width: 100%;
+  /* Sized for a language code, not a name, and boxed to the 26px the two
+     action squares beside it stand at. */
+  box-sizing: border-box;
+  height: 26px;
+  padding: 0 17px 0 6px;
+}
+
+.aiplang:hover {
+  border-color: var(--ov-soft);
+}
+
+.aiplang:focus-visible {
+  outline: 2px solid var(--ov-accent);
+  outline-offset: 2px;
+}
+
+.aichatrow {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* Same field style as every other text input in the app (settings.css's
+   .settings-search-field, .engine-detail input[type="text"]): the ov-*
+   tokens already carry the light/dark split. */
+.aichatinput {
+  flex: 1;
+  appearance: none;
+  box-sizing: border-box;
+  font: 12.5px var(--sans, system-ui, -apple-system, sans-serif);
+  background: var(--ov-paper);
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-anchor);
+  color: var(--ov-fg);
+  padding: 6px 8px;
+}
+
+.aichatinput:focus-visible {
+  outline: none;
+}
+
+/* .ovresize (sidebar-overlay-resize.css) supplies the hover/drag hairline
+   look shared with the docked sidebar's own native grip - it only defaults
+   to display:none outside a floating sidebar, so this re-enables it here. */
+.aipresize {
+  display: block;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--atrium-resize-handle-width, 10px);
+  cursor: col-resize;
+}
+
+/* The handle always sits on the edge bordering the page, not the outer
+   window edge - the two edges swap when the panel flips sides. Flush (not
+   straddling the seam): .aipanel clips overflow, so a negative offset put
+   half the hit area - and the hover accent riding its outer edge - behind
+   that clip, which is why hover never showed anything. */
+#atrium-root.aionleft .aipresize { right: 0; }
+#atrium-root.aionright .aipresize { left: 0; }
+
+/* (kSidebarGripWidth - kSidebarSeamLineThickness) / 2: the clearance the native
+   seam pill keeps from the web card it marks. ApplyContentInsets drops the pane
+   container's inset on this side while the panel is open, so the band's seam
+   edge IS that card's edge - centred in the band instead, the mark came out
+   13px into the gap and against the AI card. The id is
+   load-bearing: .ovresize declares --grip-offset on this same element, and a
+   declared value beats an inherited one whatever the root says. */
+#atrium-root .aipresize {
+  --grip-offset: 1px;
+}
+
+/* The card keeps the window's own gutter from the web card, which
+   the pane container no longer supplies on this side. */
+#atrium-root.aionleft .aipcard {
+  margin-right: var(--atrium-content-edge-inset, 10px);
+}
+
+#atrium-root.aionright .aipcard {
+  margin-left: var(--atrium-content-edge-inset, 10px);
+}
+
+/* Empty it must take no room at all, or sending a question nudges the actions
+   and the prompt down under the cursor that just clicked Send. */
+.aistatus:empty {
+  display: none;
+}
+
+.aistatus {
+  margin-top: 10px;
+}
+
+.ailoader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--fg);
+  opacity: .9;
+}
+
+.ailoader-label {
+  font: 12.5px var(--sans, system-ui, -apple-system, sans-serif);
+}
+
+/* A front runs arm by arm through the flock. Where it passes, a bird dims to a
+   twentieth of its own opacity and is shoved out along its own radius. The shove
+   crests at 70 percent, after the dim has let go, so a bird lights back up while
+   it is still travelling out. That lag is what reads as a breath, not a blink. */
+.ailoader .ov-flock {
+  --flock-beat: 1.5s;
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+
+/* The glide is free of the front rather than a whole multiple of it, so the two
+   never line up and the mark never looks like it is stepping. */
+.ailoader .ov-flock-spin {
+  transform-origin: 24px 24px;
+  animation: aiflockturn 10s linear infinite;
+}
+
+@keyframes aiflockturn {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+
+.ailoader .ov-flock-push {
+  animation: aiflockpush var(--flock-beat) ease-in-out infinite;
+}
+
+@keyframes aiflockpush {
+  0%, 100% { transform: translate(0, 0); }
+  70% {
+    transform: translate(calc(var(--flock-nx) * 5.7px),
+                         calc(var(--flock-ny) * 5.7px));
+  }
+}
+
+/* The bands nest their dark windows by distance from the centre, which carries
+   the front through the depth of an arm instead of dimming the whole arm at
+   once. Band 0 is the core bird, and it never dims. */
+.ailoader .ov-flock-b1,
+.ailoader .ov-flock-b2,
+.ailoader .ov-flock-b3,
+.ailoader .ov-flock-b4,
+.ailoader .ov-flock-b5 {
+  animation: aiflockb1 var(--flock-beat) ease-in-out infinite;
+}
+
+.ailoader .ov-flock-b2 { animation-name: aiflockb2; }
+.ailoader .ov-flock-b3 { animation-name: aiflockb3; }
+.ailoader .ov-flock-b4 { animation-name: aiflockb4; }
+.ailoader .ov-flock-b5 { animation-name: aiflockb5; }
+
+@keyframes aiflockb1 {
+  0% { opacity: var(--flock-op); }
+  30%, 58% { opacity: calc(var(--flock-op) * .05); }
+  100% { opacity: var(--flock-op); }
+}
+
+@keyframes aiflockb2 {
+  0% { opacity: var(--flock-op); }
+  26%, 62% { opacity: calc(var(--flock-op) * .05); }
+  100% { opacity: var(--flock-op); }
+}
+
+@keyframes aiflockb3 {
+  0% { opacity: var(--flock-op); }
+  22%, 66% { opacity: calc(var(--flock-op) * .05); }
+  100% { opacity: var(--flock-op); }
+}
+
+@keyframes aiflockb4 {
+  0% { opacity: var(--flock-op); }
+  18%, 70% { opacity: calc(var(--flock-op) * .05); }
+  100% { opacity: var(--flock-op); }
+}
+
+@keyframes aiflockb5 {
+  0% { opacity: var(--flock-op); }
+  14%, 74% { opacity: calc(var(--flock-op) * .05); }
+  100% { opacity: var(--flock-op); }
+}
+
+/* The shorthand above resets the delay, so the rule that places each bird in the
+   front has to sit below it rather than merely elsewhere in the file. */
+.ailoader .ov-flock-push,
+.ailoader [class*="ov-flock-b"] {
+  animation-delay: calc(var(--flock-beat) * var(--flock-phase));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ailoader .ov-flock-spin,
+  .ailoader .ov-flock-push,
+  .ailoader [class*="ov-flock-b"] {
+    animation: none;
+  }
+}
+
+.aipaneloff {
+  padding: 12px;
+  font: 12.5px var(--sans, system-ui, -apple-system, sans-serif);
+  color: var(--fg);
+  opacity: 0.75;
+}

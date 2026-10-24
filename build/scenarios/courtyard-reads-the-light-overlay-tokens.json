@@ -1,0 +1,148 @@
+{
+  "name": "courtyard-reads-the-light-overlay-tokens",
+  "description": "The other half: the same Courtyard read in the LIGHT scheme, so one token measured across two runs shows the scheme block working rather than one run looking plausible on its own.\n\nIdentical to courtyard-reads-the-dark-overlay-tokens except that it does NOT pass --force-dark-mode, and the ground assertion is inverted. --ov-ground is the only token in play that the scheme block redefines: overlay.css mixes the accent into rgb(219 222 229) at line 27 and into rgb(42 42 44) at line 70. The dark run measured this element at color(srgb 0.259 0.176 0.192).\n\nWHAT THIS PAIR NO LONGER CLAIMS. A first version also asserted --ov-tile-ink moved the opposite way. It does not - overlay.css:62 defines it once as plain white, outside every scheme block, because tiles sit on a saturated room tint in both. That assertion passed in the dark run by coincidence and failed here correctly, which is how the mistake surfaced. The ink is logged now, not asserted.\n\nThe luminance parse scales color(srgb ...) floats by 255. Without that the light check was false for every colour and the dark check true for every colour, so the dark run's ground reading proved nothing.\n\nThe font assertion is not inverted. Archivo is the face in both schemes.",
+  "fixture": "canvas.spaces.json",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "sidebar-scheme",
+      "target": "/sidebar",
+      "expression": "String(window.matchMedia('(prefers-color-scheme: dark)').matches)",
+      "note": "the absence of the flag reached the renderer. Logged so a light run that somehow reports dark names itself."
+    },
+    {
+      "type": "eval_until",
+      "id": "rows-are-up",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.row').length > 0)",
+      "expected": "true",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "rightclick",
+      "x": 110,
+      "y": 620,
+      "note": "EMPTY SPACE below the rows, not a row. Courtyard lives on the space menu - a first run of this scenario right-clicked a row at y=339 and logged the row menu's ten items, none of them Courtyard. Coordinate from the sibling canvas scenario."
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "open-courtyard",
+      "target": "/sidebar",
+      "expression": "(() => { const item = [...document.querySelectorAll('.ctxitem')].find((b) => b.textContent === 'Courtyard'); if (!item) { return 'no Courtyard item among: ' + [...document.querySelectorAll('.ctxitem')].map((b) => b.textContent).join(' | '); } item.click(); return 'clicked ' + item.textContent; })()",
+      "note": "exact label, as the sibling scenario matches it. The whole menu is logged on a miss, which is what named the wrong menu on the first run."
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval_until",
+      "id": "courtyard-is-up",
+      "target": "/courtyard",
+      "expression": "String(!!document.querySelector('.courtwrap'))",
+      "expected": "true",
+      "timeout_ms": 10000,
+      "note": "GATE: without the ground element every colour reading below is vacuous"
+    },
+    {
+      "type": "eval",
+      "id": "courtyard-scheme",
+      "target": "/courtyard",
+      "expression": "String(window.matchMedia('(prefers-color-scheme: dark)').matches)"
+    },
+    {
+      "type": "eval",
+      "id": "ground-colour",
+      "target": "/courtyard",
+      "expression": "getComputedStyle(document.querySelector('.courtwrap')).backgroundColor",
+      "note": "DIAGNOSTIC: the resolved rgb, so a luminance failure below can be read rather than guessed at"
+    },
+    {
+      "type": "eval",
+      "id": "ground-is-light",
+      "target": "/courtyard",
+      "expression": "(() => { const c = getComputedStyle(document.querySelector('.courtwrap')).backgroundColor; const m = c.match(/[0-9.]+/g); if (!m || m.length < 3) { return 'unparsed: ' + c; } const scale = /^color\\(/.test(c) ? 255 : 1; const lum = ((Number(m[0]) + Number(m[1]) + Number(m[2])) / 3) * scale; return String(lum > 128); })()",
+      "note": "getComputedStyle returns the ground as color(srgb 0.26 0.18 0.19), floats in 0..1, not rgb(0..255). A first version divided by three and compared against 128 without scaling, so the dark check was true for every colour and the light check false for every colour - the dark run passed on a guard that could not fail."
+    },
+    {
+      "type": "eval",
+      "id": "tab-ink-colour",
+      "target": "/courtyard",
+      "expression": "(() => { const t = document.querySelector('.rtab'); if (!t) { return 'no tab card'; } return getComputedStyle(t).color; })()",
+      "note": "DIAGNOSTIC ONLY. --ov-tile-ink is defined once at overlay.css:62 as plain white, outside every scheme block, so it does NOT change with the scheme - tiles sit on a saturated room tint in both. An earlier version asserted it flipped, which passed in dark by coincidence and failed in light correctly."
+    },
+    {
+      "type": "eval",
+      "id": "courtyard-font",
+      "target": "/courtyard",
+      "expression": "(() => { const t = document.querySelector('.rtab') || document.querySelector('.courtwrap'); return getComputedStyle(t).fontFamily; })()",
+      "note": "Asked of the document because a font face cannot be told from a screenshot."
+    },
+    {
+      "type": "eval",
+      "id": "font-names-archivo",
+      "target": "/courtyard",
+      "expression": "(() => { const t = document.querySelector('.rtab') || document.querySelector('.courtwrap'); return String(/Archivo/i.test(getComputedStyle(t).fontFamily)); })()"
+    },
+    {
+      "type": "capture",
+      "id": "light-courtyard",
+      "duration_ms": 400,
+      "fps": 10,
+      "note": "The light screenshot, the companion to the dark run's."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "courtyard-is-up",
+      "expected": "true",
+      "desc": "GATE: the Courtyard ground exists, so the colour readings looked at it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "courtyard-scheme",
+      "expected": "\"false\"",
+      "desc": "the Courtyard resolved the LIGHT scheme. Without this the inverted colour bounds below could pass on a dark run with an odd palette."
+    },
+    {
+      "type": "eval_equals",
+      "id": "ground-is-light",
+      "expected": "\"true\"",
+      "desc": "--ov-ground resolved pale, against the dark run reading 0.26 0.18 0.19 on the same element. The flip between the two runs is the evidence."
+    },
+    {
+      "type": "eval_equals",
+      "id": "font-names-archivo",
+      "expected": "\"true\"",
+      "desc": "--ov-font resolves through to the Courtyard's own text, Archivo first in the stack"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

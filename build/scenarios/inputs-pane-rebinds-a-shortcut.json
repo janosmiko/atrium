@@ -1,0 +1,216 @@
+{
+  "name": "inputs-pane-rebinds-a-shortcut",
+  "description": "A chord rebound in the Inputs pane acts, and the chord it replaced does not - no relaunch. renderInputs used to be a viewer: a settings-row-value span with no control and no chrome.send anywhere in the function, and NativeHotkeyMap::SetFromJSON had exactly one caller (SeedFromSettings at startup), so a hand-edited hotkeys.json only took effect on the next launch. The pane now carries a Record and a Clear button per row, and AtriumSettingsWindow::OnHotkeysSaved calls SetFromJSON on every successful write, which is the live-reload half.\n\ntoggleSidebar is the action under test for the same reason hotkey-rebind picked it: its stock-key release is the only effect observable without a second window, and a sibling scenario already measured the pixel deltas this scenario reuses. The fixture stages cmd+s, the stock combo, so the Clear leg has something real to remove rather than clearing an already-empty row.\n\nTHE REBIND IS TWO WRITES, Clear then Record, not one 'replace' - the pane has no replace control, only Add-a-combo and Clear-the-row. Clearing first is also what makes the old chord's cmd+s leg land on Save Page afterwards, exactly as a sibling scenario's own notes explain: releasing the stock combo sets sidebar_toggle_combo_bound=false in AtriumCommandInterceptInputs, so IDC_SAVE_PAGE runs for real and a native Save As sheet needs the same double-Escape dismissal a sibling scenario and savepage-swallow both use.\n\nTHE CAPTURE CONTROL IS DRIVEN BY A REAL KEY EVENT, not eval. Record puts a document-level, capture-phase keydown listener in the Settings window; at the moment cmd+shift+j is pressed nothing has bound that combo yet, so NativeHotkeyMap has nothing to intercept and the native keydown reaches the WebContents as an ordinary DOM event, which is what comboFromKeydown reads. Everything before and after that one key action is eval, the same split routing-pane-adds-a-rule.json uses for its own pane-then-navigation proof.",
+  "fixture": "hotkey-rebind.spaces.json",
+  "hotkeys": "inputs-pane-rebinds-a-shortcut.hotkeys.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "timeout_ms": 20000,
+      "note": "gate on a committed navigation - past this point the sidebar has real rows, same gate hotkey-rebind uses"
+    },
+    {"type": "settle", "ms": 3000, "note": "let the docked sidebar finish rendering at the fixture's 280pt width"},
+    {"type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot"},
+    {"type": "settle", "ms": 800},
+    {"type": "move", "x": 700, "y": 600, "note": "park the pointer in page content, outside the sidebar column"},
+    {"type": "settle", "ms": 400},
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "sidebar docked, before any of the pane's writes"
+    },
+    {"type": "key", "combo": "cmd+comma", "note": "open the settings window"},
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings surface ready",
+      "timeout_ms": 15000
+    },
+    {"type": "settle", "ms": 2000, "note": "let PushSettings and PushHotkeys' thread-pool reads land"},
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: hotkeys pushed",
+      "timeout_ms": 8000,
+      "note": "the pane's data source loaded - the row has something to read the stock combo FROM"
+    },
+    {
+      "type": "eval",
+      "id": "open-inputs-pane",
+      "target": "/settings",
+      "expression": "(() => { const item = document.querySelector('.settings-rail-item[data-pane=\"inputs\"]'); if (!item) { return 'no inputs rail item'; } item.click(); return 'clicked'; })()"
+    },
+    {"type": "settle", "ms": 500},
+    {
+      "type": "eval",
+      "id": "row-before-clear",
+      "target": "/settings",
+      "expression": "document.querySelector('.settings-row[data-action=\"toggleSidebar\"] .settings-row-value').textContent",
+      "note": "the row shows the staged stock combo before either write"
+    },
+    {
+      "type": "eval",
+      "id": "click-clear",
+      "target": "/settings",
+      "expression": "(() => { const btn = document.querySelector('.settings-row[data-action=\"toggleSidebar\"] .hotkey-clear'); if (!btn) { return 'no clear button'; } btn.click(); return 'clicked'; })()",
+      "note": "Clears the row - sends an empty list, not a removed action"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: hotkeys written",
+      "timeout_ms": 5000,
+      "note": "the Clear write landed and NativeHotkeyMap::SetFromJSON ran"
+    },
+    {"type": "settle", "ms": 500},
+    {
+      "type": "eval",
+      "id": "row-after-clear",
+      "target": "/settings",
+      "expression": "document.querySelector('.settings-row[data-action=\"toggleSidebar\"] .settings-row-value').textContent",
+      "note": "The row reads Unassigned, not blank"
+    },
+    {
+      "type": "eval",
+      "id": "click-record",
+      "target": "/settings",
+      "expression": "(() => { const btn = document.querySelector('.settings-row[data-action=\"toggleSidebar\"] .hotkey-record'); if (!btn) { return 'no record button'; } btn.click(); return 'clicked'; })()",
+      "note": "arms the capture listener - the Settings window is still key, so the chord below lands on its document"
+    },
+    {"type": "settle", "ms": 300},
+    {
+      "type": "key",
+      "combo": "cmd+shift+j",
+      "note": "The new chord, pressed for real. Not yet bound to anything, so the native map has nothing to intercept and this reaches the pane's own keydown listener"
+    },
+    {"type": "settle", "ms": 1500, "note": "let the Record write's round trip land - a second 'hotkeys written' line, not distinguishable by pattern from the Clear one above, so this is a settle rather than a second wait_vlog"},
+    {
+      "type": "eval",
+      "id": "row-after-record",
+      "target": "/settings",
+      "expression": "document.querySelector('.settings-row[data-action=\"toggleSidebar\"] .settings-row-value').textContent",
+      "note": "The row now shows the recorded chord"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w",
+      "note": "closes the key Settings window - cmd+s below must reach the browser window, not the settings surface"
+    },
+    {"type": "settle", "ms": 1000, "note": "let the close finish and key status pass to the browser window"},
+    {"type": "move", "x": 700, "y": 600, "note": "re-park the pointer in the browser window's page content"},
+    {"type": "settle", "ms": 400},
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "THE NEGATIVE: the chord the Clear write released. It must reach Save Page instead of the sidebar, same fallback hotkey-rebind measures for the identical release"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab 1 save page",
+      "timeout_ms": 10000,
+      "note": "confirm SavePage() was entered before waiting for its panel"
+    },
+    {"type": "settle", "ms": 2500, "note": "let the save sheet actually appear - SavePackage::GetSaveInfo hops to a background thread first"},
+    {"type": "key", "combo": "escape", "note": "cancel the save panel so the frame below is comparable with before"},
+    {"type": "settle", "ms": 1500, "note": "sheet teardown finishes before the frame below is captured"},
+    {"type": "key", "combo": "escape", "note": "second dismissal in case the first raced the panel - harmless if no panel opened"},
+    {"type": "settle", "ms": 800},
+    {
+      "type": "capture",
+      "id": "after-old-combo",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "after cmd+s: the sidebar must still be docked - the old chord no longer acts"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+j",
+      "note": "THE POSITIVE: the chord the Record write bound"
+    },
+    {"type": "settle", "ms": 1500, "note": "let the collapse settle - same margin hotkey-rebind uses for this transition"},
+    {
+      "type": "capture",
+      "id": "after-new-combo",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "after cmd+shift+j: the sidebar column must have gone"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "row-before-clear",
+      "expected": "\"cmd+s\"",
+      "desc": "the row read the staged stock combo before either write"
+    },
+    {
+      "type": "eval_equals",
+      "id": "row-after-clear",
+      "expected": "\"Unassigned\"",
+      "desc": "A cleared row reads Unassigned, not blank and not the removed combo"
+    },
+    {
+      "type": "eval_equals",
+      "id": "row-after-record",
+      "expected": "\"cmd+shift+j\"",
+      "desc": "A recorded chord shows on the row immediately"
+    },
+    {
+      "type": "vlog",
+      "label": "the-writes-landed",
+      "pattern": "Atrium: hotkeys written"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-unusable-argument-refusal",
+      "pattern": "Atrium: the hotkeys surface sent an object the core"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-write-failure",
+      "pattern": "Atrium: the hotkeys write failed"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-schema-decline",
+      "pattern": "Atrium: hotkeys\\.json is at a schema this build cannot"
+    },
+    {
+      "type": "file_contains",
+      "label": "the-new-combo-reached-disk",
+      "file": "hotkeys",
+      "path": "actions.toggleSidebar.0",
+      "value": "cmd+shift+j"
+    },
+    {
+      "type": "region_stable",
+      "before": "before",
+      "after": "after-old-combo",
+      "region": [40, 200, 150, 300],
+      "max_delta": 10.0,
+      "desc": "NEGATIVE: cmd+s no longer toggles the sidebar - the write reached NativeHotkeyMap in this same run, no relaunch"
+    },
+    {
+      "type": "pixels_changed",
+      "before": "after-old-combo",
+      "after": "after-new-combo",
+      "region": [40, 200, 150, 300],
+      "min_changed_pct": 40.0,
+      "desc": "POSITIVE: cmd+shift+j collapses the sidebar - the recorded chord acts in this same run, no relaunch"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "liveness, and a check that no save panel was left standing"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits"
+    }
+  ]
+}

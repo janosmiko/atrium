@@ -1,0 +1,132 @@
+{
+  "name": "the-docked-sidebar-keeps-its-glass-after-a-reveal",
+  "description": "The reporter's DOCKED sidebar paints as an opaque slab while the surround band beside it still shows the glass, on a profile with the opacity at 30%. Both are the same window and the same backdrop, so something covers the sidebar column alone.\n\nThe suspect is the handover. The sidebar's WebContents is made transparent ONCE, when it is built (atrium_browser_window.cc:4895) - rwhv->SetBackgroundColor plus SetPageBaseBackgroundColor. Revealing the panel moves that WebContents to a second views::WebView and docking moves it back, and neither HandSidebarToPanel nor DockFloatingSidebar re-applies either. A RenderWidgetHostView rebuilt across that move comes back with the default opaque background, and the renderer then paints over the window's own backdrop.\n\nThis is why the VM said nothing before: A fresh profile's 0xB8 tint hides the docked frost in both arms. The settings fixture here carries the reporter's own 30%, so the frost is visible and a slab is not.\n\nThe reading is a before and after of the SAME docked sidebar, either side of one reveal-and-dock cycle. Nothing about the sidebar should differ.",
+  "fixture": "checkerboard.spaces.json",
+  "settings": "glass-thirty.settings.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "skylight-base",
+      "target": "/sidebar",
+      "expression": "(() => { const l = document.querySelector('.bglayer'); if (!l) return 'no-bglayer'; const r = l.getBoundingClientRect(); return getComputedStyle(l).backgroundImage.slice(0, 120) + ' @ ' + Math.round(r.width) + 'x' + Math.round(r.height); })()",
+      "note": "installSkylight paints a base of linear-gradient(165deg, #14181D, #0B0D10) - opaque - into this layer on every sidebar paint. If it is there and sized, no glass opacity can show the desktop through it."
+    },
+    {
+      "type": "capture",
+      "id": "docked-first",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the docked sidebar before any panel has ever existed"
+    },
+    {
+      "type": "eval",
+      "id": "collapse-pressed",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbtoggle'); if (!b) return 'no-button'; b.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar toggle requested from the chrome row",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "move",
+      "x": 300,
+      "y": 400
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "move",
+      "x": 20,
+      "y": 400,
+      "note": "cross into the 32pt arming strip from outside it"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 400,
+      "note": "leave, so the panel slides away and hands the contents back"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "past the 280ms grace and the 240ms slide, so DockFloatingSidebar has run"
+    },
+    {
+      "type": "eval",
+      "id": "re-docked",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbtoggle'); if (!b) return 'no-button'; b.click(); return 'clicked'; })()",
+      "note": "dock the pane again, so the second reading is of the same docked sidebar as the first"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar toggle requested from the chrome row",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "capture",
+      "id": "docked-again",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "region_stable",
+      "before": "docked-first",
+      "after": "docked-again",
+      "region": [
+        40,
+        450,
+        180,
+        150
+      ],
+      "max_delta": 8,
+      "label": "the-sidebar-column-still-looks-the-same",
+      "desc": "An empty stretch of the sidebar, below the last row, so no content difference can move the mean. A sidebar that lost its transparency across the handover reads as a flat fill here while the first frame reads tint over frosted desktop."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "DCHECK failed",
+      "label": "no-dcheck-fired"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

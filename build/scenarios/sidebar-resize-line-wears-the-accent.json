@@ -1,0 +1,88 @@
+{
+  "name": "sidebar-resize-line-wears-the-accent",
+  "description": "The pill on the sidebar's seam paints with the overlay accent. settings.json says overlayAccent nord, so a hover on the seam must show nord's #88C0D0 (136,192,208), not the brand crimson (176,58,72) the seam used to carry on every theme.\n\nThe read follows sidebar-resize-line-wears-the-space-tint: the seam column at the fixture's staged 260 is 260..266 and the pill is 261..265, so the colour is read there before any drag moves it. The pointer parks on blank page first so the rest frame carries no pill.",
+  "fixture": "two-tabs.spaces.json",
+  "settings": "accent-theme-nord.settings.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "the theme push runs after the document is up"
+    },
+    {
+      "type": "move",
+      "x": 900,
+      "y": 640,
+      "note": "park in blank page content, clear of the seam column and the read region"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "rest",
+      "duration_ms": 400,
+      "fps": 10
+    },
+    {
+      "type": "move",
+      "x": 263,
+      "y": 500,
+      "note": "the seam column's centre at 260 wide. y=500 keeps the cursor out of the region read at 180..340"
+    },
+    {
+      "type": "settle",
+      "ms": 1200,
+      "note": "past the 500ms reveal delay and the 150ms fade"
+    },
+    {
+      "type": "capture",
+      "id": "lit",
+      "duration_ms": 400,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "pixels_changed",
+      "before": "rest",
+      "after": "lit",
+      "region": [
+        261,
+        180,
+        4,
+        160
+      ],
+      "min_changed_pct": 80,
+      "label": "the-pill-fills-the-seam-column"
+    },
+    {
+      "type": "region_mean",
+      "capture": "lit",
+      "x": 261,
+      "y": 180,
+      "w": 4,
+      "h": 160,
+      "max_mean": 205,
+      "min_mean": 140,
+      "label": "the-pill-carries-the-nord-accent-not-the-crimson",
+      "desc": "nord's 136,192,208 at the seam's 235 alpha over the sidebar surface reads near 175 per channel. The brand crimson reads near 103, the bare surface near 120, both outside the band",
+      "note": "the channel mean of the seam column"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

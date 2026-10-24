@@ -1,0 +1,80 @@
+{
+  "name": "ai-panel-chat-is-not-the-stub",
+  "description": "A question typed into the AI panel goes to the native on-device path, not the '(mock)' stub. The probe VM has Apple Intelligence off, so the native path answers with its unavailable line. A real model answer cannot be shown here and needs a check on a Mac with Apple Intelligence on.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "eval_until",
+      "id": "panel-built",
+      "target": "/ai-panel",
+      "expression": "String(!!document.querySelector('.aichatinput'))",
+      "expected": "true",
+      "timeout_ms": 10000,
+      "note": "setup gate: the panel is on and has its chat field"
+    },
+    {
+      "type": "eval",
+      "id": "ask",
+      "target": "/ai-panel",
+      "expression": "(() => { document.dispatchEvent(new KeyboardEvent('keydown', {key: '`'})); const input = document.querySelector('.aichatinput'); input.value = 'What is this page about?'; input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'})); return document.querySelectorAll('.aichatlog .aibubble-me').length; })()",
+      "note": "opens the panel with its hotkey, then sends one question the way the Enter key does"
+    },
+    {
+      "type": "eval_until",
+      "id": "answer",
+      "target": "/ai-panel",
+      "expression": "(() => { const b = document.querySelectorAll('.aichatlog .aibubble-ai'); return b.length ? b[b.length - 1].textContent : 'no answer'; })()",
+      "expected": "On-device chat isn't available on this Mac.",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "well past the stub's 450 ms timer, so a stub answer would have landed by now"
+    },
+    {
+      "type": "eval",
+      "id": "no-mock",
+      "target": "/ai-panel",
+      "expression": "(() => { const log = document.querySelector('.aichatlog'); return String(!log.textContent.includes('(mock)') && log.querySelectorAll('.aibubble-ai').length === 1); })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "ask",
+      "expected": "1",
+      "desc": "setup: the question landed in the chat log"
+    },
+    {
+      "type": "eval_equals",
+      "id": "answer",
+      "expected": "On-device chat isn't available on this Mac.",
+      "desc": "With Foundation Models unavailable the chat shows the native error line"
+    },
+    {
+      "type": "eval_equals",
+      "id": "no-mock",
+      "expected": "\"true\"",
+      "desc": "No '(mock)' text and exactly one answer"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

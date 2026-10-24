@@ -1,0 +1,97 @@
+{
+  "name": "popup-opens-as-a-peek",
+  "description": "A window.open popup from a page shows as a peek card over that page instead of a plain top-level window. The seam is Browser::AddNewContents (browser.cc): a NEW_POPUP whose opener is the active tab of an Atrium-managed Browser is handed to BrowserController::AdoptPopupAsPeek, which takes ownership of the WebContents content already built rather than making a new one, so window.opener, the profile and the storage partition survive.\n\nThe fixture reacts to a click AND to a key, and opens the popup at most once, rather than calling window.open on load. A load-time window.open carries no user gesture, so blocked_content stops it before AddNewContents ever runs and the scenario would measure the popup blocker instead of the feature. Both a click and a keydown carry transient activation, so either gets through.\n\nThe first run measured nothing for a reason that has nothing to do with the feature: the capture step starts a screen recording, macOS raises its 'com.apple.sshd-session is requesting to bypass the system private window picker' dialog, and that dialog floats over the middle of the window - roughly x 383-641, y 118-487 on the failing run's own before frame. The click at 400,300 landed on the dialog, so the page never saw it and no popup was ever created (the run log holds no navigation to popup-target.html at all). 300,620 is clear of the dialog on both axes and still inside the web pane, which starts near x=227. The key is the belt to that braces: the dialog floats but does not take key focus, so a keydown reaches the page even when those pixels are covered - the same reasoning foyer-move-to-space wrote up for the same HUD.\n\nax_window_count is the discriminator, and the popup's requested size is what makes it one. The peek card IS an AX window - a borderless child, subrole AXUnknown, sized against the parent's web-content pane and measured at 596x626 by peek-auto-pinned - so a card open gives 2 windows past the 200000 min_area. The fixture asks for width=340,height=380, which is about 130000 and falls UNDER that floor, so the stock path (a real popup window) gives 1. Without the size in the feature string both paths would report 2 and the assertion would be vacuous.",
+  "fixture": "popup.spaces.json",
+  "startup_space": "71171171-7117-4711-8711-711711711711",
+  "seed_prefs": "search-default-google.prefs.json",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "popup-opener.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/popup-opener.html",
+      "timeout_ms": 25000,
+      "note": "gate: the opener page really committed as the startup tab"
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "let the page paint and the sidebar settle"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot, so a synthetic click would land elsewhere"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the opener page, no card yet"
+    },
+    {
+      "type": "move",
+      "x": 300,
+      "y": 620,
+      "note": "hover before pressing. peek-scrim found a click without a settled pointer lands on only about half of the runs"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "click",
+      "x": 300,
+      "y": 620,
+      "note": "THE MEASUREMENT, first of two ways in: the button calls window.open with a size, which is what makes the disposition NEW_POPUP. Read off the failing run's own before frame - see the description for why 400,300 could not work"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "THE MEASUREMENT, second way in. The page opens the popup at most once, so this is a no-op when the click already landed and the whole run when it did not"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: peek widget showing for parent",
+      "timeout_ms": 15000,
+      "note": "gate: a card really opened. PeekWidget::Show is the sole writer of peek-opened state in the tree"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "let the open animation finish and the popup page paint"
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence of the popup showing in the card"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-popup-opened-as-a-peek",
+      "pattern": "Atrium: peek widget showing for parent",
+      "note": "peek-auto-pinned measured this line ABSENT on a run that sent no click, so it can only come from the window.open the button fires"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "note": "the browser window AND the card. The requested popup is 340x380, under the 200000 floor, so the stock path answers 1 here - see this scenario's description for why the size is load-bearing"
+    }
+  ]
+}

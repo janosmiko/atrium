@@ -1,0 +1,70 @@
+/* Copyright 2026 The Atrium Authors
+ * Use of this source code is governed by the Apache License, Version 2.0
+ * found in the LICENSE file. */
+
+/* only while the sidebar floats. Docked, the seam between the pane
+   and the page is a native band and this would sit on top of it. */
+.ovresize {
+  /* The mark copies the native seam pill so the two grips read as one
+     control: kSidebarSeamLineThickness (kSidebarGripWidth 6 less the guide's
+     hairline each side) and kSidebarSeamLineInset, which is --ov-radius-card.
+     The 2px full-height line it drew before looked thinner than the pill
+     beside it. */
+  --grip-mark: 4px;
+  --grip-inset: var(--ov-radius-card, 16px);
+  /* How far the mark sits from the seam edge. Centred in the grab band by
+     default. The AI panel takes the native pill's own clearance instead
+     (ai-panel.css). */
+  --grip-offset: calc(
+      (var(--atrium-resize-handle-width, 10px) - var(--grip-mark)) / 2);
+  display: none;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: var(--atrium-resize-handle-width, 10px);
+  z-index: 6;
+  cursor: col-resize;
+}
+
+.atrium-sidebar-floating .ovresize {
+  display: block;
+}
+
+.atrium-sidebar-on-right .ovresize {
+  right: auto;
+  left: 0;
+}
+
+/* Nothing at rest, the accent under the pointer (swipe-lab.html:43-44).
+   The offset runs from the seam edge, the edge the band is pinned to. Centred
+   in the band instead, the mark's clearance from the card followed the grab
+   width, which is a hit-area number - the AI panel's came out at 3px against
+   the native pill's 1px. */
+.ovresize::after {
+  content: "";
+  position: absolute;
+  top: var(--grip-inset);
+  bottom: var(--grip-inset);
+  right: var(--grip-offset);
+  width: var(--grip-mark);
+  border-radius: calc(var(--grip-mark) / 2);
+  background: transparent;
+  transition: background .15s;
+}
+
+/* The two surfaces whose band is pinned to its left edge, so the gutter - and
+   the mark in it - runs the other way. */
+.atrium-sidebar-on-right .ovresize::after,
+#atrium-root.aionright .ovresize::after {
+  right: auto;
+  left: var(--grip-offset);
+}
+
+/* --ov-seam, not --accent: nothing ever defined --accent, so both grips drew
+   the white fallback while the native seam beside them wore the theme's
+   colour. */
+.ovresize:hover::after,
+.ovresize.on::after {
+  background: var(--ov-seam, rgba(255, 255, 255, .55));
+}

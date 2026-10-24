@@ -1,0 +1,135 @@
+{
+  "name": "address-row-escape-restores-the-url",
+  "description": "A click on the sidebar's address row opens the palette anchored on that row, same as the other two scenarios in this set. Here the field gets typed into and then Escape, never Return - the tab must not navigate, the row must show its own URL again, and the palette must give up key before the sidebar document can say it has focus again.",
+  "fixture": "long-page.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "chromium_flags": "--vmodule=atrium_command_bar_widget=1",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the reserved chrome context lands about 670ms after startup and the palette's WebContents needs it"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "row-box",
+      "target": "/sidebar",
+      "expression": "(() => { const bar = document.querySelector('#sbUrl'); if (!bar) { return 'no row'; } const b = bar.getBoundingClientRect(); return Math.round(b.left) + ',' + Math.round(b.top) + ' ' + Math.round(b.width) + 'x' + Math.round(b.height); })()",
+      "note": "the row's box in the sidebar document, written into the log so a click that misses can be re-aimed from the run's own numbers rather than by guessing. Add 30 to the top for the screen coordinate: the window's content starts there in this VM."
+    },
+    {
+      "type": "capture",
+      "id": "before-the-click",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the resting sidebar, so a click that lands on the wrong control is diagnosable from the frame"
+    },
+    {
+      "type": "eval",
+      "id": "click-address-row",
+      "target": "/sidebar",
+      "expression": "(() => { const bar = document.querySelector('#sbUrl'); if (!bar) { return 'no row'; } bar.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window})); return 'clicked'; })()",
+      "note": "dispatched on the row itself rather than aimed by coordinate - the sidebar layout moved since this plan's x/y was measured (favourites grid beside the rail), and sidebar.js's handler reads e.target.closest('#sbUrl'), which a bubbling synthetic click satisfies the same as a real one."
+    },
+    {
+      "type": "eval_until",
+      "id": "palette-anchored",
+      "target": "/commandbar",
+      "expression": "(() => { const c = document.querySelector('.cbcard'); if (!c) { return 'no card'; } if (!c.classList.contains('cbanchored')) { return 'centred'; } const w = parseInt(c.style.width, 10); return w >= 320 && c.style.top && c.style.left ? 'anchored' : 'incomplete ' + c.style.cssText; })()",
+      "expected": "anchored",
+      "timeout_ms": 20000,
+      "note": "THE GATE. A centred card here means the click reached the palette but carried no rect; 'no card' means the click never opened it at all."
+    },
+    {
+      "type": "type",
+      "text": "zqxv",
+      "note": "the field holds something a commit would navigate to, so a stray Return-path would be provable"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "key",
+      "combo": "escape"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "tab-after-escape",
+      "target": "long-page.html",
+      "expression": "String(location.href)",
+      "note": "Escape must not commit the field - the tab is still on the page it started on"
+    },
+    {
+      "type": "eval",
+      "id": "row-after-escape",
+      "target": "/sidebar",
+      "expression": "String(document.querySelector('#sbUrl').value)",
+      "note": "the row shows its own URL again, not the typed text"
+    },
+    {
+      "type": "eval_until",
+      "id": "palette-closed",
+      "target": "/sidebar",
+      "expression": "String(document.querySelector('#sbUrl').classList.contains('addr-hidden'))",
+      "expected": "false",
+      "timeout_ms": 10000,
+      "note": "Close() un-hides the row only after the widget really closed - focus lands on the tab content, not this document, so hasFocus() cannot gate here"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "palette-anchored",
+      "expected": "anchored",
+      "desc": "a real click on the row opened the palette laid on that row, at or above the minimum width"
+    },
+    {
+      "type": "eval_equals",
+      "id": "tab-after-escape",
+      "expected": "\"http://127.0.0.1:8000/long-page.html\"",
+      "desc": "Escape must not commit the field"
+    },
+    {
+      "type": "eval_equals",
+      "id": "row-after-escape",
+      "expected": "\"127.0.0.1:8000\"",
+      "desc": "the row shows its URL again"
+    },
+    {
+      "type": "eval_equals",
+      "id": "palette-closed",
+      "expected": "false",
+      "desc": "the row is un-hidden again, which only Close() does once the palette has really closed"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: command bar widget closing",
+      "label": "the-palette-closed-on-escape",
+      "desc": "the widget's own close line, not an inference from focus alone"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

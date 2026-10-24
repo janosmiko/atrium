@@ -1,0 +1,204 @@
+{
+  "name": "reload-variants-match-the-lab",
+  "description": "The hard reload and the clear-site reload draw the lab's own glyphs. The lab's reloadSVG (docs/lab/swipe-lab.html:2895-2907) keeps one arc for all three modes and marks the inside of it: nothing for plain, a bolt for mode-hard, and for mode-nuke three crumbs falling out of an arc dashed with .rldash (2.7 1.6). The row used to answer with the characters ↯ and ⌦, which came from a fallback face, sized and sat differently from every other glyph here, and said nothing about severity. THE MODIFIER COMES FROM NATIVE, and this scenario arms it the only way that works: cgevent posts a modifier press the flagsChanged monitor sees but a release it never does, so a held chord cannot be driven from the harness. window.atriumSetNavModifiers(shift, cmd, option) is the receiver AtriumBrowserWindow::SetSidebarNavModifiers pushes to, and calling it from the page latches exactly the state the native push would - same tracker, same painters, same CSS. The reads are innerHTML, with the double quotes swapped for single ones so the expectation below stays one level of escaping deep; nothing else about the markup is normalised, so a lost attribute, a changed path or a different colour keyword all fail. COLOUR LIVES ON THE PLATE, NOT IN THE GLYPH. Every mark is fill='currentColor', and the ink it inherits is the [data-mod] rule's: #6b4700 on #e2a648 for Option, #701400 on #ff5f57 for Cmd+Shift. Those are the lab's two severity hues, filled rather than washed - a translucent wash reads under 2:1 against a light sidebar tint, measured in modifier-glyphs-read-on-the-tint. REGION COORDINATES ARE SCREEN-ABSOLUTE: every Atrium window opens at pos=(0,30), so the row's CSS band (y 9..31) is y 39..61 on screen, and the group spans x 180..250 - back 180..202, forward 204..226, reload 228..250 (nav-buttons-animate's own math at the fixture's 260pt width). The pixel assertions read the whole group rather than the reload button alone: the modifier plates all three controls, so the group is the honest frame, and it is the region nav-buttons-follow-the-modifiers already measured a modifier swap in.",
+  "fixture": "two-tabs.spaces.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 30000,
+      "note": "GATE. cdp-eval takes the FIRST /json/list target whose url contains /sidebar, and during startup a window can hold more than one sidebar document - the 2026-08-29 run read one that had no nav row and no receiver, and reported 'no reload glyph' for markup that was in fact correct. This waits for a sidebar that has drawn rows before anything is asked."
+    },
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the nav row announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "push_receiver",
+      "target": "/sidebar",
+      "expression": "typeof window.atriumSetNavModifiers",
+      "expected": "function",
+      "timeout_ms": 20000,
+      "note": "VACUITY GUARD, and the second half of the gate. Polling rather than one shot: the module graph installs the receiver, and a document read before that answers 'undefined' - which every arm below would then silently no-op against, leaving all three reads on the plain arc and one of them passing. eval_until FAILS the run when it never settles, so a wrong document can no longer read as a wrong glyph."
+    },
+    {
+      "type": "capture",
+      "id": "plain",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the resting arc, before anything is armed"
+    },
+    {
+      "type": "eval",
+      "id": "reload_plain",
+      "target": "/sidebar",
+      "expression": "(() => { const q = String.fromCharCode(34), a = String.fromCharCode(39); const g = document.querySelector('.sbnav .sbreload .g'); return g ? g.innerHTML.split(q).join(a) : 'no reload glyph'; })()",
+      "note": "the lab's arc and arrowhead with nothing inside them"
+    },
+    {
+      "type": "eval",
+      "id": "reload_hard",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumSetNavModifiers(false, false, true); const q = String.fromCharCode(34), a = String.fromCharCode(39); const g = document.querySelector('.sbnav .sbreload .g'); return g ? g.innerHTML.split(q).join(a) : 'no reload glyph'; })()",
+      "note": "Option, armed through the native receiver, and the markup read in the same turn - the painter runs synchronously"
+    },
+    {
+      "type": "capture",
+      "id": "hard",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the bolt on the lab's amber plate, latched because nothing releases it"
+    },
+    {
+      "type": "eval",
+      "id": "reload_hard_ink",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumSetNavModifiers(false, false, true); const el = document.querySelector('.sbnav .sbreload'); return el ? getComputedStyle(el).color : 'no button'; })()",
+      "note": "The ink the bolt draws itself in, since it is fill='currentColor'. Arms in the same expression it reads, the shape modifier-glyphs-read-on-the-tint measured works: the row is already in this state, so the re-arm is the tracker's own no-op."
+    },
+    {
+      "type": "eval",
+      "id": "reload_nuke",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumSetNavModifiers(true, true, false); const q = String.fromCharCode(34), a = String.fromCharCode(39); const g = document.querySelector('.sbnav .sbreload .g'); return g ? g.innerHTML.split(q).join(a) : 'no reload glyph'; })()",
+      "note": "Cmd+Shift, entered from Option without a release, the way the row is really used"
+    },
+    {
+      "type": "capture",
+      "id": "nuke",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the dashed arc and its three crumbs on the lab's red plate"
+    },
+    {
+      "type": "eval",
+      "id": "reload_nuke_ink",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumSetNavModifiers(true, true, false); const el = document.querySelector('.sbnav .sbreload'); return el ? getComputedStyle(el).color : 'no button'; })()",
+      "note": "The second severity, a different ink from the first"
+    },
+    {
+      "type": "eval",
+      "id": "back_glyphs",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.sbnav'); if (!r) { return 'no nav row'; } return (r.dataset.mod || '-') + '|' + r.querySelector('.sbback .g').textContent + r.querySelector('.sbfwd .g').textContent; })()",
+      "note": "For the other two controls. The lab draws back and forward as characters and gives them no modifier mode of its own (swipe-lab.html:3662), so they keep the row's own ladder rather than gaining a drawing."
+    },
+    {
+      "type": "eval",
+      "id": "reload_restored",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumSetNavModifiers(false, false, false); const q = String.fromCharCode(34), a = String.fromCharCode(39); const g = document.querySelector('.sbnav .sbreload .g'); return g ? g.innerHTML.split(q).join(a) : 'no reload glyph'; })()",
+      "note": "the release puts the plain arc back, so nothing is left holding a severity glyph"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the restored paint, to compare against plain"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "push_receiver",
+      "expected": "function",
+      "desc": "VACUITY GUARD: the native receiver is published, so every arm below really latched a state. Unquoted, unlike every other expectation here: eval_until stores the bare value it settled on, where a plain eval stores what cdp-eval printed, which is JSON."
+    },
+    {
+      "type": "eval_equals",
+      "id": "reload_plain",
+      "expected": "\"<svg viewBox='0 -0.66 12 12' width='16' height='16'><path d='M9.86 4.96A4 4 0 1 1 7.04 2.14' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round'></path><path d='M5.25 2.79L7.04 2.14L5.82 0.68' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'></path></svg>\"",
+      "desc": "the lab's reloadSVG('') - one arc, one arrowhead, and the viewBox that pays back the arc's own 0.66 unit offset"
+    },
+    {
+      "type": "eval_equals",
+      "id": "reload_hard",
+      "expected": "\"<svg viewBox='0 -0.66 12 12' width='16' height='16'><path d='M9.86 4.96A4 4 0 1 1 7.04 2.14' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round'></path><path d='M5.25 2.79L7.04 2.14L5.82 0.68' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'></path><path class='rlbolt' d='M7.1 3.3L4.5 6.5H5.9L4.9 8.7L7.5 5.4H6.1Z' fill='currentColor'></path></svg>\"",
+      "desc": "The lab's mode-hard bolt, path for path, inside the unchanged arc"
+    },
+    {
+      "type": "eval_equals",
+      "id": "reload_nuke",
+      "expected": "\"<svg viewBox='0 -0.66 12 12' width='16' height='16'><path d='M9.86 4.96A4 4 0 1 1 7.04 2.14' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round' stroke-dasharray='2.7 1.6'></path><path d='M5.25 2.79L7.04 2.14L5.82 0.68' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'></path><circle class='rlcrumb' cx='4.95' cy='5.3' r='.85' fill='currentColor'></circle><circle class='rlcrumb' cx='7.15' cy='6.15' r='.78' fill='currentColor'></circle><circle class='rlcrumb' cx='5.7' cy='7.6' r='.7' fill='currentColor'></circle></svg>\"",
+      "desc": "The lab's mode-nuke - the arc broken by .rldash's 2.7 1.6, and its three crumbs at the lab's own centres and radii"
+    },
+    {
+      "type": "eval_equals",
+      "id": "reload_hard_ink",
+      "expected": "\"rgb(107, 71, 0)\"",
+      "desc": "#6b4700, the ink the filled amber plate carries"
+    },
+    {
+      "type": "eval_equals",
+      "id": "reload_nuke_ink",
+      "expected": "\"rgb(112, 20, 0)\"",
+      "desc": "#701400, a second ink, so the two severities are never a same-colour near-miss"
+    },
+    {
+      "type": "eval_equals",
+      "id": "back_glyphs",
+      "expected": "\"cmdshift|↰↱\"",
+      "desc": "back and forward answer the same chord with their own new-tab arrows, checked against the lab, which draws neither"
+    },
+    {
+      "type": "pixels_changed",
+      "before": "plain",
+      "after": "nuke",
+      "region": [
+        180,
+        39,
+        70,
+        22
+      ],
+      "min_changed_pct": 4.0,
+      "desc": "THE PAINT: the crumbs and the dashed arc reached the screen, not just the DOM"
+    },
+    {
+      "type": "eval_equals",
+      "id": "reload_restored",
+      "expected": "\"<svg viewBox='0 -0.66 12 12' width='16' height='16'><path d='M9.86 4.96A4 4 0 1 1 7.04 2.14' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round'></path><path d='M5.25 2.79L7.04 2.14L5.82 0.68' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'></path></svg>\"",
+      "desc": "the release puts the plain arc back, dash and crumbs gone"
+    },
+    {
+      "type": "region_stable",
+      "before": "plain",
+      "after": "after",
+      "region": [
+        180,
+        39,
+        70,
+        22
+      ],
+      "max_delta": 3,
+      "desc": "and the restored paint matches the resting one, so nothing is left stuck in a severity glyph"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "name": "quit-panel-follows-the-overlay-theme",
+  "description": "The hold-to-quit panel painted the brand crimson paper whatever overlay theme the user chose: the panel has no WebContents, so the theme never reached it. It now reads the chosen theme's palette back from local state, which the window writes whenever the theme is applied.\n\nSame method as quit-panel-corners-are-transparent: a solid red page, Cmd+Q held under the commit mark, and the mid frame of the hold read back. The theme is kanagawa, whose paper is #DCD7BA - a warm beige whose blue channel (186) sits well under the brand paper's (about 242), so one channel bound tells the two apart where a plain mean could not.",
+  "fixture": "quit-panel-over-red.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "settings": "confirm-quit-on-kanagawa.settings.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "red-page-up",
+      "target": "peek-scrim-red.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-scrim-red.html",
+      "timeout_ms": 25000,
+      "note": "gate: the red page committed as the startup tab"
+    },
+    { "type": "settle", "ms": 6000 },
+    { "type": "activate" },
+    { "type": "settle", "ms": 1500 },
+    {
+      "type": "key_during_capture",
+      "combo": "cmd+q",
+      "capture_id": "hold-cmd-q-panel",
+      "duration_ms": 2000,
+      "fps": 20,
+      "key_delay_ms": 400,
+      "mid_at_ms": 800,
+      "note": "the sibling scenario's timings: released under the commit mark, the mid frame inside the panel's visible window"
+    },
+    { "type": "settle", "ms": 2500 }
+  ],
+  "assertions": [
+    { "type": "ax_window_count", "expected": 1, "min_area": 200000, "desc": "the app did not quit" },
+    { "type": "vlog", "label": "confirm-to-quit-is-armed", "pattern": "Atrium: confirm-to-quit is now on" },
+    { "type": "region_mean", "capture": "hold-cmd-q-panel_mid", "x": 500, "y": 210, "w": 10, "h": 10, "min_mean": 150, "max_mean": 256, "min_r": 200, "max_b": 205, "label": "the-card-wears-the-kanagawa-paper", "desc": "THE ASSERTION: kanagawa's #DCD7BA paper, blue 186. The brand paper reads about 242 in blue and fails max_b." }
+  ]
+}

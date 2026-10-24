@@ -1,0 +1,76 @@
+{
+  "name": "space-dot-bloom-glides",
+  "description": "placeDotBloom measured the active dot's offsetLeft while the dot bar was still detached, so --dbx was always written as 0px and the glow under the active space dot never left the left end. Space Run is index 0 and space Empty is index 1 - switching between them has to move the bloom's --dbx to a different value, read straight off the dot bar rather than inferred from a picture.",
+  "fixture": "glow-and-an-empty-space.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "ambilight-run.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/ambilight-run.html",
+      "timeout_ms": 20000,
+      "note": "GATE: Run's own tab has committed, so the sidebar and its dot bar exist"
+    },
+    { "type": "settle", "ms": 2500 },
+    { "type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot" },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "dbx-run",
+      "target": "/sidebar",
+      "expression": "getComputedStyle(document.querySelector('.dotbloom')).getPropertyValue('--dbx').trim()",
+      "note": "Run is the active space at launch (index 0) - the bloom's own --dbx, read off the bar rather than off a screenshot"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "switch to Empty (index 1), the same chord a sibling scenario uses"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 0 -> 1 ",
+      "timeout_ms": 20000,
+      "note": "GATE: the browser committed the switch before the bloom is read again"
+    },
+    { "type": "settle", "ms": 2000, "note": "past the CSS glide the fix relies on" },
+    {
+      "type": "eval",
+      "id": "dbx-empty",
+      "target": "/sidebar",
+      "expression": "getComputedStyle(document.querySelector('.dotbloom')).getPropertyValue('--dbx').trim()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window throughout"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: active space 0 -> 1 ",
+      "label": "control-the-switch-actually-happened",
+      "desc": "CONTROL: without a real switch the two --dbx reads below would just be the same value read twice."
+    },
+    {
+      "type": "eval_equals",
+      "id": "dbx-run",
+      "expected": "\"18px\"",
+      "desc": "CALIBRATION: the bloom under the centre of Run's dot, measured on a VM run of this fixture's bar. The bloom sits in the dots' own scroller, so this is relative to the scroller's padding edge, 6px of which is clearance for a magnified end dot."
+    },
+    {
+      "type": "eval_equals",
+      "id": "dbx-empty",
+      "expected": "\"32px\"",
+      "desc": "The bloom under Empty's dot moved 14px from dbx-run above - the fix's proof that a switch moves it"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

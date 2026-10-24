@@ -1,0 +1,122 @@
+{
+  "name": "the-toast-shadow-reads-soft-not-boxed-in-dark",
+  "description": "the shadow fix has to read the same over a dark page, not only a light one - see the-toast-shadow-reads-soft-not-boxed.json for the full diagnosis. --force-dark-mode rather than system_appearance: the toast shadow switches on the same @media (prefers-color-scheme: dark) block overlay.css's other tokens do, and courtyard-reads-the-dark-overlay-tokens.json already established --force-dark-mode as the reliable way to flip that media query in this VM.",
+  "fixture": "long-page.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "chromium_flags": "--force-dark-mode",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "dark-scheme-active",
+      "target": "/toast",
+      "expression": "String(window.matchMedia('(prefers-color-scheme: dark)').matches)",
+      "note": "confirms the flag actually flipped the media query this shadow's fix depends on, before trusting anything read after it"
+    },
+    {
+      "type": "eval",
+      "id": "stack-four-confirmations",
+      "target": "/toast",
+      "expression": "(() => { for (let i = 0; i < 4; i++) { window.atriumConfirmToast('Link copied', '', true); } return String(document.querySelectorAll('.toasts .toast').length); })()",
+      "note": "reproduces the reported repro exactly: four stacked Link copied cards"
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "eval",
+      "id": "toast-carries-no-drop-shadow",
+      "target": "/toast",
+      "expression": "(() => { const c = document.querySelector('.toasts .toast'); if (!c) { return 'no card'; } const layers = getComputedStyle(c).boxShadow.split(/,(?![^(]*\\))/); return String(layers.length === 1); })()",
+      "note": ".toast itself must carry only its accent ring, in dark the same as in light"
+    },
+    {
+      "type": "eval",
+      "id": "shadow-probe-exists",
+      "target": "/toast",
+      "expression": "String(!!document.querySelector('.shadow-probe'))",
+      "note": "control: toast-surface.js creates this the first time a card's shadow is pushed"
+    },
+    {
+      "type": "eval",
+      "id": "shadow-is-tight-not-heavy",
+      "target": "/toast",
+      "expression": "(() => { const p = document.querySelector('.shadow-probe'); if (!p) { return 'no probe'; } const nums = (getComputedStyle(p).boxShadow.match(/-?\\d+(\\.\\d+)?px/g) || []).map(parseFloat); const yOffset = nums[1]; const blur = nums[2]; return String(yOffset <= 6 && blur <= 16); })()",
+      "note": "--ov-shadow-tight's dark variant is also 5px/14px (only the colour's alpha differs from light), so this must read true here too"
+    },
+    {
+      "type": "eval",
+      "id": "widget-and-card-bounds",
+      "target": "/toast",
+      "expression": "(() => { const box = document.querySelector('.toasts'); const c = document.querySelector('.toast'); if (!box || !c) { return 'no card'; } const br = box.getBoundingClientRect(); const cr = c.getBoundingClientRect(); return 'widget=' + Math.round(br.width) + 'x' + Math.round(br.height) + ' card=' + Math.round(cr.width) + 'x' + Math.round(cr.height); })()",
+      "note": "diagnostic for the report, read before the capture for the same reason as the light sibling"
+    },
+    {
+      "type": "capture",
+      "id": "four-stacked-confirmations-dark",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "The stack over a dark page, no grey box"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "dark-scheme-active",
+      "expected": "\"true\"",
+      "desc": "the flag actually flipped prefers-color-scheme, so the run below means something"
+    },
+    {
+      "type": "eval_equals",
+      "id": "stack-four-confirmations",
+      "expected": "\"4\"",
+      "desc": "reproduces the reported repro: four stacked confirmations"
+    },
+    {
+      "type": "eval_equals",
+      "id": "toast-carries-no-drop-shadow",
+      "expected": "\"true\"",
+      "desc": "The drop shadow moved off .toast entirely, in dark as in light"
+    },
+    {
+      "type": "eval_equals",
+      "id": "shadow-probe-exists",
+      "expected": "\"true\"",
+      "desc": "control: the probe toast-surface.js reads from is there to be measured"
+    },
+    {
+      "type": "eval_equals",
+      "id": "shadow-is-tight-not-heavy",
+      "expected": "\"true\"",
+      "desc": "The fix reads the same over dark as it does over light"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

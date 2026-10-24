@@ -1,0 +1,139 @@
+{
+  "name": "settings-media-rows",
+  "description": "the two media settings rows change the running browser at once, not only at the next launch. The staged fixture omits both keys (external-links-absent.settings.json's own pattern), so the window opens on the Rust core's own defaults (audible, background) rather than a value this scenario staged. Both edits go through eval + dispatchEvent rather than a CGEvent click, the pattern routing-pane-adds-a-rule.json already uses for a <select> and settings-external-links-row.json uses for a delegated-click control - a native <select> popup swallows a synthetic click, so this scenario never opens one. Reading the value back happens twice: once against the LIVE DOM right after each edit (no reload in between, which is what 'at once' means here) and once against settings.json on disk, so a build that repaints the row but never reaches the wire, or writes the file but never updates the live object, fails one half or the other.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "settings": "media-settings-absent.settings.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the browser window finish first paint"
+    },
+    {
+      "type": "activate",
+      "note": "Atrium MUST be frontmost or cmd+comma opens the frontmost app's own settings"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "open Settings on General; its menu item is not reachable from a scenario"
+    },
+    {
+      "type": "settle",
+      "ms": 7000,
+      "note": "the window builds, the route loads, and the core's values land a beat after the labels"
+    },
+    {
+      "type": "eval",
+      "id": "initial-values",
+      "target": "/settings",
+      "expression": "(() => { const a = document.querySelector('.settings-row[data-key=\"autoMiniPlayer\"] .settings-row-choice'); const c = document.querySelector('.settings-row[data-key=\"controllerVisibility\"] .settings-seg-option.on'); return `${a ? a.value : 'no-select'},${c ? c.dataset.choice : 'no-choice'}`; })()",
+      "note": "no fixture stages either key, so this must read the Rust core's own defaults"
+    },
+    {
+      "type": "eval",
+      "id": "change-auto-mini-player",
+      "target": "/settings",
+      "expression": "(() => { const select = document.querySelector('.settings-row[data-key=\"autoMiniPlayer\"] .settings-row-choice'); if (!select) return 'no-select'; select.value = 'anyVideo'; select.dispatchEvent(new Event('change', {bubbles: true})); return 'changed'; })()",
+      "note": "settings.js reads the select's .value on change and sends the WHOLE object over settingsChanged, the same setRow path every other choice row uses"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings written",
+      "timeout_ms": 6000,
+      "note": "FAIL LOUDLY HERE: if the eval above missed the row, no save happens and the run stops at the edit that was wrong"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "change-controller-visibility",
+      "target": "/settings",
+      "expression": "(() => { const option = document.querySelector('.settings-row[data-key=\"controllerVisibility\"] .settings-seg-option[data-choice=\"always\"]'); if (!option) return 'no-option'; option.click(); return 'clicked'; })()",
+      "note": "the segmented shape - sidebarPosition and startupBehavior's own control - reached by its data-choice attribute rather than a screen coordinate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings written",
+      "timeout_ms": 6000,
+      "note": "the second edit's own write, same reasoning as the first"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "final-values",
+      "target": "/settings",
+      "expression": "(() => { const a = document.querySelector('.settings-row[data-key=\"autoMiniPlayer\"] .settings-row-choice'); const c = document.querySelector('.settings-row[data-key=\"controllerVisibility\"] .settings-seg-option.on'); return `${a ? a.value : 'no-select'},${c ? c.dataset.choice : 'no-choice'}`; })()",
+      "note": "read straight off the same window, no relaunch and no reload of the pane in between - the 'at once' half"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-window-was-built",
+      "pattern": "Atrium: settings window built"
+    },
+    {
+      "type": "vlog",
+      "label": "the-route-answered",
+      "pattern": "Atrium: settings surface ready"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-unusable-argument-refusal",
+      "pattern": "Atrium: the settings surface sent an object the core",
+      "note": "both rows send the WHOLE object; a partial one is refused by the core and the edit would never land"
+    },
+    {
+      "type": "eval_equals",
+      "id": "initial-values",
+      "expected": "\"audible,background\"",
+      "desc": "the Rust core's own defaults, with no settings.json staged to override them"
+    },
+    {
+      "type": "eval_equals",
+      "id": "final-values",
+      "expected": "\"anyVideo,always\"",
+      "desc": "Both rows read back their new value in the SAME running window - the live change, not a relaunch"
+    },
+    {
+      "type": "file_contains",
+      "label": "auto-mini-player-changed-the-bytes-on-disk",
+      "file": "settings",
+      "path": "autoMiniPlayer",
+      "value": "anyVideo"
+    },
+    {
+      "type": "file_contains",
+      "label": "controller-visibility-changed-the-bytes-on-disk",
+      "file": "settings",
+      "path": "controllerVisibility",
+      "value": "always"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits with the settings window open and two edits made"
+    }
+  ]
+}

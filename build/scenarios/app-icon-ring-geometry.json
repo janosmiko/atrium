@@ -1,0 +1,74 @@
+{
+  "name": "app-icon-ring-geometry",
+  "description": "Verification: read the app-icon grid's live computed geometry (track width, button border box, image box) alongside a capture, so the ring fix is confirmed by arithmetic and not only by eye.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so the app is up"
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma"
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "let the window build and its route load"
+    },
+    {
+      "type": "eval",
+      "id": "pane",
+      "target": "/settings",
+      "expression": "(() => { window.atriumSelectSettingsPane('appearance'); return document.querySelector('.settings-rail-item[data-pane=\"appearance\"].selected') ? 'appearance' : 'not-selected'; })()",
+      "note": "select the pane by its id, not by a coordinate the rail layout can move"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "geometry",
+      "target": "/settings",
+      "expression": "(() => { const icons = document.querySelector('.settings-app-icons'); const on = document.querySelector('.settings-app-icon.on') || document.querySelector('.settings-app-icon'); const img = on.querySelector('.settings-app-icon-img'); const neighbour = on.nextElementSibling; const iconsStyle = getComputedStyle(icons); const onStyle = getComputedStyle(on); const onRect = on.getBoundingClientRect(); const imgRect = img.getBoundingClientRect(); const neighbourRect = neighbour ? neighbour.getBoundingClientRect() : null; return JSON.stringify({ trackWidth: parseFloat(iconsStyle.gridTemplateColumns.split(' ')[0]), boxSizing: onStyle.boxSizing, padding: onStyle.paddingLeft, border: onStyle.borderLeftWidth, btnWidth: onRect.width, btnHeight: onRect.height, imgWidth: imgRect.width, imgHeight: imgRect.height, imgInsetLeft: imgRect.left - onRect.left, imgInsetTop: imgRect.top - onRect.top, imgOverflowRight: imgRect.right - onRect.right, imgOverflowBottom: imgRect.bottom - onRect.bottom, gapToNeighbour: neighbourRect ? neighbourRect.left - onRect.right : null }); })()",
+      "note": "the measured box model, not a guess from the stylesheet"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "capture",
+      "id": "ring",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the ring on the marked tile, for a look alongside the numbers"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "label": "the-appearance-pane-opened",
+      "id": "pane",
+      "expected": "\"appearance\""
+    }
+  ]
+}

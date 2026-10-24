@@ -1,0 +1,166 @@
+/* Copyright 2026 The Atrium Authors */
+
+/* Layout only. Every color, radius, font and shadow comes from overlay.css
+   through the ov-* classes the rows also wear. */
+
+/* The palette draws BOTH the dim scrim and the card. The widget behind it is a
+   transparent surface covering the whole parent window, so there is no
+   scrim or centering logic on the C++ side (CommandBarWidget's class doc). */
+.cbscrim {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  /* Near the top rather than centered: the card grows downward as matches
+     arrive, and a vertically centered card would jump on every keystroke. */
+  align-items: flex-start;
+  padding-block-start: 18vh;
+  /* No dim: the reporter asked for the page behind to stay at full
+     brightness. The layer still catches the click that dismisses. */
+  background: transparent;
+}
+
+.cbcard {
+  display: flex;
+  flex-direction: column;
+  width: min(640px, 78vw);
+  max-height: 60vh;
+  overflow: hidden;
+  font-size: 13.5px;
+
+  /* .ov-row's 8px vertical padding around the 16px .ov-icon slot. Read by
+     .cblist too, so the fixed five-row list and each row agree on a height. */
+  --cb-row-h: 32px;
+}
+
+/* An anchored open lays the card on the clicked row rather than centring it.
+   commandbar.js writes left, top and width from the placement C++ computed;
+   the scrim is fixed to the viewport, so these are window coordinates. */
+.cbcard.cbanchored {
+  position: absolute;
+  transition: max-height var(--ov-expand-ms) var(--ov-ease),
+              border-radius var(--ov-expand-ms) var(--ov-ease),
+              box-shadow var(--ov-expand-ms) var(--ov-ease);
+}
+
+/* The first frame: the box is the row's own height, radius (sidebar.css
+   .urlbar) and shadow, so it reads as the row itself rather than a
+   card dropped on top of it. Dropping .cbexpand on the next frame reverts to
+   .ov-card's own values and gives every property its second value to
+   transition to. */
+.cbcard.cbanchored.cbexpand {
+  max-height: var(--cb-anchor-h, 34px);
+  border-radius: var(--ov-radius-anchor);
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cbcard.cbanchored {
+    transition: none;
+  }
+}
+
+.cbinput {
+  border: 0;
+  border-radius: 0;
+  padding: 12px 14px;
+  background: transparent;
+  color: inherit;
+  font: 400 15px var(--ov-font);
+  outline: none;
+}
+
+.cbfield {
+  display: flex;
+  align-items: center;
+}
+
+.cbfield .cbinput {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Hidden until Tab scopes the bar. */
+.cbscope {
+  display: none;
+  align-items: center;
+  margin-inline-start: 14px;
+  padding: 2px 9px;
+  border-radius: var(--ov-radius-chip);
+  background: var(--ov-sel);
+  color: var(--ov-accent);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.cbscope.cbscopeon {
+  display: inline-flex;
+}
+
+/* Hidden until the highlighted row offers a Tab-to-search engine. */
+.cbtabhint {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin-inline: 14px;
+  color: var(--ov-mute);
+  font-size: 12px;
+}
+
+.cbtabhint.cbtabhinton {
+  display: inline-flex;
+}
+
+.cblist {
+  /* FIXED, not a max: a bar that holds still. Five rows plus the
+     5px padding at each end. */
+  height: calc(5 * var(--cb-row-h) + 10px);
+  box-sizing: border-box;
+  overflow-y: auto;
+  padding: 5px;
+  border-top: 1px solid var(--ov-border);
+}
+
+.cbrow {
+  /* The height, not the padding: .ov-row supplies that. Pinned to --cb-row-h
+     rather than the sidebar's --atrium-row-min-height, a different surface. */
+  min-height: var(--cb-row-h);
+  box-sizing: border-box;
+  cursor: default;
+}
+
+.cbrow img.cbicon {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--ov-radius-favicon);
+  object-fit: contain;
+}
+
+.cbhit {
+  font-weight: 700;
+}
+
+/* A favourite row reads as the user's own list. */
+.cbrow.cbfav .cbsub {
+  color: var(--ov-accent);
+  flex: 0 0 auto;
+}
+
+/* A verb command's preview is not selectable, so it takes the accent rather
+   than the selection wash. */
+.cbrow.cbcmd .cbsub {
+  color: var(--ov-accent);
+  flex: 0 0 auto;
+}
+
+.cbrow.cbcmdbad {
+  opacity: .8;
+}
+
+.cbrow.cbcmdbad .cbsub {
+  color: var(--ov-mute);
+}
+
+.cbrow.cbempty {
+  opacity: .65;
+}

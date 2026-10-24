@@ -1,0 +1,134 @@
+{
+  "name": "settings-wheel-stays-inside-the-pane",
+  "description": "A wheel in the settings window moved the whole window content and painted a white stripe at the top or bottom. The pane scroller (.settings-body) chained the wheel it could not consume to the document, and the document rubber-banded over a white html background - on a short pane like About there is nothing to consume at all, so every wheel went straight to the document. settings.css now gives html overscroll-behavior: none and the pane overscroll-behavior: contain. Html stays transparent for the window's sidebar vibrancy, and .settings-body paints the opaque ground, so no white shows behind the content column.\n\nThis reads the resolved styles back from the renderer at a fixed small window size, then sends a real wheel over CDP into the widget host on a long pane (Appearance) and a short one (About). After each wheel the document must not have moved: its scrollTop stays 0, and its scrollHeight never exceeds the viewport, so there is nothing for it to scroll in the first place. On the long pane the wheel must have landed in the pane scroller instead. A CDP wheel carries no NSEvent phases, so the elastic stretch itself cannot be measured here - the resolved overscroll-behavior stands in for it.\n\naxresize sizes the LARGEST window, so the browser window is shrunk to 700x500 before the chord, and the 860x620 settings window is then resized to 860x420 - still the largest at 361200 px, and short enough that Appearance overflows the pane.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so the app is up"
+    },
+    { "type": "settle", "ms": 4000 },
+    { "type": "activate", "note": "Atrium frontmost, so the chord reaches it" },
+    { "type": "settle", "ms": 1000 },
+    { "type": "resize", "w": 700, "h": 500, "note": "the browser window, so the settings window becomes the largest one" },
+    { "type": "settle", "ms": 1000 },
+    { "type": "key", "combo": "cmd+comma", "vlog": "Atrium: settings surface ready" },
+    { "type": "settle", "ms": 3000 },
+    { "type": "resize", "w": 860, "h": 420, "note": "the settings window, now the largest - short enough that Appearance overflows the pane" },
+    { "type": "settle", "ms": 2000 },
+    {
+      "type": "eval",
+      "id": "overscroll-rules",
+      "target": "/settings",
+      "expression": "(() => { const g = (el) => getComputedStyle(el); const h = g(document.documentElement); const b = g(document.querySelector('.settings-body')); return 'html=' + h.overscrollBehaviorY + ' pane=' + b.overscrollBehaviorY + ' bg=' + (h.backgroundColor === 'rgba(0, 0, 0, 0)' && /^rgb\\(/.test(b.backgroundColor)); })()",
+      "note": "the deployed CSS as the renderer resolved it: the document never rubber-bands, the pane keeps its own wheel, html stays see-through for the vibrancy, and the pane paints an opaque ground rather than the default white"
+    },
+    {
+      "type": "eval",
+      "id": "open-appearance",
+      "target": "/settings",
+      "expression": "(() => { const item = document.querySelector('.settings-rail-item[data-pane=\"appearance\"]'); if (!item) { return 'no appearance rail item'; } item.click(); return 'clicked'; })()"
+    },
+    { "type": "settle", "ms": 800 },
+    {
+      "type": "eval",
+      "id": "long-pane-overflows",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.settings-body'); return b.scrollHeight > b.clientHeight; })()",
+      "note": "gates the long-pane measurement: at 420px tall Appearance has to overflow its scroller, or the wheel below has nothing to land in"
+    },
+    {
+      "type": "cdp_wheel",
+      "target": "/settings",
+      "x": 600,
+      "y": 300,
+      "dy": 900,
+      "note": "THE MEASUREMENT (long pane): 900px of wheel into the pane, far more than it can consume, so the remainder would chain to the document if anything let it"
+    },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "long-pane-wheel-stayed-in-the-pane",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.settings-body'); return b.scrollTop > 0 && document.scrollingElement.scrollTop === 0 && document.documentElement.scrollHeight <= innerHeight; })()"
+    },
+    {
+      "type": "eval",
+      "id": "long-pane-numbers",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.settings-body'); return 'pane ' + b.scrollTop + '/' + (b.scrollHeight - b.clientHeight) + ' doc ' + document.scrollingElement.scrollTop + ' docHeight ' + document.documentElement.scrollHeight + '/' + innerHeight; })()",
+      "note": "recorded: the numbers behind long-pane-wheel-stayed-in-the-pane"
+    },
+    { "type": "capture", "id": "after-long-wheel", "duration_ms": 300, "fps": 20 },
+    {
+      "type": "eval",
+      "id": "open-about",
+      "target": "/settings",
+      "expression": "(() => { const item = document.querySelector('.settings-rail-item[data-pane=\"about\"]'); if (!item) { return 'no about rail item'; } item.click(); return 'clicked'; })()"
+    },
+    { "type": "settle", "ms": 800 },
+    {
+      "type": "cdp_wheel",
+      "target": "/settings",
+      "x": 600,
+      "y": 300,
+      "dy": 600,
+      "note": "THE MEASUREMENT (short pane): About fits the window, so the pane can consume nothing and the whole wheel would reach the document"
+    },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "short-pane-document-did-not-move",
+      "target": "/settings",
+      "expression": "(() => document.scrollingElement.scrollTop === 0 && document.documentElement.scrollHeight <= innerHeight)()"
+    },
+    {
+      "type": "eval",
+      "id": "short-pane-numbers",
+      "target": "/settings",
+      "expression": "(() => 'doc ' + document.scrollingElement.scrollTop + ' docHeight ' + document.documentElement.scrollHeight + '/' + innerHeight)()",
+      "note": "recorded: the numbers behind short-pane-document-did-not-move"
+    },
+    { "type": "capture", "id": "after-short-wheel", "duration_ms": 300, "fps": 20 },
+    {
+      "type": "eval",
+      "id": "pin-ink",
+      "target": "/settings",
+      "expression": "(() => { const p = document.querySelector('.settings-pin'); p.setAttribute('aria-pressed', 'true'); const i = p.querySelector('.ov-icon'); return String(getComputedStyle(i).color === getComputedStyle(p).color); })()",
+      "note": "AC: the pressed pin's icon takes the button's ink. .ov-icon carries its own accent colour, which drew a dark outline on the accent fill."
+    },
+    {
+      "type": "eval",
+      "id": "rail-change-arrives",
+      "target": "/settings",
+      "expression": "(() => { const item = document.querySelector('.settings-rail-item[data-pane=\"profiles\"]'); if (!item) { return 'no profiles rail item'; } item.click(); return String(document.querySelector('.settings-body').className.includes('settings-pane-swap')); })()",
+      "note": "control: a rail change is an arrival and still carries the animation class"
+    },
+    { "type": "settle", "ms": 400 },
+    {
+      "type": "eval",
+      "id": "rebuild-in-place",
+      "target": "/settings",
+      "expression": "(() => { const item = document.querySelector('.settings-profile-item'); if (!item) { return 'no profile item'; } item.click(); const b = document.querySelector('.settings-body'); return getComputedStyle(b).animationName + '/' + b.className.includes('settings-pane-swap'); })()",
+      "note": "THE MEASUREMENT: a profile click rebuilds the open pane, and the new body must carry no arrival animation"
+    }
+  ],
+  "assertions": [
+    { "type": "vlog", "label": "the-window-was-built", "pattern": "Atrium: settings window built" },
+    { "type": "ax_window_count", "expected": 2, "min_area": 200000, "note": "the browser window and the settings window" },
+    { "type": "eval_equals", "label": "the-document-never-rubber-bands-and-the-pane-keeps-its-wheel", "id": "overscroll-rules", "expected": "\"html=none pane=contain bg=true\"" },
+    { "type": "eval_equals", "label": "appearance-overflows-the-short-window", "id": "long-pane-overflows", "expected": "true" },
+    { "type": "eval_equals", "label": "a-wheel-on-a-long-pane-scrolls-the-pane-and-not-the-document", "id": "long-pane-wheel-stayed-in-the-pane", "expected": "true" },
+    { "type": "eval_equals", "label": "a-wheel-on-a-short-pane-leaves-the-document-in-place", "id": "short-pane-document-did-not-move", "expected": "true" },
+    { "type": "eval_equals", "label": "the-pressed-pin-draws-its-icon-in-the-accent-ink", "id": "pin-ink", "expected": "\"true\"" },
+    { "type": "eval_equals", "label": "a-rail-change-still-animates-the-arrival", "id": "rail-change-arrives", "expected": "\"true\"" },
+    { "type": "eval_equals", "label": "a-profile-click-rebuilds-the-pane-without-the-arrival-animation", "id": "rebuild-in-place", "expected": "\"none/false\"" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

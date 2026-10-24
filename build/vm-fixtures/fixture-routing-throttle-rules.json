@@ -1,0 +1,1 @@
+{"schemaVersion": 1, "rules": [{"id": "5d1a7c30-0000-4000-8000-000000000001", "enabled": true, "matchType": "regex", "pattern": "routing3-target\\.html", "targetSpaceID": "22222222-2222-2222-2222-222222222222"}]}

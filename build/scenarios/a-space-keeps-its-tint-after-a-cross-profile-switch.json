@@ -1,0 +1,545 @@
+{
+  "name": "a-space-keeps-its-tint-after-a-cross-profile-switch",
+  "description": "Personal and New Space are on the Default profile, BPX on Profile 1. New Space and BPX wear Nocturne themes with different stop positions (maroon top-left on New Space, right-middle on BPX). Page tint is on. New Space must look the same whether the switch into it starts from Personal or from BPX. The recorded bug: from BPX it lands, then shows BPX's theme and tint and stays there. A swipe from BPX stages the scrub on the Profile 1 controller, the switch hands the window to Default, and the scrub's end is routed to Default, so the New Space theme is never promoted. The keyboard bounces after it check that a sampler frame from BPX's page does not land as a glow after the switch cleared it.",
+  "fixture": "cross-profile-tint.spaces.json",
+  "themes": "cross-profile-tint.themes.json",
+  "settings": "cross-profile-tint.settings.json",
+  "startup_space": "13040000-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "close the startup palette, which otherwise holds the keyboard on the Default window"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "personal",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "key_during_capture",
+      "combo": "cmd+2",
+      "capture_id": "new-from-personal-burst",
+      "duration_ms": 2500,
+      "fps": 15,
+      "key_delay_ms": 300,
+      "note": "Personal -> New Space, same profile: the control"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 0 -> 1",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "an empty space opens the command palette over the window, close it so every end state is read the same way"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "capture",
+      "id": "new-from-personal",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "key",
+      "combo": "cmd+3",
+      "note": "New Space -> BPX, across profiles"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 1 -> 2",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "the palette New Space opened can still be up, and it eats the swipe"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "move",
+      "x": 600,
+      "y": 620
+    },
+    {
+      "type": "settle",
+      "ms": 200
+    },
+    {
+      "type": "click",
+      "x": 600,
+      "y": 620,
+      "note": "a click on the scrim closes the palette when Escape did not reach it"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "move",
+      "x": 100,
+      "y": 200
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "capture",
+      "id": "bpx",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 100,
+      "y": 200,
+      "dx": 45,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "new-from-bpx-burst",
+      "duration_ms": 2500,
+      "fps": 15,
+      "note": "BPX -> New Space by a trackpad swipe, across profiles: the bug. Positive dx travels toward the previous space"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 2 -> 1",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "an empty space opens the command palette over the window, close it so every end state is read the same way"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "capture",
+      "id": "new-from-bpx",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "eval",
+      "id": "tiles-after-bpx",
+      "target": "/sidebar",
+      "expression": "[...document.querySelectorAll('#atrium-root .fav')].filter(f => f.getBoundingClientRect().width > 0).map(f => (f.dataset.favId || '?').replace(/^https?:\\/\\//, '').slice(0, 28) + '=' + ((f.querySelector('img') || {}).src || 'none').slice(-40)).join(' | ') + ' applies=' + window.__atriumApplyCount"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+3",
+      "note": "bounce 2: back to BPX"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 1 -> 2",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+r",
+      "note": "a sampler runs only after a load, and a revisit loads nothing"
+    },
+    {
+      "type": "settle",
+      "ms": 2200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+2",
+      "note": "leave BPX while its page keeps the sampler on the fastest rung"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 2 -> 1",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "escape"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "capture",
+      "id": "new-from-bpx-2",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "key",
+      "combo": "cmd+3",
+      "note": "bounce 3: back to BPX"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 1 -> 2",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+r",
+      "note": "a sampler runs only after a load, and a revisit loads nothing"
+    },
+    {
+      "type": "settle",
+      "ms": 2200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+2",
+      "note": "leave BPX while its page keeps the sampler on the fastest rung"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 2 -> 1",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "escape"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "capture",
+      "id": "new-from-bpx-3",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "key",
+      "combo": "cmd+3",
+      "note": "bounce 4: back to BPX"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 1 -> 2",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+r",
+      "note": "a sampler runs only after a load, and a revisit loads nothing"
+    },
+    {
+      "type": "settle",
+      "ms": 2200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+2",
+      "note": "leave BPX while its page keeps the sampler on the fastest rung"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 2 -> 1",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "escape"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "capture",
+      "id": "new-from-bpx-4",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "key",
+      "combo": "cmd+3",
+      "note": "bounce 5: back to BPX"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 1 -> 2",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+r",
+      "note": "a sampler runs only after a load, and a revisit loads nothing"
+    },
+    {
+      "type": "settle",
+      "ms": 2200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+2",
+      "note": "leave BPX while its page keeps the sampler on the fastest rung"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 2 -> 1",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "escape"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "capture",
+      "id": "new-from-bpx-5",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "key",
+      "combo": "cmd+1",
+      "note": "control round trip on one profile"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 1 -> 0",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+2"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 0 -> 1",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "an empty space opens the command palette over the window, close it so every end state is read the same way"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "capture",
+      "id": "new-from-personal-again",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "vlog_after",
+      "pattern": "Atrium: active space 2 -> 1",
+      "after_pattern": "Atrium: active space 1 -> 2",
+      "label": "the-cross-profile-round-trip-happened"
+    },
+    {
+      "type": "vlog_after",
+      "pattern": "Atrium: space scrub promoted",
+      "after_pattern": "Atrium: space scrub staged toward 1",
+      "label": "the-swipe-from-bpx-promoted-its-scrub",
+      "note": "no promote means the end went to a controller that holds no scrub"
+    },
+    {
+      "type": "region_mean",
+      "capture": "new-from-personal",
+      "min_mean": 95,
+      "max_mean": 118,
+      "label": "control-new-space-maroon-top-left",
+      "x": 200,
+      "y": 60,
+      "w": 150,
+      "h": 80
+    },
+    {
+      "type": "region_mean",
+      "capture": "new-from-personal",
+      "min_mean": 70,
+      "max_mean": 92,
+      "label": "control-new-space-navy-right",
+      "x": 850,
+      "y": 450,
+      "w": 150,
+      "h": 150
+    },
+    {
+      "type": "region_mean",
+      "capture": "new-from-bpx",
+      "min_mean": 95,
+      "max_mean": 118,
+      "label": "new-space-keeps-its-maroon-top-left-after-bpx",
+      "x": 200,
+      "y": 60,
+      "w": 150,
+      "h": 80
+    },
+    {
+      "type": "region_mean",
+      "capture": "new-from-bpx",
+      "min_mean": 70,
+      "max_mean": 92,
+      "label": "new-space-keeps-its-navy-right-after-bpx",
+      "x": 850,
+      "y": 450,
+      "w": 150,
+      "h": 150
+    },
+    {
+      "type": "region_mean",
+      "capture": "new-from-bpx-2",
+      "min_mean": 56,
+      "max_mean": 70,
+      "label": "no-stale-page-glow-after-leaving-bpx-2",
+      "x": 1015,
+      "y": 200,
+      "w": 4,
+      "h": 300
+    },
+    {
+      "type": "region_mean",
+      "capture": "new-from-bpx-3",
+      "min_mean": 56,
+      "max_mean": 70,
+      "label": "no-stale-page-glow-after-leaving-bpx-3",
+      "x": 1015,
+      "y": 200,
+      "w": 4,
+      "h": 300
+    },
+    {
+      "type": "region_mean",
+      "capture": "new-from-bpx-4",
+      "min_mean": 56,
+      "max_mean": 70,
+      "label": "no-stale-page-glow-after-leaving-bpx-4",
+      "x": 1015,
+      "y": 200,
+      "w": 4,
+      "h": 300
+    },
+    {
+      "type": "region_mean",
+      "capture": "new-from-bpx-5",
+      "min_mean": 56,
+      "max_mean": 70,
+      "label": "no-stale-page-glow-after-leaving-bpx-5",
+      "x": 1015,
+      "y": 200,
+      "w": 4,
+      "h": 300
+    },
+    {
+      "type": "region_mean",
+      "capture": "new-from-personal-again",
+      "min_mean": 56,
+      "max_mean": 70,
+      "label": "control-glow-band-after-a-same-profile-switch",
+      "x": 1015,
+      "y": 200,
+      "w": 4,
+      "h": 300
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

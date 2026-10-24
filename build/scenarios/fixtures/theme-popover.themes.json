@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "themes": {
+    "77777777-7777-7777-7777-777777777777": {
+      "name": "Studio Gradient",
+      "stops": [
+        {"x": 0.2, "y": 0.25, "color": "#C0455F", "alpha": 1.0},
+        {"x": 0.8, "y": 0.8, "color": "#1B2A55", "alpha": 1.0}
+      ],
+      "opacity": 0.3,
+      "effects": {"grain": 0.1, "vignette": 0.1, "frost": 0, "warmth": 0},
+      "darkAdaptation": 0.3,
+      "version": 1,
+      "nightShiftEnabled": false,
+      "ambientEnabled": false
+    }
+  }
+}

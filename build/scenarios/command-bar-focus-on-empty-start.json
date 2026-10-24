@@ -1,0 +1,70 @@
+{
+  "name": "command-bar-focus-on-empty-start",
+  "description": "A cold start with no tab to restore auto-opens the palette, and typing went nowhere until the user clicked the field with the mouse. The reserved chrome context lands about 670ms AFTER the launch auto-open, so CommandBarWidget::Show() ran with no WebView and no WebContents, its focus hand-off was a no-op against both, and the parent window took key status back inside that gap. The deferred build that follows repeated neither the focus nor the Activate, so the palette sat there with a blinking caret and no keyboard. No activate, no click and no Cmd+T here on purpose - each would hand key status over by hand and mask exactly what is measured. The palette must arrive typable on its own.",
+  "fixture": "empty-window-quit.spaces.json",
+  "themes": "empty-window-quit.themes.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "33333333-3333-3333-3333-333333333333",
+  "app_process": "Atrium",
+  "chromium_flags": "--vmodule=atrium_command_bar_widget=1",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 30000,
+      "note": "GATE: the launch auto-open fired at all. The empty fixture is what makes it fire - a space with no tabs leaves the startup url empty, which is the one case that opens the palette instead of a page."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar contents built on chrome-context retry",
+      "timeout_ms": 30000,
+      "note": "GATE: this run really took the deferred-build path, the one the bug lives on. Without it a run where the context happened to be ready first would build the document inside Show(), get the focus hand-off for free, and report green over an untested path."
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the document still has to commit and the widget still has to settle as key after launch-time window-server churn. The eval below polls, so this only has to cover the first sample."
+    },
+    {
+      "type": "type",
+      "text": "zqxv",
+      "note": "Real keystrokes through the window server, with no click first - the exact path that broke. Nothing else in this scenario touches the mouse, so if these land the palette earned key status on its own."
+    },
+    {
+      "type": "eval_until",
+      "id": "palette-takes-typing",
+      "target": "/commandbar",
+      "expression": "(document.querySelector('.cbinput').value || 'empty').slice(0, 4)",
+      "expected": "zqxv",
+      "timeout_ms": 20000,
+      "note": "The gate, and the only one that cannot pass over the bug. document.hasFocus() was the previous condition and it passed in the VM while the host was unusable: DOM focus and a blinking caret survive a window that is not key, so only the value of the field after real typing proves a keystroke arrived. Sliced to the typed prefix because inline autocomplete may append a completion."
+    },
+    {
+      "type": "eval",
+      "id": "palette-active-element",
+      "target": "/commandbar",
+      "expression": "document.activeElement ? document.activeElement.className : 'none'",
+      "note": "The activeElement read on its own, so a failure says whether the field lost the focus or the surface lost the keyboard - the two are separate and fail differently."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "palette-active-element",
+      "expected": "\"cbinput\"",
+      "desc": "the query field is the active element in the palette document on a cold start"
+    },
+    {
+      "type": "vlog",
+      "label": "palette-opened-on-startup",
+      "pattern": "Atrium: command bar widget showing",
+      "note": "Keeps the evidence of the auto-open in the assertion record, not only in the action gate above."
+    },
+    {
+      "type": "vlog_absent",
+      "label": "palette-did-not-self-close",
+      "pattern": "Atrium: command bar widget closing",
+      "note": "Nothing here dismisses the palette, so a close line means the focus-bounce guard auto-closed it during launch churn. That would leave the evals reading a hidden surface and is a different bug wearing the same symptom."
+    }
+  ]
+}

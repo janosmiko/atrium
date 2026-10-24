@@ -1,0 +1,105 @@
+{
+  "name": "page-tint-glows-through-a-theme",
+  "description": "A space with a Theme Studio picture kept the page's colour off its chrome: the theme painter drew the picture and the grain and never the edge glow, so with per-space theming on, the band beside the card stayed the picture whatever page was in front. Same two declared-colour pages as page-tint-follows-the-page, same switch, on the same space now wearing a slate gradient. The band beside the card must still move from crimson toward teal, and the sidebar column must keep the picture.",
+  "fixture": "page-tint.spaces.json",
+  "settings": "page-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "capture",
+      "id": "crimson",
+      "duration_ms": 500,
+      "fps": 10
+    },
+    {
+      "type": "eval_until",
+      "id": "row-click-4",
+      "target": "/sidebar",
+      "expression": "(() => { const r = [...document.querySelectorAll('.row.tabrow')].find(x => x.textContent.includes(\"Teal\")); if (!r) return 'no-row'; r.click(); return 'clicked'; })()",
+      "expected": "clicked",
+      "timeout_ms": 5000,
+      "note": "Found by title, so a row height change cannot retarget the click."
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "teal",
+      "duration_ms": 500,
+      "fps": 10
+    },
+    {
+      "type": "eval_until",
+      "id": "teal-page",
+      "target": "theme-color-teal.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/theme-color-teal.html",
+      "timeout_ms": 8000,
+      "note": "the teal page committed, read from the page itself"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "teal-page",
+      "expected": "http://127.0.0.1:8000/theme-color-teal.html",
+      "label": "the-switch-really-happened",
+      "desc": "THE CONTROL: the teal page committed, so the measurement below is not grading two captures of the same page. Without it a region that never moved would pass for the wrong reason - the switch never having happened."
+    },
+    {
+      "type": "region_stable",
+      "before": "crimson",
+      "after": "teal",
+      "region": [
+        10,
+        460,
+        60,
+        100
+      ],
+      "desc": "THE CONTROL: the sidebar column keeps the picture across the switch, so the theme's painter stayed on the root and only the band moved.",
+      "max_delta": 6
+    },
+    {
+      "type": "theme_changed",
+      "before": "crimson",
+      "after": "teal",
+      "region": [
+        206,
+        460,
+        16,
+        100
+      ],
+      "min_delta": 5,
+      "desc": "THE MEASUREMENT: the band beside the card follows the page on a themed space. Before the fix this region read the picture alone and never moved."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ],
+  "themes": "page-tint-themed.themes.json"
+}

@@ -1,0 +1,115 @@
+{
+  "name": "header-wide",
+  "description": "The pinned-section header (workspace icon/name) must render flush with the tab rows below it at a WIDE sidebar width. Same fixture shape as header-narrow, just a wider persisted sidebarWidth (380pt vs 200pt) - the leading inset is a fixed pt value, not width-proportional, so this also confirms the fix isn't accidentally width-dependent.\n\nthis scenario captured a frame and asserted nothing about it, and the thing that makes it the WIDE half stopped happening without the run noticing. Compare, where the sidebar reaches x=380 and the rows span x 10..370, against every later run, where the frame is pixel-for-pixel the narrow one: a column probe at [300,300,40,300] reads the sidebar's 103.3,122.7,138.5 in the former and the content pane's flat 238.0,238.0,238.0 in the latter, identical to what header-narrow captures at the same moment.\n\nThe cause is not the fixture. AtriumBrowserWindow's container is created at kDefaultSidebarWidth = 220 (atrium_browser_window.cc:325, :1394), and the only surviving caller of SetSidebarWidth is the Cmd+S collapse toggle (atrium_browser_controller.cc:2496). Nothing reads the persisted appState.sidebarWidth: the Swift ops table's set_sidebar_width that applied it was removed, and sidebar.js does not read it either. So the assertion below is EXPECTED RED on the current build, and red is the point - a wide-sidebar scenario that cannot tell 380 from 220 is not a gate.",
+  "fixture": "header-alignment-wide.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "33333333-3333-3333-3333-333333333333",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the space and sidebar render at the fixture's 380pt sidebarWidth"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot, and a hover on a background window is not worth measuring"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 600,
+      "note": "park the pointer in blank page content so the rest frame is a known un-hovered baseline; x=700 is page content at both 220pt and 380pt"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "wide",
+      "duration_ms": 500,
+      "fps": 20,
+      "note": "docked sidebar at wide width, nothing hovered - still the by-eye alignment frame"
+    },
+    {
+      "type": "move",
+      "x": 170,
+      "y": 224,
+      "note": "hover the 'News' folder header at an x BOTH widths reach, so the positive below cannot be blamed on a dead hover path when the width assertion goes red"
+    },
+    {
+      "type": "settle",
+      "ms": 700,
+      "note": "past the .12s background transition on .row.frow"
+    },
+    {
+      "type": "capture",
+      "id": "wide-hover-near",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the header lit from inside the narrow footprint"
+    },
+    {
+      "type": "move",
+      "x": 300,
+      "y": 224,
+      "note": "THE MEASUREMENT: the same header at x=300, which only a sidebar wider than the 220pt default reaches. On the working wide frame the rows run to x=370; on the current build x=300 is over the page"
+    },
+    {
+      "type": "settle",
+      "ms": 700
+    },
+    {
+      "type": "capture",
+      "id": "wide-hover-far",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the header lit from an x that proves the width"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "theme_changed",
+      "before": "wide",
+      "after": "wide-hover-near",
+      "region": [
+        16,
+        214,
+        180,
+        20
+      ],
+      "min_delta": 3.0,
+      "desc": "control: the folder header does light on hover, so the width assertion below is measuring width and not a broken hover",
+      "note": "Same threshold and same derivation as header-narrow's positive. Effective white-alpha 0.0635 measured, doubled to 0.127 for a .row.frow that does not carry .sechdrow's opacity:.5; this region reads 210.9,218.7,224.6 at rest, so a working fill lands at 8.2. Floor measured at 0.00 over sidebar regions with no cursor. 3.0 is 2.7x under the signal."
+    },
+    {
+      "type": "theme_changed",
+      "before": "wide",
+      "after": "wide-hover-far",
+      "region": [
+        16,
+        214,
+        180,
+        20
+      ],
+      "min_delta": 3.0,
+      "desc": "THE MEASUREMENT: a pointer at x=300 lights the folder header, which can only happen if the persisted 380pt width was applied",
+      "note": "The region is the row's left end, 104px clear of the pointer, so the cursor sprite cannot supply the delta - a mistake worth naming, since a 12x18 cursor inside an 80x28 region moves its mean by roughly 18 on its own. Same threshold and derivation as the control above. Reads 0.00 on the current build because x=300 is page content there, which is the regression this scenario exists to catch."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q actually quits (process gone)"
+    }
+  ]
+}

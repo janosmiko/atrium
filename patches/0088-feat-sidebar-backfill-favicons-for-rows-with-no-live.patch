@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 30 Aug 2026 09:12:15 +0200
+Subject: [PATCH 088/154] feat(sidebar): backfill favicons for rows with no
+ live tab
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+A restored or pinned row has no WebContents, so the reactive per-tab favicon
+pipeline never produced its icon and the row stayed an empty square for the
+session. The snapshot is the only place the browser learns those URLs, so the
+push now selects the rows with no cached icon and hands them to a bounded,
+once-per-URL backfill queue shared by the profile's windows. A row asks the
+tab-keyed cache first and falls back to the URL-keyed one, remembering the
+404 so the next push does not pay for it twice.
+
+Icon paths gain a profile scope segment (favicon/<scope>/... and
+urlicon/<scope>/...), so a surface showing another profile's rows reads that
+profile's cache and an incognito window cannot read the regular one.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 1977833ef0bbe..d11cda29d2011 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -629,6 +629,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:drop_target_decision",
+     "//chrome/browser/ui/atrium:extension_actions_json",
+     "//chrome/browser/ui/atrium:bounded_icon_store",
++    "//chrome/browser/ui/atrium:icon_backfill",
+     "//chrome/browser/ui/atrium:visit_thumbnail_store",
+     "//chrome/browser/ui/atrium:edit_focus_gate",
+     "//chrome/browser/ui/atrium:external_link",

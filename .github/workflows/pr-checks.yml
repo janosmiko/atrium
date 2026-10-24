@@ -1,0 +1,40 @@
+name: PR checks (hosted)
+
+# Hosted runner only. A pull_request workflow must never use a self-hosted
+# runner, and this one must never gain pull_request_target or secrets.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Rust core
+        run: make rust-test
+
+      - name: Makefile .PHONY drift guard
+        run: make phony-verify
+
+      # The shell suites in scenario-lib-test need macOS tools, so run the
+      # Python half only.
+      - name: Scenario harness unit tests
+        run: python3 -m unittest discover -s build/scenarios/lib -p "*_test.py"
+
+      - name: License header selftest
+        run: make license-verify-selftest
+
+      - name: Linux source-list guard selftest
+        run: make linux-verify-selftest

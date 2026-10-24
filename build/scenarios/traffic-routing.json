@@ -1,0 +1,108 @@
+{
+  "name": "traffic-routing",
+  "description": "Traffic routing end-to-end . Start on the 'Home' space (Default profile, atriumGreen tint). A routing rule maps the host 'corp.example' to the cross-profile 'Work' space (Profile 1, oceanBlue tint). Open the command bar, dismiss the first-run search-engine picker (clean-snapshot state; the search default is a protected Chromium pref that resists seeding), type a matching URL, commit with Return and assert the visible space switched to Work - the sidebar backdrop tint flips green->blue, proving a configured rule routed a matching navigation to its target workspace. Typed-URL navigation is the reliable VM trigger. The commit relies on the query field's insertNewline: handler (the field is an NSTextField, and the commitAccept() latch is the single commit path): a tap on the navigate result row does not commit, but a synthetic Return reaches the field editor - so `key return` is the reusable commit mechanism for any scenario driving the command bar.",
+  "cannot_pass": "Traffic routing itself is DELETED. Every 'Atrium: routing ...' line is gone from the tree and from the deployed binary, and so is the opening gate's 'Atrium: command bar pass host'. This is stronger than the old marking said: rewriting the gate cannot help, because there is no longer a feature behind it. The cross-profile 'in-window swap' line survives but needs the two profiles the fixture cannot open.  Baseline 2026-08-09 (Chromium e155a72b08382): 0 passed, 4 failed. Post-sweep 2026-08-09 (Chromium 461398a6df1a4, the earlier sweep): 0 passed, 4 failed.",
+  "fixture": "traffic-routing.spaces.json",
+  "routing": "traffic-routing.rules.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the Home space (green) render"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot; without this every key/click lands in Finder"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the deferred second profile finish loading and the window come forward"
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 500,
+      "fps": 20,
+      "note": "Home tint (green) baseline"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "open the command bar (first-run: shows the search-engine picker)"
+    },
+    {
+      "type": "settle",
+      "ms": 1200,
+      "note": "let the picker render"
+    },
+    {
+      "type": "click",
+      "x": 400,
+      "y": 312,
+      "note": "click the Google row to choose a default engine and dismiss the picker"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "picker resolves; command bar now in normal URL-entry mode"
+    },
+    {
+      "type": "type",
+      "text": "http://corp.example/",
+      "note": "a URL whose host matches the routing rule -> Work"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar pass host 0x[0-9a-f]+ .*\\\"final\\\":true.*http://corp\\.example",
+      "timeout_ms": 4000,
+      "note": "matches the STREAMING line. AutocompleteBridge emits 'command bar results host' only when streaming is unavailable; when it is available - which it is on this build - it emits 'command bar pass host' with an envelope carrying generation, final and matches. That is a deliberately separate export because the old one's shape is frozen, and this gate was never moved across. So it waited for a line the build no longer emits, and the scenario reported a routing failure while routing worked: its other three assertions passed the whole time. Anchored on final:true so a partial pass cannot satisfy it.poll for the autocomplete results VLOG (atrium_autocomplete_bridge.mm) instead of a fixed sleep. Return before the first result row exists resolves to no action; a fixed 900ms->3000ms settle was tuned to one observed worst case (results landing ~0.75s late under suite load) with no margin on a slower run - polling removes the guesswork"
+    },
+    {
+      "type": "settle",
+      "ms": 400,
+      "note": "small buffer for SwiftUI to render the resolved row after the results VLOG lands"
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "commit the highlighted navigate result via the query field's insertNewline: handler -> routeTypedNavigation reroutes cross-profile to Work"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the cross-profile switch settle and repaint"
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 500,
+      "fps": 20,
+      "note": "should now show Work tint (blue)"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "routed-url-committed",
+      "pattern": "Atrium: tab [0-9]+ url http://corp\\.example",
+      "note": "the typed URL actually committed and loaded (proves the Return keypress reached the accept path)"
+    },
+    {
+      "type": "vlog",
+      "label": "cross-profile-present",
+      "pattern": "Atrium: in-window swap, host 0x[0-9a-f]+ slot 0 presented via host 0x[0-9a-f]+",
+      "note": "the routed tab's own (Profile 1 / Work) host was presented in the window = the rule crossed profiles"
+    },
+    {
+      "type": "theme_changed",
+      "before": "before",
+      "after": "after",
+      "region": "40,540,300,380",
+      "min_delta": 10,
+      "note": "sidebar backdrop tint flips green->blue = the route switched the visible space to Work. min_delta calibrated 2026-07-24: the sidebar region is pixel-identical within a capture burst (measured delta 0.00 before-vs-before and after-vs-after), and a real green->blue switch measures ~15.9 - the tint is a translucent wash over the same wallpaper, so it never reached the original speculative 22."
+    }
+  ]
+}

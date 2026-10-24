@@ -1,0 +1,75 @@
+{
+  "name": "a-swiped-space-stays-switched",
+  "description": "A horizontal trackpad swipe moves to the next workspace, and it STAYS there. The regression this pins had the rail return to the space it came from a moment later.\n\nThe cause is an off-by-one across the surface boundary. A committed swipe reports its SPACE, and the browser answers by asking the page to glide to that space - but the rail counts panes, and Overview holds pane 0. A space passed through unchanged glides one space back, and the rail arriving there reports THAT space, which switches the browser back for real.\n\nSo both assertions carry weight in the same run. '0 -> 1' proves the swipe committed; the absence of '1 -> 0' proves nothing undid it. On the broken build the second line appears, because the wrong-way glide announces the space it landed on.\n\nThe direction is not free. Swiping backward instead would put the broken glide on Overview, which is not a space and reports nothing, so the absence check would pass on the very build it exists to catch. Forward is the only direction where the regression leaves a trace.",
+  "fixture": "space-cycle.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "a276b001-0000-0000-0000-000000000001",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the first space render"
+    },
+    {
+      "type": "activate",
+      "note": "an ssh-launched Atrium is not frontmost, so the gesture would land in Finder"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the first space's tint"
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 100,
+      "y": 200,
+      "dx": -45,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "note": "space-dots-stay-pinned's gesture, copied rather than invented - that scenario commits a swipe 6 runs out of 6. The sign is measured, not reasoned: dx=+45 logs 'dir -1 from 1 to 0', so positive travels toward Overview and this needs the other way.",
+      "capture_id": "during",
+      "duration_ms": 260,
+      "fps": 25
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "far longer than any push this surface makes. The regression undid the switch AFTER it landed, so a short settle would have passed throughout it."
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 400,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-switch-happened-and-names-both-ends",
+      "pattern": "Atrium: active space 0 -> 1 ",
+      "note": "both ends, so a run that never left the first space cannot satisfy it"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "it-did-not-come-back",
+      "pattern": "Atrium: active space 1 -> 0 ",
+      "note": "THE ASSERTION THIS SCENARIO EXISTS FOR. The regression showed as a return trip, and a return trip logs its own line. Paired with the arrival above, so it cannot pass by nothing having happened."
+    },
+    {
+      "type": "theme_changed",
+      "before": "before",
+      "after": "after",
+      "region": "16,250,180,120",
+      "min_delta": 6,
+      "note": "the visible tint really is the other space's at the end, not merely logged as such"
+    }
+  ]
+}

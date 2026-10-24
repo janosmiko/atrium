@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Wed, 30 Sep 2026 23:02:50 +0200
+Subject: [PATCH 151/154] feat(sidebar): open the space icon picker in its own
+ widget
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 7c2cac10b8bea..bfd219fd560e8 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3629,6 +3629,8 @@ static_library("ui") {
+       "atrium/atrium_command_dispatcher_delegate.mm",
+       "atrium/atrium_quick_menu_widget.h",
+       "atrium/atrium_quick_menu_widget.mm",
++      "atrium/atrium_space_icon_picker_widget.h",
++      "atrium/atrium_space_icon_picker_widget.mm",
+       "atrium/atrium_hint_overlay_widget.h",
+       "atrium/atrium_hint_overlay_widget.mm",
+       "atrium/atrium_toast_overlay_widget.h",

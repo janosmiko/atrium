@@ -1,0 +1,103 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 6 Aug 2026 17:29:09 +0200
+Subject: [PATCH 025/154] fix: guard the two null-service derefs that crash the
+ context menu
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Right-clicking selected text segfaulted the BROWSER process, taking the whole
+session with it. Stack in build/logs/crash-context-menu-2026-08-06.log:
+
+    Received signal 11 SEGV_ACCERR 000000000018
+    RenderViewContextMenu::AppendSearchProvider() + 352
+    RenderViewContextMenu::AppendRevisedTextSelectionSection() + 148
+    RenderViewContextMenu::InitMenu() + 840
+
+AppendSearchProvider dereferences two profile-keyed services without checking
+either:
+
+    AutocompleteClassifierFactory::GetForProfile(GetProfile())->Classify(...)
+    TemplateURLServiceFactory::GetForProfile(GetProfile())->GetDefaultSearchProvider()
+
+Both return null for a profile their factory does not serve. Address 0x18 is a
+member access on null, and everything above the first call early-returns, which
+is why it only fires with a non-empty selection - right-clicking with nothing
+selected never reaches it.
+
+Upstream can assume every tab-hosting profile has these, because it only hosts
+tabs on profiles ProfileManager built for that purpose. Atrium creates one per
+space and hands them to windows directly, so the assumption does not hold.
+
+Degrading to "no Search-the-web item" is the right failure: the menu stays
+usable and nothing else in it depends on either service. Note the null RESULT
+of GetDefaultSearchProvider was already handled upstream - only the null
+SERVICE was not.
+
+MITIGATION, not a root cause. Which profile returns null, and why, is still
+open: profiles come from ProfileManager::GetProfileByPath, and a regular
+profile should get both services. The crash is worth stopping first - it
+destroys a browsing session - but the cause stays open.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../render_view_context_menu.cc               | 35 ++++++++++++++++---
+ 1 file changed, 30 insertions(+), 5 deletions(-)
+
+diff --git a/chrome/browser/renderer_context_menu/render_view_context_menu.cc b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+index b4a0392ee870e..d6e2c8870fb88 100644
+--- a/chrome/browser/renderer_context_menu/render_view_context_menu.cc
++++ b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+@@ -2876,10 +2876,29 @@ void RenderViewContextMenu::AppendSearchProvider() {
+   base::ReplaceChars(params_.selection_text, AutocompleteInput::kInvalidChars,
+                      u" ", &params_.selection_text);
+ 
++  // ATRIUM: both service lookups in this function are dereferenced
++  // unguarded upstream, and either returns null for a profile its factory does
++  // not serve. Right-clicking selected text then segfaults the BROWSER process
++  // and takes the whole session with it - reported on a five-profile setup,
++  // with the crash at this line (SEGV_ACCERR on a null + 0x18).
++  //
++  // Upstream can assume every tab-hosting profile has these because it only
++  // ever hosts tabs on profiles ProfileManager built for that purpose. Atrium
++  // creates one per space and hands them to windows directly, so the
++  // assumption does not hold here.
++  //
++  // Degrading to "no Search-the-web item" is the correct failure: the menu is
++  // still usable and nothing else in it depends on either service.
++  AutocompleteClassifier* const classifier =
++      AutocompleteClassifierFactory::GetForProfile(GetProfile());
++  if (!classifier) {
++    return;
++  }
++
+   AutocompleteMatch match;
+-  AutocompleteClassifierFactory::GetForProfile(GetProfile())
+-      ->Classify(params_.selection_text, false, false,
+-                 metrics::OmniboxEventProto::INVALID_SPEC, &match, nullptr);
++  classifier->Classify(params_.selection_text, false, false,
++                       metrics::OmniboxEventProto::INVALID_SPEC, &match,
++                       nullptr);
+   selection_navigation_url_ = match.destination_url;
+   if (!selection_navigation_url_.is_valid()) {
+     return;
+@@ -2889,9 +2908,15 @@ void RenderViewContextMenu::AppendSearchProvider() {
+   EscapeAmpersands(&printable_selection_text);
+ 
+   if (AutocompleteMatch::IsSearchType(match.type)) {
++    // ATRIUM: same shape as the classifier above. The null RESULT
++    // was already handled; the null SERVICE was not.
++    TemplateURLService* const template_urls =
++        TemplateURLServiceFactory::GetForProfile(GetProfile());
++    if (!template_urls) {
++      return;
++    }
+     const TemplateURL* const default_provider =
+-        TemplateURLServiceFactory::GetForProfile(GetProfile())
+-            ->GetDefaultSearchProvider();
++        template_urls->GetDefaultSearchProvider();
+     if (!default_provider) {
+       return;
+     }

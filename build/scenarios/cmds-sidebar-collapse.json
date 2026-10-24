@@ -1,0 +1,97 @@
+{
+  "name": "cmds-sidebar-collapse",
+  "description": "The Cmd+S leg on a standard window. Cmd+S is bound to kToggleSidebar by default (atrium_native_hotkey_map.mm), and the Rust core's commands.rs decides it: ToggleSidebar's own BrowserController::ToggleSidebar has no VLOG at all, so nothing in the run log can gate this - the measurement has to be a pixel delta over the docked sidebar's own column, per build/vm-tools/pixcmp.swift. The fixture's appState.sidebarWidth is 280, so the docked sidebar spans x 0..280; collapsing it (SetSidebarWidth(0)) hands that whole column to page content. RECON-MEASURED: a region straddling the sidebar's right edge scores near zero even though the collapse plainly happened, because pixcmp's delta is a euclidean distance between REGION MEANS, not a per-pixel diff, and a region split between the still-there rows and the now-visible page content can average out. This region sits entirely inside the docked sidebar, away from that edge and away from the row-hover/pointer position, so both states are read from the SAME patch of screen. Its own fixture on the harness's example-domain.html, which carries the <title> the gate waits for. It used to share presenter-startup's and wait on a remote page the VM cannot reach, so the gate never opened and everything after it ran against unestablished state.",
+  "fixture": "cmdf-swallowed.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "timeout_ms": 20000,
+      "note": "gate the run on a committed navigation, same line and reason as quit-with-tab - past this point the sidebar has real rows to show, not a loading placeholder"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the docked sidebar finish rendering"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot; without this Cmd+S lands in Finder"
+    },
+    {
+      "type": "settle",
+      "ms": 800,
+      "note": "let the window come forward"
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 600,
+      "note": "park the pointer in page content, well outside the sidebar column, so the cursor sprite cannot supply a delta"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "sidebar docked at its fixture width, 280"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "THE MEASUREMENT: IDC_SAVE_PAGE, which claims_save_page_for_sidebar answers with ToggleSidebar on a window that has one"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the collapse animate/settle - the header-overlay scenario uses the same 1000ms+ margin for the same transition"
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "sidebar collapsed to width 0, page content underneath"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-tab-loaded-first",
+      "pattern": "Atrium: tab [0-9]+ title Example Domain",
+      "note": "THE POSITIVE GATE: a docked sidebar with real rows existed before the chord, so a delta below is a collapse and not a fixture that never rendered"
+    },
+    {
+      "type": "theme_changed",
+      "before": "before",
+      "after": "after",
+      "region": [
+        40,
+        200,
+        150,
+        300
+      ],
+      "min_delta": 10.0,
+      "desc": "THE MEASUREMENT: the docked sidebar column hands its pixels to page content when it collapses to width 0. MEASURED twice on the deployed build (6712195c...dcce2f8a6, SKIP_RESTORE=1 SKIP_DEPLOY=1): delta=56.76 and delta=56.79, before_mean~198,206,213 var~888 (the sidebar's own rows/background), after_mean=238,238,238 var=0.0 (flat - page content with nothing left of the sidebar to average over). min_delta 10.0 sits under a fifth of the measured delta and the two runs agree to 0.03, so this is not a threshold call - the collapse either changes this column by ~57 or it does not run at all."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "liveness: still one real window after the toggle"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits"
+    }
+  ],
+  "serve_fixtures": true
+}

@@ -1,0 +1,222 @@
+{
+  "name": "the-ai-panel-hint-wears-the-sidebar-hint-s-accent",
+  "description": "the hover hints the AI panel raises over its action row are built in the panel's own document, where the sidebar's hints go native to HintOverlayWidget's /hint document instead. This run raises one of each and reads the tokens and the box off both cards, so a difference in accent, surface, radius or shadow between the two shows up as a value rather than as an impression.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "eval_until",
+      "id": "panel-built",
+      "target": "/ai-panel",
+      "expression": "String(!!document.querySelector('.aichatinput'))",
+      "expected": "true",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "open",
+      "target": "/ai-panel",
+      "expression": "(() => { document.dispatchEvent(new KeyboardEvent('keydown', {key: '`'})); return String(document.getElementById('atrium-root').classList.contains('aipopen')); })()"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "the container widens before the card's own layout settles"
+    },
+    {
+      "type": "eval",
+      "id": "hover-quick",
+      "target": "/ai-panel",
+      "expression": "(() => { const b = document.querySelector('[data-ai-panel-quick=\"bullets\"]'); b.dispatchEvent(new PointerEvent('pointerover', {bubbles: true})); return 'sent'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 1200,
+      "note": "the hover hint's own 600ms delay, on the real clock"
+    },
+    {
+      "type": "eval",
+      "id": "panel-hint-look",
+      "target": "/ai-panel",
+      "expression": "(() => { const el = document.querySelector('.hint'); if (!el) { return 'no hint'; } const s = getComputedStyle(el); return [s.backgroundColor, s.borderRadius, s.boxShadow, s.fontFamily.split(',')[0]].join(' | '); })()",
+      "note": "the paper carries the accent at 6% through overlay.css's color-mix, so one string covers surface and accent together"
+    },
+    {
+      "type": "eval",
+      "id": "panel-hint-classes",
+      "target": "/ai-panel",
+      "expression": "(() => (document.querySelector('.hint') || {}).className || 'none')()"
+    },
+    {
+      "type": "eval",
+      "id": "panel-accent-pushed",
+      "target": "/ai-panel",
+      "expression": "getComputedStyle(document.documentElement).getPropertyValue('--ov-accent').trim()",
+      "note": "overlay.css writes this token as rgb(176 58 72); the hex is PushOverlayTheme's own value, so reading it back proves the push lands on this document and a later one repaints it"
+    },
+    {
+      "type": "eval",
+      "id": "hover-pin",
+      "target": "/ai-panel",
+      "expression": "(() => { const q = document.querySelector('[data-ai-panel-quick=\"bullets\"]'); q.dispatchEvent(new PointerEvent('pointerout', {bubbles: true})); const b = document.querySelector('.aippin'); if (!b) { return 'no-button'; } b.dispatchEvent(new PointerEvent('pointerover', {bubbles: true})); return 'sent'; })()",
+      "note": "the header buttons were outside the hover allowlist, and parkTitlesUnder had already taken their title, so hovering one showed nothing at all"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "panel-header-hint-text",
+      "target": "/ai-panel",
+      "expression": "(() => { const el = document.querySelector('.hint .hint-text'); return el ? el.textContent : 'no hint'; })()"
+    },
+    {
+      "type": "eval",
+      "id": "panel-header-hint-look",
+      "target": "/ai-panel",
+      "expression": "(() => { const el = document.querySelector('.hint'); if (!el) { return 'no hint'; } const s = getComputedStyle(el); return [s.backgroundColor, s.borderRadius, s.boxShadow, s.fontFamily.split(',')[0]].join(' | '); })()"
+    },
+    {
+      "type": "eval",
+      "id": "hover-sidebar",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbnav .nb'); if (!b) { return 'no-button'; } b.dispatchEvent(new PointerEvent('pointerover', {bubbles: true})); return 'sent'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "sidebar-hint-look",
+      "target": "/hint",
+      "expression": "(() => { const el = document.querySelector('.hint'); if (!el) { return 'no hint'; } const s = getComputedStyle(el); return [s.backgroundColor, s.borderRadius, s.boxShadow, s.fontFamily.split(',')[0]].join(' | '); })()",
+      "note": "the paper carries the accent at 6% through overlay.css's color-mix, so one string covers surface and accent together"
+    },
+    {
+      "type": "eval",
+      "id": "sidebar-hint-classes",
+      "target": "/hint",
+      "expression": "(() => (document.querySelector('.hint') || {}).className || 'none')()"
+    },
+    {
+      "type": "eval",
+      "id": "hint-accent-themed",
+      "target": "/hint",
+      "expression": "getComputedStyle(document.documentElement).getPropertyValue('--ov-accent').trim()",
+      "note": "overlay.css's own brand value is rgb(176 58 72); the hex means the theme class reached this document"
+    },
+    {
+      "type": "capture",
+      "id": "warm-up",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the first stream in a run can deliver no frames"
+    },
+    {
+      "type": "capture",
+      "id": "ai-panel-hint",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "the browser window alone"
+    },
+    {
+      "type": "eval_equals",
+      "id": "open",
+      "expected": "\"true\"",
+      "desc": "setup: the hotkey opened the panel"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hover-quick",
+      "expected": "\"sent\"",
+      "desc": "setup: an action button was hovered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hover-sidebar",
+      "expected": "\"sent\"",
+      "desc": "setup: a sidebar nav button was hovered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hover-pin",
+      "expected": "\"sent\"",
+      "desc": "setup: the header's pin button was hovered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "panel-header-hint-text",
+      "expected": "\"Pin - keep open across tabs\"",
+      "desc": "A header button raises a hint at all - it used to raise none, and had no tooltip left either"
+    },
+    {
+      "type": "eval_equals",
+      "id": "panel-header-hint-look",
+      "expected": "\"rgb(249, 240, 241) | 999px | rgba(34, 16, 22, 0.22) 0px 14px 36px 0px | Archivo\"",
+      "desc": "And it wears the same card as the action row's"
+    },
+    {
+      "type": "eval_equals",
+      "id": "panel-hint-classes",
+      "expected": "\"hint ov-card ov-hint hint-at\"",
+      "desc": "The panel's bubble is the shared card plus the hint pill"
+    },
+    {
+      "type": "eval_equals",
+      "id": "sidebar-hint-classes",
+      "expected": "\"hint ov-card ov-hint hint-at\"",
+      "desc": "the sidebar's bubble carries the same classes"
+    },
+    {
+      "type": "eval_equals",
+      "id": "panel-accent-pushed",
+      "expected": "\"#B03A48\"",
+      "desc": "The theme push reaches the panel document, so a change repaints the bubble in place"
+    },
+    {
+      "type": "eval_equals",
+      "id": "panel-hint-look",
+      "expected": "\"rgb(249, 240, 241) | 999px | rgba(34, 16, 22, 0.22) 0px 14px 36px 0px | Archivo\"",
+      "desc": "The panel's bubble wears the overlay card, not the panel's glass"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint-accent-themed",
+      "expected": "\"#B03A48\"",
+      "desc": "the hint overlay took the theme on its ready message, not one show late"
+    },
+    {
+      "type": "eval_equals",
+      "id": "sidebar-hint-look",
+      "expected": "\"rgb(249, 240, 241) | 999px | rgba(34, 16, 22, 0.22) 0px 14px 36px 0px | Archivo\"",
+      "desc": "The sidebar's bubble wears the same theme paper - its first show used to come up on overlay.css's untinted default"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

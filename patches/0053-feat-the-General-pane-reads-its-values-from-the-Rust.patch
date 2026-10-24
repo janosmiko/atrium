@@ -1,0 +1,61 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 21:44:04 +0200
+Subject: [PATCH 053/154] feat: the General pane reads its values from the Rust
+ core
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The running browser had NO settings reader after the Swift cut -
+atrium_core_query appeared only in a unit test. atrium_settings_source adds
+one: a path helper honouring ATRIUM_SETTINGS_FILE, which vm-scenario.sh
+already stages, and a read that returns the core's loaded settings as JSON.
+
+Nine rows, the lab's set and order. Five carry a key into the store; four have
+no backend and render a dash rather than an empty cell, so a missing backend
+looks different from a setting that is off.
+
+TWO MISTAKES WORTH RECORDING, both mine, both caught by looking at the result
+rather than the assertions.
+
+The first read ran on the UI thread. That aborts the browser: 'Function marked
+as blocking was called from a scope that disallows blocking'. I had written a
+comment arguing for it. The read is on the thread pool now, and the comment
+says why it has to be.
+
+Then the push landed - 384 bytes, assertion green - and every row still showed
+a dash. setSettings looked the root up as getElementById('root'); the host
+page's root is 'atrium-root', so it found nothing and skipped every repaint in
+silence. It holds the element installSettings was given now. The stylesheet had
+the same wrong selector, which is why the rail sat above the body instead of
+beside it.
+
+13 DOM tests, up from 8, including one that fails if the repaint is skipped.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 7ee3eef019001..9d1490eb25268 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3496,6 +3496,7 @@ static_library("ui") {
+       "atrium/atrium_peek_intercept.cc",
+       "atrium/atrium_peek_navigation_throttle.cc",
+       "atrium/atrium_settings_window.cc",
++      "atrium/atrium_settings_source.cc",
+       "atrium/atrium_settings_menu_hook.mm",
+       "atrium/atrium_profile_bootstrap.h",
+       "atrium/atrium_profile_bootstrap.cc",
+@@ -3530,6 +3531,7 @@ static_library("ui") {
+       "atrium/atrium_peek_intercept.h",
+       "atrium/atrium_peek_navigation_throttle.h",
+       "atrium/atrium_settings_window.h",
++      "atrium/atrium_settings_source.h",
+       "atrium/atrium_settings_menu_hook.h",
+       "atrium/atrium_peek_widget.h",
+       "atrium/atrium_peek_widget.mm",

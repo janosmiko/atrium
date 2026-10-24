@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 30 Aug 2026 09:08:40 +0200
+Subject: [PATCH 087/154] feat(sidebar): a navigation row beside the traffic
+ lights
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Back, forward and reload move to the right edge of the row, animate on press,
+grey out when the tab cannot go that way, fold into an overflow menu on a
+narrow sidebar, and move into the floating address bar while it is up.
+
+Option and Cmd+Shift widen all three: to the first or last page of the tab and
+a hard reload, or the previous or next page in a new tab and a hard reload
+that clears the site's cookies and storage first. The modifier state is pushed
+from the process-wide flagsChanged monitor, since the page only sees key
+events while it holds the keyboard.
+
+The glyphs come from the lab: 17px text glyphs in a 22px box, a 16px reload
+arc with a bolt for the hard reload and a dashed arc with crumbs for the
+clearing one, on filled amber and red plates rather than the lab's
+translucent ones, which measured under 2:1 on a light tint.
+
+NonClientHitTest's caption carve moves to atrium_nav_carve_decision so the
+geometry tracks the sidebar width and has a unit test of its own.
+
+The bar.append line that adds the pin beside the nav group is tangled with
+the address bar pin, and lands with that change.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 44d133bb0736a..1977833ef0bbe 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -639,6 +639,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:little_window_registry",
+     "//chrome/browser/ui/atrium:memory_saver",
+     "//chrome/browser/ui/atrium:move_target_decision",
++    "//chrome/browser/ui/atrium:nav_carve_decision",
+     "//chrome/browser/ui/atrium:native_hotkey_defaults",
+     "//chrome/browser/ui/atrium:command_bar_actions",
+     "//chrome/browser/ui/atrium:command_bar_matches",

@@ -1,0 +1,63 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Wed, 19 Aug 2026 18:55:24 +0200
+Subject: [PATCH 074/154] fix(devtools): refuse a devtools window on an Atrium
+ chrome surface
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Inspecting the sidebar, the palette or the notes pad segfaulted the browser.
+AtriumChromeContext builds every chrome surface in the OTR System Profile, and
+ThemeServiceFactory's ProfileSelections names WithRegular, WithGuest and
+WithAshInternals - the System Profile falls through to kNone. So GetForProfile
+returns null and the devtools bindings constructor calls AddObserver on it. Its
+destructor calls RemoveObserver the same way, so teardown was a second crash.
+
+  BrowserTestBase received signal: Segmentation fault: 11
+  #4  DevToolsUIBindings::DevToolsUIBindings(content::WebContents*) + 636
+
+Guarding that deref is not the fix, and trying it is what showed why: with
+ThemeService handled, the next frame down was ContentSettingsManagerImpl reaching
+for CookieSettings. The profile is missing a family of services, not one, so the
+FRONTEND is refused for a surface instead of chasing them.
+
+CDP attachment is deliberately untouched - it needs none of those services, and it
+is how the surfaces are actually inspected. Verified: an eval scenario still reads
+the palette's own DOM through remote debugging, 5 passed 0 failed.
+
+Reachable, which is why it is a fix and not a note: the surfaces appear in the
+target list chrome://inspect offers.
+
+Mutation-proven, on the second attempt. Making the predicate return false failed to
+compile on an unused variable, and the test then ran against a stale binary and
+passed - so the gate itself is mutated instead: left logging without returning, the
+test crashes.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/devtools/devtools_window.cc | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/chrome/browser/devtools/devtools_window.cc b/chrome/browser/devtools/devtools_window.cc
+index d35e810848e29..b3ed0a6df11d1 100644
+--- a/chrome/browser/devtools/devtools_window.cc
++++ b/chrome/browser/devtools/devtools_window.cc
+@@ -868,6 +868,16 @@ void DevToolsWindow::ToggleDevToolsWindow(
+     const std::string& settings,
+     DevToolsOpenedByAction toggled_by,
+     const content::DevToolsManagerDelegate::DevToolsOptions& devtools_options) {
++  // Refuse a FRONTEND on one of Atrium's own chrome surfaces. They live
++  // in the OTR System Profile, which has no ThemeService and no CookieSettings, and
++  // the bindings dereference those in turn - it segfaulted twice over before this
++  // gate. CDP attachment is deliberately untouched: it needs none of those
++  // services, and remote debugging of the surfaces is how they are inspected.
++  if (atrium::AtriumIsChromeSurface(inspected_web_contents)) {
++    LOG(WARNING) << "Atrium: refusing a devtools window on a chrome surface; "
++                    "attach over CDP instead";
++    return;
++  }
+   scoped_refptr<DevToolsAgentHost> agent(
+       DevToolsAgentHost::GetOrCreateForTab(inspected_web_contents));
+   DevToolsWindow* window = FindDevToolsWindow(agent.get());

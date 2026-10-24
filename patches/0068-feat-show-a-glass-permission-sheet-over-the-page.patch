@@ -1,0 +1,92 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sat, 15 Aug 2026 23:56:07 +0200
+Subject: [PATCH 068/154] feat: show a glass permission sheet over the page
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Atrium has no location bar, so an earlier crash fix left every permission
+request unanswerable: no chip, no bubble, no dialog. A page asking for
+geolocation or notifications got silence, which it reads as a refusal.
+
+Adds a /permsheet WebUI route carrying the origin, the permission names and
+Allow/Block, an AtriumPermissionPrompt implementing permissions::PermissionPrompt,
+and a branch in permission_prompt_factory.cc routing Atrium windows there
+before the chip/bubble tree the missing location bar breaks.
+
+The branch tests browser->is_type_normal() rather than a dynamic_cast, since
+Chromium builds with RTTI off - the same rule browser_window_factory.cc uses
+to decide which windows are Atrium's.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn                    |  4 ++++
+ .../permissions/permission_prompt_factory.cc  | 24 +++++++++++++++++++
+ 2 files changed, 28 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 04ce7428eec92..ec1b94878a2e8 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3550,6 +3550,10 @@ static_library("ui") {
+       "atrium/atrium_capture.h",
+       "atrium/atrium_command_bar_widget.h",
+       "atrium/atrium_command_bar_widget.mm",
++      "atrium/atrium_permission_sheet_widget.h",
++      "atrium/atrium_permission_sheet_widget.mm",
++      "atrium/atrium_permission_prompt.h",
++      "atrium/atrium_permission_prompt.cc",
+       "atrium/atrium_command_dispatcher_delegate.h",
+       "atrium/atrium_command_dispatcher_delegate.mm",
+       "atrium/atrium_extension_pill_widget.h",
+diff --git a/chrome/browser/ui/views/permissions/permission_prompt_factory.cc b/chrome/browser/ui/views/permissions/permission_prompt_factory.cc
+index e174add34b8c1..6fa48b4221597 100644
+--- a/chrome/browser/ui/views/permissions/permission_prompt_factory.cc
++++ b/chrome/browser/ui/views/permissions/permission_prompt_factory.cc
+@@ -34,6 +34,7 @@
+ #include "url/origin.h"
+ 
+ #if BUILDFLAG(IS_MAC)
++#include "chrome/browser/ui/atrium/atrium_permission_prompt.h"
+ #include "chrome/browser/ui/views/permissions/permission_prompt_notifications_mac.h"
+ #include "chrome/browser/web_applications/os_integration/mac/web_app_shortcut_mac.h"
+ #endif
+@@ -158,6 +159,17 @@ bool IsLocationBarDisplayed(content::WebContents* web_contents) {
+   return lb && lb->IsDrawn() && !lb->IsFullscreen();
+ }
+ 
++#if BUILDFLAG(IS_MAC)
++// browser_window_factory.cc builds atrium::AtriumBrowserWindow for exactly
++// `browser->is_type_normal()` on Mac (PWA/popup windows fall through to the
++// stock BrowserView path) - mirrored here rather than a dynamic_cast so this
++// file never has to include an Atrium header outside this Mac block.
++bool IsAtriumBrowserWindow(BrowserWindowInterface* browser) {
++  Browser* b = browser ? browser->GetBrowserForMigrationOnly() : nullptr;
++  return b && b->is_type_normal();
++}
++#endif
++
+ bool ShouldCurrentRequestUseQuietChip(
+     permissions::PermissionPrompt::Delegate* delegate) {
+   const auto& requests = delegate->Requests();
+@@ -295,6 +307,18 @@ std::unique_ptr<permissions::PermissionPrompt> CreatePermissionPrompt(
+   }
+ #endif
+ 
++#if BUILDFLAG(IS_MAC)
++  // An Atrium window has no LocationBarView to anchor the chip or
++  // bubble against - IsLocationBarDisplayed() now honestly returns
++  // false there, which leaves CreateNormalPrompt/CreateQuietPrompt falling
++  // back to PermissionPromptBubble with nothing to anchor to. Route these
++  // requests to the HTML glass sheet before that fallback runs.
++  if (IsAtriumBrowserWindow(GetBrowser(web_contents))) {
++    return std::make_unique<atrium::AtriumPermissionPrompt>(web_contents,
++                                                            delegate);
++  }
++#endif
++
+   if (web_app::AppBrowserController::IsWebApp(GetBrowser(web_contents))) {
+     return CreatePwaPrompt(web_contents, delegate);
+   } else if (delegate->ShouldCurrentRequestUseQuietUI()) {

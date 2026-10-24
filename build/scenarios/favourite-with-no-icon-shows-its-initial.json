@@ -1,0 +1,52 @@
+{
+  "name": "favourite-with-no-icon-shows-its-initial",
+  "description": "A favourite whose icon never arrives used to be an empty 16px square. It now shows the first letter of its host (www. dropped, upper case) on a plate in the host's own hue. The plate sits under the img, so the second favourite, whose icon does load, covers its letter. The letter is the host's, not the title's: the dead favourite is titled Zebra and must show N.",
+  "fixture": "favourite-with-no-icon.spaces.json",
+  "startup_space": "94600001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "settle", "ms": 3000 },
+    { "type": "activate" },
+    { "type": "wait_vlog", "pattern": "Atrium: favicon backfill starting", "timeout_ms": 15000 },
+    {
+      "type": "eval_until",
+      "id": "brand-icon-loaded",
+      "target": "/sidebar",
+      "expression": "String(!!document.querySelector('.fav[data-fav-id*=\"brand-dark-red\"] .fvimg.ok'))",
+      "expected": "true",
+      "timeout_ms": 30000,
+      "note": "the control: the served favourite's icon lands"
+    },
+    { "type": "settle", "ms": 4000, "note": "give the dead host's lookup time to give up" },
+    {
+      "type": "eval",
+      "id": "dead-tile-letter",
+      "target": "/sidebar",
+      "expression": "(() => { const f = document.querySelector('.fav[data-fav-id*=\"nowhere-at-all\"]'); if (!f) { return 'no tile'; } const p = f.querySelector('.fvinit'); return (p ? p.textContent : 'no plate') + '|' + (f.querySelector('.fvimg.ok') ? 'icon' : 'no-icon'); })()",
+      "note": "THE MEASUREMENT: the dead favourite shows N (from www.nowhere-at-all.test, not from the title Zebra) and no icon"
+    },
+    {
+      "type": "eval",
+      "id": "dead-tile-plate",
+      "target": "/sidebar",
+      "expression": "(() => { const p = document.querySelector('.fav[data-fav-id*=\"nowhere-at-all\"] .fvinit'); if (!p) { return 'no plate'; } const r = p.getBoundingClientRect(); const cs = getComputedStyle(p); return 'w' + Math.round(r.width) + ' h' + Math.round(r.height) + ' bg=' + cs.backgroundColor + ' ink=' + cs.color; })()",
+      "note": "recorded: the plate fills the 16px chip, and its background and ink differ"
+    },
+    {
+      "type": "eval",
+      "id": "brand-tile-stack",
+      "target": "/sidebar",
+      "expression": "(() => { const f = document.querySelector('.fav[data-fav-id*=\"brand-dark-red\"] .fvi'); return [...f.children].map((n) => n.className).join(',') + '|plate=' + getComputedStyle(f.querySelector('.fvinit')).display; })()",
+      "note": "THE OTHER HALF: the img comes after the plate, and the plate is gone once the icon has loaded"
+    },
+    { "type": "capture", "id": "tiles", "duration_ms": 300, "fps": 20 }
+  ],
+  "assertions": [
+    { "type": "ax_window_count", "expected": 1, "min_area": 200000, "desc": "sanity: one real window rendered" },
+    { "type": "eval_equals", "id": "brand-icon-loaded", "expected": "true", "desc": "the served favourite's icon lands" },
+    { "type": "eval_equals", "id": "dead-tile-letter", "expected": "\"N|no-icon\"", "desc": "the dead favourite shows its host's initial and no icon" },
+    { "type": "eval_equals", "id": "brand-tile-stack", "expected": "\"fvinit,fvimg ok|plate=none\"", "desc": "the loaded icon sits above the plate, and the plate is hidden" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

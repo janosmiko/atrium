@@ -1,0 +1,108 @@
+{
+  "name": "theme-studio-header-follows-a-real-drag",
+  "description": "A real mouse drag on the studio's header carries the window with the pointer. The header reports pointer deltas to the browser, which moves the widget. When those deltas came from clientX/clientY, every move the browser made shifted the next client reading back by the same amount, so the page sent the reverse delta and the window bounced between two spots for as long as the pointer moved. Screen coordinates do not move with the window.\n\nWHY A CGEVENT DRAG AND NOT AN EVAL: a constructed PointerEvent carries whatever screenX the eval wrote, so a synthetic drag cannot show the bounce - theme-popover-from-a-space-dot.json's drag proves the protocol reaches the browser, and this one proves the loop is stable under a pointer the OS moves. The studio is first parked at a known screen point through the header's own protocol (one synthetic drag whose screen delta is computed from window.screenX), gated by an exact read-back, so the cgevent drag can be aimed in absolute coordinates. The result is graded against the 100px asked for within a loose tolerance, because a cgevent drag lands short by a different amount each run - a bouncing window lands far outside it.",
+  "fixture": "theme-popover.spaces.json",
+  "themes": "theme-popover.themes.json",
+  "startup_space": "77777777-7777-7777-7777-777777777777",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url https://example\\.com",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so the app and the fixture are live"
+    },
+    { "type": "settle", "ms": 3000 },
+    { "type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot" },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "open-menu",
+      "target": "/sidebar",
+      "expression": "(() => { const dot = [...document.querySelectorAll('.sdot')].find((d) => d.dataset.spaceIndex === '0'); if (!dot) return 'no-dot'; const r = dot.getBoundingClientRect(); dot.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, clientX: r.left + 4, clientY: r.top + 4})); return [...document.querySelectorAll('.ctxitem')].map((b) => b.textContent).join(','); })()",
+      "note": "the dot's own context menu, the same route theme-popover-from-a-space-dot.json takes"
+    },
+    { "type": "settle", "ms": 500 },
+    {
+      "type": "eval",
+      "id": "pick-theme",
+      "target": "/sidebar",
+      "expression": "(() => { const item = [...document.querySelectorAll('.ctxitem')].find((b) => b.textContent === 'Change Theme'); if (!item) return 'no-item'; item.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: theme studio popover opened for space 0",
+      "timeout_ms": 10000
+    },
+    { "type": "settle", "ms": 1500 },
+    {
+      "type": "eval",
+      "id": "park-window",
+      "target": "/theme",
+      "expression": "(() => { const head = document.querySelector('.tw-head'); if (!head) return 'no-head'; const dx = 300 - window.screenX; const dy = 400; const init = (x, y) => ({bubbles: true, clientX: 100, clientY: 16, screenX: x, screenY: y, pointerId: 1, button: 0}); head.dispatchEvent(new PointerEvent('pointerdown', init(1000, 1000))); head.dispatchEvent(new PointerEvent('pointermove', init(1000 + dx, 1000 + dy))); head.dispatchEvent(new PointerEvent('pointerup', init(1000 + dx, 1000 + dy))); return 'parked'; })()",
+      "note": "moves the studio to x=300 through its own drag protocol, so the real drag below can be aimed in absolute screen coordinates. y is pushed down by far more than fits: the card is taller than the 768px VM screen allows, so the clamp stops it at y=78, the lowest the parent permits - a known point, where PlaceThemeStudioAtAnchor's own y=40 would only be known by assumption. The gate below reads it back"
+    },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "parked-at",
+      "target": "/theme",
+      "expression": "(() => window.screenX + ',' + window.screenY)()",
+      "note": "gate: the exact position the cgevent drag below assumes"
+    },
+    { "type": "activate", "note": "the parking went through chrome.send, so nothing raised the app - the press below has to reach the studio, not a window over it" },
+    { "type": "settle", "ms": 500 },
+    {
+      "type": "drag",
+      "x1": 370,
+      "y1": 102,
+      "x2": 470,
+      "y2": 102,
+      "note": "THE MEASUREMENT: a real cgevent mouse drag on the header - 70px in from the window's left edge and 24px down from its top, in the middle of the header's height beside the space name, clear of the close button at the right end - rightward by 100. Horizontal, like every other drag in this suite"
+    },
+    { "type": "settle", "ms": 1500 },
+    {
+      "type": "eval",
+      "id": "followed-right",
+      "target": "/theme",
+      "expression": "(() => Math.abs((window.screenX - 300) - 100) <= 20 && Math.abs(window.screenY - 78) <= 6)()",
+      "note": "a cgevent drag lands short by a different amount each run, so this grades against the 100 asked for within a loose tolerance. A bouncing window ends near where it started or at a random fraction, far outside it"
+    },
+    {
+      "type": "eval",
+      "id": "landed-at",
+      "target": "/theme",
+      "expression": "(() => 'before 300,78 after ' + window.screenX + ',' + window.screenY)()",
+      "note": "recorded: the numbers behind followed-right"
+    },
+    { "type": "activate" },
+    { "type": "settle", "ms": 500 },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the studio where the real drag left it"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "pick-theme",
+      "expected": "\"clicked\"",
+      "desc": "the Change Theme item was there to click"
+    },
+    {
+      "type": "eval_equals",
+      "id": "parked-at",
+      "expected": "\"300,78\"",
+      "desc": "gate: the studio sits exactly where the cgevent drag is aimed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "followed-right",
+      "expected": "true",
+      "desc": "the real drag carried the window about 100px right and left y alone - no bounce"
+    }
+  ]
+}

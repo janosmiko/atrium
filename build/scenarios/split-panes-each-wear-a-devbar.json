@@ -1,0 +1,124 @@
+{
+  "name": "split-panes-each-wear-a-devbar",
+  "description": "A split puts one floating address bar over each pane, centred on that pane, with no Developer Mode and no localhost page. The /note path from split-selected-pane-wears-the-ring-and-cmd-w-closes-it opens the split. The page host is dl.localhost, which is not localhost, so the single card wears no bar before the split. That is the control for both bar readings below.\n\nThe gate is the window's own count, 'pane devbars 2', which only a split that built a bar per pane logs. A regression back to one bar per window never logs it, and the scenario fails there.\n\nThe card spans about x=267..963 from y=40, so the two panes centre near x=440 and x=790, and each bar's plate sits at y=50..84.",
+  "fixture": "split-link.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://dl\\.localhost",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "move",
+      "x": 900,
+      "y": 650,
+      "note": "park the pointer off both bars"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "single",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "type",
+      "text": "/note"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: pane devbars 2",
+      "timeout_ms": 10000,
+      "note": "only a split that built one bar per pane logs this"
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "move",
+      "x": 900,
+      "y": 650
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "split",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "pixels_changed",
+      "before": "single",
+      "after": "split",
+      "region": [
+        600,
+        300,
+        100,
+        200
+      ],
+      "min_changed_pct": 30,
+      "label": "the-note-opened-a-split"
+    },
+    {
+      "type": "pixels_changed",
+      "before": "single",
+      "after": "split",
+      "region": [
+        400,
+        55,
+        80,
+        24
+      ],
+      "min_changed_pct": 20,
+      "label": "the-left-pane-wears-its-own-bar"
+    },
+    {
+      "type": "pixels_changed",
+      "before": "single",
+      "after": "split",
+      "region": [
+        750,
+        55,
+        80,
+        24
+      ],
+      "min_changed_pct": 20,
+      "label": "the-right-pane-wears-its-own-bar"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

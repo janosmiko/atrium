@@ -1,0 +1,78 @@
+{
+  "name": "the-devbar-floats-as-a-bubble",
+  "description": "with the sidebar's bar hidden, the devbar sits over the card as a centred bubble 560 wide with rounded corners. The devbar page reports the bubble's own width, which is the bounds the window gave it less the shadow padding, and the card in this window is about 790 wide. A pixel check cannot tell the bar from the page here - both are light grey - so the capture is for the eye.",
+  "fixture": "icon-tint-none.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d"
+    },
+    {
+      "type": "eval_until",
+      "id": "bubble-width",
+      "target": "/devbar",
+      "expression": "String(Math.round(document.querySelector('.devbar').getBoundingClientRect().width))",
+      "expected": "560",
+      "timeout_ms": 8000,
+      "note": "The bubble is 560 wide, so the window narrowed it. The bubble's own box, not the viewport: The widget is wider than the bubble to leave the drop shadow somewhere to fall."
+    },
+    {
+      "type": "eval_until",
+      "id": "bubble-corners",
+      "target": "/devbar",
+      "expression": "getComputedStyle(document.querySelector('.devbar')).borderRadius",
+      "expected": "17px",
+      "timeout_ms": 5000,
+      "note": "Rounded, not a strip."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "bubble",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bubble-width",
+      "expected": "560",
+      "desc": "The bar is 560 wide, not the card's width."
+    },
+    {
+      "type": "eval_equals",
+      "id": "bubble-corners",
+      "expected": "17px",
+      "desc": "Rounded."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

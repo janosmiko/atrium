@@ -1,0 +1,195 @@
+{
+  "name": "nav-buttons-grey-out-with-nowhere-to-go",
+  "description": "Back and forward grey out when the displayed tab has no entry that way, and a greyed button is inert. THE STATE COMES FROM THE BROWSER, not from anything the page can work out for itself: AtriumBrowserWindow::PushNavAbility reads the displayed tab's NavigationController (CanGoBack/CanGoForward) and pushes window.atriumSetNavAbility({back, forward}) into the sidebar and the floating bar, on every UpdateToolbar (which is where Browser::NavigationStateChanged lands for the active tab), on an active-tab switch, on the surface handshakes, and when the window becomes key. The page adds the navdim class from that push alone. THIS RUN NAVIGATES TWICE AND READS THE CLASSES AFTER EACH. It starts on a single-tab fixture with one entry, so both directions are dead; then the page takes itself to a second one, which makes back live and leaves forward dead; then a real press on Back returns it, which makes forward live and back dead again. Every read runs the same expression, which answers 'gone' for a missing button and 'no nav row' for a missing row, so a reading of 'dim' is always a class this run actually saw rather than an element it failed to find. THE INERT HALF IS GRADED ON THE BROWSER SIDE. Both nav handlers log BEFORE they test for an entry (the comment in OnSurface_SidebarBackPressed says so), so a click that reached C++ writes its line whether or not the tab could move - which makes the log the only place that can tell 'the greyed button swallowed the click' from 'the click arrived and the tab had nowhere to go'. The greyed press on Back is graded by a count: exactly one 'sidebar back on tab' line for the whole run, which is the LIVE press at the end. The greyed Option-click on Forward is graded by absence: sidebarForwardToEnd is sent by no other step here, so a single line of it means a dead button ran its wider function. The clicks are dispatched in the page rather than by cgevent because what is under test is the button's own guard, not the native carve that a sibling scenario already measures.",
+  "fixture": "scrubber.spaces.json",
+  "startup_space": "43843843-4384-4384-8384-438438438438",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "first paint, and the nav row announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "example-domain.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/example-domain.html",
+      "timeout_ms": 15000,
+      "note": "SETUP GATE: the fixture's one tab is on its one page, so its history has nowhere to go in either direction"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "rest",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.sbnav'); if (!r) { return 'no nav row'; } const state = (sel) => { const b = r.querySelector(sel); return b ? (b.classList.contains('navdim') ? 'dim' : 'live') : 'gone'; }; return state('.sbback') + '|' + state('.sbfwd'); })()",
+      "note": "First state, and the VACUITY GUARD for every read below: 'gone' and 'no nav row' are the two ways this can fail to look, and neither reads as 'dim'."
+    },
+    {
+      "type": "eval",
+      "id": "dead_back",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.sbnav'); const b = r.querySelector('.sbback'); if (!b) { return 'gone'; } b.dispatchEvent(new PointerEvent('pointerdown', {clientX: 8, clientY: 8, bubbles: true})); b.dispatchEvent(new PointerEvent('pointerup', {clientX: 8, clientY: 8, bubbles: true})); const state = (sel) => { const n = r.querySelector(sel); return n ? (n.classList.contains('navdim') ? 'dim' : 'live') : 'gone'; }; return state('.sbback') + '|' + state('.sbfwd'); })()",
+      "note": "A plain press on the greyed Back. Graded by the count assertion below, not by this value - the reading only says the row survived the press."
+    },
+    {
+      "type": "eval",
+      "id": "dead_fwd_option",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.sbnav'); window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Alt', altKey: true})); r.querySelector('.sbfwd').dispatchEvent(new MouseEvent('click', {bubbles: true, altKey: true})); window.dispatchEvent(new KeyboardEvent('keyup', {key: 'Alt'})); const state = (sel) => { const n = r.querySelector(sel); return n ? (n.classList.contains('navdim') ? 'dim' : 'live') : 'gone'; }; return state('.sbback') + '|' + state('.sbfwd'); })()",
+      "note": "A MODIFIER click on the greyed Forward. The click carries Option itself, since the row heals from a bare click's own flags and would send the plain message instead. The keyup releases the row before the reads that follow."
+    },
+    {
+      "type": "click",
+      "x": 900,
+      "y": 660,
+      "note": "Empty page, and the click is the point: a renderer navigation out of a document that never saw a gesture marks the entry it leaves as skippable, and Back then walks straight past it - which is exactly the state this run is trying to move OFF."
+    },
+    {
+      "type": "eval",
+      "id": "nav1",
+      "target": "127.0.0.1:8000",
+      "expression": "(() => { setTimeout(() => { location.href = 'http://127.0.0.1:8000/favicon-page.html'; }, 50); return 'sent'; })()",
+      "note": "NAVIGATION 1, the same route scrubber-cancel-and-branch drives its history with. The page moves itself - the address row carries no submit message any more, and the palette's own accept would put the second page in a tab of its own. The timer is so the eval answers before the document unloads under it."
+    },
+    {
+      "type": "eval_until",
+      "id": "navigated-page",
+      "target": "favicon-page.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/favicon-page.html",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "after_nav",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.sbnav'); if (!r) { return 'no nav row'; } const state = (sel) => { const b = r.querySelector(sel); return b ? (b.classList.contains('navdim') ? 'dim' : 'live') : 'gone'; }; return state('.sbback') + '|' + state('.sbfwd'); })()",
+      "note": "Second state: one entry behind, none ahead"
+    },
+    {
+      "type": "eval",
+      "id": "back_click",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbnav .sbback'); if (!b) { return 'gone'; } b.dispatchEvent(new PointerEvent('pointerdown', {clientX: 8, clientY: 8, bubbles: true})); b.dispatchEvent(new PointerEvent('pointerup', {clientX: 8, clientY: 8, bubbles: true})); return 'pressed'; })()",
+      "note": "NAVIGATION 2: the same press the greyed button swallowed, now on a live one"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar back on tab [0-9]+",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "page_after_back",
+      "target": "127.0.0.1:8000",
+      "expression": "location.pathname",
+      "note": "the tab really moved, so the state below is read off a history that changed rather than a push that repeated"
+    },
+    {
+      "type": "eval",
+      "id": "after_back",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.sbnav'); if (!r) { return 'no nav row'; } const state = (sel) => { const b = r.querySelector(sel); return b ? (b.classList.contains('navdim') ? 'dim' : 'live') : 'gone'; }; return state('.sbback') + '|' + state('.sbfwd'); })()",
+      "note": "Third state: back on the first page, with the second one now ahead"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "rest",
+      "expected": "\"dim|dim\"",
+      "desc": "A tab on its first page greys both directions"
+    },
+    {
+      "type": "eval_equals",
+      "id": "dead_back",
+      "expected": "\"dim|dim\"",
+      "desc": "the press left the row as it found it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "dead_fwd_option",
+      "expected": "\"dim|dim\"",
+      "desc": "and so did the Option click"
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "Atrium: sidebar forward to the last page of tab",
+      "desc": "The modifier click on the greyed Forward sent nothing. The handler logs before it looks for an entry, so a single line here would mean the wider function ran on a dead button."
+    },
+    {
+      "type": "eval_equals",
+      "id": "after_nav",
+      "expected": "\"live|dim\"",
+      "desc": "One navigation makes back live and leaves forward greyed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "back_click",
+      "expected": "\"pressed\"",
+      "desc": "VACUITY GUARD: the second navigation was really dispatched at a button that existed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "page_after_back",
+      "expected": "\"/example-domain.html\"",
+      "desc": "the press moved the tab back to the first page"
+    },
+    {
+      "type": "eval_equals",
+      "id": "after_back",
+      "expected": "\"dim|live\"",
+      "desc": "Going back greys back again and makes forward live"
+    },
+    {
+      "type": "vlog_count",
+      "label": "only-the-live-press-reached-the-browser",
+      "pattern": "Atrium: sidebar back on tab",
+      "min": 1,
+      "max": 1,
+      "desc": "Two presses on Back, one line. The greyed one sent nothing, and the live one is what the page read above."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: nav ability back=1 forward=0",
+      "desc": "the native side of after_nav, so the class cannot be crediting anything the page decided for itself"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: nav ability back=0 forward=1",
+      "desc": "and the native side of after_back"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

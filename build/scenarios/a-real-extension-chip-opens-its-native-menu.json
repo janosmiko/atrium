@@ -1,0 +1,25 @@
+{
+  "name": "a-real-extension-chip-opens-its-native-menu",
+  "description": "A real unpacked extension, loaded with --load-extension and pinned through the seeded Preferences, shows its chip in the sidebar strip. A right-click on that chip opens the native extension menu, which adds a window.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "chip-test-pinned.prefs.json",
+  "load_extension_dir": "build/scenarios/fixtures/extensions/chip-test",
+  "app_process": "Atrium",
+  "actions": [
+    {"type": "wait_vlog", "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost", "timeout_ms": 20000, "note": "gate: the startup tab committed, so the app is up"},
+    {"type": "settle", "ms": 4000},
+    {"type": "activate"},
+    {"type": "settle", "ms": 1000},
+    {"type": "eval", "id": "chip-shown", "target": "/sidebar", "expression": "!!document.querySelector('.exs-chip[data-extension-id=\"ockdpgepnciealdnaddnkfcnbieickai\"]')", "note": "THE MEASUREMENT: the loaded and pinned extension has a chip in the strip"},
+    {"type": "eval", "id": "chip-point", "target": "/sidebar", "expression": "(() => { const c = document.querySelector('.exs-chip[data-extension-id=\"ockdpgepnciealdnaddnkfcnbieickai\"]'); if (!c) { return 'no-chip'; } const b = c.getBoundingClientRect(); return Math.round((b.left + b.right) / 2) + ',' + Math.round((b.top + b.bottom) / 2 + 30); })()", "note": "the chip's centre on screen, 30px below its client y"},
+    {"type": "rightclick", "from_eval": "chip-point"},
+    {"type": "settle", "ms": 1500}
+  ],
+  "assertions": [
+    {"type": "eval_equals", "id": "chip-shown", "expected": "true", "desc": "the real extension's chip shows in the sidebar strip"},
+    {"type": "ax_window_count", "expected": 2, "min_area": 1000, "desc": "the browser window and the native extension menu"},
+    {"type": "quit", "desc": "Cmd+Q still quits cleanly"}
+  ]
+}

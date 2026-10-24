@@ -1,0 +1,82 @@
+{
+  "name": "back-presses-and-holds",
+  "description": "Both halves, from the surface. A short press on the sidebar's Back control navigates the shown tab; a hold past the threshold asks for that tab's visit timeline instead and must NOT also navigate. This is the wiring scenario, not the scrubber scenario - the feature needs open, drag, commit and cancel, and there is no scrubber surface to drag yet. What this covers is that the control exists in the rendered sidebar, that the two gestures reach C++ as different messages, and that the hold's answer carries the timeline the tab actually recorded.",
+  "fixture": "presenter-startup.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the space and its tab render"
+    },
+    {
+      "type": "eval",
+      "id": "back-control-present",
+      "target": "/sidebar",
+      "expression": "(() => { const backs = document.querySelectorAll('.sbback'); const rows = document.querySelectorAll('.sbnav'); const panes = [...document.querySelectorAll('.railpane')]; if (backs.length !== 1 || rows.length !== 1) { return backs.length + ' back in ' + rows.length + ' chrome row'; } return panes.some((p) => p.contains(backs[0])) ? 'inside a pane' : 'one, beside the panes'; })()",
+      "note": "Back lives in the pinned chrome row, which is sidebar-level. Counting to one is now the invariant - before, a sidebar per pane meant one Back per pane and the count had to match the pane count instead."
+    },
+    {
+      "type": "eval",
+      "id": "press",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbback'); if (!b) { return 'no-button'; } b.dispatchEvent(new PointerEvent('pointerdown', {clientX: 8, clientY: 8, bubbles: true})); b.dispatchEvent(new PointerEvent('pointerup', {clientX: 8, clientY: 8, bubbles: true})); return 'pressed'; })()",
+      "note": "down then straight up, well under the hold threshold"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the navigation land"
+    },
+    {
+      "type": "eval",
+      "id": "hold",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbback'); if (!b) { return 'no-button'; } b.dispatchEvent(new PointerEvent('pointerdown', {clientX: 8, clientY: 8, bubbles: true})); return 'holding'; })()",
+      "note": "down and NOT up - the timer has to be what fires, not the release"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "past the 500ms hold threshold with room to spare"
+    },
+    {
+      "type": "eval",
+      "id": "release-after-hold",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbback'); b.dispatchEvent(new PointerEvent('pointerup', {clientX: 8, clientY: 8, bubbles: true})); return 'released'; })()",
+      "note": "the release that must NOT navigate, because the hold already fired"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let anything the release triggered show up in the log"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "back-control-present",
+      "expected": "\"one, beside the panes\"",
+      "note": "A copy inside a rail pane would scrub away with a swipe, so where it sits is asserted as well as that it exists."
+    },
+    {
+      "type": "eval_equals",
+      "id": "press",
+      "expected": "\"pressed\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "hold",
+      "expected": "\"holding\""
+    },
+    {
+      "type": "vlog",
+      "label": "back-held-answered",
+      "pattern": "Atrium: back held, timeline is [0-9]+ bytes",
+      "note": "Second half: the hold reached C++ and it answered with the tab's timeline. The byte count is in the line on purpose - an empty timeline still logs, so a later assertion can tell a recorded one from nothing."
+    }
+  ]
+}

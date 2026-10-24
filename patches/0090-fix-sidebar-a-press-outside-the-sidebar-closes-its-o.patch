@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 30 Aug 2026 09:36:05 +0200
+Subject: [PATCH 090/154] fix(sidebar): a press outside the sidebar closes its
+ open menu
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The sidebar document only sees presses inside itself, so a left click on the
+page, the floating bar or native chrome left a row menu standing. A local
+mouse-down monitor now asks each window whether the press fell outside its
+sidebar while a menu was up, and pushes a dismiss when it did. The event is
+returned unchanged, so the click still lands.
+
+Leaving the app dismisses every menu, since nothing here will be clicked
+while it is away. The menus report open and closed over chrome.send, which
+keeps an ordinary click off the script path entirely, and the geometry that
+decides the question lives in atrium_menu_dismiss_decision so it can be
+asserted without a browser.
+
+The page-side listener moved from the sidebar root to the document: the
+navigation row is root's sibling, inside the rect the native monitor excludes.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index ea3030e59ec00..2fe938c707ecf 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -641,6 +641,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:memory_saver",
+     "//chrome/browser/ui/atrium:move_target_decision",
+     "//chrome/browser/ui/atrium:nav_carve_decision",
++    "//chrome/browser/ui/atrium:menu_dismiss_decision",
+     "//chrome/browser/ui/atrium:native_hotkey_defaults",
+     "//chrome/browser/ui/atrium:command_bar_actions",
+     "//chrome/browser/ui/atrium:command_bar_matches",

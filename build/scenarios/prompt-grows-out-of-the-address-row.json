@@ -1,0 +1,202 @@
+{
+  "name": "prompt-grows-out-of-the-address-row",
+  "description": "the palette used to appear as a panel sitting above the address row, with the row still visible underneath it. anchorCard (commandbar.js) now hides the row (sidebar.js's addr-hidden class) the instant the card is placed, and CommandBarWidget::Close() only tells the row to reappear once the shrink transition that reverses the open has actually run. This scenario drives the whole gesture with real cgevent input and reads both documents: the row must be hidden while the card is anchored and expanded, still hidden the instant Escape is pressed (before the box has shrunk back), and visible again only once the widget has actually closed. Pixel captures are staged at every stage (rest, mid-open, grown, mid-close, after) for a human to inspect, but the pass/fail gates below are the DOM state each document reports - the transition's own timing is too short (--ov-expand-ms, 120ms) to pin reliably against an uncalibrated screen region.",
+  "fixture": "long-page.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "chromium_flags": "--vmodule=atrium_command_bar_widget=1",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the reserved chrome context lands about 670ms after startup and the palette's WebContents needs it"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "row-hidden-before",
+      "target": "/sidebar",
+      "expression": "String(document.querySelector('#sbUrl').classList.contains('addr-hidden'))",
+      "note": "gates before the click: a row already hidden cannot prove the click is what hid it"
+    },
+    {
+      "type": "capture",
+      "id": "row-rest",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the resting sidebar, row visible, before anything opens"
+    },
+    {
+      "type": "eval",
+      "id": "click-address-row",
+      "target": "/sidebar",
+      "expression": "(() => { const bar = document.querySelector('#sbUrl'); if (!bar) { return 'no row'; } bar.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window})); return 'clicked'; })()",
+      "note": "dispatched on the row itself rather than aimed by coordinate - the sidebar layout moved since this plan's x/y was measured (favourites grid beside the rail), and sidebar.js's handler reads e.target.closest('#sbUrl'), which a bubbling synthetic click satisfies the same as a real one."
+    },
+    {
+      "type": "capture",
+      "id": "mid-open",
+      "duration_ms": 150,
+      "fps": 20,
+      "note": "started right after the click, straddling the ~120ms grow transition (--ov-expand-ms) for a human to inspect - not asserted on numerically, see the description"
+    },
+    {
+      "type": "eval_until",
+      "id": "palette-anchored",
+      "target": "/commandbar",
+      "expression": "(() => { const c = document.querySelector('.cbcard'); if (!c) { return 'no card'; } if (!c.classList.contains('cbanchored')) { return 'centred'; } const w = parseInt(c.style.width, 10); return w >= 320 && c.style.top && c.style.left ? 'anchored' : 'incomplete ' + c.style.cssText; })()",
+      "expected": "anchored",
+      "timeout_ms": 20000,
+      "note": "THE OPEN GATE. A centred card means the click reached the palette but carried no rect; 'no card' means the click never opened it at all."
+    },
+    {
+      "type": "eval_until",
+      "id": "row-hidden-during-grow",
+      "target": "/sidebar",
+      "expression": "String(document.querySelector('#sbUrl').classList.contains('addr-hidden'))",
+      "expected": "true",
+      "timeout_ms": 5000,
+      "note": "The gate: the row must already be hidden by the time the card reports anchored, not just once it has finished growing"
+    },
+    {
+      "type": "settle",
+      "ms": 500,
+      "note": "well past --ov-expand-ms, so the grow transition has certainly finished"
+    },
+    {
+      "type": "capture",
+      "id": "grown",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the card at its full height, row still hidden behind it"
+    },
+    {
+      "type": "eval",
+      "id": "card-settled",
+      "target": "/commandbar",
+      "expression": "String(document.querySelector('.cbcard').classList.contains('cbexpand'))",
+      "note": "cbexpand comes off once the grow transition's first frame has run (anchorCard's rAF) - false is the fully-grown state"
+    },
+    {
+      "type": "key",
+      "combo": "escape"
+    },
+    {
+      "type": "eval_until",
+      "id": "card-shrinking",
+      "target": "/commandbar",
+      "expression": "(() => { const c = document.querySelector('.cbcard'); if (!c) { return 'gone'; } return c.classList.contains('cbexpand') ? 'shrinking' : 'not-shrinking'; })()",
+      "expected": "shrinking",
+      "timeout_ms": 2000,
+      "note": "dismissCommandBar re-adds .cbexpand synchronously on Escape, before it ever sends commandBarDismiss - this is the reverse of the open transition actually starting"
+    },
+    {
+      "type": "eval",
+      "id": "row-still-hidden-mid-shrink",
+      "target": "/sidebar",
+      "expression": "String(document.querySelector('#sbUrl').classList.contains('addr-hidden'))",
+      "note": "The first half, sampled straight after the shrink began - the transition is only --ov-expand-ms long, so this cannot come after a capture"
+    },
+    {
+      "type": "capture",
+      "id": "mid-close",
+      "duration_ms": 150,
+      "fps": 20,
+      "note": "the box shrinking back toward the row's rect - not asserted on numerically, see the description"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "the shrink finishes, commandBarDismiss reaches CommandBarWidget::Close(), and PushAddressRowHidden(false) round-trips to the sidebar document"
+    },
+    {
+      "type": "capture",
+      "id": "after-close",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "back to resting: no card, row visible again"
+    },
+    {
+      "type": "eval_until",
+      "id": "row-visible-after-close",
+      "target": "/sidebar",
+      "expression": "String(document.querySelector('#sbUrl').classList.contains('addr-hidden'))",
+      "expected": "false",
+      "timeout_ms": 10000,
+      "note": "The second half, THE CLOSE GATE: the row comes back only once the widget has actually closed"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "row-hidden-before",
+      "expected": "\"false\"",
+      "desc": "the row starts visible - the click is what hides it, not some earlier state"
+    },
+    {
+      "type": "eval_equals",
+      "id": "palette-anchored",
+      "expected": "anchored",
+      "desc": "a real click on the row opened the palette laid on that row"
+    },
+    {
+      "type": "eval_equals",
+      "id": "row-hidden-during-grow",
+      "expected": "true",
+      "desc": "The row does not stay visible behind the growing box"
+    },
+    {
+      "type": "eval_equals",
+      "id": "card-settled",
+      "expected": "\"false\"",
+      "desc": "the card reaches its full height, not stuck at the row's"
+    },
+    {
+      "type": "eval_equals",
+      "id": "row-still-hidden-mid-shrink",
+      "expected": "\"true\"",
+      "desc": "Escape must not reveal the row before the box has shrunk back"
+    },
+    {
+      "type": "eval_equals",
+      "id": "row-visible-after-close",
+      "expected": "false",
+      "desc": "The row reappears once the widget has actually closed"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: command bar anchored at",
+      "label": "the-open-computed-a-placement",
+      "desc": "the rect crossed from the page to the window and became a box"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: command bar widget closing",
+      "label": "the-close-actually-ran",
+      "desc": "the widget's own close line, not an inference from focus alone"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

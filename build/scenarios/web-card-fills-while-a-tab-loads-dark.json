@@ -1,0 +1,102 @@
+{
+  "name": "web-card-fills-while-a-tab-loads-dark",
+  "description": "The dark half of web-card-fills-while-a-tab-loads-light. A new tab showed the window backdrop through the web card until its page painted. The handed-over url is a blackholed address, so the connection hangs and the page never commits while the frame is captured. The card must read as the dark page background, not the tint behind it.\n\nWHY THE CHANNEL BOUNDS AND NOT THE MEAN ALONE. In dark mode the card (60/60/60) and the oceanBlue tint (28/47/64) are close in mean, 60.0 against 46.5, and a brightness window wide enough to be safe would admit both. They separate on the channels instead: the page background is neutral, the tint is blue, so min_r on the card and max_r on the sidebar are what actually fail on the defect.\n\nWHY THE SIDEBAR IS READ TOO. A card that reads neutral grey proves nothing on its own. The sidebar region is the control that says the tint is still painted and only the card changed.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "settings": "external-links-off.settings.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "system_appearance": "dark",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "open_url",
+      "url": "http://10.255.255.1/",
+      "note": "10.255.255.1 drops the SYN in the VM, so the navigation stays pending for over a minute"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "capture",
+      "id": "tab-loading-dark"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "region_mean",
+      "capture": "tab-loading-dark",
+      "x": 400,
+      "y": 200,
+      "w": 200,
+      "h": 200,
+      "min_mean": 45,
+      "max_mean": 75,
+      "min_r": 45,
+      "max_b": 75,
+      "label": "the-loading-card-is-the-dark-page-background",
+      "desc": "MEASURED 2026-09-13: 60.0/60.0/60.0 var 0.0 - neutral, the dark web-contents background. The tint that used to show here reads 28/47/64, which fails min_r by 17 counts, and a light fill leaked into dark mode reads 255 and fails max_mean."
+    },
+    {
+      "type": "region_mean",
+      "capture": "tab-loading-dark",
+      "x": 700,
+      "y": 500,
+      "w": 200,
+      "h": 150,
+      "min_mean": 45,
+      "max_mean": 75,
+      "min_r": 45,
+      "max_b": 75,
+      "label": "the-far-corner-of-the-card-is-dark-too",
+      "desc": "MEASURED 2026-09-13: 60.0/60.0/60.0 var 0.0. A fill sized to the wrong rect would cover the first region and leave this one on the tint."
+    },
+    {
+      "type": "region_mean",
+      "capture": "tab-loading-dark",
+      "x": 100,
+      "y": 400,
+      "w": 100,
+      "h": 100,
+      "min_mean": 30,
+      "max_mean": 60,
+      "max_r": 40,
+      "label": "the-sidebar-keeps-its-tint",
+      "desc": "THE CONTROL, MEASURED 2026-09-13: 28.0/47.1/64.4, mean 46.5 - blue, B sits 36 above R. If the fill escaped the card the sidebar would read the card's neutral 60 and fail max_r."
+    },
+    {
+      "type": "region_mean",
+      "capture": "tab-loading-dark",
+      "x": 268,
+      "y": 41,
+      "w": 6,
+      "h": 6,
+      "max_mean": 56,
+      "max_r": 50,
+      "label": "the-card-corner-is-still-round",
+      "desc": "MEASURED 2026-09-13: 38.6/51.6/62.2, mean 50.8, var 98.3 - the anti-aliased arc, tint outside it and the neutral fill inside. A fill that missed holder()'s radii squares this corner off and the patch reads the card's own 60/60/60."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly with a navigation left pending"
+    }
+  ]
+}

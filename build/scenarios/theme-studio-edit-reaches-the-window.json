@@ -1,0 +1,180 @@
+{
+  "name": "theme-studio-edit-reaches-the-window",
+  "description": "A live edit made in the Settings > Spaces studio has to reach the browser window behind it, and Save has to persist it. The fixture's one space starts with a low-opacity gradient (0.3) already in themes.json, so the studio opens on a real theme rather than the absent-theme case. The scenario opens Settings, selects the Spaces pane and the space, drags the opacity slider to 1.0 (an eval that sets the range input's value and dispatches `input`, the same mechanism a real drag produces), and reads back BrowserController::PreviewSpaceTheme's own log line. Before Save it also captures the settings window itself with the Theme section open, and reads the section's own control count (theme-studio.js's SLIDERS list draws 6 range inputs - opacity, grain, vignette, frost, warmth, darkAdaptation - plus one gradient canvas) - nobody had seen the studio rendered until this. It then clicks Save and reads AtriumSettingsWindow::OnThemeSaved's line, closes the settings window with Cmd+W (routing-pane-adds-a-rule.json's route back to the key browser window), and pixel-compares the window's own backdrop from before the edit to after it - both captures taken with the settings window closed, so neither frame is occluded by it.",
+  "fixture": "theme-studio.spaces.json",
+  "themes": "theme-studio.themes.json",
+  "startup_space": "66666666-6666-6666-6666-666666666666",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url https://example\\.com",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so the app and the fixture are live"
+    },
+    { "type": "settle", "ms": 3000 },
+    { "type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot" },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 500,
+      "fps": 20,
+      "note": "the window's own backdrop, the fixture's opacity-0.3 gradient, before any studio edit"
+    },
+    { "type": "key", "combo": "cmd+comma", "note": "open Settings" },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings surface ready",
+      "timeout_ms": 15000
+    },
+    { "type": "settle", "ms": 2000 },
+    {
+      "type": "eval",
+      "id": "select-spaces",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.settings-rail-item[data-pane=\"spaces\"]'); if (!b) return 'no-pane'; b.click(); return document.querySelector('.settings-rail-item[data-pane=\"spaces\"].selected') ? 'selected' : 'not-selected'; })()",
+      "note": "the Spaces pane in the rail, selected by data-pane rather than a coordinate"
+    },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "select-space",
+      "target": "/settings",
+      "expression": "(() => { const item = document.querySelector('.settings-space-item[data-space=\"0\"]'); if (!item) return 'no-item'; item.click(); const after = document.querySelector('.settings-space-item[data-space=\"0\"]'); return after && after.classList.contains('selected') ? 'selected' : 'not-selected'; })()",
+      "note": "the fixture's one space, in the master-detail list"
+    },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "bump-opacity",
+      "target": "/settings",
+      "expression": "(() => { const el = document.querySelector('.theme-studio-slider[data-key=\"opacity\"]'); if (!el) return 'no-slider'; el.value = '1'; el.dispatchEvent(new Event('input', {bubbles: true})); return 'set:' + el.value; })()",
+      "note": "THE EDIT: the opacity slider, set the way a real drag ends - a new value on the input, then the same `input` event theme-studio.js listens for"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: theme preview applied",
+      "timeout_ms": 8000,
+      "note": "BrowserController::PreviewSpaceTheme's own line - the edit reached a realised Atrium window"
+    },
+    { "type": "settle", "ms": 1500, "note": "let the repaint settle before the next capture" },
+    {
+      "type": "activate",
+      "note": "the settings window is the last one this scenario touched, but CDP evals never move macOS window ordering - reassert Atrium frontmost so the studio capture below actually shows the settings window"
+    },
+    { "type": "settle", "ms": 500 },
+    {
+      "type": "eval",
+      "id": "studio-controls",
+      "target": "/settings",
+      "expression": "(() => { const section = document.querySelector('.settings-theme-section'); if (!section) return 'no-section'; const sliders = section.querySelectorAll('input[type=\"range\"]').length; const canvas = !!section.querySelector('canvas'); return 'sliders=' + sliders + ' canvas=' + canvas; })()",
+      "note": "records the studio's own presence before Save: how many range sliders theme-studio.js drew inside the Theme section, and whether its gradient canvas exists"
+    },
+    {
+      "type": "capture",
+      "id": "studio",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the settings window with the Theme section open and the opacity slider already bumped, taken before Save - nobody had seen the studio itself rendered until this"
+    },
+    {
+      "type": "eval",
+      "id": "click-save",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.theme-studio-save'); if (!b) return 'no-save'; b.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: theme saved",
+      "timeout_ms": 8000,
+      "note": "AtriumSettingsWindow::OnThemeSaved's line - the edit reached themes.json, not just the live preview"
+    },
+    { "type": "settle", "ms": 1500 },
+    {
+      "type": "key",
+      "combo": "cmd+w",
+      "note": "closes the key Settings window and hands key back to the browser window - routing-pane-adds-a-rule.json's own route, since cmd+t would open a tab in whichever window is key"
+    },
+    { "type": "settle", "ms": 1500 },
+    { "type": "activate", "note": "re-assert the browser window frontmost now that Settings is closed" },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 500,
+      "fps": 20,
+      "note": "the window's own backdrop after the saved edit, with Settings closed so nothing occludes it"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-settings-window-was-built",
+      "pattern": "Atrium: settings window built"
+    },
+    {
+      "type": "eval_equals",
+      "id": "select-spaces",
+      "expected": "\"selected\"",
+      "desc": "the Spaces pane was reachable from the rail"
+    },
+    {
+      "type": "eval_equals",
+      "id": "select-space",
+      "expected": "\"selected\"",
+      "desc": "the fixture's space was there to select"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bump-opacity",
+      "expected": "\"set:1\"",
+      "desc": "the opacity slider took the new value"
+    },
+    {
+      "type": "vlog",
+      "label": "the-preview-reached-the-window",
+      "pattern": "Atrium: theme preview applied"
+    },
+    {
+      "type": "eval_equals",
+      "id": "studio-controls",
+      "expected": "\"sliders=6 canvas=true\"",
+      "desc": "the studio drew all 6 sliders (opacity, grain, vignette, frost, warmth, darkAdaptation - theme-studio.js's own SLIDERS list) and its gradient canvas, visible in the frame captured this same moment"
+    },
+    {
+      "type": "eval_equals",
+      "id": "click-save",
+      "expected": "\"clicked\"",
+      "desc": "the Save button was there to click"
+    },
+    {
+      "type": "vlog",
+      "label": "the-save-committed",
+      "pattern": "Atrium: theme saved"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "the-save-did-not-fail",
+      "pattern": "Atrium: theme save failed"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "Settings closed with Cmd+W, so only the browser window is left before the quit"
+    },
+    {
+      "type": "theme_changed",
+      "before": "before",
+      "after": "after",
+      "region": [40, 300, 200, 300],
+      "min_delta": 12,
+      "desc": "the opacity edit reached the window's own backdrop (raw-pixel region compare over the sidebar margin, same region presenter-startup.json uses)"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly after a settings edit and a save"
+    }
+  ]
+}

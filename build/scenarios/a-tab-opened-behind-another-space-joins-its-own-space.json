@@ -1,0 +1,106 @@
+{
+  "name": "a-tab-opened-behind-another-space-joins-its-own-space",
+  "fixture": "search-follows-the-active-space.spaces.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "seed_prefs": "popups-allowed.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "description": "A tab that a page of the Second profile opens while a Default space shows must get its row in the Second profile's space. The recorded bug: the row went to the space on screen, which belongs to another profile. That space hides tabs of other profiles, so the row drew cold, and each click on it opened a new copy with a new row.",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-committed",
+      "target": "example-domain.html",
+      "expression": "location.search",
+      "expected": "?alpha",
+      "timeout_ms": 20000,
+      "note": "gate: the app is up on Alpha's own tab"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "into Bravo's space, which belongs to the Second profile"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 0 -> 1",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "armed",
+      "target": "example-domain.html?bravo",
+      "expression": "(() => { setTimeout(() => window.open('http://127.0.0.1:8000/example-domain.html?late', '_blank'), 4000); return 'armed'; })()",
+      "note": "the seeded prefs allow popups, so the timer needs no click"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left",
+      "note": "back to Alpha before the page opens its tab"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 1 -> 0",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab 3 url",
+      "timeout_ms": 10000,
+      "note": "the page opened its tab while Alpha shows"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "armed",
+      "expected": "\"armed\""
+    },
+    {
+      "type": "vlog_after",
+      "pattern": "Atrium: tab 3 url",
+      "after_pattern": "Atrium: active space 1 -> 0",
+      "label": "the-tab-opened-while-alpha-shows",
+      "desc": "gate: the Second profile's page opened its tab after the switch back to Alpha"
+    },
+    {
+      "type": "quit"
+    },
+    {
+      "type": "file_contains",
+      "label": "the-tab-joined-bravo",
+      "file": "spaces",
+      "path": "spaces.1.tabs.0.url",
+      "value": "http://127.0.0.1:8000/example-domain.html?late",
+      "desc": "THE MEASUREMENT: Bravo, the Second profile's space, holds the new tab's row. Read after quit, because a teardown keeps rows and the shutdown flush saves them"
+    },
+    {
+      "type": "file_contains",
+      "label": "bravo-kept-its-own-row",
+      "file": "spaces",
+      "path": "spaces.1.tabs.1.url",
+      "value": "http://127.0.0.1:8000/example-domain.html?bravo",
+      "desc": "and Bravo's cold row woke in its own profile, so the new row sits beside it. Before the fix, Alpha got both rows and Bravo kept only its cold one"
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Wed, 12 Aug 2026 05:39:06 +0200
+Subject: [PATCH 064/154] feat: tear off a sidebar tab into a little window,
+ route cross-window sidebar drops
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+MoveWebContentsBetweenStrips and AdoptTabIntoLittleWindow give
+a tab a live, no-reload path out of its current strip into a fresh little
+window. sidebar-drag.js/sidebar.js now report a drag's release point when it
+resolves to no drop kind of its own, which
+ClassifyAndRouteDroppedTab classifies against every other live Atrium
+window and RouteSidebarDrop acts
+on for the same-workspace case.
+MoveLittleTabToSpace and the IsLittle() close-suppression gate finish
+the foyer's "move to space" button, using the same tear-off
+primitive and a small extracted decision (atrium_move_target_decision) for
+which resident window it lands on.
+
+The accompanying browsertest suite (wired as one browser_tests source_set
+in BUILD.gn) covers the tear-off, drop-routing, and
+multi-window teardown paths, including the specific second-profile-window
+close-before-teardown fix isolated for a VM crash in
+BrowserCompositorMac.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 3 +++
+ chrome/test/BUILD.gn       | 1 +
+ 2 files changed, 4 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index cbd2099a13b9a..ba68c37ce61a2 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -619,18 +619,21 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:corner_radius",
+     "//chrome/browser/ui/atrium:devtools_card_corners",
+     "//chrome/browser/ui/atrium:devtools_pane_selection",
++    "//chrome/browser/ui/atrium:drop_target_decision",
+     "//chrome/browser/ui/atrium:extension_actions_json",
+     "//chrome/browser/ui/atrium:bounded_icon_store",
+     "//chrome/browser/ui/atrium:edit_focus_gate",
+     "//chrome/browser/ui/atrium:external_link",
+     "//chrome/browser/ui/atrium:extension_popup_watchdog_policy",
+     "//chrome/browser/ui/atrium:little_marker",
++    "//chrome/browser/ui/atrium:move_target_decision",
+     "//chrome/browser/ui/atrium:native_hotkey_defaults",
+     "//chrome/browser/ui/atrium:command_bar_matches",
+     "//chrome/browser/ui/atrium:tab_cycle",
+     "//chrome/browser/ui/atrium:tab_recency_bridge",
+     "//chrome/browser/ui/atrium:peek_decision",
+     "//chrome/browser/ui/atrium:restore_plan",
++    "//chrome/browser/ui/atrium:sidebar_drop_decision",
+     "//chrome/browser/ui/atrium:sidebar_snapshot_gate",
+     "//chrome/browser/ui/atrium:slot_presentation_table",
+     "//chrome/browser/ui/atrium:status_bubble_color_math",
+diff --git a/chrome/test/BUILD.gn b/chrome/test/BUILD.gn
+index 69c816d673b06..92e289c156055 100644
+--- a/chrome/test/BUILD.gn
++++ b/chrome/test/BUILD.gn
+@@ -3108,6 +3108,7 @@ if (!is_android) {
+         "//chrome/app_shim:browser_tests",
+         "//chrome/browser:app_controller_mac",
+         "//chrome/browser:chrome_browser_application_mac",
++        "//chrome/browser/ui/atrium:browser_tests",
+         "//chrome/browser/ui/cocoa",
+         "//device/fido:icloud_keychain_test_support",
+       ]

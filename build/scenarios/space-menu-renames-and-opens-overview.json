@@ -1,0 +1,108 @@
+{
+  "name": "space-menu-renames-and-opens-overview",
+  "description": "The empty-space menu's Change Space Name and Snoozed Tabs reach the browser.\n\nThe rename marks the label it edits. Only a snapshot push from the core rebuilds the row, so an unmarked label that reads Errands proves the name reached the core. The edited label alone would read Errands without any browser round trip.\n\nSnoozed Tabs gates on the overview controller's own vlog line, which only the native route emits, and then on the rail button that the section select lights.",
+  "fixture": "canvas.spaces.json",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "rows-are-up",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.row').length > 0)",
+      "expected": "true",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "rightclick",
+      "x": 110,
+      "y": 620,
+      "note": "EMPTY SPACE below the rows, which opens the space menu"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "start-rename",
+      "target": "/sidebar",
+      "expression": "(() => { const item = [...document.querySelectorAll('.ctxitem')].find((b) => b.textContent === 'Change Space Name'); if (!item) { return 'no item among: ' + [...document.querySelectorAll('.ctxitem')].map((b) => b.textContent).join(' | '); } item.click(); const label = document.querySelector('.wsname .wsl'); label.dataset.edited = '1'; return 'editable ' + label.isContentEditable + ', focused ' + (document.activeElement === label); })()"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+a"
+    },
+    {
+      "type": "type",
+      "text": "Errands"
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "eval_until",
+      "id": "name-came-back-from-the-core",
+      "target": "/sidebar",
+      "expression": "(() => { const label = document.querySelector('.wsname .wsl'); return label && !label.dataset.edited ? label.textContent : 'not rebuilt'; })()",
+      "expected": "Errands",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "rightclick",
+      "x": 110,
+      "y": 620
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "open-snoozed",
+      "target": "/sidebar",
+      "expression": "(() => { const item = [...document.querySelectorAll('.ctxitem')].find((b) => b.textContent === 'Snoozed Tabs'); if (!item) { return 'no item among: ' + [...document.querySelectorAll('.ctxitem')].map((b) => b.textContent).join(' | '); } item.click(); return 'clicked ' + item.textContent; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: overview section selected",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval_until",
+      "id": "snoozed-is-lit",
+      "target": "/sidebar",
+      "expression": "document.querySelector('.ovbtn.on')?.textContent || 'none lit'",
+      "expected": "Snoozed",
+      "timeout_ms": 8000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "name-came-back-from-the-core",
+      "expected": "Errands"
+    },
+    {
+      "type": "eval_equals",
+      "id": "snoozed-is-lit",
+      "expected": "Snoozed"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: overview section selected snoozed"
+    }
+  ]
+}

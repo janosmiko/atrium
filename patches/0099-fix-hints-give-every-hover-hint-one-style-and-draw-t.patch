@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 30 Aug 2026 23:32:55 +0200
+Subject: [PATCH 099/154] fix(hints): give every hover hint one style, and draw
+ the sidebar's above the card
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The floating address bar was not styling its hints differently, it had none:
+those buttons carried a plain title attribute, so the platform drew a native
+tooltip. They use the shared bubble now.
+
+A sidebar hint was clipped at the sidebar's edge because each WebContents
+renders into a surface hard-clipped to its own bounds, so no stacking rule
+inside the page can reach past it. The hint moves to a full-window overlay
+widget, the same mechanism the command bar and the peek already use to draw over
+content. Corner-anchored hints stay in the page, since nothing clips them.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index b1e1fe9b119c2..070442183a45d 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3593,6 +3593,8 @@ static_library("ui") {
+       "atrium/atrium_command_dispatcher_delegate.mm",
+       "atrium/atrium_extension_pill_widget.h",
+       "atrium/atrium_extension_pill_widget.mm",
++      "atrium/atrium_hint_overlay_widget.h",
++      "atrium/atrium_hint_overlay_widget.mm",
+       "atrium/atrium_overview_widget.h",
+       "atrium/atrium_overview_widget.mm",
+       "atrium/atrium_courtyard_widget.h",

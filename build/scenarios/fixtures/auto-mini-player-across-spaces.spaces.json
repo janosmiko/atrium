@@ -1,0 +1,56 @@
+{
+ "spaces": [
+  {
+   "id": "a17e0001-0000-4000-8000-000000000001",
+   "name": "Video",
+   "emoji": "V",
+   "tint": "oceanBlue",
+   "profileID": "Default",
+   "order": 0,
+   "pinnedTabs": [],
+   "tabs": [
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/example-domain.html",
+     "title": "Video Space Row"
+    }
+   ],
+   "groups": []
+  },
+  {
+   "id": "a17e0002-0000-4000-8000-000000000002",
+   "name": "Other",
+   "emoji": "O",
+   "tint": "meadowGreen",
+   "profileID": "Second",
+   "order": 1,
+   "pinnedTabs": [],
+   "tabs": [
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/favicon-page.html",
+     "title": "Other Profile Row"
+    }
+   ],
+   "groups": []
+  },
+  {
+   "id": "a17e0003-0000-4000-8000-000000000003",
+   "name": "Empty",
+   "emoji": "E",
+   "tint": "sunsetCoral",
+   "profileID": "Default",
+   "order": 2,
+   "pinnedTabs": [],
+   "tabs": [],
+   "groups": []
+  }
+ ],
+ "favorites": [],
+ "archived": [],
+ "appState": {
+  "sidebarWidth": 280,
+  "schemaVersion": 1,
+  "activeSpaceID": "a17e0001-0000-4000-8000-000000000001"
+ }
+}

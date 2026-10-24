@@ -1,0 +1,219 @@
+{
+  "name": "the-toast-shadow-sits-on-its-own-card",
+  "description": "Reported with a screenshot of a Link copied card: the shadow behind it sits offset, so the corner reads as two rectangles - the card, and a smaller rounded box low and behind it.\n\nTHE CAUSE IS A MEASUREMENT, not a geometry. toast-surface.js pushes each card's rect to AtriumOverlayShadowLayer, and it read that rect with getBoundingClientRect, which answers the ANIMATED box. atrium-toast-peekin scales a new card to .93 and drops it 10px, and the push runs on the very insertion that starts it, so the rect is taken from the first frame. Nothing pushes again once the card settles - the MutationObserver sees no mutation and the widget does not resize - so the shadow keeps that first frame for the rest of the card's life: a rectangle about 9px narrow, sitting about 7px low. offset* are layout metrics, which a transform does not move.\n\nWHERE THE PIXELS ARE. Window 1024x680 at 0,30, sidebar left, so the stack hangs off the window's right edge at the 14px inset with its first card 44px below the window top. The page is flat white right of x=420 and the cards sit at x>840, so every reading below is card, shadow or white.\n\nONE CARD AND THEN THREE, because the two fail differently. A single card never asks for a second widget resize, so its stale rect is never corrected. In a burst each card is measured at a different point in its own entry, so the three shadows land at three different offsets - both are required.",
+  "fixture": "devbar-light-page.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "no-toast",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the corner before any card exists"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d"
+    },
+    {
+      "type": "eval_until",
+      "id": "bar-carries-a-url",
+      "target": "/devbar",
+      "expression": "String(document.querySelector('.dvurl').textContent.length > 0)",
+      "expected": "true",
+      "timeout_ms": 8000,
+      "note": "THE CONTROL: the copy control sends nothing on an empty url, so the clicks below would be no-ops."
+    },
+    {
+      "type": "eval",
+      "id": "warm-the-toast-widget",
+      "target": "/devbar",
+      "expression": "(() => { document.querySelector('.dvcopy').click(); return 'clicked'; })()",
+      "note": "ShowConfirmation holds ONE pending text until its renderer answers, so a burst against a cold widget collapses to a single card. This copy builds the widget."
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "past that first card's life and its 250ms fade, so the stack starts empty with a warm renderer"
+    },
+    {
+      "type": "eval",
+      "id": "copied-once",
+      "target": "/devbar",
+      "expression": "(() => { document.querySelector('.dvcopy').click(); return 'clicked'; })()",
+      "note": "THE HARDER HALF: one card asks for no widget resize, so nothing can correct a stale rect after the fact."
+    },
+    {
+      "type": "settle",
+      "ms": 400,
+      "note": "past the 220ms entry animation, well inside the card's life"
+    },
+    {
+      "type": "capture",
+      "id": "one-card",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "eval",
+      "id": "one-card-geometry",
+      "target": "/toast",
+      "expression": "(() => { const box = document.querySelector('.toasts'); if (!box) { return 'no stack'; } const cards = [...box.children]; if (!cards.length) { return 'no cards'; } const r2 = (n) => Math.round(n * 100) / 100; const de = document.documentElement; return 'view ' + de.clientWidth + 'x' + de.clientHeight + ' cards ' + cards.map((c) => { const r = c.getBoundingClientRect(); return r2(r.left) + ',' + r2(r.top) + ' ' + r2(r.width) + 'x' + r2(r.height); }).join(' | '); })()",
+      "note": "EVIDENCE, ungraded: the settled card box against the widget viewport it lives in, so a future reader can place the pixel rows below without re-deriving them. Read after the animation, so this is the box the shadow has to match."
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "let the single card go before the burst"
+    },
+    {
+      "type": "eval",
+      "id": "copied-three-times",
+      "target": "/devbar",
+      "expression": "(() => { const b = document.querySelector('.dvcopy'); for (let i = 0; i < 3; i++) { b.click(); } return 'clicked'; })()",
+      "note": "three copies in one loop iteration: each card is measured at a different point in its own entry animation."
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "three-cards",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "eval",
+      "id": "three-card-geometry",
+      "target": "/toast",
+      "expression": "(() => { const box = document.querySelector('.toasts'); if (!box) { return 'no stack'; } const cards = [...box.children]; if (!cards.length) { return 'no cards'; } const r2 = (n) => Math.round(n * 100) / 100; const de = document.documentElement; return 'view ' + de.clientWidth + 'x' + de.clientHeight + ' cards ' + cards.map((c) => { const r = c.getBoundingClientRect(); return r2(r.left) + ',' + r2(r.top) + ' ' + r2(r.width) + 'x' + r2(r.height); }).join(' | '); })()",
+      "note": "EVIDENCE, ungraded: the three settled boxes, 48px each with an 8px gap, which the rows below are cut from."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bar-carries-a-url",
+      "expected": "true",
+      "desc": "THE CONTROL: the bar had a url to copy, so the clicks were real"
+    },
+    {
+      "type": "region_mean",
+      "capture": "one-card",
+      "x": 900,
+      "y": 108,
+      "w": 60,
+      "h": 8,
+      "min_mean": 238,
+      "max_mean": 248,
+      "label": "there-is-a-card-to-read",
+      "desc": "THE CONTROL for every shadow row below: a clear band of the card's own paper, --ov-paper at 249,240,241. MEASURED 249,240,241 at variance 0. Without it a run that drew no card at all would satisfy the two fade readings."
+    },
+    {
+      "type": "region_mean",
+      "capture": "one-card",
+      "x": 900,
+      "y": 124,
+      "w": 60,
+      "h": 4,
+      "min_mean": 195,
+      "max_mean": 235,
+      "label": "the-shadow-starts-at-the-cards-own-edge",
+      "desc": "bottom. The card's box ends at y=122, so these four rows are the first page under it and carry the densest part of a --ov-shadow-tight fall. MEASURED 217.5. A rect taken mid-entry sits about 7px low, which leaves this band the untouched page: MEASURED 255.0 against the unfixed build."
+    },
+    {
+      "type": "region_mean",
+      "capture": "one-card",
+      "x": 900,
+      "y": 134,
+      "w": 60,
+      "h": 4,
+      "min_mean": 240,
+      "max_mean": 255,
+      "label": "and-it-has-faded-twelve-px-down",
+      "desc": "Bottom, the other side of the same grip. Twelve rows under the card a 5px/14px shadow is nearly spent. MEASURED 249.5. The offset rect puts its own hard erased edge here instead, at MEASURED 225.8, so the pair fails whichever way the rect slides."
+    },
+    {
+      "type": "region_mean",
+      "capture": "one-card",
+      "x": 1011,
+      "y": 88,
+      "w": 2,
+      "h": 22,
+      "min_mean": 210,
+      "max_mean": 242,
+      "label": "the-shadow-reaches-past-the-cards-side",
+      "desc": "Sideways: --ov-shadow-tight offsets down, not across, so the fall has to clear the card's right edge at x=1010 by the same amount on each side. Two columns, because the window's own edge starts at x=1013. MEASURED 230.9. A rect scaled to .93 is pulled inside the card on both sides and barely reaches here: MEASURED 249.7 against the unfixed build."
+    },
+    {
+      "type": "region_mean",
+      "capture": "three-cards",
+      "x": 900,
+      "y": 220,
+      "w": 60,
+      "h": 8,
+      "min_mean": 238,
+      "max_mean": 248,
+      "label": "there-are-three-cards-to-read",
+      "desc": "THE CONTROL for the two rows below: the third card's own paper, 48px box with an 8px gap putting it at y=186..234. MEASURED 249,240,241 at variance 0."
+    },
+    {
+      "type": "region_mean",
+      "capture": "three-cards",
+      "x": 900,
+      "y": 236,
+      "w": 60,
+      "h": 4,
+      "min_mean": 195,
+      "max_mean": 235,
+      "label": "the-last-card-in-a-burst-keeps-its-own-shadow",
+      "desc": "Every card in a burst is measured at a different point in its own entry, so the three shadows land at three different offsets. This is the last card's own bottom edge. MEASURED 217.5, the same reading the single card gives, against MEASURED 254.8 on the unfixed build."
+    },
+    {
+      "type": "region_mean",
+      "capture": "three-cards",
+      "x": 900,
+      "y": 246,
+      "w": 60,
+      "h": 4,
+      "min_mean": 240,
+      "max_mean": 255,
+      "label": "and-the-burst-shadow-fades-like-a-single-cards",
+      "desc": "The far side of the grip. MEASURED 249.8, against the offset rect's own erased edge at MEASURED 233.0."
+    },
+    {
+      "type": "region_stable",
+      "before": "no-toast",
+      "after": "one-card",
+      "region": [60, 470, 160, 50],
+      "max_delta": 6.0,
+      "label": "the-shadow-never-paints-in-the-sidebar",
+      "desc": "The standing guard from the first shadow fix: this is sidebar, not page. A card rect measured against a stale viewport once landed here, and no reading taken inside the toast document can see it."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

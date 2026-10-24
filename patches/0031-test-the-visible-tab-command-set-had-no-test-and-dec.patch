@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sat, 8 Aug 2026 17:27:39 +0200
+Subject: [PATCH 031/154] test: the visible-tab command set had no test and
+ decays silently
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Stage 2's routing was already implemented - every command the task enumerates
+is in CommandTarget, the bubble anchor already resolves the presenter
+separately, and CreateWindowSlot already seeds from the visible profile. The
+task stayed open while the work sat in the tree.
+
+What was genuinely missing is a way to know that stays true. The set lived
+inside AtriumNativeWidgetMac::CommandTarget, wrapped around a Browser* and a
+views:: widget, so nothing could reach it. It is the kind of list that rots
+without failing: drop a command and it acts on an OFF-SCREEN tab, which the
+user experiences as the menu item doing nothing at all. Zoom did exactly that
+before stage 2.
+
+The set moves into atrium_command_target_decision.h as a command id in and a
+bool out, the same posture as the routing and peek decisions. CommandTarget
+keeps only the job of resolving that answer against live objects.
+
+Five tests, split by the stage that introduced each group so a regression names
+where it broke. Two are about what must NOT be in the set: app-scoped commands
+stay on the invoking window, and IDC_NEW_WINDOW is called out by name because
+it reads like an omission and is not - it resolves the visible PROFILE inside
+CreateWindowSlot, and adding it here would double-resolve it. An unknown
+command has its own case so a future range check cannot sweep the set wider
+than intended.
+
+Checked they can fail rather than assuming: removing IDC_BOOKMARK_THIS_TAB
+turns the stage-2 case red and nothing else, which is the granularity the split
+was for.
+
+No behaviour change.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 00bda30daee8f..f8c76f7472d91 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -623,6 +623,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:edit_focus_gate",
+     "//chrome/browser/ui/atrium:extension_popup_watchdog_policy",
+     "//chrome/browser/ui/atrium:little_marker",
++    "//chrome/browser/ui/atrium:command_target_decision",
+     "//chrome/browser/ui/atrium:peek_decision",
+     "//chrome/browser/ui/atrium:routing_navigation_decision",
+     "//chrome/browser/ui/atrium:slot_presentation_table",

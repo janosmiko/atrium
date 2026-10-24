@@ -1,0 +1,130 @@
+{
+  "name": "the-address-field-fill-during-a-real-load",
+  "description": "which of the two candidates it is, decided from the phase sequence a REAL navigation produces.\n\nWHAT THE FIRST PROBE SETTLED, AND WHAT IT DID NOT. the-address-field-shows-it-is-loading forced the waiting phase by hand and measured the field: control 101.9, dim end 93.9, peak 81.5. So the fill paints, and it moves the patch by 8 levels at the dim end of the breath and 20 at the peak. It also showed the fill is BLACK here - bg=rgb(0, 0, 0), because --atrium-ink resolves to 0 0 0 on a light-tinted space - over a ground of color(srgb 0 0 0 / 0.1012). The 'too faint' candidate was argued from white ink on a white wash, and that arithmetic was about the wrong colour.\n\nSo the paint is fine when the waiting phase is on. What is left is whether it is ever on for long enough to see. The native side pushes kWaiting at 0.0 from OnActiveTabStartedLoading and only reaches kReceiving above blink::kInitialLoadProgress, so the sequence looks right in C++. The JS guard in atriumLoadPhase drops any non-done phase whose tab id does not match the active one, and setPhase writes width from the pushed fraction - a receiving phase at fraction 0 is a zero-width bar at opacity .2, which is nothing at all.\n\nHOW IT IS MEASURED. A MutationObserver records every class and inline-width change on the real .loadfill with a timestamp, then the page is navigated for real, then the log is read back. That gives the phases in order, the width each one carried, and how long the waiting phase lasted - which is the whole question. Nothing here is forced.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval_until",
+      "id": "urlbar-exists",
+      "target": "/sidebar",
+      "expression": "String(!!document.querySelector('.urlbar'))",
+      "expected": "true",
+      "timeout_ms": 10000,
+      "note": "GATE: the field the fill lives in"
+    },
+    {
+      "type": "eval",
+      "id": "urlbar-box",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.urlbar').getBoundingClientRect(); return Math.round(b.left) + ',' + Math.round(b.top) + ' ' + Math.round(b.width) + 'x' + Math.round(b.height) + ' in ' + window.innerWidth + 'x' + window.innerHeight; })()",
+      "note": "the window content starts at screen y=30, so a screen probe is this top plus 30. Logged rather than assumed, because sidebar layout has moved before."
+    },
+    {
+      "type": "eval",
+      "id": "fill-exists",
+      "target": "/sidebar",
+      "expression": "String(!!document.querySelector('.loadfill'))",
+      "note": "createLoadFill inserts it at build time, so it should be here before any navigation"
+    },
+    {
+      "type": "eval",
+      "id": "arm-the-sampler",
+      "target": "/sidebar",
+      "expression": "(() => { const f = document.querySelector('.loadfill'); if (!f) { return 'no fill'; } window.__fillLog = []; const t0 = performance.now(); const rec = () => { window.__fillLog.push(Math.round(performance.now() - t0) + 'ms ' + f.className + ' w=' + (f.style.width || '(unset)')); }; rec(); new MutationObserver(rec).observe(f, {attributes: true, attributeFilter: ['class', 'style']}); return 'armed, start ' + f.className + ' w=' + (f.style.width || '(unset)'); })()",
+      "note": "records every class and inline-width change on the real element. attributeFilter keeps unrelated mutations out of the log."
+    },
+    {
+      "type": "eval",
+      "id": "navigate-for-real",
+      "target": "example-domain",
+      "expression": "(() => { const from = location.href; location.href = 'http://127.0.0.1:8000/long-page.html'; return 'navigating from ' + from; })()",
+      "note": "target names the SERVED page. A first run used 'two-tabs', the fixture's filename, which matched no target: the eval went BLIND, no navigation happened, and the two assertions below failed as though the waiting phase were missing. The old value is why the assertion on this action exists."
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "past the load, so done is in the log too"
+    },
+    {
+      "type": "eval",
+      "id": "page-after-the-navigation",
+      "target": "long-page",
+      "expression": "location.pathname",
+      "note": "THE GUARD the first run lacked. If the navigation never happened this target does not exist, the eval goes BLIND, and its assertion records a HARNESS error instead of letting the phase readings below look like a product defect. That is exactly how the first run misled: an unasserted blind action is silent."
+    },
+    {
+      "type": "eval",
+      "id": "phase-log",
+      "target": "/sidebar",
+      "expression": "(window.__fillLog || ['sampler never armed']).join(' | ')",
+      "note": "THE MEASUREMENT: the phases in order with their widths and timings"
+    },
+    {
+      "type": "eval",
+      "id": "waiting-was-seen",
+      "target": "/sidebar",
+      "expression": "String((window.__fillLog || []).some((e) => /waiting/.test(e)))"
+    },
+    {
+      "type": "eval",
+      "id": "waiting-had-width",
+      "target": "/sidebar",
+      "expression": "String((window.__fillLog || []).some((e) => /waiting/.test(e) && /w=100%/.test(e)))"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "urlbar-exists",
+      "expected": "true",
+      "desc": "GATE: the address field was on screen, so the captures below hold it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "page-after-the-navigation",
+      "expected": "\"/long-page.html\"",
+      "desc": "the navigation this scenario depends on actually landed. A blind reading here is a broken run, not a missing waiting phase."
+    },
+    {
+      "type": "eval_equals",
+      "id": "waiting-was-seen",
+      "expected": "\"true\"",
+      "desc": "the waiting phase reached the fill during a real load. If this is false the fill never had its full-width phase and the defect is the sequence, not the paint - the first probe already showed the paint works."
+    },
+    {
+      "type": "eval_equals",
+      "id": "waiting-had-width",
+      "expected": "\"true\"",
+      "desc": "and it carried width 100%, which setPhase writes inline for waiting. A waiting class with no width would be the zero-width case wearing the right name."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

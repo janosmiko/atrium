@@ -1,0 +1,86 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 27 Jul 2026 15:22:11 +0200
+Subject: [PATCH 021/154] atrium: open links in Atrium's own split from the
+ link context menu
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+'Open Link in Split View' was hidden on Atrium windows because stock
+TabStripModel::AddToNewSplit NOTREACHED-crashes for them: Atrium's split is an
+AtriumPaneContainerView hosting two WebContents in one window and never touches
+TabCollection, so the index AddToNewSplit resolves does not exist in its tree.
+
+Re-route rather than repair. Making TabStripModel compatible with split_tabs
+bookkeeping Atrium deliberately does not use would be large and buy nothing,
+since Atrium's own split already works end to end.
+
+The earlier crash guard is relocated, not weakened: the item becomes visible
+again, and the gate moves to OpenLinkInSplitView - the single choke point both
+the menu item and the layout submenu dispatch through - so AddToNewSplit stays
+reachable only when Atrium is disabled. Non-Atrium windows are unchanged.
+
+Exposed through atrium_feature_check.h, the established pattern for a narrow
+Atrium call reachable from cross-platform code. No new host op, no Swift hop.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../render_view_context_menu.cc               | 36 +++++++++++++------
+ 1 file changed, 25 insertions(+), 11 deletions(-)
+
+diff --git a/chrome/browser/renderer_context_menu/render_view_context_menu.cc b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+index 5e4a460ef85c8..2f355d5cfa6f2 100644
+--- a/chrome/browser/renderer_context_menu/render_view_context_menu.cc
++++ b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+@@ -1920,17 +1920,15 @@ void RenderViewContextMenu::AppendLinkItems() {
+       // Opening a link in split view should also go through the same
+       // constraints as opening a link in a new tab since a split view tab is a
+       // new tab that is then joined with the current active tab.
+-      // Atrium windows have no BrowserView-backed TabCollection (crash-guard
+-      // posture: split view is architecturally incompatible with Atrium's
+-      // single-tab-per-window sidebar model) - AddToNewSplit NOTREACHEDs at
+-      // components/tabs/impl/tab_collection.cc:221 if this item is invoked
+-      // on an Atrium window (found via routing Task 7's VM probing).
+-      // Suppress the item outright rather than patch stock split-tab code.
+-      // atrium::IsAtriumBrowserWindowEnabled() is per-process (connected()),
+-      // not per-window, but a connected dylib implies every window is an
+-      // Atrium window, so the check is equivalent here (mirrors
+-      // tab_helpers.cc's identical SadTabHelper gate).
+-      if (IsNormalBrowser() && !atrium::IsAtriumBrowserWindowEnabled()) {
++      // Atrium windows have no BrowserView-backed TabCollection, so
++      // stock's AddToNewSplit NOTREACHEDs at
++      // components/tabs/impl/tab_collection.cc:221 if invoked on one (found
++      // via routing Task 7's VM probing). Rather than suppress the item, the
++      // EXECUTION side (OpenLinkInSplitView below) re-routes into Atrium's
++      // own split when atrium::IsAtriumBrowserWindowEnabled() - the stock
++      // AddToNewSplit call stays reachable only when that gate is false, so
++      // this visibility check no longer needs to know about Atrium at all.
++      if (IsNormalBrowser()) {
+         tabs::TabInterface* tab =
+             tabs::TabInterface::MaybeGetFromContents(GetWebContents());
+         auto [string_id, icon] = GetOpenLinkInSplitStringAndIcon(
+@@ -5695,6 +5693,22 @@ void RenderViewContextMenu::OpenLinkInSplitView(
+   CHECK(browser);
+   CHECK(browser->GetType() == BrowserWindowInterface::TYPE_NORMAL);
+ 
++  // Atrium's split is AtriumPaneContainerView, not stock
++  // split_tabs/TabCollection - the AddToNewSplit call below NOTREACHEDs for
++  // an Atrium window (see atrium_feature_check.h's doc on
++  // OpenLinkInAtriumSplit). Re-route there instead; AddToNewSplit stays
++  // reachable below only when the gate is false.
++  if (atrium::IsAtriumBrowserWindowEnabled()) {
++    OpenURLParams url_params = GetOpenURLParamsWithExtraHeaders(
++        params_.link_url, params_.frame_url, params_.frame_origin,
++        WindowOpenDisposition::NEW_BACKGROUND_TAB, ui::PAGE_TRANSITION_LINK,
++        /*extra_headers=*/std::string(), /*started_from_context_menu=*/true);
++    atrium::OpenLinkInAtriumSplit(
++        browser, source_web_contents_, url_params,
++        layout == split_tabs::SplitTabLayout::kStacked);
++    return;
++  }
++
+   TabStripModel* const tab_strip_model = browser->GetTabStripModel();
+   tabs::TabInterface* const source_tab =
+       tabs::TabInterface::MaybeGetFromContents(source_web_contents_);

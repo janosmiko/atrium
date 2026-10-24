@@ -1,0 +1,60 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 07:59:29 +0200
+Subject: [PATCH 037/154] feat: let the Atrium window exist without a dylib
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Three gates decided that Atrium ran at all, and every one asked the Swift
+dylib:
+
+  browser_window_factory.cc   created AtriumBrowserWindow only when connected()
+  atrium_feature_check.cc     IsAtriumBrowserWindowEnabled returned connected()
+  atrium_main_extra_parts.cc  an early return skipped the chrome layer, the
+                              collection observer and every controller-creating
+                              path
+
+After the cut connected() is always false, so the browser started as plain
+Chromium. Measured by A/B on one build: 18 AtriumBrowserWindow log lines with a
+dylib present, 0 without.
+
+Removing the early return then died on
+DCHECK(UIBridge::Get()->connected()) in the controller - the cascade the task
+warned about, found one launch at a time. Five such DCHECKs are gone; they
+asserted a precondition the cut removed.
+
+Result, with no dylib anywhere and none loaded:
+
+  scenario rust-core-sidebar: 2 passed, 0 failed
+  4 Rust-backed sidebar pushes
+  0 "UI dylib connected"
+
+So the browser now runs its own chrome and draws its sidebar from Rust with no
+Swift involved. The remaining ~149 UIBridge call sites are still to sweep.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/views/frame/browser_window_factory.cc | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/chrome/browser/ui/views/frame/browser_window_factory.cc b/chrome/browser/ui/views/frame/browser_window_factory.cc
+index b92bf6cc20348..3f4a712d0319d 100644
+--- a/chrome/browser/ui/views/frame/browser_window_factory.cc
++++ b/chrome/browser/ui/views/frame/browser_window_factory.cc
+@@ -40,7 +40,13 @@ BrowserWindow::CreateBrowserWindow(Browser* browser,
+                                    bool user_gesture,
+                                    bool in_tab_dragging) {
+ #if BUILDFLAG(IS_MAC)
+-  if (atrium::UIBridge::Get()->connected() && browser->is_type_normal()) {
++  // The Atrium window no longer waits for a dylib to connect.
++  // This used to read `UIBridge::Get()->connected() && ...`, which meant that
++  // after the Swift cut no Atrium window was created at all - measured by A/B
++  // on 2026-08-09, 18 window log lines with a dylib present and 0 without.
++  // Every surface, scenario and Rust-path check downstream needs a window to
++  // exist first.
++  if (browser->is_type_normal()) {
+     // Little Atrium: BrowserController::CreateLittleWindow
+     // brackets its own Browser::Create() call with this marker (Browser has
+     // no SupportsUserData/UnownedUserDataHost slot cheap enough to stamp

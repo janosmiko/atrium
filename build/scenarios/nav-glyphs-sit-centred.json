@@ -1,0 +1,94 @@
+{
+  "name": "nav-glyphs-sit-centred",
+  "cannot_pass": "centre_spread reads a consistent spread of 4.69px in this VM (offsets 0.00 -4.69 -4.69 0.00 - both text glyphs shift together, both SVGs stay put) against 0.81px measured on a real host Chrome 151 with the identical CSS. The gap is isolated to canvas measureText's actualBoundingBoxAscent/Descent on the '.g' character glyphs (system-ui/-apple-system fallback, no custom @font-face), which is exactly where VM-vs-host font hinting/subpixel differences show up; the SVG-based glyphs it shares a box with read 0.00 in both places. Delete this field if a VM font/display change brings the reading under 1px.",
+  "description": "every glyph in the nav row sits at the same height in its 22px button, whether it is drawn as an SVG or typed as a character. WHY A BOUNDING BOX AND NOT A PIXEL REGION. The button boxes are all 22x22 and all in a row, so a screenshot of the row looks the same whether the ink inside those boxes is centred or a pixel and a half low - which is exactly what the 22.5px version was, and what nothing caught. This reads the INK: for a character, the baseline is found with a zero-size inline-block strut and the ink extents come from canvas measureText's actualBoundingBoxAscent/Descent; for an SVG, getBBox plus half the widest stroke, mapped back through the viewBox. Each button then reports the offset of its ink centre from its own box centre, and the assertion is on the SPREAD of those offsets, not on any one of them: a change that moved every glyph together would still be centred as a row. MEASURED ON THE HOST FIRST, in Chrome 151 against the same CSS: toggle 0.00, back +0.81, forward +0.81, reload 0.00, spread 0.81px. The residue is the guillemets ‹ ›, whose ink sits low in the em box in this face and cannot be moved without a per-glyph nudge, which is the thing this task set out to remove. THE RELOAD ARC NEEDED ITS OWN FIX. Its arrowhead reaches to y 0.68 while the arc's foot stops at 10, so the drawing is 0.66 units high in a 0 0 12 12 box; the viewBox is 0 -0.66 12 12 now, which is what takes the arc off +0.99 and onto 0.00.",
+  "fixture": "two-tabs.spaces.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the nav row announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "nav_buttons",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.sbnav .nb').length)",
+      "note": "VACUITY GUARD. The spread of an empty list is -Infinity, which compares as within 1px of itself. Four is the toggle plus back, forward and reload; the traffic dots are .td and not counted."
+    },
+    {
+      "type": "eval",
+      "id": "glyph_sizes",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.sbnav'); if (!r) { return 'no nav row'; } const svgs = [...r.querySelectorAll('.nb svg')].map((s) => s.getBoundingClientRect().height); const text = [...r.querySelectorAll('.nb .g')].map((g) => g.textContent).filter(Boolean); return svgs.join(',') + '|' + text.join(''); })()",
+      "note": "SECOND VACUITY GUARD, and the sizes themselves. An SVG that failed to lay out reports 0 here, and its getBBox would then read as a centred nothing below."
+    },
+    {
+      "type": "eval",
+      "id": "box_height",
+      "target": "/sidebar",
+      "expression": "getComputedStyle(document.querySelector('.sbnav .sbback')).height",
+      "note": "the box the glyphs are centred IN. It stays at 22, which is what atrium_nav_carve_decision.cc's kNavButtonWidth carves for."
+    },
+    {
+      "type": "eval",
+      "id": "centre_spread",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.sbnav'); if (!row) { return 'no nav row'; } const ink = (b) => { const svg = b.querySelector('svg'); if (svg) { const r = svg.getBoundingClientRect(); const bb = svg.getBBox(); const vb = svg.getAttribute('viewBox').split(' ').map(Number); const s = r.width / vb[2]; const half = Math.max(0, ...[...svg.querySelectorAll('*')].map((n) => Number(n.getAttribute('stroke-width') || 0))) / 2; return [r.top + (bb.y - half - vb[1]) * s, r.top + (bb.y + bb.height + half - vb[1]) * s]; } const g = b.querySelector('.g'); const strut = document.createElement('i'); strut.style.cssText = 'display:inline-block;width:0;height:0'; g.appendChild(strut); const base = strut.getBoundingClientRect().bottom; strut.remove(); const cs = getComputedStyle(b); const cx = document.createElement('canvas').getContext('2d'); cx.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily; const m = cx.measureText(g.textContent); return [base - m.actualBoundingBoxAscent, base + m.actualBoundingBoxDescent]; }; const offs = [...row.querySelectorAll('.nb')].map((b) => { const box = b.getBoundingClientRect(); const e = ink(b); return (e[0] + e[1]) / 2 - (box.top + box.height / 2); }); const spread = Math.max(...offs) - Math.min(...offs); return spread <= 1 ? 'within 1px' : 'spread ' + spread.toFixed(2) + 'px, ' + offs.map((o) => o.toFixed(2)).join(' '); })()",
+      "note": "THE MEASUREMENT. Reports the spread and every offset when it fails, so a regression names the button that drifted rather than just going red."
+    },
+    {
+      "type": "capture",
+      "id": "rest",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the row at the settled size, for the eye: the numbers above say the ink agrees, this says it still looks like a nav row"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "nav_buttons",
+      "expected": "\"4\"",
+      "desc": "VACUITY GUARD: four buttons were measured, so the spread below is a comparison rather than an empty one"
+    },
+    {
+      "type": "eval_equals",
+      "id": "glyph_sizes",
+      "expected": "\"18,16|‹›\"",
+      "desc": "the toggle draws at 18 and the reload at 16, the pair that gives them one ink height, and back and forward still carry the lab's guillemets"
+    },
+    {
+      "type": "eval_equals",
+      "id": "box_height",
+      "expected": "\"22px\"",
+      "desc": "The box did not move to meet the glyphs - the native carve reads 22 and would miss the button if it had"
+    },
+    {
+      "type": "eval_equals",
+      "id": "centre_spread",
+      "expected": "\"within 1px\"",
+      "desc": "Every glyph's ink centre sits within a pixel of every other one's, SVG and character alike"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

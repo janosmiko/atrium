@@ -1,0 +1,133 @@
+{
+  "name": "video-fullscreen-sidebar",
+  "description": "content fullscreen must hide the HTML sidebar. AtriumRootView::SetImmersive used to guard on sidebar_host(), the deleted SwiftUI arm's NativeViewHost - always null in every shipping build, so the guard silently no-op'd and the sidebar stayed on screen through fullscreen. The fix (patches/0195) routes the same call through sidebar_slot(), which answers in both arms.\n\nThe trap: a windowed-vs-fullscreen comparison over the sidebar column is NOT discriminating - entering fullscreen reflows the whole window (toolbar and tab strip disappear, the page pane grows), so the sidebar column's pixels change on the broken build too, for reasons that have nothing to do with the sidebar itself. The measurement instead compares two frames that already SHARE fullscreen geometry: press Cmd+S (ToggleSidebar) once already in fullscreen. On a fixed build the sidebar is already hidden and toggling a hidden, zero-width slot draws nothing - the column stays stable. On the broken build the sidebar is still visible and Cmd+S actually collapses it, which cmds-sidebar-collapse measured at a ~57 mean delta over the same column on a windowed sidebar - the same collapse, same signature, would show up here too.\n\nPremise gate: a real content-fullscreen transition must be proven independently of the sidebar bug, or a build that never enters fullscreen at all would pass this scenario by never touching the sidebar. The top toolbar strip (traffic lights + menu chrome) disappears on ANY successful SetImmersiveFullscreen(true), regardless of whether the sidebar half of that same call worked - so a big pixel delta there, windowed vs fullscreen, proves the trigger fired before the stability check is trusted.",
+  "fixture": "fullscreen-sidebar.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "50200001-0000-0000-0000-000000000001",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "routing7-fullscreen.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/routing7-fullscreen.html",
+      "timeout_ms": 20000,
+      "note": "GATE: the fixture page committed as the startup tab - the button requestFullscreen() needs to click actually exists"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the docked sidebar and page finish rendering"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the window come forward"
+    },
+    {
+      "type": "capture",
+      "id": "windowed",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "baseline: docked sidebar visible, normal window chrome (traffic lights, tab strip)"
+    },
+    {
+      "type": "click",
+      "x": 318,
+      "y": 335,
+      "note": "the page's own 'Go Fullscreen' button (document.documentElement.requestFullscreen()), coordinates read off a captured recon frame at this exact fixture/window size - NOT the green traffic-light button. SetImmersiveFullscreen is driven by the HTML5 fullscreen API, the same path a <video> element's own fullscreen control uses."
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "let the native fullscreen transition (window resize + chrome hide animation) finish"
+    },
+    {
+      "type": "capture",
+      "id": "fullscreen_before_cmds",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "content fullscreen engaged - toolbar/tab strip gone; sidebar column state is what this scenario is about"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "THE MEASUREMENT'S TRIGGER: IDC_SAVE_PAGE / ToggleSidebar, same chord cmds-sidebar-collapse uses on a windowed sidebar. Pressed a SECOND time here, already inside fullscreen, so both captures around it share identical outer geometry."
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "past any collapse animation, same margin cmds-sidebar-collapse uses"
+    },
+    {
+      "type": "capture",
+      "id": "fullscreen_after_cmds",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "must read the SAME as fullscreen_before_cmds on a fixed build: the sidebar was already hidden, so there is nothing left to collapse"
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "exit content fullscreen before quitting, mirroring how a user would leave the page"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the fullscreen exit transition finish before Cmd+Q"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "startup-page",
+      "expected": "http://127.0.0.1:8000/routing7-fullscreen.html",
+      "label": "the-fixture-page-loaded-first",
+      "note": "THE POSITIVE GATE: a real committed page existed before the fullscreen button was ever clicked"
+    },
+    {
+      "type": "theme_changed",
+      "label": "fullscreen-premise-gate",
+      "before": "windowed",
+      "after": "fullscreen_before_cmds",
+      "region": [
+        0,
+        0,
+        300,
+        30
+      ],
+      "min_delta": 10.0,
+      "desc": "PREMISE GATE, independent of the sidebar bug: the toolbar/traffic-light strip must disappear when content fullscreen actually engages. Without this, a build where the fullscreen request silently failed would never touch the sidebar at all and would pass the stability check below for the wrong reason."
+    },
+    {
+      "type": "region_stable",
+      "label": "sidebar-stays-hidden-through-cmds",
+      "before": "fullscreen_before_cmds",
+      "after": "fullscreen_after_cmds",
+      "region": [
+        40,
+        200,
+        150,
+        300
+      ],
+      "max_delta": 10.0,
+      "desc": "THE MEASUREMENT: same region and geometry cmds-sidebar-collapse used to measure a real collapse at ~57. Both frames already share fullscreen geometry, so a delta here can only come from the sidebar itself moving. Fixed build: sidebar already hidden by SetImmersive -> toggling a hidden slot draws nothing -> stable. Broken build (pre-0195, guarding on the always-null sidebar_host()): sidebar never hid on entering fullscreen, so Cmd+S actually collapses a visible sidebar and scores the same signature a sibling scenario measured - max_delta 10.0 sits well under that and over the pixel-noise floor."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "liveness: still one real window after the fullscreen round-trip"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits after entering and leaving content fullscreen"
+    }
+  ]
+}

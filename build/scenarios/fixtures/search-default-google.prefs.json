@@ -1,0 +1,21 @@
+{
+  "default_search_provider_data": {
+    "template_url_data": {
+      "short_name": "Google",
+      "keyword": "google.com",
+      "url": "https://www.google.com/search?q={searchTerms}",
+      "suggestions_url": "https://www.google.com/complete/search?client=chrome&q={searchTerms}",
+      "favicon_url": "https://www.google.com/favicon.ico",
+      "safe_for_autoreplace": false,
+      "id": "2",
+      "prepopulate_id": 1,
+      "sync_guid": "atrium-seed-google-0000",
+      "date_created": "13350000000000000",
+      "last_modified": "13350000000000000",
+      "created_by_policy": 0,
+      "is_active": 1,
+      "starter_pack_id": 0,
+      "usage_count": 0
+    }
+  }
+}

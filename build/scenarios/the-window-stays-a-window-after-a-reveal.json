@@ -1,0 +1,92 @@
+{
+  "name": "the-window-stays-a-window-after-a-reveal",
+  "description": "The reporter cannot click anywhere in the browser and the window manager no longer identifies the window. Both symptoms point at the reveal panel: it is a child window, it is non-activating, and the grip band the parent puts under it is a full-height view that claims events. This drives a whole reveal cycle and then asks the two questions a broken build cannot answer - is there still one standard window, and does a click on the page still land.",
+  "fixture": "two-tabs.spaces.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "clicks-before",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.row').length)",
+      "note": "the sidebar is alive before any of this"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "collapse, so the edge zone arms"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 400,
+      "note": "reveal the panel"
+    },
+    {
+      "type": "settle",
+      "ms": 1800
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 400,
+      "note": "leave for the page, so the panel dismisses through its own rule"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "past the 280ms grace and the 240ms slide, so the panel is down and its contents are back in the pane"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "dock the pane again, which is the state the reporter opens in"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "label": "one-standard-window-remains",
+      "desc": "A window the manager cannot identify does not come back as AXStandardWindow. A second one would mean the panel is being counted as a window of its own."
+    },
+    {
+      "type": "eval_equals",
+      "id": "clicks-before",
+      "expected": "\"2\"",
+      "label": "the-sidebar-had-rows-to-begin-with"
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "DCHECK failed",
+      "label": "no-dcheck-fired"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q is itself a click-free proof that the window still takes key input"
+    }
+  ]
+}

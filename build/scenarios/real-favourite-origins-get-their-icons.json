@@ -1,0 +1,42 @@
+{
+  "name": "real-favourite-origins-get-their-icons",
+  "description": "Thirteen favourites on real origins from a user's BPX and Eventim spaces, in a profile whose favicon database is empty, so every tile depends on the site fetch. Eleven origins answer /favicon.ico with an image, some through a redirect. app.clockify.me answers 404 there and names its icon in a link tag instead, which the page-fetch tier reads. git.eventim.net does not resolve outside its VPN, so that one is expected to stay blank and is excluded from the gate.\n\nThe missing-tiles eval names which favourites had no loaded icon at the deadline, which is the evidence a report of 'a lot of favicons are missing' needs.",
+  "fixture": "real-favourite-origins.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "settle", "ms": 3000 },
+    { "type": "activate" },
+    { "type": "wait_vlog", "pattern": "Atrium: favicon backfill starting", "timeout_ms": 15000 },
+    {
+      "type": "eval_until",
+      "id": "all-reachable-tiles-ok",
+      "target": "/sidebar",
+      "expression": "(() => { const skip = ['git.eventim.net']; const ids = new Set([...document.querySelectorAll('.fav')].map(f => f.dataset.favId || '').filter(id => id && !skip.some(s => id.includes(s)))); const ok = new Set([...document.querySelectorAll('.fav')].filter(f => f.querySelector('.fvimg.ok')).map(f => f.dataset.favId)); return String(ids.size > 0 && [...ids].every(id => ok.has(id))); })()",
+      "expected": "true",
+      "timeout_ms": 45000,
+      "note": "every favourite whose origin serves an icon over the network has one on screen"
+    },
+    {
+      "type": "eval",
+      "id": "missing-tiles",
+      "target": "/sidebar",
+      "expression": "(() => { const ok = new Set([...document.querySelectorAll('.fav')].filter(f => f.querySelector('.fvimg.ok')).map(f => f.dataset.favId)); return [...new Set([...document.querySelectorAll('.fav')].map(f => f.dataset.favId || ''))].filter(id => id && !ok.has(id)).join(' ') || 'none'; })()",
+      "note": "recorded, not asserted: which favourites have no loaded icon"
+    },
+    {
+      "type": "eval",
+      "id": "tile-sources",
+      "target": "/sidebar",
+      "expression": "(() => { const seen = new Set(); return [...document.querySelectorAll('.fav')].filter(f => { const id = f.dataset.favId; if (seen.has(id)) return false; seen.add(id); return true; }).map(f => { const i = f.querySelector('.fvimg'); return (f.dataset.favId || '?').replace(/^https:\\/\\//, '').slice(0, 28) + '=' + (i ? (i.classList.contains('ok') ? 'ok' : 'img') : 'none'); }).join(' '); })()",
+      "note": "recorded: per tile, whether an img exists and whether it loaded"
+    },
+    { "type": "capture", "id": "real-origin-tiles", "duration_ms": 300, "fps": 20 }
+  ],
+  "assertions": [
+    { "type": "ax_window_count", "expected": 1, "min_area": 200000, "desc": "sanity: one real window rendered" },
+    { "type": "vlog", "pattern": "Atrium: favicon backfill starting", "desc": "the backfill asked for the cold tiles" },
+    { "type": "eval_equals", "id": "all-reachable-tiles-ok", "expected": "true", "desc": "every favourite on an origin that serves an icon shows it" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

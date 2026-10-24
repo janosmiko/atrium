@@ -1,0 +1,133 @@
+{
+  "name": "the-floating-bar-descends-with-its-shadow",
+  "description": "Three reported defects on the floating address bar, all of them about what the bar looks like on the way in and at rest.\n\nThe shadow is not drawn by the bar. devbar.js reads the resolved box-shadow out of its own stylesheet and hands it to AtriumOverlayShadowLayer, a CALayer over the page, because the bar's viewport ends exactly at its own edge and nothing renders past it. The bar then descends over 200ms inside its document while C++ registers that layer one posted layout later, so the two arrivals were never tied together and the shadow landed at rest over a bar still off the top edge.\n\nThe second half is the corners. The bar rounds itself with --ov-radius-compact and the page behind it is transparent, so the four corners outside that curve must show the card, not a box. A reporter saw grey squares there.\n\nMeasured, not eyeballed. key_during_capture fires the chord and records from one ssh session, so the burst straddles the descent instead of two host round trips missing it. The mid frame catches the arrival, the settled frame catches the corners.\n\nCOORDINATES, taken from the-floating-bar-padding-does-not-swallow-page-clicks: on this window the bubble spans screen x 335..895 and y 50..84. The eval below re-reads the box every run so a drift shows up in the log.",
+  "fixture": "long-page.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "page-alone",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the card with no bar over it - the control that says the band really is page, not chrome"
+    },
+    {
+      "type": "key_during_capture",
+      "combo": "cmd+shift+d",
+      "capture_id": "descending",
+      "duration_ms": 1400,
+      "fps": 30,
+      "key_delay_ms": 300,
+      "note": "docked -> floating. The burst starts before the chord, so the frames hold the whole 200ms descent"
+    },
+    {
+      "type": "eval_until",
+      "id": "bar-shown",
+      "target": "/devbar",
+      "expression": "String(!!document.querySelector('.devbar'))",
+      "expected": "true",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "bar-box-in-its-document",
+      "target": "/devbar",
+      "expression": "(() => { const b = document.querySelector('.devbar'); const r = b.getBoundingClientRect(); const cs = getComputedStyle(b); return Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.right) + ',' + Math.round(r.bottom) + ' viewport ' + window.innerWidth + 'x' + window.innerHeight + ' radius ' + cs.borderTopLeftRadius; })()",
+      "note": "the bar inside its own widget, and the radius the shadow layer is told to round to"
+    },
+    {
+      "type": "eval",
+      "id": "nothing-paints-behind-the-bar",
+      "target": "/devbar",
+      "expression": "(() => { const seen = []; for (const el of [document.documentElement, document.body]) { const bg = getComputedStyle(el).backgroundColor; if (bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') { seen.push(el.tagName + '=' + bg); } } return seen.length ? seen.join(' ') : 'transparent'; })()",
+      "note": "a grey square at the corners is either this document painting past the curve, or the native widget under it. This eval decides which."
+    },
+    {
+      "type": "capture",
+      "id": "at-rest",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the settled bar with its fill idle. The baseline both corner reads compare against."
+    },
+    {
+      "type": "eval",
+      "id": "drive-the-load-fill",
+      "target": "/devbar",
+      "expression": "(() => { window.atriumLoadPhase(1, 'receiving', 0.9); const f = document.querySelector('.loadfill'); return f.className + ' ' + f.style.width; })()",
+      "note": "the fill is the one part of the bar that animates, and an animated child can escape a rounded overflow clip. The fixture page finishes loading too fast to catch this by waiting."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "fill-up",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the same bar with the fill at 90 percent. Only the fill differs from at-rest."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bar-shown",
+      "expected": "true",
+      "desc": "the chord landed: without the bar there is no shadow and no corner to grade"
+    },
+    {
+      "type": "eval_equals",
+      "id": "nothing-paints-behind-the-bar",
+      "expected": "\"transparent\"",
+      "desc": "the bar's own document paints nothing outside its rounded box, so a grey square at the corners is the native widget under it"
+    },
+    {
+      "type": "pixels_changed",
+      "before": "at-rest",
+      "after": "fill-up",
+      "region": [560, 53, 120, 5],
+      "min_changed_pct": 50.0,
+      "desc": "THE CONTROL: the fill really came up inside the bar. Without this a stable corner below could just mean the eval did nothing."
+    },
+    {
+      "type": "region_stable",
+      "before": "at-rest",
+      "after": "fill-up",
+      "region": [341, 51, 3, 3],
+      "max_delta": 1.5,
+      "desc": "the bar's top-left corner. The plate's curve has its centre at 351,61 with a 10px radius, so every pixel in this 3x3 lies outside it and must show the card. The fill is the only difference between these two frames, so a change here is the fill painting past the curve - the reported grey square. The gate is 1.5 because the whole signal is 2.39. Measured on this window: with the fill escaping the clip these frames differ by 2.39, with .loadfill rounded they are byte-identical at 0.00. Do not widen the box to raise the margin - a 4x4 reaches the curve itself and then reads 14.22 against 8.99, which separates nothing, because the plate under the fill legitimately darkens."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

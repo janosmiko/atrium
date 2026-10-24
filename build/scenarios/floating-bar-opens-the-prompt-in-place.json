@@ -1,0 +1,159 @@
+{
+  "name": "floating-bar-opens-the-prompt-in-place",
+  "description": "The floating devbar's URL span is display-only, same contract as the sidebar row: a click hands its box to the window, which opens the palette on top of it with the current URL prefilled and selected. This drives a real cgevent click, not a DOM click, so the whole path is measured - hit testing, the rect message, the coordinate conversion and the anchored reset. Typing then replaces the selected URL and Return navigates, which is the accept path the palette already owned. The exact box is pinned by the browsertest, which can read both documents; here the anchored class, a width at or above the minimum and a written top prove the placement arrived at all.",
+  "fixture": "long-page.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "chromium_flags": "--vmodule=atrium_command_bar_widget=1",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the reserved chrome context lands about 670ms after startup and the palette's WebContents needs it"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d",
+      "note": "docked -> floating, so the bar this scenario clicks exists at all"
+    },
+    {
+      "type": "eval_until",
+      "id": "devbar-shown",
+      "target": "/devbar",
+      "expression": "String(!!document.querySelector('.devbar'))",
+      "expected": "true",
+      "timeout_ms": 5000,
+      "note": "the chord reached the page before anything below reads the bar's box"
+    },
+    {
+      "type": "eval",
+      "id": "row-box",
+      "target": "/devbar",
+      "expression": "(() => { const bar = document.querySelector('.dvurl'); if (!bar) { return 'no bar'; } const b = bar.getBoundingClientRect(); return Math.round(b.left) + ',' + Math.round(b.top) + ' ' + Math.round(b.width) + 'x' + Math.round(b.height); })()",
+      "note": "the bar's box in the devbar document, written into the log so a click that misses can be re-aimed from the run's own numbers rather than by guessing. Add 30 to the top for the screen coordinate: the window's content starts there in this VM."
+    },
+    {
+      "type": "eval",
+      "id": "bar-has-a-url",
+      "target": "/devbar",
+      "expression": "String(!!document.querySelector('.dvurl').textContent)",
+      "note": "gates before the click: an unfilled bar cannot be the thing that got clicked"
+    },
+    {
+      "type": "capture",
+      "id": "before-the-click",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the resting bar, so a click that lands on the wrong control is diagnosable from the frame"
+    },
+    {
+      "type": "click",
+      "x": 600,
+      "y": 60,
+      "note": "the bubble is centred over the content pane and the coordinate is measured from the run's capture, aimed at the bar's URL span."
+    },
+    {
+      "type": "eval_until",
+      "id": "palette-anchored",
+      "target": "/commandbar",
+      "expression": "(() => { const c = document.querySelector('.cbcard'); if (!c) { return 'no card'; } if (!c.classList.contains('cbanchored')) { return 'centred'; } const w = parseInt(c.style.width, 10); return w >= 320 && c.style.top && c.style.left ? 'anchored' : 'incomplete ' + c.style.cssText; })()",
+      "expected": "anchored",
+      "timeout_ms": 20000,
+      "note": "THE GATE. A centred card here means the click reached the palette but carried no rect; 'no card' means the click never opened it at all."
+    },
+    {
+      "type": "eval_until",
+      "id": "palette-prefilled",
+      "target": "/commandbar",
+      "expression": "(() => { const f = document.querySelector('.cbinput'); if (!f) { return 'no field'; } if (!f.value) { return 'empty'; } return f.selectionStart === 0 && f.selectionEnd === f.value.length ? 'selected' : f.selectionStart + '-' + f.selectionEnd + ' of ' + f.value.length; })()",
+      "expected": "selected",
+      "timeout_ms": 10000,
+      "note": "the whole URL is selected, so the next keystroke replaces it. The empty branch is what an anchored open that lost its reason would report."
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/peek-target.html",
+      "note": "real keystrokes with no click first - the palette earned key status from the bar click alone"
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "eval_until",
+      "id": "typed-url-tab-page",
+      "target": "peek-target.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-target.html",
+      "timeout_ms": 20000,
+      "note": "the accept path ran unchanged: the tab navigated to what was typed"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "bar-shows-the-new-host",
+      "target": "/devbar",
+      "expression": "document.querySelector('.dvurl').textContent",
+      "note": "the bar repainted from the navigation, which is what a display-only bar must do after every commit"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bar-has-a-url",
+      "expected": "\"true\"",
+      "desc": "the bar carried a url before the click, so a click on an unfilled bar cannot pass"
+    },
+    {
+      "type": "eval_equals",
+      "id": "palette-anchored",
+      "expected": "anchored",
+      "desc": "a real click on the bar opened the palette laid on that bar, at or above the minimum width"
+    },
+    {
+      "type": "eval_equals",
+      "id": "palette-prefilled",
+      "expected": "selected",
+      "desc": "the field holds the current URL end-to-end selected, so typing replaces it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bar-shows-the-new-host",
+      "expected": "\"http://127.0.0.1:8000/peek-target.html\"",
+      "desc": "after the navigation the bar shows the new url"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: command bar anchored at",
+      "label": "the-window-computed-a-placement",
+      "desc": "the rect crossed from the page to the window and became a box. The numbers on this line are what a geometry regression shows up in."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

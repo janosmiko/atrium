@@ -1,0 +1,52 @@
+{
+  "name": "rust-core-sidebar",
+  "description": "the sidebar's model comes from the Rust core rather than from the flat tab list. The Rust-backed push only happens once atrium_core_open has landed, and by then a sitting app barely pushes at all - measured 2026-08-09, the line arrived about 25 seconds in, at the quit. The harness has a teardown phase, so the gate reads the log after the app has stopped and the strip emptying on the way out is the push. The window count and the clean quit matter too - a file read in the producer would run on the UI thread, which is a fatal DCHECK that killed the app three seconds after launch on 2026-08-09.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "GATE: the app started and reached a committed page. Without it, a launch that died early would fail the assertions below and read as 'the Rust producer is broken'."
+    },
+    {
+      "type": "settle",
+      "ms": 8000,
+      "note": "let atrium_core_open land. It is posted to a MayBlock BEST_EFFORT thread, so under VM load it can take seconds; every push before it renders the fallback, which is correct rather than a fault."
+    },
+    {
+      "type": "activate",
+      "note": "frontmost, so the shutdown step's Cmd+Q reaches Atrium and not whatever else the clean snapshot left in front."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "the app is still up. A UI-thread file read in the producer is a fatal DCHECK - it killed the app three seconds after launch on 2026-08-09 - so a window that is still there is what says the read stayed off that thread."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "atrium: the model core could not open",
+      "label": "core-opened",
+      "desc": "SETUP GATE. If atrium_core_open failed, the producer below could never answer and the teardown gate would fail for a reason that has nothing to do with the Rust core."
+    },
+    {
+      "type": "quit",
+      "desc": "and it was responsive enough to quit on Cmd+Q. This is also what stops the app for the teardown gate below; the harness quits it itself when a scenario has no such assertion."
+    }
+  ],
+  "teardown_assertions": [
+    {
+      "type": "vlog",
+      "pattern": "Atrium: sidebar model from the RUST CORE, [0-9]+ bytes",
+      "label": "rust-core-produced-the-sidebar-model",
+      "desc": "THE MEASUREMENT. Quitting empties the tab strip, and every strip change is a sidebar re-push (BrowserController::OnTabStripModelChanged), so the producer answers on the way out. Read here rather than in 'assertions' because the runner pulls the log before those run."
+    }
+  ]
+}

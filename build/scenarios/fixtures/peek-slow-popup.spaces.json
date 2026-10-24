@@ -1,0 +1,27 @@
+{
+  "spaces": [
+    {
+      "id": "97797797-9779-4977-8977-977977977977",
+      "name": "Slow",
+      "emoji": "⏳",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135200.0,
+          "url": "http://127.0.0.1:8000/peek-slow-opener.html",
+          "title": "Slow Peek Opener"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "favorites": [],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "97797797-9779-4977-8977-977977977977"
+  }
+}

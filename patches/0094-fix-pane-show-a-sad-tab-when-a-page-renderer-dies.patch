@@ -1,0 +1,89 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 30 Aug 2026 19:00:20 +0200
+Subject: [PATCH 094/154] fix(pane): show a sad tab when a page renderer dies
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Chromium installs the sad tab into a ContentsWebView inside a BrowserView, and Atrium has neither, so the SadTabView was left unparented and the pane painted nothing. A dead renderer left a blank card with the tab still in the strip. The null BrowserView dereference in the controller is guarded too.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/sad_tab_controller.cc | 23 ++++++++++++++++++-----
+ 1 file changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/chrome/browser/ui/sad_tab_controller.cc b/chrome/browser/ui/sad_tab_controller.cc
+index 804a89c5584cc..7f45f11a809b1 100644
+--- a/chrome/browser/ui/sad_tab_controller.cc
++++ b/chrome/browser/ui/sad_tab_controller.cc
+@@ -4,18 +4,22 @@
+ 
+ #include "chrome/browser/ui/sad_tab_controller.h"
+ 
++#include "chrome/browser/ui/atrium/atrium_sad_tab_hook.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/frame/contents_web_view.h"
+ #include "chrome/browser/ui/views/sad_tab_view.h"
+ #include "components/tabs/public/tab_interface.h"
+ #include "content/public/browser/web_contents.h"
++#include "ui/views/controls/webview/webview.h"
+ #include "ui/views/view.h"
+ #include "ui/views/view_utils.h"
+ 
+ namespace {
+ 
+-ContentsWebView* FindContentsWebView(content::WebContents* web_contents) {
++// A ContentsWebView for a BrowserView-backed window, Atrium's pane WebView
++// otherwise - see atrium_sad_tab_hook.h.
++views::WebView* FindContentsWebView(content::WebContents* web_contents) {
+   tabs::TabInterface* tab =
+       tabs::TabInterface::MaybeGetFromContents(web_contents);
+   if (!tab) {
+@@ -29,7 +33,11 @@ ContentsWebView* FindContentsWebView(content::WebContents* web_contents) {
+     return nullptr;
+   }
+   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
+-  DCHECK(browser_view);
++  if (!browser_view) {
++    // Always the case for an Atrium window, which is not a BrowserView. The
++    // old DCHECK(browser_view) here null-dereferenced on the line below.
++    return atrium::PaneWebViewForSadTab(web_contents);
++  }
+ 
+   for (auto* contents_view : browser_view->GetAllVisibleContentsWebViews()) {
+     if (contents_view->web_contents() == web_contents) {
+@@ -49,7 +57,7 @@ SadTabController::SadTabController(content::WebContents* web_contents,
+ }
+ 
+ SadTabController::~SadTabController() {
+-  ContentsWebView* contents_view = FindContentsWebView(web_contents());
++  views::WebView* contents_view = FindContentsWebView(web_contents());
+   if (!contents_view) {
+     return;
+   }
+@@ -73,7 +81,7 @@ void SadTabController::ReinstallInWebView() {
+     CHECK(sad_tab_view);
+   }
+ 
+-  ContentsWebView* contents_view = FindContentsWebView(web_contents());
++  views::WebView* contents_view = FindContentsWebView(web_contents());
+   if (!contents_view) {
+     owned_sad_tab_view_ = std::move(sad_tab_view);
+     return;
+@@ -87,7 +95,12 @@ void SadTabController::ReinstallInWebView() {
+     view_tracker_.SetView(sad_tab_view.get());
+   }
+   CHECK_EQ(view_tracker_.view(), sad_tab_view.get());
+-  sad_tab_view->SetBackgroundRadii(contents_view->GetBackgroundRadii());
++  // Atrium's pane WebView carries no radii of its own - its card corners are
++  // masked onto the tiles by AtriumPaneView::ApplyCardCornerRadii.
++  if (auto* contents_web_view =
++          views::AsViewClass<ContentsWebView>(contents_view)) {
++    sad_tab_view->SetBackgroundRadii(contents_web_view->GetBackgroundRadii());
++  }
+   contents_view->TakeCrashedOverlayView(
+       std::move(sad_tab_view),
+       base::BindOnce(

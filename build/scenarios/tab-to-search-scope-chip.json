@@ -1,0 +1,235 @@
+{
+  "name": "tab-to-search-scope-chip",
+  "description": "Tab-to-search. The Swift bar scoped the palette to a search engine and showed a chip naming it; the HTML palette that replaced it handled no Tab key at all.\n\nThe engine has to come from the PROFILE, not from a literal in the page. Chromium's AutocompleteController attaches a match's associated_keyword when the typed text resolves to a TemplateURL keyword, so the scenario types a whole keyword - 'bing.com' - rather than a prefix of one: KeywordProvider::GetTemplateUrlForText looks the text up as a keyword, it does not complete it. Bing is prepopulated in every region Chromium ships, and seed_prefs pins Google as the DEFAULT so the row's engine is a non-default one and the offer is a real choice.\n\nWHAT A FAILURE HERE MEANS. 'scope-offers-before-tab' is read before the Tab key and answers the question the chip assertions cannot: a profile whose TemplateURLService never loaded an engine and a Tab key the page dropped both leave the chip empty, and only this count tells them apart. It reads data-cb-keyword, which the page puts on a row for exactly that reason.\n\nThe fixture is a sibling scenario's, reused unchanged: this measures the palette, and two restored tabs are only a way to know the app is up. Nothing here depends on the tabs themselves.\n\nNOT CLAIMED: that Enter inside the scope reaches the engine's results page. That needs a live network and a settled suggest pass, and the accept path is the ordinary commandBarAccept one the page tests already pin.",
+  "fixture": "two-tabs.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "GATE: the restored tab has committed, so the app is up and the profile is live"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the reserved chrome context lands about 670ms after startup and the palette's WebContents needs it"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the /commandbar document commit and take the field"
+    },
+    {
+      "type": "type",
+      "text": "bing.com"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the keyword pass has to finish before any row can carry an engine"
+    },
+    {
+      "type": "capture",
+      "id": "before-tab",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the row offering the scope, on an unscoped bar"
+    },
+    {
+      "type": "eval",
+      "id": "scope-offers-before-tab",
+      "target": "/commandbar",
+      "expression": "String(document.querySelectorAll('.cbrow[data-cb-keyword]').length)",
+      "note": "DIAGNOSTIC: how many rows carry an engine. Zero means the profile reached no TemplateURL, which is a different failure from a Tab key that did nothing"
+    },
+    {
+      "type": "eval",
+      "id": "offered-keyword",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbrow[data-cb-keyword]') || {dataset: {}}).dataset.cbKeyword || 'no row offers an engine')",
+      "note": "and which engine it is, read through a different query than the count"
+    },
+    {
+      "type": "eval",
+      "id": "hint-before-tab",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbtabhint-text') || {}).textContent || 'no hint')",
+      "note": "the Tab-to-search hint names the same engine, before Tab is pressed"
+    },
+    {
+      "type": "key",
+      "combo": "tab",
+      "note": "Enter the scope"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "scoped",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "THE CHIP, beside an emptied field"
+    },
+    {
+      "type": "eval",
+      "id": "chip-text",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbscope') || {}).textContent || 'no chip')",
+      "note": "The chip names the engine"
+    },
+    {
+      "type": "eval",
+      "id": "field-after-tab",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbinput') || {}).value)",
+      "note": "The field cleared, the way the omnibox does on Tab"
+    },
+    {
+      "type": "eval",
+      "id": "hint-after-tab",
+      "target": "/commandbar",
+      "expression": "String(document.querySelectorAll('.cbtabhint.cbtabhinton').length)",
+      "note": "the hint yields to the chip once the scope is entered"
+    },
+    {
+      "type": "type",
+      "text": "hats"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "the scoped pass lands - the query it answers is 'bing.com hats', not 'hats'"
+    },
+    {
+      "type": "capture",
+      "id": "scoped-terms",
+      "duration_ms": 300,
+      "fps": 20
+    },
+    {
+      "type": "eval",
+      "id": "chip-while-typing",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbscope') || {}).textContent || 'no chip')",
+      "note": "the scope holds while terms are typed into it"
+    },
+    {
+      "type": "key",
+      "combo": "esc",
+      "note": "Leave the scope. The palette must NOT close on this one"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "after-escape",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the pre-Tab text back in the field, no chip"
+    },
+    {
+      "type": "eval",
+      "id": "field-after-escape",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbinput') || {}).value)",
+      "note": "The exact pre-Tab text, not the terms typed inside the scope"
+    },
+    {
+      "type": "eval",
+      "id": "chip-after-escape",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbscope') || {}).textContent || 'no chip')",
+      "note": "The chip is gone"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "scope-offers-before-tab",
+      "expected": "\"1\"",
+      "desc": "the typed keyword resolved to a TemplateURL and exactly one row carries it - UpdateAssociatedKeywords dedupes, so a second row offering the same engine would be a bug. A zero here says the profile has no engine to scope to and every chip assertion below is measuring the wrong thing."
+    },
+    {
+      "type": "eval_equals",
+      "id": "offered-keyword",
+      "expected": "\"bing.com\"",
+      "desc": "and it is the engine the typed text names, so the count above is not one of something else"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint-before-tab",
+      "expected": "\"Search Microsoft Bing\"",
+      "desc": "the field row names the engine Tab would scope to, before Tab is pressed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "chip-text",
+      "expected": "\"Microsoft Bing\"",
+      "desc": "Tab entered the scope and the chip carries the engine's DISPLAY name, which only TemplateURLService knows - the keyword alone would read 'bing.com'"
+    },
+    {
+      "type": "eval_equals",
+      "id": "field-after-tab",
+      "expected": "\"\"",
+      "desc": "The field cleared. Without this the chip could be showing over the text that summoned it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint-after-tab",
+      "expected": "\"0\"",
+      "desc": "the hint yields to the chip once the scope is entered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "chip-while-typing",
+      "expected": "\"Microsoft Bing\"",
+      "desc": "the scope survives typing. A chip that vanished on the first keystroke would satisfy every other assertion here"
+    },
+    {
+      "type": "eval_equals",
+      "id": "field-after-escape",
+      "expected": "\"bing.com\"",
+      "desc": "Escape restored the pre-Tab text rather than the 'hats' typed inside the scope, and the palette stayed open to be read at all"
+    },
+    {
+      "type": "eval_equals",
+      "id": "chip-after-escape",
+      "expected": "\"no chip\"",
+      "desc": "And the scope is gone with it - the chip element is removed, so the eval's fallback is what reads"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

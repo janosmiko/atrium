@@ -1,0 +1,154 @@
+{
+  "name": "a-hovered-link-shows-a-card-not-a-native-bubble",
+  "description": "a hovered link's URL is a card in the overlay design language, on its own window surface, rather than the native AtriumStatusBubbleView painted from C++ constants.\n\nWHY A SECOND WIDGET AND NOT THE CONFIRMATION'S. A hovered URL belongs at the bottom leading corner, where it already was, and a confirmation at the top trailing one. One surface reaching both would cover the page between them, and a toast cannot decline a click - it carries a close button. So each corner gets a widget sized to its own card, and neither is over the page when empty.\n\nA HOVER CARD IS NOT A CONFIRMATION. It has no timeout: it stays while the pointer is on the link, retargets in place when the pointer moves to another, and clears on unhover. The scenario drives all three, because the middle one is the behaviour showToast's dismissAfterMs path cannot express and the one most likely to be lost.\n\nThe card is read as an ELEMENT off /toast, and its containment inside its own widget is checked - a card clipped outside the surface meant to show it passed every other assertion once already.",
+  "fixture": "long-page.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "past the show debounce the hover path keeps"
+    },
+    {
+      "type": "eval",
+      "id": "arm-two-links",
+      "target": "long-page",
+      "expression": "(() => { const mk = (href, top, h) => { const a = document.createElement('a'); a.href = href; a.textContent = href; a.style.cssText = 'position:fixed;left:0;width:100%;top:' + top + ';height:' + h + ';z-index:99;background:rgba(0,0,0,.02)'; document.body.appendChild(a); return a; }; mk('https://first.example/one', '0', '50%'); mk('https://second.example/two', '50%', '50%'); return 'two half-viewport links'; })()",
+      "note": "Half the viewport each, not small anchors. The pointer has to be moved for REAL - a dispatched mouseover does not update the target URL, which comes from the renderer's own hit test under the actual cursor, and an earlier version of this scenario got no card at all because of it. Large targets mean the move needs no precise page-to-screen coordinate."
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 250,
+      "note": "a REAL pointer into the top half of the web card, which is the first link. 700,250 is well inside the card, clear of the sidebar."
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "past the hover show debounce"
+    },
+    {
+      "type": "eval_until",
+      "id": "card-shows-the-first-url",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? t.textContent : 'no card'; })()",
+      "expected": "https://first.example/one",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "eval",
+      "id": "card-is-inside-its-widget",
+      "target": "/toast",
+      "expression": "(() => { const c = document.querySelector('.toasts .toast'); if (!c) { return 'no card'; } const r = c.getBoundingClientRect(); return String(r.left >= -1 && r.top >= -1 && r.right <= window.innerWidth + 1 && r.bottom <= window.innerHeight + 1); })()"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 560,
+      "note": "the bottom half, the second link - a real move between two links is what exercises the in-place retarget"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "card-retargeted",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? t.textContent : 'no card'; })()",
+      "expected": "https://second.example/two",
+      "timeout_ms": 6000,
+      "note": "retargets IN PLACE. A second card would mean the hover path is stacking instead of updating."
+    },
+    {
+      "type": "eval",
+      "id": "only-one-card",
+      "target": "/toast",
+      "expression": "String(document.querySelectorAll('.toasts .toast').length)"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "move",
+      "x": 110,
+      "y": 300,
+      "note": "off the page entirely, onto the sidebar: the browser reports an empty target URL, which is what clears the card"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "card-cleared",
+      "target": "/toast",
+      "expression": "String(document.querySelectorAll('.toasts .toast').length)"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "card-shows-the-first-url",
+      "expected": "https://first.example/one",
+      "desc": "The hovered URL is a card on the window surface, read as an element"
+    },
+    {
+      "type": "eval_equals",
+      "id": "card-is-inside-its-widget",
+      "expected": "\"true\"",
+      "desc": "and it fits inside its own widget, which is sized to it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "card-retargeted",
+      "expected": "https://second.example/two",
+      "desc": "Moving to another link retargets the card in place, the live update the native bubble did"
+    },
+    {
+      "type": "eval_equals",
+      "id": "only-one-card",
+      "expected": "\"1\"",
+      "desc": "one card, not a stack: a hover that appended would leave the previous URL on screen under the current one"
+    },
+    {
+      "type": "eval_equals",
+      "id": "card-cleared",
+      "expected": "\"0\"",
+      "desc": "unhover clears it. A hover card has no timeout, so nothing else would."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

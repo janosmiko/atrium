@@ -1,0 +1,28 @@
+{
+  "name": "favourite-off-site-link-opens-a-peek",
+  "description": "A target=_blank link to another host, clicked in a favourite's tab, opens the peek card instead of a new tab. The favourite is stored with a redirecting URL, the way a sibling scenario's is, so the tab it claims no longer carries the stored URL when the link is clicked: a fix keyed on the URL alone would open a tab here. The target is a different HOST, not a port, because auto-peek keeps same-site links in place on purpose.",
+  "fixture": "favourite-off-site-link.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {"type": "settle", "ms": 4000, "note": "first paint, and the sidebar announces itself"},
+    {"type": "activate"},
+    {"type": "settle", "ms": 1500},
+    {"type": "click", "x": 40, "y": 121, "note": "the only favourite tile, at a sibling scenario's coordinates. This click OPENS and CLAIMS the tab."},
+    {"type": "wait_vlog", "pattern": "Atrium: favourite claimed tab", "timeout_ms": 20000, "note": "VACUITY GUARD: no claim, nothing below is about a favourite's tab"},
+    {"type": "eval_until", "id": "landed", "target": "favourite-links.html", "expression": "location.pathname", "expected": "/favourite-links.html", "timeout_ms": 20000, "note": "the meta refresh moved the tab off the stored URL"},
+    {"type": "settle", "ms": 2000},
+    {"type": "capture", "id": "before", "duration_ms": 400, "fps": 20, "note": "the favourite's page, no card yet"},
+    {"type": "click", "x": 480, "y": 250, "note": "THE MEASUREMENT: the off-site target=_blank link. The page sits right of the 280px sidebar with 40px padding, and the link is the block under the heading, at y 285 on the 2026-09-09 frames."},
+    {"type": "settle", "ms": 5000, "note": "let the card open"},
+    {"type": "capture", "id": "after", "duration_ms": 400, "fps": 20}
+  ],
+  "assertions": [
+    {"type": "ax_window_count", "expected": 2, "min_area": 200000, "desc": "the browser window AND the card, the way peek-auto-pinned counts them"},
+    {"type": "eval_equals", "id": "landed", "expected": "/favourite-links.html", "desc": "VACUITY GUARD: the claimed tab left the stored URL before the click"},
+    {"type": "vlog", "label": "peek-opened-from-a-favourites-tab", "pattern": "Atrium: peek widget showing for parent", "desc": "THE ASSERTION: the link opened the card"},
+    {"type": "vlog_absent", "label": "no-tab-took-the-link", "pattern": "Atrium: tab [0-9]+ url http://dl\\.localhost", "desc": "neither the favourite's tab nor a new one navigated to the target; a peek's page is not a strip tab and never logs this line"},
+    {"type": "quit", "desc": "Cmd+Q still quits cleanly"}
+  ]
+}

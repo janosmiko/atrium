@@ -1,0 +1,60 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 31 Aug 2026 21:51:48 +0200
+Subject: [PATCH 105/154] fix(quit-panel): drop the layer shadow the window
+ clips into grey corner wedges
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The window hugs the card exactly, so the blur has no room to render:
+the bounds clip cuts it into hard-edged grey wedges in the corner
+squares, in both appearances. A shadow this window cannot draw is
+removed rather than restyled, along with the style fields, compute
+code and unittests that only fed it. What a corner probe still reads
+over a saturated page is macOS 26's server-drawn rim light outside
+the window's own bounds, unreachable from process code.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../ui/cocoa/confirm_quit_panel_controller.mm | 19 ++-----------------
+ 1 file changed, 2 insertions(+), 17 deletions(-)
+
+diff --git a/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm b/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
+index 540d24c9c5947..1f5c4a4d83bc5 100644
+--- a/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
++++ b/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
+@@ -217,14 +217,8 @@ NSFont* RowFont() {
+              suffix:(NSString*)suffix {
+   _cornerRadius = style.corner_radius;
+   _surfaceColor = style.surface;
+-  // shadowColor used to mirror style.ink unconditionally, which in
+-  // dark mode is near-white and read as a faint lightening wedge outside the
+-  // card's rounded corner rather than a shadow. style.shadow/shadow_opacity
+-  // already carry overlay.css's own light/dark/native split (--ov-shadow).
+-  self.layer.shadowColor = skia::SkColorToSRGBNSColor(style.shadow).CGColor;
+-  self.layer.shadowOpacity = style.shadow_opacity;
+-  self.layer.shadowRadius = 18;
+-  self.layer.shadowOffset = NSMakeSize(0, -6);
++  // No layer shadow: the window hugs the card, so the bounds clip cuts any
++  // blur into hard grey corner wedges.
+ 
+   NSDictionary* textAttrs = @{
+     NSFontAttributeName : RowFont(),
+@@ -292,15 +286,6 @@ NSFont* RowFont() {
+                                         maxHeight + kOuterPaddingY * 2);
+   [self.window setContentSize:contentSize];
+   self.frame = NSMakeRect(0, 0, contentSize.width, contentSize.height);
+-  // Without an explicit shadowPath, Core Animation derives the
+-  // shadow's silhouette from the layer's rendered alpha, which fuzzes a
+-  // few pixels past the crisp rounded rect drawRect: fills - the same
+-  // wedge the corner-transparency bug showed up as. Pin it to the exact
+-  // path drawRect: fills, now that self.bounds is the final resized frame.
+-  CGPathRef shadowPath = CGPathCreateWithRoundedRect(
+-      NSRectToCGRect(self.bounds), _cornerRadius, _cornerRadius, nullptr);
+-  self.layer.shadowPath = shadowPath;
+-  CGPathRelease(shadowPath);
+ 
+   CGFloat x = kOuterPaddingX;
+   const CGFloat centerY = contentSize.height / 2;

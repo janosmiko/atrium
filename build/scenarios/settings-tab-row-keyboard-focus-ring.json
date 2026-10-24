@@ -1,0 +1,95 @@
+{
+  "name": "settings-tab-row-keyboard-focus-ring",
+  "description": "Review (HIGH), targets the HTML rail: the settings rail's focus ring must be visible to a keyboard user who TABS onto a row, a WCAG 2.4.7 concern independent of the sibling scenario (which covers click-driven selection, not focus). settings.js renders the rail as plain <button data-pane> elements with no role/tabindex/outline overrides, so keyboard focus is native <button> :focus-visible - shown on Tab arrival, not on the click that opens the window. Enables Full Keyboard Access (AppleKeyboardUIMode=2 - Chromium on macOS, like Safari, only makes buttons Tab-stops when this is on) and opens Settings; nothing calls .focus() on open, so 'opened' trivially has no ring. Measured directly: this settings Widget has no other native View to hand focus to, so a lone Tab+Shift-Tab from a fresh open lands the ring on the LAST tabbable element in the page (the General pane's 'Warn before quitting' toggle), not back on the rail - Shift-Tab wraps within the single WebContentsView rather than landing where a naive reading of 'tab off, tab back' would expect. Rewritten to Tab twice (General -> Appearance) then Shift-Tab once (back to General), so the capture proves a real keyboard re-arrival ON THE ROW ITSELF, the case the HIGH fix actually targets.",
+  "fixture": "presenter-startup.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "full_keyboard_access": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the browser window finish first paint"
+    },
+    {
+      "type": "activate",
+      "note": "Atrium MUST be frontmost or cmd+comma opens Finder Settings instead - observed"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "open Settings; its menu item is not reachable from a scenario"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "window opens on General - installSettings() never calls .focus(), so nothing is focused yet"
+    },
+    {
+      "type": "capture",
+      "id": "opened",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "ring must be OFF - document.activeElement is still body, not a keyboard arrival"
+    },
+    {
+      "type": "key",
+      "combo": "tab",
+      "note": "with Full Keyboard Access on, this is the FIRST Tab in the page: it lands on the rail's first button, General (DOM order: the <nav> rail is appended before the <section> body)"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "key",
+      "combo": "tab",
+      "note": "second Tab moves forward onto the rail's second button, Appearance - deliberately leaving General so the next step is a real re-arrival rather than a no-op"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "key",
+      "combo": "shift+tab",
+      "note": "moves focus back ONTO General - a real keyboard arrival, the exact case the HIGH fix targets"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "capture",
+      "id": "tabbed-back",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "ring must be ON over General - focus returned to it via Tab/Shift-Tab, not a click or an arrow key"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "theme_changed",
+      "before": "opened",
+      "after": "tabbed-back",
+      "region": [
+        265,
+        76,
+        62,
+        44
+      ],
+      "min_delta": 6,
+      "desc": "region and origin re-measured against the actual HTML settings window (centered on screen, 860x620 - atrium_settings_window.cc), not the old SwiftUI assumption of a 900x600 window at (0,110). The old region [100,285,70,60] sampled pure white (mean 255,255,255, var 0.00): it was never over the window. This one is the General rail row alone (x=85-292, y=81-110), matching the sibling scenario's x-span but only one row tall, so a ring on Appearance instead (a wiring mistake) would not register here. min_delta re-measured with pixcmp on the actual before/after frames.",
+      "note": "Re-measured 2026-08-16. The old region (x 85-292, y 81-110) no longer covers any rail button - it samples the empty page body beside the heading. This is the General button in the top bar, the first thing Tab still lands on."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits with the settings window open and Full Keyboard Access enabled - the atrium_surface_key_route fix, which this scenario covers"
+    }
+  ]
+}

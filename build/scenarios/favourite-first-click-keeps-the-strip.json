@@ -1,0 +1,46 @@
+{
+  "name": "favourite-first-click-keeps-the-strip",
+  "description": "On a fresh launch, the first click on a favourite in space 1 was reported to swap every favourite tile to another profile's icons for a moment before the real ones came back. Favourites belong to a profile, so two spaces on two profiles carry two different strips here, and the pages carry no favicon, so a tile is its host initial on a coloured plate - a swap to the other profile's strip changes the tile ids, and a swap of the icon scope alone changes the /urlicon/<scope>/ path every tile reads.\n\nA MutationObserver on the sidebar document records every distinct strip state (tile ids plus the icon scope) from before the click until the claimed tab settles. The measurement is the number of distinct id lists and distinct scopes seen: one of each is a strip that never left. Read from the DOM rather than pixels because the flash is a few frames long and a capture cannot start on the click.",
+  "fixture": "favourites-two-profiles.spaces.json",
+  "startup_space": "98198198-1981-4981-8981-981981981981",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "wait_vlog", "pattern": "Atrium: tab [0-9]+ url http://127\\.0\\.0\\.1", "timeout_ms": 20000, "note": "gate: the startup tab committed. The line carries the origin only." },
+    { "type": "settle", "ms": 4000, "note": "first paint, and the sidebar announces itself" },
+    { "type": "activate" },
+    { "type": "settle", "ms": 1500 },
+    {
+      "type": "eval",
+      "id": "strip-before",
+      "target": "/sidebar",
+      "expression": "(() => { const pinOf = () => [...document.querySelectorAll('.favgrid')].find(g => !g.closest('.railpane')); const read = () => { const pin = pinOf(); const rail = document.querySelector('.rail'); const root = document.getElementById('atrium-root'); return (pin ? [...pin.querySelectorAll('.fav')].map(f => f.dataset.favId || '').join('|') : 'no-pin') + '#' + (rail ? rail.style.transform : 'no-rail') + '#' + (root ? root.className : '') + '#' + (pin ? (pin.querySelector('img.fvimg')?.getAttribute('src') || '').split('/')[2] : ''); }; window.__favLog = [read()]; new MutationObserver(() => { const s = read(); if (window.__favLog[window.__favLog.length - 1] !== s) { window.__favLog.push(s); } }).observe(document.body, {subtree: true, childList: true, attributes: true, attributeFilter: ['src', 'data-fav-id', 'style', 'class']}); const pin = pinOf(); return pin ? [...pin.querySelectorAll('.fav')].map(f => f.dataset.favId || '').join('|') : 'no-pin'; })()",
+      "note": "VACUITY GUARD: the pinned grid before the click carries the two Default tiles. The observer logs the pinned tiles, the rail offset, the root's swipe classes and the icon scope on every change."
+    },
+    { "type": "capture", "id": "before", "duration_ms": 400, "fps": 20 },
+    { "type": "click", "x": 40, "y": 121, "note": "THE MEASUREMENT: the first favourite tile, at the coordinates favourite-off-site-link-opens-a-peek uses. This click OPENS and CLAIMS the tab." },
+    { "type": "wait_vlog", "pattern": "Atrium: favourite claimed tab", "timeout_ms": 20000, "note": "gate: the click reached the tile" },
+    { "type": "settle", "ms": 3000, "note": "every snapshot the open triggers has landed" },
+    { "type": "capture", "id": "after", "duration_ms": 400, "fps": 20 },
+    {
+      "type": "eval",
+      "id": "strip-states",
+      "target": "/sidebar",
+      "expression": "window.__favLog.join(' ; ')",
+      "note": "recorded: every distinct strip state the observer saw"
+    },
+    {
+      "type": "eval",
+      "id": "strip-drift",
+      "target": "/sidebar",
+      "expression": "(() => { const L = window.__favLog; const ids = new Set(L.map(s => s.split('#')[0])); const rails = new Set(L.map(s => s.split('#')[1])); const swiped = L.some(s => /xprofile|pinnedoff/.test(s.split('#')[2])); const scopes = new Set(L.map(s => s.split('#')[3]).filter(Boolean)); return ids.size + '/' + rails.size + '/' + swiped + '/' + scopes.size; })()",
+      "note": "THE ASSERTION: distinct pinned tile lists / distinct rail offsets / a cross-profile swipe class ever seen / distinct icon scopes"
+    }
+  ],
+  "assertions": [
+    { "type": "eval_equals", "label": "the-strip-starts-with-this-profiles-two-tiles", "id": "strip-before", "expected": "\"http://127.0.0.1:8000/favourite-links.html|http://127.0.0.1:8000/peek-scrim-red.html\"", "desc": "VACUITY GUARD: the two Default favourites are the pinned grid before the click" },
+    { "type": "vlog", "label": "the-click-claimed-a-tab", "pattern": "Atrium: favourite claimed tab" },
+    { "type": "eval_equals", "label": "the-strip-never-shows-another-profiles-tiles-or-scope", "id": "strip-drift", "expected": "\"1/1/false/1\"", "desc": "THE ASSERTION: one pinned tile list, one rail offset, no cross-profile swipe class, one icon scope across the whole click" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

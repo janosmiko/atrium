@@ -1,0 +1,62 @@
+{
+  "name": "quit-empty-no-palette",
+  "description": "Prediction test, the FAIL half - and the regression guard the bug actually needs. Same as quit-with-tab except the space has NO tabs, so browser_->tab_strip_model()->active_index() == kNoTab and BrowserCommandController::ExecuteCommandWithDisposition returns true at browser_command_controller.cc:629 WITHOUT running Exit(). AtriumBrowserWindow::ExecuteCommand then returns its unconditional true, upstream's prePerformKeyEquivalent reports kHandled, and Atrium's own Cmd+Q -> kPassToMainMenu fallback in postPerformKeyEquivalent never runs. seed_prefs pre-empts the first-run search picker, which is what ate the Escape in quit-no-palette; the vlog gate below is what stops this passing vacuously through the palette's route the way empty-window-quit has been.",
+  "fixture": "empty-window-quit.spaces.json",
+  "themes": "empty-window-quit.themes.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "33333333-3333-3333-3333-333333333333",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 8000,
+      "note": "long enough that the auto-opened palette is definitely up before the dismiss attempts - measured 3.9-5.0s from launch on this VM"
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "first dismiss attempt. Observed unreliable on its own: it dismissed in quit-sidebar-focus but not in quit-no-palette or the first quit-empty-no-palette run, so the scrim click below backs it up"
+    },
+    {
+      "type": "settle",
+      "ms": 1000,
+      "note": "give the Escape time to land before trying the other dismiss path"
+    },
+    {
+      "type": "click",
+      "x": 900,
+      "y": 660,
+      "note": "second dismiss attempt: the palette's scrim covers the window, and a press outside the panel is the same 'command bar dismiss op (Escape/scrim)' path. Bottom-right corner, far from the centred panel (quit-content-focus proved 620,430 is still ON the panel) and clear of the 280px sidebar"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the palette close and key focus return to the browser window"
+    },
+    {
+      "type": "capture",
+      "id": "state",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence the palette is really gone before Cmd+Q"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "palette-dismissed",
+      "pattern": "Atrium: command bar widget closing",
+      "note": "GATE: proves the palette actually closed. Without it the quit passes through atrium_command_bar_widget.mm's kPassToMainMenu route and never tests the browser window at all - which is how empty-window-quit stayed green over a live bug through two closes."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q quits a TABLESS window with the palette closed - the browser window's own path"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "not-the-palette-route",
+      "pattern": "Atrium: palette passing key-equivalent to main menu",
+      "note": "Listed AFTER the quit assertion on purpose: the run log is pulled before assertions run, so a line Cmd+Q itself emits is only in the log that assert_quit re-pulls. Placed before it, this gate could never match - and a vlog_absent one would pass trivially, which is exactly the vacuous shape to avoid."
+    }
+  ]
+}

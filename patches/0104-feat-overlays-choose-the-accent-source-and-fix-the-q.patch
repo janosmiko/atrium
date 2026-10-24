@@ -1,0 +1,123 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 31 Aug 2026 17:38:44 +0200
+Subject: [PATCH 104/154] feat(overlays): choose the accent source, and fix the
+ quit panel's shadow
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Two changes that interleave in the panel style files.
+
+The command bar card looked neutral beside the hold-to-quit panel's warm tint.
+They never differed in formula - both mix the accent into the paper at 6% - only
+in which accent: the panel used the hardcoded brand crimson while the card used
+the live space tint, and a 6% mix of a dark desaturated navy has no chroma left.
+A new settings.json key, overlayAccent, picks brand or space for every overlay
+card surface AND the panel, so the two can never disagree again. Default brand.
+It is a real field in settings.rs because atrium_core_save_settings writes the
+typed struct, so without one the setting would apply live and silently revert on
+restart. The CSS override sits between :root and html.atrium-native-chrome: it
+beats :root on specificity regardless of order, but ties with native mode, so
+being first is what keeps native mode winning when both are active.
+
+The panel's rounded corner showed a faint lighter wedge. applyStyle set the
+layer's shadowColor to style.ink, the TEXT colour, unconditionally. overlay.css
+ties --ov-shadow to the ink in light mode ONLY and forces black in dark mode,
+because the dark ink is near-white and a wash of it lightens rather than
+darkens; the ported Objective-C++ had dropped that conditional. The style now
+carries shadow and shadow_opacity per mode, and the layer gets an explicit
+shadowPath matching the rounded rect drawRect fills.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/cocoa/confirm_quit.cc       |  2 ++
+ .../ui/cocoa/confirm_quit_panel_controller.mm | 27 ++++++++++++++++---
+ chrome/common/pref_names.h                    |  8 ++++++
+ 3 files changed, 34 insertions(+), 3 deletions(-)
+
+diff --git a/chrome/browser/ui/cocoa/confirm_quit.cc b/chrome/browser/ui/cocoa/confirm_quit.cc
+index 41547a093ae5c..5c509d336d655 100644
+--- a/chrome/browser/ui/cocoa/confirm_quit.cc
++++ b/chrome/browser/ui/cocoa/confirm_quit.cc
+@@ -36,6 +36,8 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
+   registry->RegisterBooleanPref(prefs::kAtriumConfirmQuitPanelNative, false);
+   registry->RegisterIntegerPref(prefs::kAtriumConfirmQuitPanelSurroundColor,
+                                 -1);
++  registry->RegisterBooleanPref(prefs::kAtriumOverlayAccentSpace, false);
++  registry->RegisterIntegerPref(prefs::kAtriumConfirmQuitPanelAccentColor, -1);
+ }
+ 
+ }  // namespace confirm_quit
+diff --git a/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm b/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
+index 44755f08808e6..540d24c9c5947 100644
+--- a/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
++++ b/chrome/browser/ui/cocoa/confirm_quit_panel_controller.mm
+@@ -62,7 +62,15 @@ atrium::ConfirmQuitPanelStyle CurrentPanelStyle() {
+       surround_argb >= 0
+           ? std::make_optional(static_cast<SkColor>(surround_argb))
+           : std::nullopt;
+-  return atrium::ComputeConfirmQuitPanelStyle(dark, native, surround);
++  const bool accent_space =
++      local_state->GetBoolean(prefs::kAtriumOverlayAccentSpace);
++  const int accent_argb =
++      local_state->GetInteger(prefs::kAtriumConfirmQuitPanelAccentColor);
++  const std::optional<SkColor> accent =
++      (accent_space && accent_argb >= 0)
++          ? std::make_optional(static_cast<SkColor>(accent_argb))
++          : std::nullopt;
++  return atrium::ComputeConfirmQuitPanelStyle(dark, native, surround, accent);
+ }
+ 
+ }  // namespace
+@@ -209,8 +217,12 @@ NSFont* RowFont() {
+              suffix:(NSString*)suffix {
+   _cornerRadius = style.corner_radius;
+   _surfaceColor = style.surface;
+-  self.layer.shadowColor = skia::SkColorToSRGBNSColor(style.ink).CGColor;
+-  self.layer.shadowOpacity = 0.22;
++  // shadowColor used to mirror style.ink unconditionally, which in
++  // dark mode is near-white and read as a faint lightening wedge outside the
++  // card's rounded corner rather than a shadow. style.shadow/shadow_opacity
++  // already carry overlay.css's own light/dark/native split (--ov-shadow).
++  self.layer.shadowColor = skia::SkColorToSRGBNSColor(style.shadow).CGColor;
++  self.layer.shadowOpacity = style.shadow_opacity;
+   self.layer.shadowRadius = 18;
+   self.layer.shadowOffset = NSMakeSize(0, -6);
+ 
+@@ -280,6 +292,15 @@ NSFont* RowFont() {
+                                         maxHeight + kOuterPaddingY * 2);
+   [self.window setContentSize:contentSize];
+   self.frame = NSMakeRect(0, 0, contentSize.width, contentSize.height);
++  // Without an explicit shadowPath, Core Animation derives the
++  // shadow's silhouette from the layer's rendered alpha, which fuzzes a
++  // few pixels past the crisp rounded rect drawRect: fills - the same
++  // wedge the corner-transparency bug showed up as. Pin it to the exact
++  // path drawRect: fills, now that self.bounds is the final resized frame.
++  CGPathRef shadowPath = CGPathCreateWithRoundedRect(
++      NSRectToCGRect(self.bounds), _cornerRadius, _cornerRadius, nullptr);
++  self.layer.shadowPath = shadowPath;
++  CGPathRelease(shadowPath);
+ 
+   CGFloat x = kOuterPaddingX;
+   const CGFloat centerY = contentSize.height / 2;
+diff --git a/chrome/common/pref_names.h b/chrome/common/pref_names.h
+index 9870528b556e7..30d2baef301b8 100644
+--- a/chrome/common/pref_names.h
++++ b/chrome/common/pref_names.h
+@@ -406,6 +406,14 @@ inline constexpr char kAtriumConfirmQuitPanelNative[] =
+ inline constexpr char kAtriumConfirmQuitPanelSurroundColor[] =
+     "browser.atrium_confirm_quit_panel_surround_color";
+ 
++// settings.json's overlayAccent, mirrored for the same reason.
++inline constexpr char kAtriumOverlayAccentSpace[] =
++    "browser.atrium_overlay_accent_space";
++// The live space tint, read only while kAtriumOverlayAccentSpace is true.
++// -1 means AUTOMATIC (no tint has been pushed yet).
++inline constexpr char kAtriumConfirmQuitPanelAccentColor[] =
++    "browser.atrium_confirm_quit_panel_accent_color";
++
+ // Boolean that indicates whether the browser should show the toolbar when it's
+ // in fullscreen. Mac only.
+ inline constexpr char kShowFullscreenToolbar[] =

@@ -1,0 +1,39 @@
+{
+  "name": "idle-survival",
+  "description": "a launched Atrium is still running after several minutes of doing nothing. The report was an app that exited on its own 33 to 91 seconds after startup, three launches in a row, every one ending with the same orderly-shutdown tail a menu-quit produces. The cause turned out to be the dev launcher, not the browser: run-atrium.sh kept Atrium in the CALLER's process group, so a SIGTERM to that group reached it and Chromium's stock POSIX handler turned that into an ordinary quit. Fixed in f6db1902 by re-execing through os.setsid() first. WHAT THIS GUARDS AND WHAT IT DOES NOT: it guards the symptom - the app must survive a long idle - across the whole 33-91s window with margin. It does NOT exercise the actual mechanism, because that was a host process-group signal and the VM launches through vm.sh's own nohup instead. A guard for run-atrium.sh's detach would have to run on the host, which CLAUDE.md rules out. So a green run here means the browser does not quit itself when left alone; it says nothing about the launcher. Kept out of no suite: three idle minutes on a run that already costs about five is worth paying for a defect that silently ate long observation sessions and was noticed only because someone was watching.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the startup space's tab commit"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 15000,
+      "note": "GATE: the app really started and reached a committed page. Without this, a launch that failed early would idle for three minutes and then fail the liveness assertion, reading as 'it exited on its own' - the exact wrong conclusion this scenario exists to rule out. Either URL counts: two-tabs.spaces.json carries both, and which one starts is decided by lastActiveAt rather than file order, so naming one of them makes the gate depend on a detail of the fixture instead of on the app having started. Naming example.org is exactly how this gate failed on its first run."
+    },
+    {
+      "type": "settle",
+      "ms": 180000,
+      "note": "Three idle minutes. No input at all, which is the condition from the report: nothing was driving the app in the observation runs. The observed exits were 33s, 50s and 91s, so this clears the worst of them by roughly a factor of two."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "THE ASSERTION, and it must come before quit. A dead app reports no windows, so this is what fails if Atrium exited during the idle. Listed first deliberately: 'no Atrium process remains' would pass happily against an app that quit itself two minutes ago, which is precisely the failure being guarded and precisely the kind of check that has gone green while measuring nothing here before."
+    },
+    {
+      "type": "quit",
+      "desc": "and it was still responsive enough to quit on Cmd+Q, not merely present"
+    }
+  ]
+}

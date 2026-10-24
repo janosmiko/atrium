@@ -1,0 +1,120 @@
+{
+  "name": "the-overview-glide-holds-frame-rate",
+  "description": "Opening and closing the Overview must slide at frame rate. The fade wrote an inherited --ov-share on the parent of the whole sidebar, so every frame restyled every row. The Overview lists also styled, laid out and painted every row, on screen or not. The fixture archives 200 tabs because Cmd+Shift+A lands on the Archived section.\n\nA rAF sampler records the viewport width and the rail transform on every frame. For each glide it reports the frames drawn while anything moved, the longest gap between two frames, and the frames where the rail moved more than 30% of a pane at once. The timeline evals add each long animation frame, for a failed run. The assertion reads the second open and close: the first open also builds the list, and the VM at times drops frames there with no work on any thread.",
+  "fixture": "two-hundred-archived.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "sampler-armed",
+      "target": "/sidebar",
+      "expression": "(() => { if (window.__ov) { return 'armed'; } const s = []; window.__ov = s; window.__loaf = []; try { new PerformanceObserver((l) => { for (const e of l.getEntries()) { if (window.__loaf.length < 200) { window.__loaf.push(e); } } }).observe({type: 'long-animation-frame', buffered: false}); } catch (e) { window.__loaf = null; } const tick = (t) => { const rail = document.querySelector('#atrium-root .rail'); const m = /translateX\\((-?[\\d.]+)px\\)/.exec(rail ? rail.style.transform : ''); if (s.length < 4000) { s.push([t, window.innerWidth, m ? Number(m[1]) : 0]); } requestAnimationFrame(tick); }; requestAnimationFrame(tick); window.__ovSum = () => { const all = s.splice(0); window.__ovLast = all; let first = -1, last = -1; for (let i = 1; i < all.length; i++) { if (all[i][1] !== all[i - 1][1] || all[i][2] !== all[i - 1][2]) { if (first < 0) { first = i - 1; } last = i; } } if (first < 0) { return 'still'; } let gap = 0, jumps = 0; for (let i = first + 1; i <= last; i++) { gap = Math.max(gap, all[i][0] - all[i - 1][0]); if (Math.abs(all[i][2] - all[i - 1][2]) > 0.3 * all[i][1]) { jumps++; } } return 'frames=' + (last - first) + ' ms=' + Math.round(all[last][0] - all[first][0]) + ' maxgap=' + Math.round(gap) + ' jumps=' + jumps; }; return 'armed'; })()",
+      "expected": "armed",
+      "timeout_ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "clear-before-open",
+      "target": "/sidebar",
+      "expression": "window.__ovSum()"
+    },
+    {
+      "type": "key_during_capture",
+      "combo": "cmd+shift+a",
+      "capture_id": "open",
+      "duration_ms": 1400,
+      "fps": 25,
+      "key_delay_ms": 300,
+      "mid_at_ms": 450
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "open-glide",
+      "target": "/sidebar",
+      "expression": "window.__ovSum()"
+    },
+    {
+      "type": "eval",
+      "id": "open-timeline",
+      "target": "/sidebar",
+      "expression": "(() => { const a = window.__ovLast || []; let i0 = a.findIndex((r, i) => i > 0 && (r[1] !== a[i - 1][1] || r[2] !== a[i - 1][2])); if (i0 < 0) { return 'none'; } const t0 = a[Math.max(0, i0 - 3)][0]; const tl = a.slice(Math.max(0, i0 - 3), i0 + 30).map((r) => Math.round(r[0] - t0) + ':' + r[1] + ':' + Math.round(r[2])).join(' '); const lf = (window.__loaf || []).splice(0).map((e) => Math.round(e.startTime - t0) + '+' + Math.round(e.duration) + '(blk' + Math.round(e.blockingDuration) + ' sl' + Math.round(e.styleAndLayoutStart ? e.startTime + e.duration - e.styleAndLayoutStart : 0) + ')[' + e.scripts.map((x) => (x.sourceFunctionName || x.invoker || '?') + '@' + (x.sourceURL || '').split('/').pop() + ':' + Math.round(x.duration) + ' fl' + Math.round(x.forcedStyleAndLayoutDuration)).join(',') + ']').join(' | '); return 'TL ' + tl + ' LOAF ' + (window.__loaf === null ? 'unsupported' : lf); })()"
+    },
+    {
+      "type": "key_during_capture",
+      "combo": "cmd+shift+a",
+      "capture_id": "close",
+      "duration_ms": 1400,
+      "fps": 25,
+      "key_delay_ms": 300,
+      "mid_at_ms": 450
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "close-glide",
+      "target": "/sidebar",
+      "expression": "window.__ovSum()"
+    },
+    {
+      "type": "eval",
+      "id": "close-timeline",
+      "target": "/sidebar",
+      "expression": "(() => { const a = window.__ovLast || []; let i0 = a.findIndex((r, i) => i > 0 && (r[1] !== a[i - 1][1] || r[2] !== a[i - 1][2])); if (i0 < 0) { return 'none'; } const t0 = a[Math.max(0, i0 - 3)][0]; const tl = a.slice(Math.max(0, i0 - 3), i0 + 30).map((r) => Math.round(r[0] - t0) + ':' + r[1] + ':' + Math.round(r[2])).join(' '); const lf = (window.__loaf || []).splice(0).map((e) => Math.round(e.startTime - t0) + '+' + Math.round(e.duration) + '(blk' + Math.round(e.blockingDuration) + ' sl' + Math.round(e.styleAndLayoutStart ? e.startTime + e.duration - e.styleAndLayoutStart : 0) + ')[' + e.scripts.map((x) => (x.sourceFunctionName || x.invoker || '?') + '@' + (x.sourceURL || '').split('/').pop() + ':' + Math.round(x.duration) + ' fl' + Math.round(x.forcedStyleAndLayoutDuration)).join(',') + ']').join(' | '); return 'TL ' + tl + ' LOAF ' + (window.__loaf === null ? 'unsupported' : lf); })()"
+    },
+    {
+      "type": "eval",
+      "id": "width-after-close",
+      "target": "/sidebar",
+      "expression": "(() => { const rail = document.querySelector('#atrium-root .rail'); const pane = rail && rail.children[1]; return document.documentElement.clientWidth + ' ' + Math.round(pane ? pane.getBoundingClientRect().left : -1); })()",
+      "note": "Once the width lands, the space pane must sit at x 0 at the narrow width."
+    },
+    {"type": "eval", "id": "clear-before-open2", "target": "/sidebar", "expression": "window.__ovSum()"},
+    {"type": "key", "combo": "cmd+shift+a"},
+    {"type": "settle", "ms": 1500},
+    {"type": "eval", "id": "open2-glide", "target": "/sidebar", "expression": "(window.__ovOpen2 = window.__ovSum())"},
+    {"type": "key", "combo": "cmd+shift+a"},
+    {"type": "settle", "ms": 1500},
+    {
+      "type": "eval",
+      "id": "warm-glides",
+      "target": "/sidebar",
+      "expression": "(() => { const close = window.__ovSum(); const smooth = (r) => { const f = Number((/frames=(\\d+)/.exec(r) || [0, 0])[1]); const g = Number((/maxgap=(\\d+)/.exec(r) || [0, 999])[1]); return f >= 25 && g <= 150; }; return smooth(window.__ovOpen2) && smooth(close) ? 'smooth' : 'open ' + window.__ovOpen2 + ' close ' + close; })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "label": "one-window-still",
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "warm-glides",
+      "expected": "\"smooth\"",
+      "desc": "The second open and close each draw 25 frames or more, with no gap over 150 ms."
+    }
+  ]
+}

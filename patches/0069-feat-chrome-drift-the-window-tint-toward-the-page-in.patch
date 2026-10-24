@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 16 Aug 2026 07:56:38 +0200
+Subject: [PATCH 069/154] feat(chrome): drift the window tint toward the page
+ in front
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The chrome gave no signal about which page was showing. The space tint
+stays the base and the page's declared colour is a bounded shift on top,
+so a space still reads as itself.
+
+The shift is refused wherever it would cost the chrome's own text its
+contrast: the drift walks back toward the space tint until it clears
+WCAG AA large. Sampling is driven by a navigation commit and a
+theme-color change, so nothing reads the page on a timer.
+
+Off restores the space tint through its own path. ApplyPageTint declines
+to touch the window while the setting is off, which is what keeps it free
+on every navigation, so it cannot also be what puts the tint back.
+
+ParseHexColor moves out of the controller into atrium_hex_color, shared
+by both callers rather than copied.
+
+ATRIUM_CORE_ABI_VERSION 31 -> 32.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index ec1b94878a2e8..c2d67f0917a04 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3524,6 +3524,7 @@ static_library("ui") {
+       "atrium/atrium_pinch_gesture_decision.h",
+       "atrium/atrium_pinch_gesture_decision.cc",
+       "atrium/atrium_settings_window.cc",
++      "atrium/atrium_hex_color.cc",
+       "atrium/atrium_settings_source.cc",
+       "atrium/atrium_profile_bootstrap.h",
+       "atrium/atrium_profile_bootstrap.cc",
+@@ -3572,6 +3573,7 @@ static_library("ui") {
+       "atrium/atrium_peek_intercept.h",
+       "atrium/atrium_peek_navigation_throttle.h",
+       "atrium/atrium_settings_window.h",
++      "atrium/atrium_hex_color.h",
+       "atrium/atrium_settings_source.h",
+       "atrium/atrium_custom_endpoint_keychain_mac.h",
+       "atrium/atrium_custom_endpoint_keychain_mac.mm",

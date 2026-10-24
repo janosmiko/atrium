@@ -1,0 +1,33 @@
+{
+  "spaces": [
+    {
+      "id": "27027027-2702-4702-8702-270270270270",
+      "name": "Scrim",
+      "emoji": "\ud83d\udfe5",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135200.0,
+          "url": "http://127.0.0.1:8000/peek-scrim-red.html",
+          "title": "Peek Scrim Parent"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "favorites": [
+    {
+      "url": "http://127.0.0.1:8000/peek-scrim-red.html",
+      "title": "Peek Scrim Parent",
+      "profileID": "Default"
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "27027027-2702-4702-8702-270270270270"
+  }
+}

@@ -1,0 +1,252 @@
+{
+  "name": "settings-choice-and-number",
+  "description": "a scenario that changes a CHOICE row and a NUMBER row from the pane, mid-launch, and grades that the edit reached disk. The sidebar-position scenario (sidebar-position-right.json) documents exactly why it could only seed the file and not drive this from the product: 'The surface has exactly ONE editable row... Sidebar position, Native app view and Glass opacity are all read-only rows today, so there is no gesture in the product that fires OnSettingsSaved for any of them.' settings.js has a select control for a string-choice row and a number input for a numeric row (controlKind in settings.js), so General > Sidebar position and Appearance > Glass opacity are both real gestures now.\n\nWHY THESE TWO ROWS. Sidebar position is the CHOICE shape - a string that is one of a named set (['left','right']) - and Glass opacity is the NUMBER shape - a float with a min/max/step. Between them and the pre-existing toggle (confirmToQuitEnabled, covered by settings-confirm-quit-toggle.json), all three control shapes are exercised somewhere in the suite. Native app view (opaqueSurround) is the other toggle-shaped row, wired but not exercised here - one toggle scenario already exists and a second would not add coverage of a new shape.\n\nHOW THE EDITS ARE DRIVEN. The Sidebar position row is a <select> - click focuses/opens it, 'down' moves from the fixture's 'left' to 'right' (the only other option), 'return' commits the pick. The Glass opacity row is a number input - click focuses it, 'cmd+a' selects the existing text so the typed value REPLACES it rather than concatenating, 'type' enters the new value, 'tab' blurs to fire the DOM 'change' event settings.js listens for. Both go through setRow, which sends the WHOLE settings object over settingsChanged the same way toggleRow always has - this scenario is evidence that generalization actually reaches the wire, not just that it type-checks.\n\nCOORDINATES WERE MEASURED, not interpolated - measured 2026-08-10 by launching this scenario in the Tart VM (SKIP_RESTORE=1, current build), taking the general-before and appearance-before captures the scenario already emits, and pixel-scanning both PNGs for the control's box edges (the row's non-white pixel span). This replaces an earlier interpolation from settings-confirm-quit-toggle.json's single measured row, which put the click at (905,153) - a point that landed in the real macOS 'System Settings' app, not Atrium, and cost two prior gate rounds.\n\nMEASURED VALUES. General pane, Sidebar position <select>: the box spans x[855,913] y[190,213] in general-before frame-006-t437.7.png -> center (884, 202). Appearance pane, Glass opacity number input: the box spans x[855,913] y[190,211] in appearance-before frame-007-t478.6.png -> center (884, 201). Appearance pane, Native app view (opaqueSurround) 'Off' text: spans x[894,914] y[139,156] in the same appearance-before frame -> center (904, 148) - not used by this scenario's actions (no toggle click here, see WHY THESE TWO ROWS above) but recorded for the next person to check, since it is the third row this scenario must be able to name. All three came from the settings window at its measured AX geometry, pos (82,37) size 860x652, captured 1:1 (no Retina scaling) in the VM's screen coordinate space that CGEvent clicks are sent in.\n\nThe settings window is 860x620, centered on screen (settings-tab-row-keyboard-focus-ring.json's own note, re-measured against the real HTML window). settings-confirm-quit-toggle.json measured confirmToQuitEnabled - General row 8 of 9 (0-indexed 7) - at (905, 491) with a real capture; that single point is what the old (905,153) guess was linearly interpolated from, and the row pitch it assumed did not hold across panes. The Appearance rail button itself is settings-cmd-comma.json's own measured (137, 127), confirmed unchanged in this pass's captures.\n\nWHAT THIS SCENARIO DOES NOT ATTEMPT. Geometry-based effect grading (does the sidebar visibly move, does the glass visibly flatten) is the harness gap sidebar-position-right.json and opaque-surround.json both already named and left open - a mean-delta assertion cannot see either effect, and fixing that lives in build/pixcmp and build/scenarios/lib/parse.py, outside this lane's scope (build/scenarios/lib is not touched here). This scenario grades the same way settings-confirm-quit-toggle.json grades its own toggle: file_contains against the value ACTUALLY reaching disk, which is the assertion class that catches a build that repaints the row and writes nothing. THIS scenario's VM run is queued for a later iteration; the coordinates above are the best derivation available without one.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "settings": "glass-surround.settings.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so the app is up"
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate",
+      "note": "Atrium frontmost, so cmd+comma reaches it"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "open the settings window on General"
+    },
+    {
+      "type": "settle",
+      "ms": 7000,
+      "note": "the window builds, the route loads, and the core's values land a beat after the labels - same margin settings-confirm-quit-toggle.json uses"
+    },
+    {
+      "type": "capture",
+      "id": "general-before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "THE BEFORE MEASUREMENT: Sidebar position must read 'left' here - the fixture's own value"
+    },
+    {
+      "type": "activate",
+      "note": "Re-assert Atrium frontmost immediately before this click. A prior run's cmd+a landed in 'System Settings' instead of Atrium, which means focus had already drifted off Atrium by the time input was sent - the single activate near the top of this scenario is not a standing guarantee. This does not fix an unmeasured coordinate; it only removes 'wrong app was frontmost' as a cause so a remaining failure means the coordinate itself is wrong."
+    },
+    {
+      "type": "eval",
+      "id": "sidebar-position-row-present",
+      "target": "settings",
+      "expression": "(() => { const r = document.querySelector('.settings-row[data-key=\"sidebarPosition\"]'); return r ? 'present' : 'no-row'; })()",
+      "note": "Reads the row without changing it, which is all the old click at 866,239 did. The parking reason recorded here is gone: Sidebar position is no longer a <select> whose native popup swallows later clicks, it is a segmented strip of buttons (SEGMENTED_CHOICE_ROWS in settings.js), so the choice half of this scenario can now be driven by clicking one option. Doing that is a change of what the scenario measures, so it is left for whoever picks the choice half back up."
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "key",
+      "combo": "down",
+      "note": "move the pick from 'left' to 'right' - the only other option"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings written",
+      "timeout_ms": 6000,
+      "note": "FAIL LOUDLY HERE, NOT AT THE FINAL ASSERTION: if the click above missed Atrium's window, this write never happens and the gate times out right where the click was wrong, instead of running on to a file_contains mismatch that looks like a product bug 12 actions later."
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "remaining margin of the original round-trip budget, now split across the settle above and this wait_vlog"
+    },
+    {
+      "type": "capture",
+      "id": "general-after",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "Sidebar position after the pick - the CHOICE half of the measurement"
+    },
+    {
+      "type": "activate",
+      "note": "Re-assert frontmost again before the rail click, same reasoning as above"
+    },
+    {
+      "type": "eval",
+      "id": "appearance-pane",
+      "target": "settings",
+      "expression": "(() => { const b = document.querySelector('.settings-rail-item[data-pane=\"appearance\"]'); if (!b) return 'no-pane'; b.click(); return 'clicked'; })()",
+      "note": "the Appearance rail item, dispatched on the element rather than clicked at a point. This coordinate was measured twice against two different layouts and broke both times: the rail moved from a left column to a top bar and back. A click on nothing raises no error here, so each break was silent."
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "appearance-before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "Glass opacity must read 0.55 here - the fixture's own value"
+    },
+    {
+      "type": "activate",
+      "note": "Re-assert frontmost immediately before this click too - now a separately measured point for this pane, not the General pane's coordinate reused"
+    },
+    {
+      "type": "eval",
+      "id": "glass-input-focused",
+      "target": "settings",
+      "expression": "(() => { const i = document.querySelector('.settings-row[data-key=\"glassOpacity\"] input'); if (!i) return 'no-input'; i.focus(); return 'focused'; })()",
+      "note": "the Glass opacity input, reached by selector rather than by point. The coordinate was wrong on both axes after the redesign: the row moved into a grouped card, and the number box became a track-plus-value slider whose input sits elsewhere in the row."
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "key",
+      "combo": "cmd+a",
+      "note": "Fix: the field is now input[type=text] with inputMode=decimal, not type=number, so it implements the selection API the HTML spec requires for textual types and cmd+a genuinely selects '0.55'. The prior shift+left dance was a workaround for the type=number defect (SelectAll was a silent no-op there); testing the honest gesture here is the point - it would fail again if the fix regressed."
+    },
+    {
+      "type": "type",
+      "text": "0.9",
+      "note": "typed over the cmd+a selection, replacing '0.55' rather than concatenating - a value distinct from the fixture's 0.55 and within [0.02, 1], the NUMBER half of the measurement"
+    },
+    {
+      "type": "key",
+      "combo": "tab",
+      "note": "blur the input, which fires the DOM 'change' event settings.js listens for"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings written",
+      "timeout_ms": 6000,
+      "note": "FAIL LOUDLY HERE for the number edit, same reasoning as the choice edit's gate above - if cmd+a/type/tab went to the wrong app, this write never happens and the gate times out at the click that caused it."
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "remaining margin of the original round-trip budget"
+    },
+    {
+      "type": "capture",
+      "id": "appearance-after",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "Glass opacity after the edit"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-window-was-built",
+      "pattern": "Atrium: settings window built"
+    },
+    {
+      "type": "vlog",
+      "label": "the-route-answered",
+      "pattern": "Atrium: settings surface ready"
+    },
+    {
+      "type": "vlog",
+      "label": "the-core-supplied-the-values",
+      "pattern": "Atrium: settings pushed, [0-9]+ bytes",
+      "note": "the staged file was read, so the before captures show the fixture's own left/0.55 rather than a default"
+    },
+    {
+      "type": "vlog",
+      "label": "the-core-reported-a-file-written",
+      "pattern": "Atrium: settings written",
+      "note": "logged for code 1 from atrium_core_save_settings - true for either edit, at least once"
+    },
+    {
+      "type": "vlog_after",
+      "label": "a-write-followed-the-read",
+      "pattern": "Atrium: settings written",
+      "after_pattern": "Atrium: settings pushed",
+      "note": "ordering: at least one save happened after the initial read, not before it"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-unusable-argument-refusal",
+      "pattern": "Atrium: the settings surface sent an object the core",
+      "note": "code 0 - a partial object would mean setRow's whole-object round trip broke"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-write-failure",
+      "pattern": "Atrium: the settings write failed",
+      "note": "code -1 - the edit would be in the surface only"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-schema-decline",
+      "pattern": "Atrium: settings\\.json is at a schema this build cannot",
+      "note": "code -2 - an unreadable fixture would read as a wiring failure"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "the-fixture-was-readable",
+      "pattern": "Atrium: settings could not be read",
+      "note": "the read side of the same trap: a default behind an editable row"
+    },
+    {
+      "type": "file_contains",
+      "label": "the-choice-edit-changed-the-bytes-on-disk",
+      "file": "settings",
+      "path": "sidebarPosition",
+      "value": "right",
+      "note": "THE CHOICE ASSERTION. The fixture stages 'left', so a match here cannot be the fixture's own value - it can only be the pick this scenario made, written back through setRow"
+    },
+    {
+      "type": "file_contains",
+      "label": "the-number-edit-changed-the-bytes-on-disk",
+      "file": "settings",
+      "path": "glassOpacity",
+      "value": 0.9,
+      "note": "THE NUMBER ASSERTION. The fixture stages 0.55, so a match here cannot be the fixture's own value - it can only be the typed value this scenario entered, written back through setRow"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "note": "the browser window AND the settings window, both still open after two edits"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits with two settings edits made and the settings window open"
+    }
+  ],
+  "cannot_pass": {
+    "reason": "The CHOICE half only. Driving a native <select> from a scenario is unsolved here: clicking the row misses the box, and clicking the box opens a macOS popup window that swallows every later synthetic click, which takes the number half down with it. The NUMBER half passes and proves the write path works - glassOpacity reached disk as 0.9.",
+    "gate": "Delete this marker when the harness can drive a <select>. Nothing in the product is known to be wrong."
+  }
+}

@@ -1,0 +1,166 @@
+{
+  "name": "the-floating-dots-match-the-native-lights",
+  "description": "The floating panel is a child NSWindow over the parent's frame view, so the real AppKit buttons sit behind it and the page draws its own three dots. sidebar-nav-row.css drew them 11px across at an 8px gap, which is 19 between centres. The real lights measure 14 across at 23 between centres, taken off what the buttons paint rather than from the macOS default, so the dots stepped in both size and spacing every time the panel opened.\n\nThe dots now read --atrium-traffic-light-dot-size and --atrium-traffic-light-dot-pitch, and the gap is the pitch minus the size so the centres land where the real ones do.\n\nThe window is parked at 0,40 and sized 560x500, so one set of screen coordinates serves both states. The assertions sample the same three boxes in both captures: if either state's dots were a different diameter or pitch, at least one box would miss its dot and read the surface behind it.",
+  "fixture": "lab-compare.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "move_window",
+      "x": 0,
+      "y": 40
+    },
+    {
+      "type": "resize",
+      "w": 560,
+      "h": 500
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "capture",
+      "id": "docked",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "state one: the real AppKit buttons, which the page's dots have to match"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "collapse, which is what arms the edge strip"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "move",
+      "x": 300,
+      "y": 400,
+      "note": "park well inside the page - a pointer already in the strip never sends the mouse-entered the reveal needs"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "move",
+      "x": 12,
+      "y": 400,
+      "note": "cross into the strip"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "target": "/sidebar",
+      "id": "dot-geometry",
+      "expression": "(() => { const d = [...document.querySelectorAll('.sbnav .sbtd .td')].map(e => e.getBoundingClientRect()); if (d.length !== 3) return 'dots=' + d.length; const r = x => Math.round(x * 10) / 10; return 'size=' + r(d[0].width) + 'x' + r(d[0].height) + ' pitch=' + r(d[1].left - d[0].left) + ',' + r(d[2].left - d[1].left); })()",
+      "note": "the page's own measure of what it drew, so a capture that somehow sampled the wrong row cannot hide a wrong size"
+    },
+    {
+      "type": "capture",
+      "id": "floating",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "state two: the panel's own dots, drawn by the page"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "dot-geometry",
+      "expected": "\"size=14x14 pitch=23,23\"",
+      "label": "the-page-draws-the-token-geometry",
+      "desc": "The tokens carry 14 and 23, measured off the real buttons. A literal left behind in sidebar-nav-row.css shows up here as 11 and 19."
+    },
+    {
+      "type": "region_mean",
+      "capture": "docked",
+      "x": 71,
+      "y": 58,
+      "w": 2,
+      "h": 4,
+      "min_mean": 80,
+      "max_mean": 150,
+      "max_r": 120,
+      "max_b": 120,
+      "label": "the-native-green-reaches-59pt-from-the-first-light",
+      "desc": "The native half of the pair. Red's left edge is x 13 and this box is its last two columns plus 59, which is where the third of three 14pt dots at a 23pt pitch has to end. The glass behind reads B 142, so a shorter dot or a tighter pitch leaves this box on glass and fails the B ceiling."
+    },
+    {
+      "type": "region_mean",
+      "capture": "docked",
+      "x": 31,
+      "y": 58,
+      "w": 3,
+      "h": 4,
+      "min_mean": 100,
+      "max_mean": 160,
+      "max_r": 130,
+      "max_g": 150,
+      "label": "the-native-gap-after-red-is-really-a-gap",
+      "desc": "18pt past red's left edge, which is inside the 9pt gap only while the dots are 14 wide at 23 centres. A wider dot or a shorter pitch puts amber here, and amber's R is 250."
+    },
+    {
+      "type": "region_mean",
+      "capture": "floating",
+      "x": 72,
+      "y": 65,
+      "w": 2,
+      "h": 4,
+      "min_mean": 80,
+      "max_mean": 150,
+      "max_r": 120,
+      "max_b": 120,
+      "label": "the-page-green-reaches-the-same-59pt",
+      "desc": "The page half, same box offset from its own first dot. The panel surface behind reads B 134, so the 11pt dots at a 19pt pitch this task started from leave the box on surface and fail. The floating row sits 7pt lower and 1pt right of the native one, which is why the coordinates differ while the offsets do not."
+    },
+    {
+      "type": "region_mean",
+      "capture": "floating",
+      "x": 32,
+      "y": 65,
+      "w": 3,
+      "h": 4,
+      "min_mean": 100,
+      "max_mean": 160,
+      "max_r": 130,
+      "max_g": 150,
+      "label": "the-page-gap-after-red-is-really-a-gap",
+      "desc": "The mirror of the native gap probe, 18pt past the page's own first dot."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "label": "the-window-survived-the-reveal"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

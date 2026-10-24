@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 1,
+  "appIconVariant": "auto",
+  "animationsEnabled": true,
+  "startupBehavior": "restoreLastActive",
+  "downloadsDirectory": null,
+  "promptForDownload": false,
+  "sidebarPosition": "left",
+  "horizontalScrollOverride": "auto",
+  "archiveThreshold": "twelveHours",
+  "memorySaverThreshold": "fifteenMinutes",
+  "importPromptShown": true,
+  "autoPipEnabled": true,
+  "confirmToQuitEnabled": false,
+  "glassOpacity": 0.65,
+  "opaqueSurround": false,
+  "surroundColor": null,
+  "chromePageTint": true,
+  "addressBarPinned": false,
+  "autoMiniPlayer": "audible",
+  "autoSummarize": false,
+  "borderWidth": 10,
+  "controllerVisibility": "background",
+  "externalLinksOpenInLittle": true,
+  "favoriteKeepAliveEnabled": true,
+  "favoriteKeepAliveThreshold": "fiveMinutes",
+  "memorySaverEnabled": true,
+  "notificationTimeout": "threeSeconds",
+  "overlayAccent": "crimson",
+  "pipAlwaysOnTop": true,
+  "searchEngines": [
+    {
+      "builtin": true,
+      "enabled": true,
+      "id": "google",
+      "keyword": "google.com",
+      "name": "Google",
+      "url": "https://www.google.com/search?q=%s"
+    },
+    {
+      "builtin": true,
+      "enabled": true,
+      "id": "duckduckgo",
+      "keyword": "duckduckgo.com",
+      "name": "DuckDuckGo",
+      "url": "https://duckduckgo.com/?q=%s"
+    },
+    {
+      "builtin": true,
+      "enabled": true,
+      "id": "kagi",
+      "keyword": "kagi.com",
+      "name": "Kagi",
+      "url": "https://kagi.com/search?q=%s"
+    },
+    {
+      "builtin": true,
+      "enabled": true,
+      "id": "bing",
+      "keyword": "bing.com",
+      "name": "Bing",
+      "url": "https://www.bing.com/search?q=%s"
+    },
+    {
+      "builtin": true,
+      "enabled": true,
+      "id": "ecosia",
+      "keyword": "ecosia.org",
+      "name": "Ecosia",
+      "url": "https://www.ecosia.org/search?q=%s"
+    },
+    {
+      "builtin": true,
+      "enabled": true,
+      "id": "youtube",
+      "keyword": "youtube.com",
+      "name": "YouTube",
+      "url": "https://www.youtube.com/results?search_query=%s"
+    },
+    {
+      "builtin": true,
+      "enabled": true,
+      "id": "github",
+      "keyword": "github.com",
+      "name": "GitHub",
+      "url": "https://github.com/search?q=%s"
+    },
+    {
+      "builtin": true,
+      "enabled": true,
+      "id": "reddit",
+      "keyword": "reddit.com",
+      "name": "Reddit",
+      "url": "https://www.reddit.com/search/?q=%s"
+    },
+    {
+      "builtin": true,
+      "enabled": true,
+      "id": "wikipedia",
+      "keyword": "wikipedia.org",
+      "name": "Wikipedia",
+      "url": "https://en.wikipedia.org/w/index.php?search=%s"
+    },
+    {
+      "builtin": true,
+      "enabled": true,
+      "id": "amazon",
+      "keyword": "amazon.com",
+      "name": "Amazon",
+      "url": "https://www.amazon.com/s?k=%s"
+    },
+    {
+      "builtin": true,
+      "enabled": true,
+      "id": "gmaps",
+      "keyword": "maps.google.com",
+      "name": "Google Maps",
+      "url": "https://www.google.com/maps/search/%s"
+    },
+    {
+      "builtin": true,
+      "enabled": true,
+      "id": "gimages",
+      "keyword": "images.google.com",
+      "name": "Google Images",
+      "url": "https://www.google.com/search?tbm=isch&q=%s"
+    },
+    {
+      "builtin": true,
+      "enabled": true,
+      "id": "perplexity",
+      "keyword": "perplexity.ai",
+      "name": "Perplexity",
+      "url": "https://www.perplexity.ai/search?q=%s"
+    },
+    {
+      "builtin": true,
+      "enabled": true,
+      "id": "chatgpt",
+      "keyword": "chatgpt.com",
+      "name": "ChatGPT",
+      "url": "https://chatgpt.com/?q=%s"
+    },
+    {
+      "builtin": true,
+      "enabled": true,
+      "id": "claude",
+      "keyword": "claude.ai",
+      "name": "Claude",
+      "url": "https://claude.ai/new?q=%s"
+    },
+    {
+      "builtin": true,
+      "enabled": true,
+      "id": "x",
+      "keyword": "x.com",
+      "name": "X",
+      "url": "https://x.com/search?q=%s"
+    },
+    {
+      "builtin": true,
+      "enabled": true,
+      "id": "stackoverflow",
+      "keyword": "stackoverflow.com",
+      "name": "Stack Overflow",
+      "url": "https://stackoverflow.com/search?q=%s"
+    },
+    {
+      "builtin": true,
+      "enabled": true,
+      "id": "npm",
+      "keyword": "npmjs.com",
+      "name": "npm",
+      "url": "https://www.npmjs.com/search?q=%s"
+    },
+    {
+      "builtin": true,
+      "enabled": true,
+      "id": "crates",
+      "keyword": "crates.io",
+      "name": "crates.io",
+      "url": "https://crates.io/search?q=%s"
+    }
+  ],
+  "searchEnginesSeed": 1,
+  "skylightNightShift": false,
+  "skylightWeather": "clear",
+  "swipeBlendFactor": 6.5,
+  "swipeCommitThreshold": 0.2,
+  "swipeFollowTau": 0.2,
+  "swipeHaptics": "smooth",
+  "swipeHoldSilenceGap": 0.65,
+  "swipeOvershootCap": 0.4,
+  "swipeSettleDur": 0.42,
+  "swipeSlowCommit": 0.38,
+  "swipeSpringDamp": 0.74,
+  "translateLanguage": "hu",
+  "vimModeEnabled": false
+}

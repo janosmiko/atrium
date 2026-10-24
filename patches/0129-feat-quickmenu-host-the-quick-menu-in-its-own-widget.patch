@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sat, 12 Sep 2026 09:00:27 +0200
+Subject: [PATCH 129/154] feat(quickmenu): host the quick menu in its own
+ widget
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index da40593c97c04..a93619e3fe732 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3615,6 +3615,8 @@ static_library("ui") {
+       "atrium/atrium_command_dispatcher_delegate.mm",
+       "atrium/atrium_extension_pill_widget.h",
+       "atrium/atrium_extension_pill_widget.mm",
++      "atrium/atrium_quick_menu_widget.h",
++      "atrium/atrium_quick_menu_widget.mm",
+       "atrium/atrium_hint_overlay_widget.h",
+       "atrium/atrium_hint_overlay_widget.mm",
+       "atrium/atrium_toast_overlay_widget.h",

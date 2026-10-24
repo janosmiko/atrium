@@ -1,0 +1,65 @@
+{
+  "spaces": [
+    {
+      "id": "1ab00001-0000-4000-8000-000000000001",
+      "name": "Reading",
+      "emoji": "R",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {"lastActiveAt": 805135200.0, "url": "http://127.0.0.1:8000/favicon-page.html", "title": "A Loaded Row"}
+      ],
+      "groups": []
+    }
+  ],
+  "favorites": [],
+  "archived": [
+    {"id": "arch-01", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived One", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805130100.0, "lastActiveAt": 805129100.0, "closeReason": "archived"},
+    {"id": "arch-02", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Two", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805130200.0, "lastActiveAt": 805129200.0, "closeReason": "archived"},
+    {"id": "arch-03", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Three", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805130300.0, "lastActiveAt": 805129300.0, "closeReason": "archived"},
+    {"id": "arch-04", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Four", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805130400.0, "lastActiveAt": 805129400.0, "closeReason": "archived"},
+    {"id": "arch-05", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Five", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805130500.0, "lastActiveAt": 805129500.0, "closeReason": "archived"},
+    {"id": "arch-06", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Six", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805130600.0, "lastActiveAt": 805129600.0, "closeReason": "archived"},
+    {"id": "arch-07", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Seven", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805130700.0, "lastActiveAt": 805129700.0, "closeReason": "archived"},
+    {"id": "arch-08", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Eight", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805130800.0, "lastActiveAt": 805129800.0, "closeReason": "archived"},
+    {"id": "arch-09", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Nine", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805130900.0, "lastActiveAt": 805129900.0, "closeReason": "archived"},
+    {"id": "arch-10", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Ten", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805131000.0, "lastActiveAt": 805130000.0, "closeReason": "archived"},
+    {"id": "arch-11", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Eleven", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805131100.0, "lastActiveAt": 805130010.0, "closeReason": "archived"},
+    {"id": "arch-12", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Twelve", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805131200.0, "lastActiveAt": 805130020.0, "closeReason": "archived"},
+    {"id": "arch-13", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Thirteen", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805131300.0, "lastActiveAt": 805130030.0, "closeReason": "archived"},
+    {"id": "arch-14", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Fourteen", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805131400.0, "lastActiveAt": 805130040.0, "closeReason": "archived"},
+    {"id": "arch-15", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Fifteen", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805131500.0, "lastActiveAt": 805130050.0, "closeReason": "archived"},
+    {"id": "arch-16", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Sixteen", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805131600.0, "lastActiveAt": 805130060.0, "closeReason": "archived"},
+    {"id": "arch-17", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Seventeen", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805131700.0, "lastActiveAt": 805130070.0, "closeReason": "archived"},
+    {"id": "arch-18", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Eighteen", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805131800.0, "lastActiveAt": 805130080.0, "closeReason": "archived"},
+    {"id": "arch-19", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Nineteen", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805131900.0, "lastActiveAt": 805130090.0, "closeReason": "archived"},
+    {"id": "arch-20", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Twenty", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805132000.0, "lastActiveAt": 805130100.0, "closeReason": "archived"},
+    {"id": "arch-21", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Twenty One", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805132100.0, "lastActiveAt": 805130110.0, "closeReason": "archived"},
+    {"id": "arch-22", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Twenty Two", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805132200.0, "lastActiveAt": 805130120.0, "closeReason": "archived"},
+    {"id": "arch-23", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Twenty Three", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805132300.0, "lastActiveAt": 805130130.0, "closeReason": "archived"},
+    {"id": "arch-24", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Twenty Four", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805132400.0, "lastActiveAt": 805130140.0, "closeReason": "archived"},
+    {"id": "arch-25", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Twenty Five", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805132500.0, "lastActiveAt": 805130150.0, "closeReason": "archived"},
+    {"id": "arch-26", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Twenty Six", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805132600.0, "lastActiveAt": 805130160.0, "closeReason": "archived"},
+    {"id": "arch-27", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Twenty Seven", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805132700.0, "lastActiveAt": 805130170.0, "closeReason": "archived"},
+    {"id": "arch-28", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Twenty Eight", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805132800.0, "lastActiveAt": 805130180.0, "closeReason": "archived"},
+    {"id": "arch-29", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Twenty Nine", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805132900.0, "lastActiveAt": 805130190.0, "closeReason": "archived"},
+    {"id": "arch-30", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Thirty", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805133000.0, "lastActiveAt": 805130200.0, "closeReason": "archived"},
+    {"id": "arch-31", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Thirty One", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805133100.0, "lastActiveAt": 805130210.0, "closeReason": "archived"},
+    {"id": "arch-32", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Thirty Two", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805133200.0, "lastActiveAt": 805130220.0, "closeReason": "archived"},
+    {"id": "arch-33", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Thirty Three", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805133300.0, "lastActiveAt": 805130230.0, "closeReason": "archived"},
+    {"id": "arch-34", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Thirty Four", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805133400.0, "lastActiveAt": 805130240.0, "closeReason": "archived"},
+    {"id": "arch-35", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Thirty Five", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805133500.0, "lastActiveAt": 805130250.0, "closeReason": "archived"},
+    {"id": "arch-36", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Thirty Six", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805133600.0, "lastActiveAt": 805130260.0, "closeReason": "archived"},
+    {"id": "arch-37", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Thirty Seven", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805133700.0, "lastActiveAt": 805130270.0, "closeReason": "archived"},
+    {"id": "arch-38", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Thirty Eight", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805133800.0, "lastActiveAt": 805130280.0, "closeReason": "archived"},
+    {"id": "arch-39", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Thirty Nine", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805133900.0, "lastActiveAt": 805130290.0, "closeReason": "archived"},
+    {"id": "arch-40", "url": "http://127.0.0.1:8000/favicon-page.html", "title": "Archived Forty", "spaceID": "1ab00001-0000-4000-8000-000000000001", "archivedAt": 805134000.0, "lastActiveAt": 805130300.0, "closeReason": "archived"}
+  ],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "1ab00001-0000-4000-8000-000000000001"
+  }
+}

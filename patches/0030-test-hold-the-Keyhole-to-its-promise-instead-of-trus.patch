@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sat, 8 Aug 2026 10:08:40 +0200
+Subject: [PATCH 030/154] test: hold the Keyhole to its promise instead of
+ trusting the source
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The Keyhole's whole claim is that a pinned page never navigates away when you
+click an off-site link. That behaviour shipped long ago and had no test
+over it anywhere - the decision lived inline in ShouldAutoPeek, tangled with a
+WebContents, a Browser and a call across the dylib boundary, so there was
+nothing a unit test could reach.
+
+The five predicates move into atrium_peek_decision.h as bools in, bool out.
+Same posture as atrium_routing_navigation_decision.h, which did this for the
+routing throttle for the same reason. ShouldAutoPeek keeps the job of
+resolving those bools from live objects, and keeps its short-circuits:
+IsPeekSourceTab crosses into Swift and should not be called speculatively.
+
+Seven tests, and one of them is the point - every predicate is individually
+necessary, asserted by flipping each field of an otherwise-peeking input and
+requiring the peek to disappear. A decision table that had quietly become an
+OR of two fields would satisfy every other case in the file and still be
+wrong.
+
+Checked they can fail rather than assuming it: inverting the same-site term
+turns three of the seven red, including the same-site case by name. Restored
+and green again.
+
+No behaviour change. Same-site still navigates in place on purpose, so a
+pinned Gmail or Notion stays usable as an app, and the test now says so where
+the reasoning cannot drift away from the code.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index ff5ef7ddc03d5..00bda30daee8f 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -623,6 +623,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:edit_focus_gate",
+     "//chrome/browser/ui/atrium:extension_popup_watchdog_policy",
+     "//chrome/browser/ui/atrium:little_marker",
++    "//chrome/browser/ui/atrium:peek_decision",
+     "//chrome/browser/ui/atrium:routing_navigation_decision",
+     "//chrome/browser/ui/atrium:slot_presentation_table",
+     "//chrome/browser/ui/atrium:status_bubble_color_math",

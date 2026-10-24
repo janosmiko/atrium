@@ -1,0 +1,118 @@
+{
+  "name": "a-field-keeps-opt-arrow",
+  "description": "The blast radius. Letting the map bind a combo carrying neither cmd nor ctrl reopens a door the cmd-or-ctrl rule was holding shut, and this measures that the door is only open the width of Opt+Tab.\n\nWHAT COULD HAVE GONE WRONG. The first version of the relaxation admitted any MODIFIED named key, which is 21 combos - every shift, opt and shift+opt form of tab, space, escape and the four arrows. Three of those are live AppKit text-editing bindings: opt+left/right is moveWordLeft/Right, shift+opt+left/right is the selection-extending pair, and shift+arrow extends by a character. ComboEditsText (atrium_edit_focus_gate.cc) gates arrows only when cmd is HELD, so none of those would have met a gate on the way past - a chord bound to any of them would have eaten the edit outright, with nothing to hand the key back. The parse now takes tab and escape only.\n\nWHY THIS IS A SCENARIO AND NOT ONLY A UNIT CASE. AnUnmodifiedOrTextEditingComboIsStillRefused proves ParseCombo REFUSES opt+left, which is the mechanism. It cannot prove the consequence - that a real Opt+Left in a real focused field still moves the caret by a word - because a browsertest calls prePerformKeyEquivalent directly and never involves AppKit's field editor at all.\n\nHOW THE FIELD REPORTS. edit-focus-field.html writes its selection range into document.title, which crosses the bridge into the run log via TitleWasSet. The focus handler parks the caret at the end of 'hello world', which is offset 11. Opt+Left is one word left: the caret collapses to 6, the 'w' of 'world'. Shift+Opt+Left from there extends back over 'hello ' to 0, giving 0-6. Both numbers are properties of the string, not of the build.",
+  "fixture": "space-switch-returns-to-its-own-last-tab.json",
+  "startup_space": "2ab00001-0000-4000-8000-000000000001",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "edit-focus-field.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/edit-focus-field.html",
+      "timeout_ms": 20000,
+      "note": "gate: the field's page is committed before anything is typed at it"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "click",
+      "x": 450,
+      "y": 180,
+      "note": "the measured centre of the input, the same coordinates a sibling scenario uses. Its focus handler parks the caret at the END of 'hello world'."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval_until",
+      "id": "caret-at-end",
+      "target": "edit-focus-field.html",
+      "expression": "document.title",
+      "expected": "ATRIUM-SEL-11-11",
+      "timeout_ms": 8000,
+      "note": "THE CONTROL: the field really has keyboard focus and the caret is at offset 11. Without this a later 6-6 could just be a field that was never focused."
+    },
+    {
+      "type": "key",
+      "combo": "opt+left",
+      "note": "moveWordLeft. The map must never have bound this."
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval_until",
+      "id": "after-opt-left",
+      "target": "edit-focus-field.html",
+      "expression": "document.title",
+      "expected": "ATRIUM-SEL-6-6",
+      "timeout_ms": 8000,
+      "note": "THE MEASUREMENT: the caret moved one word left, to the 'w' of 'world'. A build that bound opt+left would have swallowed the key and left this at 11-11."
+    },
+    {
+      "type": "key",
+      "combo": "shift+opt+left",
+      "note": "moveWordLeftAndModifySelection, the other form the first relaxation would have admitted"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval_until",
+      "id": "after-shift-opt-left",
+      "target": "edit-focus-field.html",
+      "expression": "document.title",
+      "expected": "ATRIUM-SEL-0-6",
+      "timeout_ms": 8000,
+      "note": "the selection extended back over 'hello ' to the start, so the shift form reached the field too."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "caret-at-end",
+      "expected": "ATRIUM-SEL-11-11",
+      "desc": "THE CONTROL: the field was focused with the caret at the end before any chord."
+    },
+    {
+      "type": "eval_equals",
+      "id": "after-opt-left",
+      "expected": "ATRIUM-SEL-6-6",
+      "desc": "Opt+Left still moves the caret one word left. The map must not claim a chord AppKit uses for editing when no gate would hand it back."
+    },
+    {
+      "type": "eval_equals",
+      "id": "after-shift-opt-left",
+      "expected": "ATRIUM-SEL-0-6",
+      "desc": "Shift+Opt+Left still extends the selection by a word."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "Atrium: hotkey [a-zA-Z]+ fired",
+      "label": "no-action-ran-behind-the-edit",
+      "desc": "THE HALF THAT MAKES IT A GUARD: not one hotkey fired across both chords. A future relaxation that re-admits an arrow form would light this even if the caret happened to move anyway."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

@@ -1,0 +1,148 @@
+{
+  "name": "overlay-accent-stays-fixed-across-a-space-switch",
+  "description": "The retired 'space' accent used to hand the overlay's --ov-accent to the active space's tint. With the option gone, a chosen theme has to stay put across a space switch instead of drifting with the tint. settings.json pins overlayAccent to nord; the fixture's first two spaces carry different tints (oceanBlue, atriumSolarized) so the switch is a real one, not a vacuous same-space read. Reads the sidebar document before and after cmd+2 moves the window from space 0 to space 1: --ov-accent and the atrium-theme-nord class must read identically both times, while --atrium-space-tint - pushed unconditionally, independent of the accent - is asserted to actually change, proving the switch did something and the fixed accent is not fixed by accident.",
+  "fixture": "space-cycle.spaces.json",
+  "settings": "accent-theme-nord.settings.json",
+  "startup_space": "a276b001-0000-0000-0000-000000000001",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [0-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "the theme push runs after the document is up"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "tokens-before-switch",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(r); const t = (n) => (s.getPropertyValue(n) || '').trim().toLowerCase(); return 'accent=' + t('--ov-accent') + ' tint=' + t('--atrium-space-tint') + ' classes=' + [...r.classList].filter((c) => c.startsWith('atrium-theme-')).join(','); })()",
+      "note": "space 0 (oceanBlue) - read for inspection as well as for the booleans below"
+    },
+    {
+      "type": "eval",
+      "id": "accent-is-nords-before",
+      "target": "/sidebar",
+      "expression": "String((getComputedStyle(document.documentElement).getPropertyValue('--ov-accent') || '').trim().toLowerCase() === '#88c0d0')"
+    },
+    {
+      "type": "eval",
+      "id": "theme-class-is-on-before",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.classList.contains('atrium-theme-nord'))"
+    },
+    {
+      "type": "eval",
+      "id": "tint-before",
+      "target": "/sidebar",
+      "expression": "String((getComputedStyle(document.documentElement).getPropertyValue('--atrium-space-tint') || '').trim())"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+2",
+      "note": "the plain digit is the space chord - moves from space 0 (oceanBlue) to space 1 (atriumSolarized)"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 0 -> 1",
+      "timeout_ms": 8000,
+      "note": "the gate: the window actually moved before anything is read off it"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "repaint margin for the tint push"
+    },
+    {
+      "type": "eval",
+      "id": "tokens-after-switch",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(r); const t = (n) => (s.getPropertyValue(n) || '').trim().toLowerCase(); return 'accent=' + t('--ov-accent') + ' tint=' + t('--atrium-space-tint') + ' classes=' + [...r.classList].filter((c) => c.startsWith('atrium-theme-')).join(','); })()",
+      "note": "space 1 (atriumSolarized) - THE DECIDING READ: accent and class must be unchanged from tokens-before-switch"
+    },
+    {
+      "type": "eval",
+      "id": "accent-is-nords-after",
+      "target": "/sidebar",
+      "expression": "String((getComputedStyle(document.documentElement).getPropertyValue('--ov-accent') || '').trim().toLowerCase() === '#88c0d0')"
+    },
+    {
+      "type": "eval",
+      "id": "theme-class-is-on-after",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.classList.contains('atrium-theme-nord'))"
+    },
+    {
+      "type": "eval",
+      "id": "tint-after",
+      "target": "/sidebar",
+      "expression": "String((getComputedStyle(document.documentElement).getPropertyValue('--atrium-space-tint') || '').trim())"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: hotkey goToSpace2 fired",
+      "label": "the-digit-reached-the-space-action",
+      "desc": "the chord really ran, not merely a coincidental read"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: active space 0 -> 1",
+      "label": "the-window-moved-to-the-second-space",
+      "desc": "the space really moved"
+    },
+    {
+      "type": "eval_equals",
+      "id": "accent-is-nords-before",
+      "expected": "\"true\"",
+      "desc": "before the switch, --ov-accent resolves to the pinned nord theme"
+    },
+    {
+      "type": "eval_equals",
+      "id": "theme-class-is-on-before",
+      "expected": "\"true\"",
+      "desc": "before the switch, the nord class is on the document"
+    },
+    {
+      "type": "eval_equals",
+      "id": "accent-is-nords-after",
+      "expected": "\"true\"",
+      "desc": "AC: after the switch, --ov-accent is STILL the pinned nord theme - no adapt-to-spaces path left to move it"
+    },
+    {
+      "type": "eval_equals",
+      "id": "theme-class-is-on-after",
+      "expected": "\"true\"",
+      "desc": "AC: the nord class is still on the document - the space switch never touched overlay_theme_"
+    },
+    {
+      "type": "eval_changed",
+      "before": "tint-before",
+      "after": "tint-after",
+      "desc": "the space's own tint DID change with the switch, so the accent staying put above is a real result and not a vacuous one from two identical spaces"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

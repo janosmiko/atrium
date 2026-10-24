@@ -1,0 +1,48 @@
+{
+  "name": "the-url-field-shows-the-host",
+  "description": "the sidebar's url field carries the active page's host as its text, read straight out of the field over CDP. The push used to set only the tooltip, so the field read empty on every page.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "eval_until",
+      "id": "url-field",
+      "target": "/sidebar",
+      "expression": "document.querySelector('#sbUrl').value",
+      "expected": "127.0.0.1:8000",
+      "timeout_ms": 8000,
+      "note": "The host, not the origin and not the empty string the field used to hold."
+    },
+    {
+      "type": "capture",
+      "id": "field",
+      "duration_ms": 200,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "url-field",
+      "expected": "127.0.0.1:8000",
+      "desc": "The field's text is the page host."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

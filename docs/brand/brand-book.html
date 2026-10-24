@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atrium Brand Book</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Archivo:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body { margin: 0; background: #f2eeec; font-family: 'Archivo', sans-serif; color: #221016; }
+a { color: #B03A48; }
+a:hover { color: #8A2438; }
+#theme-picker { position: fixed; top: 14px; right: 14px; z-index: 10; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.92); border: 1px solid rgba(0,0,0,0.08); border-radius: 10px; padding: 8px 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.08); }
+#theme-picker label { font: 500 12px 'Archivo', sans-serif; color: #6b5a5e; }
+#theme-picker select { font: 400 13px 'Archivo', sans-serif; border: 1px solid rgba(0,0,0,0.12); border-radius: 6px; padding: 4px 6px; background: #fff; }
+
+/* Section 08's controls, in classes rather than inline styles, because they
+   move. Copied from docs/lab/settings-lab.html so the book and the lab cannot
+   drift, and written the way settings.css will be written. The theme picker
+   feeds --bb-* from the selected theme. */
+:root { --ov-ease: cubic-bezier(.22, .61, .36, 1); --ov-expand-ms: 120ms; }
+.bb-sw { box-sizing: border-box; display: inline-flex; align-items: center; width: 38px; height: 22px; padding: 2px; border-radius: 999px; background: color-mix(in srgb, var(--bb-fg) 20%, transparent); cursor: default; transition: background var(--ov-expand-ms) var(--ov-ease), transform 90ms var(--ov-ease); }
+.bb-sw i { width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgb(34 16 22 / .28); transition: transform var(--ov-expand-ms) var(--ov-ease); display: block; }
+.bb-sw.on { background: var(--bb-accent); }
+.bb-sw.on i { transform: translateX(16px); }
+.bb-sw:active, .bb-field:active, .bb-btn:active { transform: scale(.96); }
+
+.bb-slider { display: inline-flex; align-items: center; gap: 10px; }
+.bb-slider .track { position: relative; width: 110px; height: 5px; border-radius: 999px; background: var(--bb-sel); display: block; }
+.bb-slider .fill { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--bb-accent); }
+.bb-slider .knob { position: absolute; inset-block-start: 50%; width: 15px; height: 15px; margin: -7.5px 0 0 -7.5px; border-radius: 50%; background: var(--bb-paper); box-shadow: 0 1px 4px rgb(34 16 22 / .3), 0 0 0 1px var(--bb-border); transition: transform 90ms var(--ov-ease); }
+.bb-slider .track.dragging .knob { transform: scale(1.25); }
+.bb-slider .num { min-width: 30px; color: var(--bb-mute); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+
+.bb-field { display: inline-flex; align-items: center; gap: 8px; padding: 5px 8px 5px 10px; border: 1px solid var(--bb-border); border-radius: 8px; background: var(--bb-paper); font-size: 12.5px; cursor: default; transition: border-color var(--ov-expand-ms) var(--ov-ease), transform 90ms var(--ov-ease); }
+.bb-field:hover { border-color: var(--bb-soft); }
+.bb-field svg { flex: none; width: 12px; height: 12px; fill: none; stroke: var(--bb-mute); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+
+.bb-seg { position: relative; display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; padding: 3px; border-radius: 12px; background: var(--bb-sel); }
+.bb-seg > span:not(.thumb) { position: relative; padding: 3px 10px; border-radius: 8px; font: 500 12px 'Archivo', sans-serif; text-align: center; cursor: default; transition: color var(--ov-expand-ms) var(--ov-ease); }
+.bb-seg > span.on { color: var(--bb-accent-ink); }
+.bb-seg .thumb { position: absolute; inset-block: 3px; inset-inline-start: 3px; width: var(--w); transform: translateX(calc(var(--i) * (100% + 3px))); border-radius: 8px; background: var(--bb-accent); transition: transform var(--ov-expand-ms) var(--ov-ease); }
+
+.bb-btn { padding: 5px 11px; border: 1px solid var(--bb-border); border-radius: 11px; background: var(--bb-paper); font: 500 12.5px 'Archivo', sans-serif; cursor: default; transition: transform 90ms var(--ov-ease); }
+
+.bb-menu { position: absolute; z-index: 20; padding: 4px; display: flex; flex-direction: column; gap: 1px; background: var(--bb-paper); border: 1px solid var(--bb-border); border-radius: 16px; box-shadow: var(--bb-shadow); transform-origin: top center; animation: bb-menu-in var(--ov-expand-ms) var(--ov-ease); }
+@keyframes bb-menu-in { from { opacity: 0; transform: scale(.96) translateY(-4px); } to { opacity: 1; transform: none; } }
+.bb-menu-item { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 11px; font: 400 12.5px 'Archivo', sans-serif; cursor: default; }
+.bb-menu-item:hover { background: var(--bb-sel); }
+.bb-menu-item .tick { flex: none; margin-inline-start: auto; width: 13px; height: 13px; color: var(--bb-accent); }
+.bb-menu-item .tick svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+.bb-rail-item { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 11px; font-weight: 500; cursor: default; transition: background var(--ov-expand-ms) var(--ov-ease), color var(--ov-expand-ms) var(--ov-ease); }
+.bb-rail-item:hover { background: color-mix(in srgb, var(--bb-accent) 7%, transparent); }
+.bb-rail-item.on { background: var(--bb-sel); color: var(--bb-accent); }
+.bb-rail-item svg { flex: none; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; color: var(--bb-accent); }
+.bb-rail-item.on svg { color: inherit; }
+@keyframes bb-pane-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.bb-body.swap { animation: bb-pane-in 160ms var(--ov-ease); }
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-sw, .bb-sw i, .bb-field, .bb-btn, .bb-seg .thumb, .bb-slider .knob, .bb-rail-item { transition: none; }
+  .bb-menu, .bb-body.swap { animation: none; }
+}
+</style>
+</head>
+<body>
+<div id="theme-picker">
+  <label for="theme-select">Theme</label>
+  <select id="theme-select"></select>
+  <label for="glow-select">Icon glow</label>
+  <select id="glow-select">
+    <option value="corner-wash">Corner wash</option>
+    <option value="halo">Halo</option>
+    <option value="edge-glow">Edge glow</option>
+    <option value="edge-band">Edge band</option>
+    <option value="none">None</option>
+  </select>
+  <label for="glow-dark">Dark</label>
+  <input id="glow-dark" type="range" min="0" max="100" value="20" style="width: 70px;">
+  <label for="glow-light">Light</label>
+  <input id="glow-light" type="range" min="0" max="100" value="20" style="width: 70px;">
+</div>
+<div id="root"></div>
+<script>
+const themes = {
+  Crimson: { ink: '#221016', paper: '#F9F0F1', accent: '#B03A48', soft: '#E06A76' },
+  Vermilion: { ink: '#1D0D06', paper: '#FFF2EA', accent: '#E8481C', soft: '#FF8A5C' },
+  Magenta: { ink: '#23081E', paper: '#FBEFF7', accent: '#D62D8A', soft: '#F27AB8' },
+  Ultraviolet: { ink: '#120E2E', paper: '#F0EEFB', accent: '#6C4CE8', soft: '#9D8AF2' },
+  Cyan: { ink: '#04212B', paper: '#EAF7F9', accent: '#00A6C0', soft: '#56D0E2' },
+  Lime: { ink: '#131A06', paper: '#F5F8EA', accent: '#7CB518', soft: '#A9D94E' },
+  Amber: { ink: '#1D1406', paper: '#FBF4E6', accent: '#E8960C', soft: '#F5B84D' },
+  'Tokyo Night': { ink: '#1A1B26', paper: '#E6E9F5', accent: '#7AA2F7', soft: '#BB9AF7' },
+  'Catppuccin': { ink: '#1E1E2E', paper: '#EFF1F5', accent: '#CBA6F7', soft: '#F5C2E7' },
+  'Gruvbox': { ink: '#282828', paper: '#FBF1C7', accent: '#D65D0E', soft: '#FABD2F' },
+  'Kanagawa': { ink: '#1F1F28', paper: '#DCD7BA', accent: '#7E9CD8', soft: '#957FB8' },
+  'Synthwave Everything': { ink: '#241B2F', paper: '#F6EBFF', accent: '#FF7EDB', soft: '#72F1B8' },
+  'Bluloco': { ink: '#282C34', paper: '#F9F9F9', accent: '#3691FF', soft: '#9F7EFE' },
+  'Monokai Pro': { ink: '#2D2A2E', paper: '#FCFCFA', accent: '#FF6188', soft: '#FFD866' },
+  'Dracula': { ink: '#282A36', paper: '#F8F8F2', accent: '#BD93F9', soft: '#FF79C6' },
+  'Nord': { ink: '#2E3440', paper: '#ECEFF4', accent: '#88C0D0', soft: '#81A1C1' },
+  'Rosé Pine': { ink: '#191724', paper: '#FAF4ED', accent: '#EB6F92', soft: '#C4A7E7' },
+  'Everforest': { ink: '#2D353B', paper: '#FDF6E3', accent: '#A7C080', soft: '#E69875' },
+  'Solarized': { ink: '#002B36', paper: '#FDF6E3', accent: '#268BD2', soft: '#CB4B16' },
+};
+
+// Locked mark geometry, v3: the murmuration quartet replaces the v2 pinwheel.
+// Keep every number here in step with build/scripts/gen-brand-icons.py.
+const ARMS = 4, HEAD = 48, TAIL = 24, WEIGHT = 1.25, ARM_SEED = 3, TAIL_SEED = 980;
+
+const lerpHex = (a, b, t) => '#' + [1, 3, 5].map(i =>
+  Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t)
+    .toString(16).padStart(2, '0')).join('');
+
+// mulberry32. The flock must be the same birds in every size, theme and
+// export, so nothing here may read Math.random.
+function rand(seed) {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const gauss = r => r() + r() + r() - 1.5;
+
+// One comet. `d` is the chance of keeping a draw at position s along the
+// sweep, `w` the cross-sweep spread, `sz` the bird size.
+const COMET = {
+  th0: 0, th1: 128, r0: 7.5, r1: 22.5,
+  d: s => s < 0.18 ? 1 : 0.42 * Math.pow(1 - s, 1.9),
+  w: s => s < 0.18 ? 1.7 : 0.55 + 1.3 * (1 - s),
+  sz: s => s < 0.18 ? 1.25 : 0.92,
+};
+// The comet keeps nearly every draw at the head, so birds added to it pile
+// onto the beginning. The tail pass starts past the head instead.
+const TAIL_CFG = {
+  ...COMET, s0: 0.36,
+  d: s => Math.pow(1 - s, 0.7),
+  sz: s => 0.86 - 0.3 * s,
+};
+
+function birds(cfg, n, rot, seed) {
+  const r = rand(seed), out = [];
+  for (let tries = 0; out.length < n && tries < n * 45; tries++) {
+    const s = cfg.s0 ? cfg.s0 + (1 - cfg.s0) * r() : r();
+    if (r() > cfg.d(s)) continue;
+    const th = (cfg.th0 + (cfg.th1 - cfg.th0) * s) * Math.PI / 180 + rot * Math.PI / 180;
+    const rr = cfg.r0 + (cfg.r1 - cfg.r0) * s + gauss(r) * cfg.w(s);
+    out.push({
+      x: 24 + rr * Math.cos(th), y: 24 + rr * Math.sin(th), ang: th + Math.PI / 2, s,
+      size: (0.44 + r() * 0.82) * cfg.sz(s), op: 0.45 + r() * 0.55, j: r(),
+    });
+  }
+  return out;
+}
+
+// On ink and accent a bird lifts all the way toward white. On paper it sinks
+// partway toward the theme ink instead, because white would erase it.
+function flow(ground, tones, ink, size) {
+  const hi = ground === 'paper' ? ink : '#FFFFFF';
+  const toward = ground === 'paper' ? 0.55 : 1;
+  const els = [];
+  for (let k = 0; k < ARMS; k++) {
+    const rot = k * (360 / ARMS);
+    const flock = birds(COMET, HEAD, rot, ARM_SEED + k * 13)
+      .concat(birds(TAIL_CFG, TAIL, rot, TAIL_SEED + k * 13));
+    for (const b of flock) {
+      const col = lerpHex(tones[k % tones.length], hi, toward * (0.1 + (1 - b.s) * 0.6 * b.j));
+      els.push(`<ellipse cx="${b.x.toFixed(2)}" cy="${b.y.toFixed(2)}" rx="${(b.size * WEIGHT * 1.85).toFixed(2)}" ry="${(b.size * WEIGHT).toFixed(2)}" transform="rotate(${(b.ang * 180 / Math.PI).toFixed(1)} ${b.x.toFixed(2)} ${b.y.toFixed(2)})" fill="${col}" fill-opacity="${(b.op * (0.5 + (1 - b.s) * 0.5)).toFixed(2)}"/>`);
+    }
+  }
+  return `<svg width="${size}" height="${size}" viewBox="0 0 48 48">${els.join('')}</svg>`;
+}
+
+// App icon tile: the mark on a 140x140 rounded tile (x=4 y=4 w=132 h=132 rx=30,
+// the frame build/scripts/mask-icon-alpha.py assumes). `glow` carries the
+// ambilight treatment: the four arm colours bleed into the tile the way the
+// page glow bleeds into the window edge. `amount` 0..1 scales its strength.
+let tileSeq = 0;
+// Mark width over tile width near Chrome's 0.86. Keep in step with gen-brand-icons.py.
+const MARK_SCALE = 2.4;
+// Where each arm's tone sits, for the glow to come from. The comet keeps every
+// draw below s=0.18, so an arm's mass is bunched near the start of its sweep,
+// not at the midpoint.
+const ARM_MASS = 25;
+function armAngles() {
+  return Array.from({ length: ARMS }, (_, k) => (k * (360 / ARMS) + ARM_MASS) * Math.PI / 180);
+}
+function glowLayers(u, kind, amount, tones, base, dark) {
+  const defs = [], body = [];
+  const rect = fill => `<rect x="4" y="4" width="132" height="132" fill="${fill}"/>`;
+  const A = amount;
+  const angles = armAngles();
+  if (kind === 'halo') {
+    angles.forEach((a, i) => {
+      const cx = 70 + 30 * Math.cos(a), cy = 70 + 30 * Math.sin(a);
+      defs.push(`<radialGradient id="g${u}${i}" cx="${cx}" cy="${cy}" r="58" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${tones[i]}" stop-opacity="${(dark ? 1.1 : 0.7) * A}"/><stop offset="1" stop-color="${tones[i]}" stop-opacity="0"/></radialGradient>`);
+      body.push(rect(`url(#g${u}${i})`));
+    });
+  } else if (kind === 'edge-glow') {
+    angles.forEach((a, i) => {
+      const cx = 70 + 78 * Math.cos(a), cy = 70 + 78 * Math.sin(a);
+      defs.push(`<radialGradient id="g${u}${i}" cx="${cx}" cy="${cy}" r="82" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${tones[i]}" stop-opacity="${(dark ? 1.4 : 0.85) * A}"/><stop offset="0.55" stop-color="${tones[i]}" stop-opacity="${(dark ? 0.42 : 0.22) * A}"/><stop offset="1" stop-color="${tones[i]}" stop-opacity="0"/></radialGradient>`);
+      body.push(rect(`url(#g${u}${i})`));
+    });
+    defs.push(`<radialGradient id="g${u}c" cx="70" cy="70" r="62" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${base}" stop-opacity="0.85"/><stop offset="0.6" stop-color="${base}" stop-opacity="0.35"/><stop offset="1" stop-color="${base}" stop-opacity="0"/></radialGradient>`);
+    body.push(rect(`url(#g${u}c)`));
+  } else if (kind === 'edge-band') {
+    angles.forEach((a, i) => {
+      const c = Math.cos(a), s = Math.sin(a);
+      const horiz = Math.abs(c) > Math.abs(s);
+      const end = horiz ? (c > 0 ? 1 : 0) : (s > 0 ? 1 : 0);
+      const [x1, x2, y1, y2] = horiz ? [end, 1 - end, 0, 0] : [0, 0, end, 1 - end];
+      defs.push(`<linearGradient id="g${u}${i}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"><stop offset="0" stop-color="${tones[i]}" stop-opacity="${Math.min(1, (dark ? 1.6 : 1.1) * A)}"/><stop offset="0.06" stop-color="${tones[i]}" stop-opacity="${(dark ? 0.9 : 0.5) * A}"/><stop offset="0.4" stop-color="${tones[i]}" stop-opacity="0"/></linearGradient>`);
+      body.push(rect(`url(#g${u}${i})`));
+    });
+  } else if (kind === 'corner-wash') {
+    const op = (dark ? 0.9 : 0.55) * A;
+    defs.push(`<linearGradient id="g${u}a" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${tones[0]}" stop-opacity="${op}"/><stop offset="0.5" stop-color="${base}" stop-opacity="0"/><stop offset="1" stop-color="${tones[2]}" stop-opacity="${op}"/></linearGradient>`);
+    defs.push(`<linearGradient id="g${u}b" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${tones[1]}" stop-opacity="${op * 0.8}"/><stop offset="0.5" stop-color="${base}" stop-opacity="0"/><stop offset="1" stop-color="${tones[3]}" stop-opacity="${op * 0.8}"/></linearGradient>`);
+    body.push(rect(`url(#g${u}a)`), rect(`url(#g${u}b)`));
+  }
+  return { defs: defs.join(''), body: body.join('') };
+}
+function iconTile(ground, tones, size, ink, base, glow, amount) {
+  const u = ++tileSeq;
+  const dark = base !== '#FFFFFF' && parseInt(base.slice(1, 3), 16) < 128;
+  const mark = flow(ground, tones, ink, 48).replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
+  const g = glowLayers(u, glow, amount, tones, base, dark);
+  // Vertical falloff measured from Apple's Dock tiles: Safari #FFFFFF to
+  // #EFEFEF, Terminal #404040 to #191919, Mail #A1E3FF to #1B86FB.
+  const [top, bottom] = base === '#FFFFFF' ? [0, 0.063] : dark ? [0.10, 0.35] : [0.16, 0.10];
+  const shade = `<linearGradient id="s${u}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="${top}"/><stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0"/><stop offset="0.5" stop-color="#000000" stop-opacity="0"/><stop offset="1" stop-color="#000000" stop-opacity="${bottom}"/></linearGradient>`;
+  const shadeRect = shade ? `<rect x="4" y="4" width="132" height="132" fill="url(#s${u})"/>` : '';
+  return `<svg width="${size}" height="${size}" viewBox="0 0 140 140"><defs><clipPath id="t${u}"><rect x="4" y="4" width="132" height="132" rx="30"/></clipPath>${shade}${g.defs}</defs>` +
+    `<g clip-path="url(#t${u})"${base === '#FFFFFF' ? ' opacity="0.85"' : ''}><rect x="4" y="4" width="132" height="132" fill="${base}"/>${shadeRect}${g.body}</g>` +    (base === '#FFFFFF' ? '' :
+      `<rect x="5" y="5" width="130" height="130" rx="29" fill="none" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="2"/>`) +
+    `<g transform="translate(70 70) scale(${MARK_SCALE}) translate(-24 -24)">${mark}</g></svg>`;
+}
+
+// Logo card backdrop: the same glow layers, stretched to cover a rectangular
+// card behind the mark. No tile frame, no rim, no mark.
+function cardGlow(tones, base, glow, amount) {
+  const u = ++tileSeq;
+  const dark = parseInt(base.slice(1, 3), 16) < 128;
+  const g = glowLayers(u, glow, amount, tones, base, dark);
+  return `<svg viewBox="4 4 132 132" preserveAspectRatio="xMidYMid slice" style="position: absolute; inset: 0; width: 100%; height: 100%;"><defs>${g.defs}</defs><rect x="4" y="4" width="132" height="132" fill="${base}"/>${g.body}</svg>`;
+}
+
+function renderVals(base, glow = 'corner-wash', amountDark = 0.2, amountLight = 0.2) {
+  // v2: every theme's ink/paper are softened (grayed) before use.
+  const th = { ...base, ink: lerpHex(base.ink, '#84878C', 0.14), paper: lerpHex(base.paper, '#A6ABB3', 0.12) };
+  // A 5% pull keeps a faint theme cast. 15% turned the teal and leaf brown on warm themes.
+  const darkT = ['#FF5A6B', '#FFB52E', '#1FD1F0', '#9BF04A'].map(c => lerpHex(c, th.soft, 0.05));
+  const lightT = ['#FF3B4E', '#FF9500', '#00B5E0', '#7ED321'].map(c => lerpHex(c, th.accent, 0.05));
+  const monoT = [0.16, 0.3, 0.44, 0.58].map(t => lerpHex('#FFFFFF', th.accent, t));
+  const onDark = s => flow('ink', darkT, th.ink, s);
+  const onLight = s => flow('paper', lightT, th.ink, s);
+  // overlay.css resolved for this theme. Only the accent follows the room:
+  // --ov-ink is pinned to 34 16 22 there, so card contrast never rides on a
+  // tint the user picked.
+  const ovPaper = lerpHex('#FBF7F8', th.accent, 0.06);
+  // C++ grades the ink against the tint so a filled control stays readable on
+  // a pale one. Same job, by luminance.
+  const lum = [1, 3, 5].reduce((s, i, k) =>
+      s + [.299, .587, .114][k] * parseInt(th.accent.substr(i, 2), 16), 0) / 255;
+  const ov = {
+    accent: th.accent,
+    ground: lerpHex('#DBDEE5', th.accent, 0.12),
+    accentInk: lum > 0.6 ? '#221016' : '#FFFFFF',
+    paper: ovPaper,
+    soft: lerpHex(th.accent, '#FFFFFF', 0.4),
+    sel: lerpHex(ovPaper, th.accent, 0.14),
+    keyBg: lerpHex(ovPaper, th.accent, 0.1),
+    fg: 'rgb(34 16 22 / .92)',
+    mute: 'rgb(34 16 22 / .55)',
+    border: 'rgb(34 16 22 / .12)',
+    shadow: '0 14px 36px rgb(34 16 22 / .22)',
+  };
+  return {
+    ov,
+    ink: th.ink, paper: th.paper, accent: th.accent, soft: th.soft,
+    c1: lightT[0], c2: lightT[1], c3: lightT[2], c4: lightT[3],
+    markHero: onDark(170),
+    markDark: onDark(120), markLight: onLight(120), markAccent: flow('accent', monoT, th.ink, 120),
+    markLockup: onLight(44), markClear: onLight(64),
+    mark48: onLight(48), mark32: onLight(32), mark20: onLight(20),
+    markSocial: onDark(30), markSticker: onDark(64), markTiny: onDark(24), markEmail: onLight(40),
+    cardInk: cardGlow(darkT, th.ink, glow, amountDark),
+    cardPaper: cardGlow(lightT, base.paper, glow, amountLight),
+    cardAccent: cardGlow(monoT, th.accent, glow, amountLight),
+    tileInk: s => iconTile('ink', darkT, s, th.ink, '#2C2C2C', glow, amountDark),
+    tilePaper: s => iconTile('paper', lightT, s, th.ink, '#FFFFFF', glow, amountLight),
+    tileAccent: s => iconTile('accent', monoT, s, th.ink, th.accent, glow, amountLight),
+  };
+}
+
+// Section 08 draws real overlay parts rather than screenshots of them, so
+// every number below is the one overlay.css, commandbar.css and
+// toast-stack.css ship. Change one there and this page goes stale.
+const OV_ICONS = {
+  globe: '<circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c1.6 1.8 2.4 3.8 2.4 6S9.6 12.2 8 14C6.4 12.2 5.6 10.2 5.6 8S6.4 3.8 8 2Z"/>',
+  star: '<path d="m8 2.5 1.7 3.4 3.8.6-2.7 2.7.6 3.8L8 11.2l-3.4 1.8.6-3.8L2.5 6.5l3.8-.6L8 2.5Z"/>',
+  verb: '<path d="M2 8h12M9.5 4.5 13 8l-3.5 3.5"/>',
+  clock: '<circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/>',
+  room: '<rect x="2" y="3" width="12" height="10" rx="2"/><path d="M6 3v10"/>',
+  check: '<path d="m3 8.5 3.5 3.5L13 5"/>',
+  archive: '<path d="M3 5.5h10v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-7Z"/><path d="M2 3h12v2.5H2z"/><path d="M6.5 9h3"/>',
+  close: '<path d="m4 4 8 8M12 4l-8 8"/>',
+  search: '<circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/>',
+  pin: '<path d="M5.5 2h5M7 2v4.5L5 8.2c-.4.3-.6.8-.6 1.3h7.2c0-.5-.2-1-.6-1.3L9 6.5V2"/><path d="M8 10.5V14"/>',
+  gear: '<circle cx="8" cy="8" r="2.6"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M12.6 3.4l-1.4 1.4M4.8 11.2l-1.4 1.4"/>',
+  half: '<circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 0 0 12Z" fill="currentColor" stroke="none"/>',
+  grid: '<rect x="2" y="2.5" width="5" height="5" rx="1.4"/><rect x="9" y="2.5" width="5" height="5" rx="1.4"/><rect x="2" y="9" width="5" height="5" rx="1.4"/><rect x="9" y="9" width="5" height="5" rx="1.4"/>',
+  keys: '<rect x="1.8" y="4" width="12.4" height="8" rx="2"/><path d="M4.5 7h.01M7 7h.01M9.5 7h.01M5 9.5h6"/>',
+  swap: '<path d="M2 5h7l-2-2M14 11H7l2 2"/>',
+  info: '<circle cx="8" cy="8" r="6"/><path d="M8 7.2v4M8 5h.01"/>',
+};
+
+function ovIcon(name, color, size = 16) {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 16 16" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex: none;">${OV_ICONS[name]}</svg>`;
+}
+
+function ovKeys(ov, keys, push = 'auto') {
+  const cap = k => `<span style="min-width: 12px; padding: 3px 5px; border-radius: 6px; background: ${ov.keyBg}; color: ${ov.fg}; border-bottom: 2px solid ${ov.soft}; font: 600 11px/1 'Archivo', sans-serif; text-align: center;">${k}</span>`;
+  return `<span style="flex: none; margin-inline-start: ${push}; display: inline-flex; gap: 3px;">${keys.map(cap).join('')}</span>`;
+}
+
+function ovRow(ov, { icon, title, sub, keys, sel, subAccent }) {
+  return `<div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 11px; font: 500 13.5px 'Archivo', sans-serif; color: ${ov.fg};${sel ? ` background: ${ov.sel};` : ''}">`
+    + ovIcon(icon, ov.accent)
+    + `<span style="flex: 0 1 auto; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">${title}</span>`
+    + (sub ? `<span style="flex: ${subAccent ? '0 0 auto' : '1 1 auto'}; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: ${subAccent ? ov.accent : ov.mute}; font-size: 12.5px; font-weight: 400;">${sub}</span>` : '')
+    + (keys ? ovKeys(ov, keys) : '')
+    + '</div>';
+}
+
+// The caller's colour lands twice: as the 22px swatch and as a 45% ring
+// around the card. Nothing else in the toast carries it.
+function ovToast(ov, { color, icon, label, note, keys }) {
+  return `<div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; max-width: 360px; background: ${ov.paper}; color: ${ov.fg}; font: 400 13px 'Archivo', sans-serif; border-radius: 16px; box-shadow: ${ov.shadow}, 0 0 0 1px color-mix(in srgb, ${color} 45%, transparent);">`
+    + `<span style="flex: none; width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; background: ${color};">${ovIcon(icon, '#fff', 13)}</span>`
+    + `<span style="font-weight: 600; white-space: nowrap;">${label}</span>`
+    + `<span style="color: ${ov.mute}; font-size: 12px; white-space: nowrap;">${note}</span>`
+    + (keys ? ovKeys(ov, keys, '4px') : '')
+    + `<span style="flex: none; margin-inline-start: 4px; opacity: .6; display: flex;">${ovIcon('close', ov.fg, 13)}</span>`
+    + '</div>';
+}
+
+// Modifiers in the ⌃⌥⇧⌘ order the bindings are written in, so a split on
+// them is a split on keys and everything after the last one is a single cap.
+const MODIFIERS = ['⌃', '⌥', '⇧', '⌘'];
+
+function splitBinding(binding) {
+  const caps = [];
+  let rest = binding;
+  while (rest.length && MODIFIERS.includes(rest[0])) {
+    caps.push(rest[0]);
+    rest = rest.slice(1);
+  }
+  if (rest.length) {
+    caps.push(rest);
+  }
+  return caps;
+}
+
+// A context menu. sidebar-menu.js hangs .ov-card on the panel and .ov-row on
+// every item, so the only values here are the geometry sidebar.css adds: the
+// 128px floor, the 4px pad, the 1px gap and the rule's own margins.
+function ovMenu(ov, items, width) {
+  const rule = `<div style="height: 1px; margin: 3px 4px; background: ${ov.border};"></div>`;
+  const item = it => `<div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 11px; font-weight: 500; text-align: left;${it.on ? ` background: ${ov.sel};` : ''}${it.off ? ' opacity: .38;' : ''}">`
+    + (it.box ? `<span style="flex: none; width: 12px; height: 12px; border-radius: 3px; border: 1px solid ${ov.mute};"></span>` : '')
+    + `<span>${it.label}</span>`
+    + (it.binding ? ovKeys(ov, splitBinding(it.binding)) : '')
+    + '</div>';
+  return `<div style="min-width: 128px;${width ? `width: ${width}px; ` : ''}padding: 4px; display: flex; flex-direction: column; gap: 1px; background: ${ov.paper}; color: ${ov.fg}; font: 400 12.5px 'Archivo', sans-serif; border: 1px solid ${ov.border}; border-radius: 16px; box-shadow: ${ov.shadow};">`
+    + items.map(it => (it.label ? item(it) : rule)).join('')
+    + '</div>';
+}
+
+// The control set, as classes rather than inline styles, because these move.
+// The CSS lives in the head and is the same CSS the lab validated.
+function ovSwitch(ov, on) {
+  return `<span class="bb-sw${on ? ' on' : ''}"><i></i></span>`;
+}
+
+function ovSlider(ov, pct, value) {
+  return `<span class="bb-slider"><span class="track">`
+    + `<span class="fill" style="right: ${100 - pct}%;"></span>`
+    + `<span class="knob" style="inset-inline-start: ${pct}%;"></span></span>`
+    + `<span class="num">${value}</span></span>`;
+}
+
+// Up and down rather than a chevron down: it opens a menu over the row, it
+// does not expand downward.
+const OV_UPDOWN = '<svg viewBox="0 0 16 16"><path d="m4.5 6.5 3.5-3 3.5 3M4.5 9.5l3.5 3 3.5-3"/></svg>';
+
+function ovField(ov, value) {
+  return `<span class="bb-field"><span>${value}</span>${OV_UPDOWN}</span>`;
+}
+
+// Under three options the menu becomes a strip, because a two-item menu hides
+// half its content behind a click. --w is one column with the count resolved,
+// so the thumb needs no measuring.
+function ovSeg(ov, names, at) {
+  const w = `calc((100% - ${6 + (names.length - 1) * 3}px) / ${names.length})`;
+  return `<span class="bb-seg" style="--i: ${at}; --w: ${w};"><span class="thumb"></span>`
+    + names.map((n, i) => `<span class="${i === at ? 'on' : ''}">${n}</span>`).join('')
+    + '</span>';
+}
+
+// One .settings-row: the label column on the left, the control on the right,
+// a hairline under both. The control is whatever the caller hands over.
+function ovSetRow(ov, label, hint, control) {
+  return `<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 9px 0; border-bottom: 1px solid ${ov.border};">`
+    + `<span style="display: flex; flex-direction: column; gap: 2px;"><span>${label}</span>`
+    + (hint ? `<span style="font-size: 11px; opacity: .6;">${hint}</span>` : '')
+    + `</span>${control}</div>`;
+}
+
+// A radius swatch: the corner is the point, so the box is plain paper with
+// the value under it.
+function ovRadius(ov, px, name) {
+  return `<div style="display: flex; flex-direction: column; align-items: center; gap: 7px;">`
+    + `<div style="width: 54px; height: 54px; border-radius: ${px}px; background: ${ov.sel}; border: 1px solid ${ov.border};"></div>`
+    + `<span style="font: 400 11px 'IBM Plex Mono', monospace; color: #a09094;">${name} · ${px}</span></div>`;
+}
+
+const PAGE_WEAVE = 'repeating-linear-gradient(45deg, #faf7f6, #faf7f6 12px, #f1ebe9 12px, #f1ebe9 24px)';
+
+function template(v) {
+  const ov = v.ov;
+  return `
+<div style="max-width: 1120px; margin: 0 auto; padding: 0 40px 100px; display: flex; flex-direction: column; gap: 84px;">
+
+  <!-- COVER -->
+  <div style="background: ${v.ink}; border-radius: 0 0 28px 28px; padding: 100px 64px 84px; display: flex; flex-direction: column; align-items: center; gap: 30px; text-align: center;">
+    ${v.markHero}
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <div style="font: 500 72px 'Space Grotesk', sans-serif; letter-spacing: -2.5px; color: ${v.paper};">Atrium</div>
+      <div style="font: italic 400 28px 'Instrument Serif', serif; color: ${v.soft};">Where flow begins.</div>
+    </div>
+    <div style="font: 400 12px 'IBM Plex Mono', monospace; color: rgba(255,255,255,0.45); letter-spacing: 2px;">BRAND BOOK · V1 · JULY 2026</div>
+  </div>
+
+  <!-- STORY -->
+  <div style="display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 40px;">
+    <div style="font: 700 26px 'Space Grotesk', sans-serif;">01<br>The idea</div>
+    <div style="display: flex; flex-direction: column; gap: 18px;">
+      <div style="font: 400 26px/1.4 'Instrument Serif', serif; text-wrap: pretty;">An atrium is the room everything else opens onto — in a building, and in the heart. It's where things arrive before they move on.</div>
+      <div style="font: 400 16px/1.6 'Archivo', sans-serif; color: #6b5a5e; max-width: 640px; text-wrap: pretty;">Atrium the browser is that room for a developer's day: tabs, tasks, and ideas stream in, get sorted into workspaces, and flow onward as work. The mark is a murmuration — four flocks of small bodies turning about a centre that is empty, the way the room is. No two birds carry the same weight, and the shape holds anyway.</div>
+      <div style="display: flex; gap: 26px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font: 600 14px 'Archivo', sans-serif; color: ${v.accent};">Flow</span>
+          <span style="font: 400 13px 'Archivo', sans-serif; color: #6b5a5e;">Movement without friction</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font: 600 14px 'Archivo', sans-serif; color: ${v.accent};">Rooms</span>
+          <span style="font: 400 13px 'Archivo', sans-serif; color: #6b5a5e;">Workspaces with walls</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font: 600 14px 'Archivo', sans-serif; color: ${v.accent};">Pulse</span>
+          <span style="font: 400 13px 'Archivo', sans-serif; color: #6b5a5e;">A calm, steady center</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGO -->
+  <div style="display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 40px;">
+    <div style="font: 700 26px 'Space Grotesk', sans-serif;">02<br>Logo</div>
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
+        <div style="position: relative; overflow: hidden; background: ${v.ink}; border-radius: 16px; height: 210px; display: flex; align-items: center; justify-content: center;">${v.cardInk}<div style="position: relative; display: flex;">${v.markDark}</div></div>
+        <div style="position: relative; overflow: hidden; background: ${v.paper}; border-radius: 16px; height: 210px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(0,0,0,0.06);">${v.cardPaper}<div style="position: relative; display: flex;">${v.markLight}</div></div>
+        <div style="position: relative; overflow: hidden; background: ${v.accent}; border-radius: 16px; height: 210px; display: flex; align-items: center; justify-content: center;">${v.cardAccent}<div style="position: relative; display: flex;">${v.markAccent}</div></div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 16px; background: #ffffff; border-radius: 16px; padding: 26px;">
+        ${v.markLockup}
+        <span style="font: 500 38px 'Space Grotesk', sans-serif; letter-spacing: -1px;">Atrium</span>
+        <span style="margin-left: auto; font: 400 13px 'Archivo', sans-serif; color: #8a7a7e; max-width: 300px;">Primary lockup. Mark sits at cap height; gap equals the hub diameter. Never recreate the wordmark in another font.</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+        <div style="background: #ffffff; border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 14px;">
+          <span style="font: 600 14px 'Archivo', sans-serif;">Clear space &amp; minimum size</span>
+          <div style="display: flex; align-items: center; gap: 22px;">
+            <div style="border: 1px dashed ${v.accent}; border-radius: 10px; padding: 18px;">${v.markClear}</div>
+            <div style="display: flex; align-items: flex-end; gap: 14px;">${v.mark48}${v.mark32}${v.mark20}</div>
+          </div>
+          <span style="font: 400 13px 'Archivo', sans-serif; color: #8a7a7e;">Keep one hub-width of clear space. Below 20px, drop the cut shadows.</span>
+        </div>
+        <div style="background: #ffffff; border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 14px;">
+          <span style="font: 600 14px 'Archivo', sans-serif;">Don't</span>
+          <div style="display: flex; align-items: center; gap: 22px;">
+            <div style="transform: scaleX(1.5); opacity: 0.75;">${v.mark48}</div>
+            <div style="transform: rotate(45deg); opacity: 0.75;">${v.mark48}</div>
+            <div style="filter: grayscale(1); opacity: 0.75;">${v.mark48}</div>
+          </div>
+          <span style="font: 400 13px 'Archivo', sans-serif; color: #8a7a7e;">No stretching, no arbitrary rotation, no desaturating. The angle is part of the mark.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COLOR -->
+  <div style="display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 40px;">
+    <div style="font: 700 26px 'Space Grotesk', sans-serif;">03<br>Color</div>
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px;">
+        <div style="background: ${v.ink}; border-radius: 16px; height: 150px; padding: 18px; display: flex; flex-direction: column; justify-content: flex-end;">
+          <span style="font: 600 15px 'Archivo', sans-serif; color: ${v.paper};">Ink</span>
+          <span style="font: 400 12px 'IBM Plex Mono', monospace; color: rgba(255,255,255,0.6);">${v.ink} · chrome, text</span>
+        </div>
+        <div style="background: ${v.accent}; border-radius: 16px; height: 150px; padding: 18px; display: flex; flex-direction: column; justify-content: flex-end;">
+          <span style="font: 600 15px 'Archivo', sans-serif; color: #fff;">Accent</span>
+          <span style="font: 400 12px 'IBM Plex Mono', monospace; color: rgba(255,255,255,0.7);">${v.accent} · actions</span>
+        </div>
+        <div style="background: ${v.soft}; border-radius: 16px; height: 150px; padding: 18px; display: flex; flex-direction: column; justify-content: flex-end;">
+          <span style="font: 600 15px 'Archivo', sans-serif; color: #fff;">Soft</span>
+          <span style="font: 400 12px 'IBM Plex Mono', monospace; color: rgba(255,255,255,0.75);">${v.soft} · accents on ink</span>
+        </div>
+        <div style="background: ${v.paper}; border-radius: 16px; height: 150px; padding: 18px; display: flex; flex-direction: column; justify-content: flex-end; border: 1px solid rgba(0,0,0,0.06);">
+          <span style="font: 600 15px 'Archivo', sans-serif;">Paper</span>
+          <span style="font: 400 12px 'IBM Plex Mono', monospace; color: #8a8a84;">${v.paper} · surfaces</span>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px;">
+        <div style="background: ${v.c1}; border-radius: 16px; height: 84px; padding: 14px; display: flex; align-items: flex-end;"><span style="font: 400 11px 'IBM Plex Mono', monospace; color: rgba(0,0,0,0.55);">flow · coral</span></div>
+        <div style="background: ${v.c2}; border-radius: 16px; height: 84px; padding: 14px; display: flex; align-items: flex-end;"><span style="font: 400 11px 'IBM Plex Mono', monospace; color: rgba(0,0,0,0.55);">flow · amber</span></div>
+        <div style="background: ${v.c3}; border-radius: 16px; height: 84px; padding: 14px; display: flex; align-items: flex-end;"><span style="font: 400 11px 'IBM Plex Mono', monospace; color: rgba(0,0,0,0.55);">flow · teal</span></div>
+        <div style="background: ${v.c4}; border-radius: 16px; height: 84px; padding: 14px; display: flex; align-items: flex-end;"><span style="font: 400 11px 'IBM Plex Mono', monospace; color: rgba(0,0,0,0.55);">flow · leaf</span></div>
+      </div>
+      <div style="font: 400 13px 'Archivo', sans-serif; color: #8a7a7e;">The four flow colors are shared across every theme, tinted 5% toward the active accent — one family, many rooms. UI uses Ink/Accent/Paper only; flow colors are reserved for the mark, charts, and workspace identity.</div>
+    </div>
+  </div>
+
+  <!-- TYPE -->
+  <div style="display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 40px;">
+    <div style="font: 700 26px 'Space Grotesk', sans-serif;">04<br>Type</div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
+      <div style="background: #ffffff; border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 10px;">
+        <span style="font: 500 36px 'Space Grotesk', sans-serif; letter-spacing: -1px;">Space Grotesk</span>
+        <span style="font: 400 13px/1.55 'Archivo', sans-serif; color: #8a7a7e;">Display. Headlines, wordmark, numerals. Medium 500, tracking −2%.</span>
+      </div>
+      <div style="background: #ffffff; border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 10px;">
+        <span style="font: 500 36px 'Archivo', sans-serif;">Archivo</span>
+        <span style="font: 400 13px/1.55 'Archivo', sans-serif; color: #8a7a7e;">Workhorse. UI, body, labels. Regular &amp; Medium only.</span>
+      </div>
+      <div style="background: #ffffff; border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 10px;">
+        <span style="font: italic 400 36px 'Instrument Serif', serif; color: ${v.accent};">Instrument Serif</span>
+        <span style="font: 400 13px/1.55 'Archivo', sans-serif; color: #8a7a7e;">The voice. Tagline and editorial moments. Always italic, never UI.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- VOICE -->
+  <div style="display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 40px;">
+    <div style="font: 700 26px 'Space Grotesk', sans-serif;">05<br>Voice</div>
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+        <div style="background: #ffffff; border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 12px;">
+          <span style="font: 600 13px 'IBM Plex Mono', monospace; color: ${v.accent}; letter-spacing: 1px;">WE SAY</span>
+          <span style="font: 400 17px/1.6 'Archivo', sans-serif;">"Your workspaces are waiting."<br>"Pick up where the flow left off."<br>"One room for every kind of work."</span>
+        </div>
+        <div style="background: #ffffff; border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 12px;">
+          <span style="font: 600 13px 'IBM Plex Mono', monospace; color: #8a7a7e; letter-spacing: 1px;">WE DON'T SAY</span>
+          <span style="font: 400 17px/1.6 'Archivo', sans-serif; color: #8a7a7e;">"Supercharge your productivity!"<br>"The browser, reimagined."<br>"10x your workflow with AI."</span>
+        </div>
+      </div>
+      <div style="font: 400 13px 'Archivo', sans-serif; color: #8a7a7e;">Calm, concrete, spatial. Rooms, thresholds, currents — never hype. Sentence case everywhere, including buttons.</div>
+    </div>
+  </div>
+
+  <!-- APPLICATIONS -->
+  <div style="display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 40px;">
+    <div style="font: 700 26px 'Space Grotesk', sans-serif;">06<br>In the wild</div>
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px;">
+        <div style="background: ${v.ink}; border-radius: 16px; aspect-ratio: 1200/630; padding: 34px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 9px;">${v.markSocial}<span style="font: 500 17px 'Space Grotesk', sans-serif; color: ${v.paper};">Atrium</span></div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span style="font: 500 34px/1.1 'Space Grotesk', sans-serif; letter-spacing: -1px; color: ${v.paper};">Where flow begins.</span>
+            <span style="font: italic 400 16px 'Instrument Serif', serif; color: ${v.soft};">The multi-workspace browser · atrium.app</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <div style="flex: 1; background: #ffffff; border-radius: 16px; display: flex; align-items: center; justify-content: center; gap: 16px;">
+            <div style="filter: drop-shadow(0 5px 12px rgba(0,0,0,0.2)); display: flex;">${v.tileInk(96)}</div>
+            <div style="filter: drop-shadow(0 5px 12px rgba(0,0,0,0.12)); display: flex;">${v.tilePaper(96)}</div>
+          </div>
+          <div style="flex: 1; background: #ffffff; border-radius: 16px; display: flex; align-items: center; justify-content: center;">
+            <div style="width: 108px; height: 108px; border-radius: 50%; background: ${v.ink}; border: 5px solid ${v.accent}; display: flex; align-items: center; justify-content: center;">${v.markSticker}</div>
+          </div>
+        </div>
+      </div>
+      <div style="border-radius: 16px; overflow: hidden; border: 1px solid rgba(0,0,0,0.08); display: grid; grid-template-columns: 224px minmax(0, 1fr);">
+        <div style="background: ${v.ink}; padding: 14px; display: flex; flex-direction: column; gap: 13px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="display: flex; gap: 6px;">
+              <span style="width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.2); display: block;"></span>
+              <span style="width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.2); display: block;"></span>
+              <span style="width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.2); display: block;"></span>
+            </div>
+            <div style="margin-left: auto;">${v.markTiny}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.08); border-radius: 9px; padding: 7px 12px; font: 400 12px 'IBM Plex Mono', monospace; color: ${v.soft};">atrium.app/flow</div>
+          <div style="display: flex; flex-direction: column; gap: 5px;">
+            <span style="font: 500 13px 'Archivo', sans-serif; color: #fff; background: ${v.accent}; border-radius: 9px; padding: 8px 12px;">● Design</span>
+            <span style="font: 500 13px 'Archivo', sans-serif; color: rgba(255,255,255,0.65); border-radius: 9px; padding: 8px 12px;">○ Code</span>
+            <span style="font: 500 13px 'Archivo', sans-serif; color: rgba(255,255,255,0.65); border-radius: 9px; padding: 8px 12px;">○ Research</span>
+          </div>
+        </div>
+        <div style="background: repeating-linear-gradient(45deg, #faf7f6, #faf7f6 12px, #f1ebe9 12px, #f1ebe9 24px); min-height: 250px; display: flex; align-items: center; justify-content: center;">
+          <span style="font: 400 12px 'IBM Plex Mono', monospace; color: #a09094; background: rgba(255,255,255,0.85); padding: 5px 12px; border-radius: 6px;">workspace content</span>
+        </div>
+      </div>
+      <div style="background: #ffffff; border-radius: 16px; padding: 20px 26px; display: flex; align-items: center; gap: 16px;">
+        ${v.markEmail}
+        <div style="display: flex; flex-direction: column;">
+          <span style="font: 600 14px 'Archivo', sans-serif;">Sam Rivera</span>
+          <span style="font: 400 13px 'Archivo', sans-serif; color: #8a7a7e;">Design · Atrium</span>
+        </div>
+        <span style="margin-left: auto; font: italic 400 15px 'Instrument Serif', serif; color: ${v.accent};">Where flow begins.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- APP ICON -->
+  <div style="display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 40px;">
+    <div style="font: 700 26px 'Space Grotesk', sans-serif;">07<br>App icon</div>
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="font: 400 16px/1.6 'Archivo', sans-serif; color: #6b5a5e; max-width: 640px; text-wrap: pretty;">The mark on its tile, as the Dock shows it. The glow picker at the top right carries the ambilight page glow into the icon: the four arm colours bleed into the tile the way the page tint bleeds into the window edge. The mark geometry never changes.</div>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
+        <div style="background: #ffffff; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; border: 1px solid rgba(0,0,0,0.06);">${v.tileInk(160)}<span style="font: 400 12px 'IBM Plex Mono', monospace; color: #a09094;">ink · default</span></div>
+        <div style="background: #ffffff; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; border: 1px solid rgba(0,0,0,0.06);">${v.tilePaper(160)}<span style="font: 400 12px 'IBM Plex Mono', monospace; color: #a09094;">paper</span></div>
+        <div style="background: #ffffff; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; border: 1px solid rgba(0,0,0,0.06);">${v.tileAccent(160)}<span style="font: 400 12px 'IBM Plex Mono', monospace; color: #a09094;">accent</span></div>
+      </div>
+      <div style="background: linear-gradient(180deg, #d8d3cb, #c4beb3); border-radius: 16px; padding: 14px 20px; display: flex; align-items: flex-end; gap: 14px;">
+        ${v.tileInk(64)}${v.tileInk(48)}${v.tileInk(32)}
+        <span style="width: 1px; height: 48px; background: rgba(0,0,0,0.15);"></span>
+        ${v.tilePaper(64)}${v.tilePaper(48)}${v.tilePaper(32)}
+        <span style="width: 1px; height: 48px; background: rgba(0,0,0,0.15);"></span>
+        ${v.tileAccent(64)}${v.tileAccent(48)}${v.tileAccent(32)}
+        <span style="margin-left: auto; font: 400 12px 'IBM Plex Mono', monospace; color: #5c554d;">Dock · 64 / 48 / 32</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SURFACES -->
+  <div style="display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 40px;">
+    <div style="font: 700 26px 'Space Grotesk', sans-serif;">08<br>Surfaces</div>
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="font: 400 16px/1.6 'Archivo', sans-serif; color: #6b5a5e; max-width: 640px; text-wrap: pretty;">Everything that floats over a page is drawn from one stylesheet: the command bar, toasts, hints, permission sheets. It owns the colour, the radius, the type and the shadow. Each surface adds only its layout. The accent is the tint of the room the overlay opened in, so a card arrives already wearing the workspace's colour. Nothing else follows the theme. The ink is pinned at #221016, so contrast never rides on a tint someone picked.</div>
+
+      <div style="border-radius: 16px; overflow: hidden; border: 1px solid rgba(0,0,0,0.08); background: ${PAGE_WEAVE}; padding: 42px 0 48px; display: flex; justify-content: center;">
+        <div style="width: min(560px, 88%); display: flex; flex-direction: column; overflow: hidden; background: ${ov.paper}; color: ${ov.fg}; border: 1px solid ${ov.border}; border-radius: 16px; box-shadow: ${ov.shadow};">
+          <div style="display: flex; align-items: center;">
+            <span style="flex: 1 1 auto; padding: 12px 14px; font: 400 15px 'Archivo', sans-serif;">design</span>
+            <span style="margin-inline-end: 14px; padding: 2px 9px; border-radius: 12px; background: ${ov.sel}; color: ${ov.accent}; font: 400 11.5px 'Archivo', sans-serif;">Linear</span>
+          </div>
+          <div style="display: flex; flex-direction: column; padding: 5px; border-top: 1px solid ${ov.border};">
+            ${ovRow(ov, { icon: 'room', title: 'Design', sub: 'workspace · 12 tabs', keys: ['⌘', '⇧', 'D'], sel: true })}
+            ${ovRow(ov, { icon: 'globe', title: 'Atrium brand book', sub: 'figma.com/file/atrium-brand' })}
+            ${ovRow(ov, { icon: 'star', title: 'Design system notes', sub: 'favourite', subAccent: true })}
+            ${ovRow(ov, { icon: 'verb', title: 'Search Linear', sub: 'for design tokens', subAccent: true })}
+            ${ovRow(ov, { icon: 'clock', title: 'atrium.app/flow', sub: 'yesterday' })}
+          </div>
+          <div style="display: flex; justify-content: flex-end; align-items: center; gap: 14px; padding: 8px 12px; border-top: 1px solid ${ov.border}; color: ${ov.mute}; font: 400 12px 'Archivo', sans-serif;">
+            <span style="display: inline-flex; align-items: center;">Open${ovKeys(ov, ['⏎'], '6px')}</span>
+            <span style="display: inline-flex; align-items: center;">Actions${ovKeys(ov, ['⌘', 'K'], '6px')}</span>
+          </div>
+        </div>
+      </div>
+      <div style="font: 400 13px 'Archivo', sans-serif; color: #8a7a7e;">The command bar. 640px wide, opening at 18vh. It sits high because the card grows downward as matches arrive, and a centred one would jump on every keystroke. The list holds five rows and never resizes. The page behind it keeps full brightness: no dim, no scrim.</div>
+
+      <div style="border-radius: 16px; overflow: hidden; border: 1px solid rgba(0,0,0,0.08); background: ${PAGE_WEAVE}; padding: 30px 34px 34px; display: flex; align-items: flex-start; justify-content: center; gap: 30px;">
+        ${ovMenu(ov, [
+          { label: 'Copy Link', binding: '⇧⌘C' }, {},
+          { label: 'Rename' },
+          { label: 'Pin Tab', binding: '⌘D' },
+          { label: 'Snooze', on: true }, {},
+          { label: 'Duplicate' },
+          { label: 'Move to&hellip;' }, {},
+          { label: 'Put on Shelf' },
+          { label: 'Archive Tab', binding: '⌘W' },
+          { label: 'Archive Tabs Below' }, {},
+          { label: 'Close Tab' },
+        ], 208)}
+        <div style="display: flex; flex-direction: column; gap: 30px; margin-block-start: 96px;">
+          ${ovMenu(ov, [
+            { label: 'Alert me', box: true }, {},
+            { label: 'In 1 hour' },
+            { label: 'This evening' },
+            { label: 'Tomorrow morning' },
+            { label: 'Next Monday' },
+          ], 176)}
+          ${ovMenu(ov, [
+            { label: 'Change Space Icon', off: true },
+            { label: 'Change Space Name', off: true },
+            { label: 'Change Theme', off: true },
+            { label: 'Set Profile&hellip;' }, {},
+            { label: 'New Tab' },
+            { label: 'New Folder' },
+            { label: 'New Workspace', off: true },
+          ], 176)}
+        </div>
+      </div>
+      <div style="font: 400 13px 'Archivo', sans-serif; color: #8a7a7e;">A right-click menu is the overlay language with nothing added. The panel wears the card class and every item wears the row class, so the paper, the border, the corner and the shadow arrive without the menu naming one of them. Its own sheet supplies four numbers: a 128px floor, 4px of padding, a 1px gap, and the rule's 3px by 4px margins. An action with a shortcut ends its row with the same keycaps the command bar uses, one cap per modifier, read from the live binding rather than written into the label, so rebinding a key changes the menu with it. An action this build cannot perform yet sits at 38% rather than leaving the menu, so the shape of a menu never shifts under the pointer.</div>
+
+      <div style="position: relative; border-radius: 16px; overflow: hidden; border: 1px solid ${ov.border}; background: ${ov.ground}; color: ${ov.fg}; font: 400 13px 'Archivo', sans-serif; display: grid; grid-template-columns: 190px minmax(0, 1fr);">
+        <span class="bb-pin" style="position: absolute; inset-block-start: 12px; inset-inline-end: 14px; width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid ${ov.border}; border-radius: 11px; background: ${ov.accent}; color: ${ov.accentInk};" title="Keep this window above every other window">${ovIcon('pin', ov.accentInk, 15)}</span>
+        <nav style="display: flex; flex-direction: column; gap: 2px; padding: 14px 10px; border-inline-end: 1px solid ${ov.border};">
+          ${[['gear', 'General'], ['half', 'Appearance'], ['grid', 'Spaces'], ['search', 'Search engines'], ['star', 'AI'], ['keys', 'Inputs'], ['swap', 'Routing'], ['info', 'About']].map(([ic, title], i) =>
+            `<span class="bb-rail-item${i === 1 ? ' on' : ''}">${ovIcon(ic, 'currentColor')}<span>${title}</span></span>`).join('')}
+        </nav>
+        <div class="bb-body" style="padding: 24px 26px;">
+          <div style="font-size: 20px; font-weight: 600; margin: 0 0 14px;">Appearance</div>
+          ${[
+            ['The window', [
+              ['Page tint', 'Drift the window colour toward the page in front', ovSwitch(ov, true)],
+              ['Native app view', 'System neutral chrome instead of tinted glass', ovSwitch(ov, false)],
+              ['Glass opacity', 'How much of the desktop shows through', ovSlider(ov, 55, '0.55')],
+            ]],
+            ['Overlays', [
+              ['Overlay accent', "Overlay cards wear the brand colour or the space's tint", ovSeg(ov, ['brand', 'space'], 1)],
+            ]],
+            ['The backdrop', [
+              ['Night Shift', 'The backdrop follows the hour of the day', ovSwitch(ov, true)],
+              ['Weather', 'Drifts over the backdrop', ovField(ov, 'clear')],
+            ]],
+          ].map(([title, rows], gi) =>
+            `<div style="margin: ${gi ? '22px' : '0'} 0 7px 2px; color: ${ov.mute}; font: 600 11.5px 'Archivo', sans-serif; letter-spacing: .04em; text-transform: uppercase;">${title}</div>`
+            + `<div style="background: ${ov.paper}; border: 1px solid ${ov.border}; border-radius: 16px; overflow: hidden;">`
+            + rows.map(([label, hint, ctl], ri) =>
+                `<div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 11px 14px;${ri ? ` border-top: 1px solid ${ov.border};` : ''}">`
+                + `<span style="display: flex; flex-direction: column; gap: 2px;"><span>${label}</span>`
+                + `<span style="color: ${ov.mute}; font-size: 11.5px;">${hint}</span></span>`
+                + `<span style="flex: none;">${ctl}</span></div>`).join('')
+            + '</div>').join('')}
+        </div>
+      </div>
+      <div style="font: 400 13px 'Archivo', sans-serif; color: #8a7a7e;">Settings is the one full page in the browser's own chrome, so it keeps the overlay palette and swaps the geometry. Panes live on a left rail. A pane is three or four titled groups rather than one ladder, and only the group card carries a corner, so a group reads as one object instead of a stack of rows. Controls carry the state and the label never does. Anything the accent fills is a thing someone turned on. Staying on top is not a place to go, so its pin sits in the window's own corner rather than in the rail.</div>
+
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+        <div style="background: #ffffff; border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 16px;">
+          <span style="font: 600 14px 'Archivo', sans-serif;">Controls</span>
+          <div style="display: grid; grid-template-columns: auto 1fr; gap: 13px 18px; align-items: center; font: 400 12.5px 'Archivo', sans-serif; color: #8a7a7e;">
+            <span>${ovSwitch(ov, true)}</span><span>On and off. The track carries the colour, the knob never changes.</span>
+            <span>${ovSlider(ov, 55, '0.55')}</span><span>A value on a range. The number sits after the track, on the row's own line.</span>
+            <span>${ovField(ov, 'clear')}</span><span>A choice of three or more.</span>
+            <span>${ovSeg(ov, ['brand', 'space'], 1)}</span><span>A choice of two.</span>
+          </div>
+          <span style="font: 400 13px 'Archivo', sans-serif; color: #8a7a7e;">Four shapes cover every row. A control never spells its own state in words when the fill can say it, and no action is ever an underlined link.</span>
+        </div>
+        <div style="background: #ffffff; border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 14px;">
+          <span style="font: 600 14px 'Archivo', sans-serif;">Animation</span>
+          <div style="display: grid; grid-template-columns: auto 1fr; gap: 9px 16px; font: 400 12px 'IBM Plex Mono', monospace; color: #6b5a5e;">
+            <span>120ms</span><span>a control changing state, a surface expanding, a list opening</span>
+            <span>90ms</span><span>the press itself, a scale to .96 and back</span>
+            <span>160ms</span><span>a pane arriving after a rail change</span>
+            <span>220 / 250ms</span><span>a toast in, a toast out</span>
+          </div>
+          <span style="font: 400 13px 'Archivo', sans-serif; color: #8a7a7e;">One easing for all of it, cubic-bezier(.22, .61, .36, 1). Move the thing that carries the state and nothing else: a switch slides its knob and leaves it white, a segmented strip slides one thumb rather than repainting two halves, a list grows out of the field it belongs to, a pane fades and lifts 4px rather than sliding in from the side. Nothing flashes to report that a value was saved, because the control has already moved and a second signal reads as a glitch. Every one of these stops under a reduced-motion setting, and the end state is the same either way.</span>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div style="flex: 1; border-radius: 16px; border: 1px solid rgba(0,0,0,0.08); background: ${PAGE_WEAVE}; padding: 20px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+            ${ovToast(ov, { color: v.c4, icon: 'check', label: 'Moved to Research', note: '3 tabs', keys: ['⌘', 'Z'] })}
+            ${ovToast(ov, { color: v.c2, icon: 'archive', label: 'Archived', note: 'figma.com' })}
+          </div>
+          <span style="font: 400 13px 'Archivo', sans-serif; color: #8a7a7e;">Toasts stack from the top right, 8px apart, and rise 10px as they fade in. Each one takes its caller's colour twice, as the swatch and as a 45% ring. Nothing else in the card carries it.</span>
+        </div>
+        <div style="background: #ffffff; border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 16px;">
+          <span style="font: 600 14px 'Archivo', sans-serif;">The radius ladder</span>
+          <div style="display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap;">
+            ${ovRadius(ov, 16, 'card')}${ovRadius(ov, 12, 'chip')}${ovRadius(ov, 11, 'row')}${ovRadius(ov, 10, 'compact float')}${ovRadius(ov, 8, 'anchor')}${ovRadius(ov, 7, 'swatch')}
+          </div>
+          <span style="font: 400 13px 'Archivo', sans-serif; color: #8a7a7e;">Large cards and notification toasts round at 16, matching the macOS 27 window silhouette. Short floating strips — the floating address bar, mouse hints, and hovered-URL status — use 10 so they do not collapse into pills; rows stay at 11. Below the row the corners keep shrinking: swatch 7, icon tile 5, favicon 4, dot 3. The anchor radius belongs to the docked address bar, which the command bar borrows when it opens on top of it.</span>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+        <div style="background: #ffffff; border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 14px;">
+          <span style="font: 600 14px 'Archivo', sans-serif;">Motion</span>
+          <div style="display: flex; flex-direction: column; gap: 8px; font: 400 12px 'IBM Plex Mono', monospace; color: #6b5a5e;">
+            <span>expand · 120ms · cubic-bezier(.22, .61, .36, 1)</span>
+            <span>toast in · 220ms · ease-out · scale .93, +10px</span>
+            <span>toast out · 250ms · ease</span>
+          </div>
+          <span style="font: 400 13px 'Archivo', sans-serif; color: #8a7a7e;">One easing for every expand, so surfaces that open together move together. An anchored command bar starts as the row it was clicked on and grows into a card. It never drops on top of one.</span>
+        </div>
+        <div style="background: #ffffff; border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 14px;">
+          <span style="font: 600 14px 'Archivo', sans-serif;">Native chrome</span>
+          <div style="display: flex; flex-direction: column; padding: 5px; background: #F6F6F6; border: 1px solid rgba(0,0,0,0.1); border-radius: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; background: #2B6DE8; color: #fff; font: 500 13.5px -apple-system, system-ui, sans-serif;">
+              ${ovIcon('globe', '#fff')}<span>Atrium brand book</span>
+              <span style="margin-inline-start: auto; font: 400 12px -apple-system, system-ui, sans-serif;">⌘K</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; font: 500 13.5px -apple-system, system-ui, sans-serif; color: rgb(28 28 30 / .92);">
+              ${ovIcon('clock', 'rgb(28 28 30 / .55)')}<span>atrium.app/flow</span>
+            </div>
+          </div>
+          <span style="font: 400 13px 'Archivo', sans-serif; color: #8a7a7e;">Users who want the system look get it from the same token names: the window's own grey, the system font and blue, tighter corners, plain keycaps. Every surface follows without a line of its own.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>`;
+}
+
+const select = document.getElementById('theme-select');
+Object.keys(themes).forEach(name => {
+  const opt = document.createElement('option');
+  opt.value = name; opt.textContent = name;
+  select.appendChild(opt);
+});
+
+const glowSelect = document.getElementById('glow-select');
+const glowDark = document.getElementById('glow-dark');
+const glowLight = document.getElementById('glow-light');
+
+function apply(name) {
+  const v = renderVals(themes[name], glowSelect.value, glowDark.value / 100, glowLight.value / 100);
+  // The live controls are styled by class, so their tokens have to reach CSS
+  // rather than being interpolated into a style attribute like the rest.
+  for (const [key, value] of Object.entries(v.ov)) {
+    document.documentElement.style.setProperty(
+        `--bb-${key.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())}`, value);
+  }
+  document.getElementById('root').innerHTML = template(v);
+}
+
+select.addEventListener('change', () => apply(select.value));
+glowSelect.addEventListener('change', () => apply(select.value));
+glowDark.addEventListener('input', () => apply(select.value));
+glowLight.addEventListener('input', () => apply(select.value));
+// Delegated on #root and registered once: the theme picker rebuilds the whole
+// tree, and a listener added per render would stack and run each click twice.
+const WEATHER = ['clear', 'cloudy', 'rain', 'snow'];
+const TICK = '<svg viewBox="0 0 16 16"><path d="m3 8.5 3.5 3.5L13 5"/></svg>';
+let dragging = null;
+
+function closeList() {
+  document.querySelector('.bb-menu')?.remove();
+}
+
+function setSliderTo(track, clientX) {
+  const box = track.getBoundingClientRect();
+  const pct = Math.min(100, Math.max(0, (clientX - box.left) / box.width * 100));
+  track.querySelector('.fill').style.right = `${100 - pct}%`;
+  track.querySelector('.knob').style.insetInlineStart = `${pct}%`;
+  track.parentElement.querySelector('.num').textContent =
+      (0.02 + pct / 100 * 0.98).toFixed(2);
+}
+
+let fieldSeq = 0;
+
+function openList(field) {
+  // Assigned before it is compared: read while still unset it matches the
+  // undefined owner of a menu that is not there, and the first click closes
+  // instead of opening.
+  field.dataset.id = field.dataset.id || `f${++fieldSeq}`;
+  const reopening = document.querySelector('.bb-menu')?.dataset.owner === field.dataset.id;
+  closeList();
+  if (reopening) {
+    return;
+  }
+  const label = field.firstElementChild;
+  const menu = document.createElement('div');
+  menu.className = 'bb-menu';
+  menu.dataset.owner = field.dataset.id;
+  for (const name of WEATHER) {
+    const item = document.createElement('div');
+    item.className = 'bb-menu-item';
+    item.innerHTML = `<span>${name}</span>`
+        + `<span class="tick">${name === label.textContent ? TICK : ''}</span>`;
+    item.addEventListener('click', (event) => {
+      event.stopPropagation();
+      label.textContent = name;
+      closeList();
+    });
+    menu.appendChild(item);
+  }
+  document.body.appendChild(menu);
+  const box = field.getBoundingClientRect();
+  menu.style.left = `${box.left + scrollX}px`;
+  menu.style.top = `${box.bottom + scrollY + 5}px`;
+  menu.style.minWidth = `${box.width}px`;
+}
+
+const root = document.getElementById('root');
+
+root.addEventListener('click', (event) => {
+  const sw = event.target.closest('.bb-sw');
+  if (sw) {
+    sw.classList.toggle('on');
+    return;
+  }
+  const segItem = event.target.closest('.bb-seg > span:not(.thumb)');
+  if (segItem) {
+    const seg = segItem.parentElement;
+    seg.querySelector('span.on')?.classList.remove('on');
+    segItem.classList.add('on');
+    seg.style.setProperty('--i', [...seg.children].indexOf(segItem) - 1);
+    return;
+  }
+  const field = event.target.closest('.bb-field');
+  if (field) {
+    openList(field);
+    return;
+  }
+  const railItem = event.target.closest('.bb-rail-item');
+  if (railItem) {
+    const rail = railItem.parentElement;
+    rail.querySelector('.on')?.classList.remove('on');
+    railItem.classList.add('on');
+    const body = rail.parentElement.querySelector('.bb-body');
+    body.firstElementChild.textContent = railItem.lastElementChild.textContent;
+    body.classList.remove('swap');
+    void body.offsetWidth;
+    body.classList.add('swap');
+  }
+});
+
+root.addEventListener('pointerdown', (event) => {
+  const track = event.target.closest('.bb-slider .track');
+  if (!track) {
+    return;
+  }
+  dragging = track;
+  track.classList.add('dragging');
+  setSliderTo(track, event.clientX);
+  // Otherwise the drag selects the labels either side of the track.
+  event.preventDefault();
+});
+
+// On the document, so a drag that leaves the track still moves the value.
+document.addEventListener('pointermove', (event) => {
+  if (dragging) {
+    setSliderTo(dragging, event.clientX);
+  }
+});
+
+document.addEventListener('pointerup', () => {
+  dragging?.classList.remove('dragging');
+  dragging = null;
+});
+
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('.bb-menu') && !event.target.closest('.bb-field')) {
+    closeList();
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    closeList();
+  }
+});
+
+select.value = 'Crimson';
+apply('Crimson');
+</script>
+</body>
+</html>

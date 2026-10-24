@@ -1,0 +1,51 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Fri, 28 Aug 2026 16:39:18 +0200
+Subject: [PATCH 081/154] feat(hotkeys): Cmd+D pins the shown tab, and Cmd+1..9
+ open the favourites
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Cmd+D: the core shipped pinToggleTab on cmd+d since the hotkey store was
+written, so the Inputs pane listed it while no native row ran it and the
+key reached Bookmark This Tab. A regular row pins through
+atrium_core_pin_tab_by_tab_id, a pinned row unpins through
+atrium_core_unpin_tab, the two entry points the drag-drop path uses.
+
+Cmd+1..9: no action claimed the digits, so they reached IDC_SELECT_TAB_N
+and picked a tab of the shared strip, whose order is open order across
+every space. The core now binds goToSidebarItem1..8 and
+goToSidebarItemLast to the chords and drops the goToSpaceN rows that
+nothing ever ran. The action re-enters the favourite tile's own click
+message, so live, cross-space and cold tiles behave as a click.
+
+One commit for both: they share the enum, the table and the route file
+at line level.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 5091ff156e2c7..1bbfe5a50ae92 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -633,6 +633,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:edit_focus_gate",
+     "//chrome/browser/ui/atrium:external_link",
+     "//chrome/browser/ui/atrium:extension_popup_watchdog_policy",
++    "//chrome/browser/ui/atrium:favorite_slot",
+     "//chrome/browser/ui/atrium:hibernate_bridge",
+     "//chrome/browser/ui/atrium:little_marker",
+     "//chrome/browser/ui/atrium:little_window_registry",
+@@ -643,6 +644,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:tab_cycle",
+     "//chrome/browser/ui/atrium:tab_recency_bridge",
+     "//chrome/browser/ui/atrium:peek_decision",
++    "//chrome/browser/ui/atrium:pin_toggle",
+     "//chrome/browser/ui/atrium:pinch_gesture_decision",
+     "//chrome/browser/ui/atrium:restore_plan",
+     "//chrome/browser/ui/atrium:sidebar_drop_decision",

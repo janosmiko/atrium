@@ -1,0 +1,83 @@
+{
+  "name": "labcmp-impl",
+  "description": "the IMPLEMENTATION half of the side-by-side, on the same fixture and the same gesture as labcmp-lab. The page it shows is a plain fixture rather than the lab, so the capture holds Atrium's own sidebar and nothing else. Captures only; the comparison is a person reading the paired frames, because a pixel diff between two surfaces that were never pixel-identical would be noise. Also captures the Overview through cmd+shift+o, so the two Overviews can be read against each other.",
+  "fixture": "lab-compare.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the same wait its partner takes, so neither side is caught mid-load"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "capture",
+      "id": "rest",
+      "duration_ms": 600,
+      "fps": 10,
+      "note": "the implementation at rest: sidebar, tab rows, dots bar"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+o",
+      "note": "toggleOverview, the binding the hotkeys store carries"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "the Overview builds its sections on open"
+    },
+    {
+      "type": "capture",
+      "id": "overview",
+      "duration_ms": 600,
+      "fps": 10,
+      "note": "Atrium's Overview, to read against the lab's own"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: the browser window alone. This read 2 while Overview was a separate widget over the page. That widget is retired and the rail's leading pane is the only Overview, the way the lab has it, so a second window here would mean the widget is back."
+    },
+    {
+      "type": "region_mean",
+      "capture": "overview",
+      "x": 500,
+      "y": 400,
+      "w": 300,
+      "h": 60,
+      "min_mean": 200,
+      "max_mean": 255,
+      "label": "the-page-stays-visible-beside-overview",
+      "desc": "The whole point of the task: the user reported three times that opening Overview covered the page. The page here is white, so anything drawn over it pulls the mean down. ax_window_count above catches Overview returning as a second WINDOW - this catches it returning as an overlay inside one. Measured 254.0 with Overview open, against 222.5 under the retired widget.",
+      "note": "Not 300,600,400,60, which would read the foot of the Overview WINDOW. That window is gone, so the old region lands on the page and can only read white."
+    },
+    {
+      "type": "region_mean",
+      "capture": "overview",
+      "x": 90,
+      "y": 600,
+      "w": 260,
+      "h": 60,
+      "min_mean": 5,
+      "max_mean": 160,
+      "label": "overview-really-opened-in-the-sidebar",
+      "desc": "The presence half, without which the check above passes just as well when Overview never opens at all. This is the foot of the widened sidebar: measured 122.7 with the Overview pane parked there and 185.6 at rest, so the band excludes rest. The floor of 5 stops a black frame - a capture that never rendered - from passing."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

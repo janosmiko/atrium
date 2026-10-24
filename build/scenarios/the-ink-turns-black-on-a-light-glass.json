@@ -1,0 +1,59 @@
+{
+  "name": "the-ink-turns-black-on-a-light-glass",
+  "description": "With page tint on and a white page under the glass, the backdrop is too light for white ink, so the window pushes black and the address field's text follows. The window's own log names the pick, and the field's computed colour is the reading.",
+  "fixture": "icon-tint-none.spaces.json",
+  "settings": "page-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: glass ink black",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "eval_until",
+      "id": "field-ink",
+      "target": "/sidebar",
+      "expression": "getComputedStyle(document.querySelector('#sbUrl')).color",
+      "expected": "rgba(0, 0, 0, 0.92)",
+      "timeout_ms": 8000,
+      "note": "The address field reads the pushed ink."
+    },
+    {
+      "type": "capture",
+      "id": "black-ink",
+      "duration_ms": 200,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: glass ink black",
+      "label": "the-window-picked-black",
+      "desc": "The check ran on the tint and picked black."
+    },
+    {
+      "type": "eval_equals",
+      "id": "field-ink",
+      "expected": "rgba(0, 0, 0, 0.92)",
+      "desc": "The address field's text is black."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

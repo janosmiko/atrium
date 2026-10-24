@@ -1,0 +1,98 @@
+{
+  "name": "minimal-sidebar-keeps-back-and-forward",
+  "description": "At the minimum sidebar width (kMinSidebarWidth 160, controls budget 64) the nav row shows back and forward with the overflow menu, and the hide-sidebar toggle is the control that yields - it keeps Cmd+S and gets a menu row. Before this rung existed the row showed the toggle plus back only, so forward had no pointer path at the width a narrow sidebar spends its life at. Pure live-page evals: the fixture pins the width, the row's ResizeObserver runs the ladder, and the menu is opened for real to check the toggle's row is in it.",
+  "fixture": "minimal-sidebar-nav-row.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "30000000-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "example-domain.html?n1",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/example-domain.html?n1"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "row-width",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.sbnav'); if (!row) return 'NOROW'; return 'w:' + Math.round(row.getBoundingClientRect().width); })()",
+      "note": "the setup holds: the sidebar really sits at its minimum, not at a comfortable width where every button fits anyway"
+    },
+    {
+      "type": "eval",
+      "id": "visible-buttons",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.sbnav'); if (!row) return 'NOROW'; return [...row.querySelectorAll('.nb')].filter((b) => !b.classList.contains('navgone')).map((b) => [...b.classList].find((c) => c.startsWith('sb'))).join(','); })()"
+    },
+    {
+      "type": "eval",
+      "id": "menu-rows",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.sbnav'); const more = row?.querySelector('.sbmore'); if (!more) return 'NOMORE'; more.click(); const items = [...row.querySelectorAll('.navmenu .ctxitem')].map((n) => n.textContent).join(','); row.querySelector('.sbmore')?.click(); return items; })()",
+      "note": "opened for real, not inferred from the ladder: the shed toggle must land in the menu or Hide sidebar has no pointer path at all"
+    },
+    {
+      "type": "eval",
+      "id": "fwd-rect",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbfwd'); if (!b) return 'NOFWD'; const r = b.getBoundingClientRect(); return JSON.stringify([Math.round(r.x + r.width / 2), Math.round(r.y + r.height / 2)]); })()",
+      "note": "page-space centre of the forward button, to correct the click below when it misses (screen = page + 0,+35 on this VM)"
+    },
+    {
+      "type": "eval",
+      "id": "arm-clicks",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.sbnav'); if (!row) return 'NOROW'; window.__navclick = 'none'; row.addEventListener('click', (e) => { if (!e.isTrusted) return; const b = e.target.closest('.nb'); window.__navclick = b ? [...b.classList].find((c) => c.startsWith('sb')) : 'row'; }, true); return 'ARMED'; })()"
+    },
+    {
+      "type": "click",
+      "x": 121,
+      "y": 55,
+      "note": "the forward button's screen position: page centre [121,20] from the fwd-rect eval, +35 window offset"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "clicked",
+      "target": "/sidebar",
+      "expression": "window.__navclick || 'NOSTATE'"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "visible-buttons",
+      "expected": "\"sbback,sbfwd,sbmore\"",
+      "desc": "THE RULE: at the minimum width the row keeps back and forward, and the toggle is the control that yields"
+    },
+    {
+      "type": "eval_equals",
+      "id": "menu-rows",
+      "expected": "\"Reload,Hide sidebar\"",
+      "desc": "the two shed controls are both reachable from the overflow menu"
+    },
+    {
+      "type": "eval_equals",
+      "id": "clicked",
+      "expected": "\"sbfwd\"",
+      "desc": "a real pointer press lands on forward - the carve covers the widened group, the click is not a window drag"
+    }
+  ]
+}

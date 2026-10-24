@@ -1,0 +1,78 @@
+{
+  "name": "peek-auto-pinned",
+  "description": "an off-site link click from a pinned tab opens a peek card instead of navigating that tab away.\n\nThe fixture holds one page in BOTH the pinned list and the tab list, on purpose. Pinned rows are cold tiles and never restore - launch::startup_tab_of says so and explains why - so a pinned row alone would give the scenario no live tab to click in. Listing it in both restores it as the regular tab while the document still has its URL pinned, which is exactly what the query under test asks about.\n\nThe link target is a different HOST, not just a different port. 127.0.0.1:8000 and 127.0.0.1:8081 share an eTLD+1, and auto-peek navigates same-site links in place on purpose, so a port change would prove nothing.\n\nBoth assertions were measured on a run that sent NO click: the peek line was absent, and so was any navigation to example.org. Neither can pass without the click.",
+  "fixture": "peek-auto.spaces.json",
+  "startup_space": "55555555-5555-5555-5555-555555555555",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "peek-auto-pinned.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-auto-pinned.html",
+      "timeout_ms": 25000,
+      "note": "gate: the pinned page really committed as the startup tab"
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "let the page paint and the sidebar settle"
+    },
+    {
+      "type": "activate",
+      "note": "Atrium frontmost so a synthetic click would land on it"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the pinned page, no card yet"
+    },
+    {
+      "type": "click",
+      "x": 343,
+      "y": 285,
+      "note": "THE MEASUREMENT: the off-site link, at a coordinate read off the measurement run's frame rather than derived from assumed chrome widths"
+    },
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "let the posted task run and the card open"
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence of the peek card"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "note": "the browser window AND the card. The card reports subrole AXUnknown - it is a borderless child window, not an AXStandardWindow - and measured 596x626 at 319,56. One window here means no card opened"
+    },
+    {
+      "type": "vlog",
+      "label": "peek-opened-from-a-pinned-tab",
+      "pattern": "Atrium: peek widget showing for parent",
+      "note": "measured ABSENT on the run that sent no click, so this line can only come from the click"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "the-pinned-tab-did-not-navigate",
+      "pattern": "Atrium: tab [0-9]+ url http://dl\\.localhost",
+      "note": "The pinned tab must not follow the off-site link - the peek card takes it. dl.localhost is a DIFFERENT origin that the harness still serves, which is what makes this a real test: pointed at a remote page the assertion passed because nothing could load, and pointed at the same origin it passed because the link was no longer off-site at all."
+    }
+  ]
+}

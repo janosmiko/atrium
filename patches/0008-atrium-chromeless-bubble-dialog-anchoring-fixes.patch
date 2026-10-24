@@ -1,0 +1,556 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 23 Jul 2026 13:18:23 +0200
+Subject: [PATCH 008/154] atrium: chromeless bubble/dialog anchoring fixes
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../sharing_hub_window_controller.cc          | 14 ++-
+ .../ui/views/bubble_anchor_util_views.cc      | 21 +++++
+ .../file_system_access_usage_bubble_view.cc   | 35 +++++++-
+ .../ui/views/hats/hats_next_web_dialog.cc     | 17 ++--
+ chrome/browser/ui/views/interaction/BUILD.gn  |  6 ++
+ .../browser_elements_views_impl.cc            | 13 ++-
+ .../interaction/browser_elements_views_impl.h |  6 ++
+ .../media_router/cast_dialog_coordinator.cc   | 19 +++-
+ .../passwords/password_bubble_view_base.cc    |  4 +
+ .../ui/views/permissions/chooser_bubble_ui.cc | 21 ++++-
+ .../send_tab_to_self_bubble_controller.cc     | 20 ++++-
+ .../fedcm_account_selection_view_desktop.cc   | 88 ++++++++++++++++++-
+ .../ambient/ambient_signin_controller.cc      | 13 ++-
+ 13 files changed, 252 insertions(+), 25 deletions(-)
+
+diff --git a/chrome/browser/ui/sharing_hub/sharing_hub_window_controller.cc b/chrome/browser/ui/sharing_hub/sharing_hub_window_controller.cc
+index dd8784f81c36e..f33141e76d0cd 100644
+--- a/chrome/browser/ui/sharing_hub/sharing_hub_window_controller.cc
++++ b/chrome/browser/ui/sharing_hub/sharing_hub_window_controller.cc
+@@ -42,8 +42,14 @@ SharingHubWindowController::~SharingHubWindowController() = default;
+ #if !BUILDFLAG(IS_CHROMEOS)
+ SharingHubBubbleView* SharingHubWindowController::ShowSharingHubBubble(
+     share::ShareAttempt attempt) {
++  // Atrium: a chromeless window never registers a ToolbarButtonProvider, so
++  // From() returns null here (reachable via IDC_SHARING_HUB). Fall back to
++  // an empty anchor rather than crashing; BubbleDialogDelegate already
++  // supports an unanchored bubble for this case.
++  ToolbarButtonProvider* button_provider = ToolbarButtonProvider::From(&*browser_);
+   views::BubbleAnchor anchor =
+-      ToolbarButtonProvider::From(&*browser_)->GetBubbleAnchor(std::nullopt);
++      button_provider ? button_provider->GetBubbleAnchor(std::nullopt)
++                       : views::BubbleAnchor();
+   auto bubble = std::make_unique<SharingHubBubbleViewImpl>(
+       anchor, attempt,
+       SharingHubBubbleController::CreateOrGetFromWebContents(
+@@ -62,8 +68,12 @@ ScreenshotCapturedBubble*
+ SharingHubWindowController::ShowScreenshotCapturedBubble(
+     content::WebContents* contents,
+     const gfx::Image& image) {
++  // Atrium: same chromeless null-ToolbarButtonProvider guard as
++  // ShowSharingHubBubble() above.
++  ToolbarButtonProvider* button_provider = ToolbarButtonProvider::From(&*browser_);
+   views::BubbleAnchor anchor =
+-      ToolbarButtonProvider::From(&*browser_)->GetBubbleAnchor(std::nullopt);
++      button_provider ? button_provider->GetBubbleAnchor(std::nullopt)
++                       : views::BubbleAnchor();
+   auto bubble = std::make_unique<ScreenshotCapturedBubble>(
+       anchor, contents, image,
+       Profile::FromBrowserContext(contents->GetBrowserContext()));
+diff --git a/chrome/browser/ui/views/bubble_anchor_util_views.cc b/chrome/browser/ui/views/bubble_anchor_util_views.cc
+index fdf8dfc8f4d94..89df49e5f06b7 100644
+--- a/chrome/browser/ui/views/bubble_anchor_util_views.cc
++++ b/chrome/browser/ui/views/bubble_anchor_util_views.cc
+@@ -35,6 +35,17 @@ AnchorConfiguration GetPageInfoAnchorConfiguration(
+   auto* location_bar_view =
+       browser_view ? browser_view->GetLocationBarView() : nullptr;
+ 
++  // Atrium: a chromeless window has no BrowserView/LocationBar/toolbar, so
++  // every anchor path below unconditionally dereferences one of them (e.g.
++  // location_bar_view->IsDrawn(), browser_view->toolbar()) and null-derefs -
++  // a permission prompt (geolocation, notifications, camera/mic) crashed the
++  // browser here. Return an empty configuration, the function's own
++  // documented "fall back to a default corner position" contract, so the
++  // bubble anchors to a window corner instead of crashing.
++  if (!browser_view || !location_bar_view) {
++    return {};
++  }
++
+   if (base::FeatureList::IsEnabled(
+           content_settings::features::kLeftHandSideActivityIndicators) &&
+       location_bar_view) {
+@@ -162,6 +173,16 @@ gfx::Rect GetPageInfoAnchorRect(BrowserWindowInterface* browser) {
+   DCHECK(GetPageInfoAnchorConfiguration(browser).anchor.IsNull());
+ 
+   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
++  // Atrium: a chromeless window has no BrowserView, so the GetMirroredXInView
++  // deref below null-crashes (the sibling of the GetPageInfoAnchorConfiguration
++  // guard - a permission prompt reaches here once that returns an empty
++  // anchor). Anchor the bubble to the window's top-leading corner instead of
++  // crashing; the caller has already parented it to the window.
++  if (!browser_view) {
++    gfx::Rect window_bounds =
++        browser->GetBrowserForMigrationOnly()->window()->GetBounds();
++    return gfx::Rect(window_bounds.origin(), gfx::Size());
++  }
+   // Get position in view (taking RTL UI into account).
+   int x_within_browser_view = browser_view->GetMirroredXInView(
+       bubble_anchor_util::kNoToolbarLeftOffset);
+diff --git a/chrome/browser/ui/views/file_system_access/file_system_access_usage_bubble_view.cc b/chrome/browser/ui/views/file_system_access/file_system_access_usage_bubble_view.cc
+index 1782866697c4d..61277db1ad954 100644
+--- a/chrome/browser/ui/views/file_system_access/file_system_access_usage_bubble_view.cc
++++ b/chrome/browser/ui/views/file_system_access/file_system_access_usage_bubble_view.cc
+@@ -461,8 +461,21 @@ void FileSystemAccessUsageBubbleView::ShowBubble(
+     return;
+   }
+ 
++  // Atrium (defensive): a chromeless window has no BrowserView, so the
++  // toolbar_button_provider() deref below would crash. Reachability of this
++  // path in Atrium is unconfirmed; guard it anyway rather than crash.
++  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
++  if (!browser_view) {
++    return;
++  }
++  // Atrium: toolbar_button_provider() registration is conditional even when
++  // browser_view is non-null (see toolbar_view.cc), so it can still be null
++  // here. No provider means no anchor to show the bubble from.
+   ToolbarButtonProvider* button_provider =
+-      BrowserView::GetBrowserViewForBrowser(browser)->toolbar_button_provider();
++      browser_view->toolbar_button_provider();
++  if (!button_provider) {
++    return;
++  }
+ 
+   // Writable files or directories are generally also readable, but we don't
+   // want to display the same path twice. So filter out any writable paths from
+@@ -552,10 +565,24 @@ std::u16string FileSystemAccessUsageBubbleView::GetAccessibleWindowTitle()
+     return {};
+   }
+ 
++  // Atrium (defensive): same chromeless null-BrowserView guard as
++  // ShowBubble() above.
++  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
++  if (!browser_view) {
++    return {};
++  }
++
++  // Atrium: toolbar_button_provider() can also be null here (registration
++  // is conditional, see toolbar_view.cc), and GetPageActionViewInterface()
++  // itself may return null (e.g. in system web app windows). Fall back to the
++  // same empty title used for the other missing-anchor cases above.
++  ToolbarButtonProvider* button_provider =
++      browser_view->toolbar_button_provider();
++  if (!button_provider) {
++    return {};
++  }
+   auto* page_action_view =
+-      BrowserView::GetBrowserViewForBrowser(browser)
+-          ->toolbar_button_provider()
+-          ->GetPageActionViewInterface(kActionShowFileSystemAccess);
++      button_provider->GetPageActionViewInterface(kActionShowFileSystemAccess);
+   if (!page_action_view) {
+     return {};
+   }
+diff --git a/chrome/browser/ui/views/hats/hats_next_web_dialog.cc b/chrome/browser/ui/views/hats/hats_next_web_dialog.cc
+index bb71e8cb4d09c..32352ecb3ac62 100644
+--- a/chrome/browser/ui/views/hats/hats_next_web_dialog.cc
++++ b/chrome/browser/ui/views/hats/hats_next_web_dialog.cc
+@@ -84,13 +84,20 @@ void LogUmaHistogramSparse(
+ }
+ 
+ views::BubbleAnchor GetBubbleAnchor(BrowserWindowInterface* browser) {
++  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
++  // Chromeless Atrium windows have no BrowserView, so this can be
++  // null here - HaTS surveys are launched off the active tab's WebContents
++  // (HatsServiceDesktop::LaunchSurveyForWebContents), not gated on a
++  // toolbar-bearing window. Degrade to the same anchor-less BubbleAnchor()
++  // already returned below when there's no app menu button to anchor to.
++  if (!browser_view) {
++    return views::BubbleAnchor();
++  }
+   if (browser->GetType() == BrowserWindowInterface::Type::TYPE_DEVTOOLS) {
+-    return views::BubbleAnchor(
+-        BrowserView::GetBrowserViewForBrowser(browser)->top_container());
++    return views::BubbleAnchor(browser_view->top_container());
+   }
+-  auto* control = BrowserView::GetBrowserViewForBrowser(browser)
+-                      ->toolbar_button_provider()
+-                      ->GetAppMenuControl();
++  auto* control =
++      browser_view->toolbar_button_provider()->GetAppMenuControl();
+   return control ? control->GetAnchor() : views::BubbleAnchor();
+ }
+ 
+diff --git a/chrome/browser/ui/views/interaction/BUILD.gn b/chrome/browser/ui/views/interaction/BUILD.gn
+index b0a987bfc86f1..2a985e51782aa 100644
+--- a/chrome/browser/ui/views/interaction/BUILD.gn
++++ b/chrome/browser/ui/views/interaction/BUILD.gn
+@@ -22,6 +22,12 @@ source_set("impl") {
+     "browser_elements_views_impl.h",
+   ]
+   public_deps = [ ":interaction" ]
++
++  # Dependency-free query of the Atrium cross-profile in-window
++  # swap widget override - see atrium_feature_check.h's
++  # GetTabModalDialogHostOverride doc. Mirrors tab_features.cc's existing use
++  # of the same ":headers" target for IsAtriumBrowserWindowEnabled().
++  deps = [ "//chrome/browser/ui/atrium:headers" ]
+ }
+ 
+ source_set("browser_tests") {
+diff --git a/chrome/browser/ui/views/interaction/browser_elements_views_impl.cc b/chrome/browser/ui/views/interaction/browser_elements_views_impl.cc
+index 68b3b24638f5f..cfbc4ffbb15c0 100644
+--- a/chrome/browser/ui/views/interaction/browser_elements_views_impl.cc
++++ b/chrome/browser/ui/views/interaction/browser_elements_views_impl.cc
+@@ -4,6 +4,7 @@
+ 
+ #include "chrome/browser/ui/views/interaction/browser_elements_views_impl.h"
+ 
++#include "chrome/browser/ui/atrium/atrium_feature_check.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
+ #include "ui/base/interaction/element_identifier.h"
+@@ -15,7 +16,7 @@ DEFINE_SAFE_CAST_SUBCLASS(BrowserElementsViewsImpl, BrowserElementsViews)
+ 
+ BrowserElementsViewsImpl::BrowserElementsViewsImpl(
+     BrowserWindowInterface& browser)
+-    : BrowserElementsViews(browser) {}
++    : BrowserElementsViews(browser), browser_(browser) {}
+ 
+ BrowserElementsViewsImpl::~BrowserElementsViewsImpl() = default;
+ 
+@@ -35,6 +36,16 @@ ui::ElementContext BrowserElementsViewsImpl::GetContext() {
+ }
+ 
+ views::Widget* BrowserElementsViewsImpl::GetPrimaryWindowWidget() {
++  // On Atrium, this instance's own widget can be hidden while a
++  // different profile's window presents this Browser's WebContents (a
++  // cross-profile in-window swap) - see the hook's doc for why anchoring a
++  // tab-modal dialog to it would be invisible to the user. Null (and this
++  // check itself) is a no-op on every other BrowserWindow, including
++  // non-Atrium Chromium builds.
++  if (views::Widget* override_widget =
++          atrium::GetTabModalDialogHostOverride(&*browser_)) {
++    return override_widget;
++  }
+   return context_view_ ? context_view_->GetWidget() : nullptr;
+ }
+ 
+diff --git a/chrome/browser/ui/views/interaction/browser_elements_views_impl.h b/chrome/browser/ui/views/interaction/browser_elements_views_impl.h
+index b8255caf371fb..f0010eb951ab2 100644
+--- a/chrome/browser/ui/views/interaction/browser_elements_views_impl.h
++++ b/chrome/browser/ui/views/interaction/browser_elements_views_impl.h
+@@ -6,6 +6,7 @@
+ #define CHROME_BROWSER_UI_VIEWS_INTERACTION_BROWSER_ELEMENTS_VIEWS_IMPL_H_
+ 
+ #include "base/memory/raw_ptr.h"
++#include "base/memory/raw_ref.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
+ #include "ui/base/interaction/element_identifier.h"
+@@ -32,6 +33,11 @@ class BrowserElementsViewsImpl : public BrowserElementsViews {
+   void TearDown() override;
+   bool IsInitialized() const override;
+ 
++  // Kept so GetPrimaryWindowWidget() can query
++  // atrium::GetTabModalDialogHostOverride(), which needs the
++  // BrowserWindowInterface this instance was constructed for -
++  // BrowserElements/BrowserElementsViews don't expose it back to subclasses.
++  const raw_ref<BrowserWindowInterface> browser_;
+   raw_ptr<views::View> context_view_ = nullptr;
+ };
+ 
+diff --git a/chrome/browser/ui/views/media_router/cast_dialog_coordinator.cc b/chrome/browser/ui/views/media_router/cast_dialog_coordinator.cc
+index 59a7a0af01584..9394011548ad0 100644
+--- a/chrome/browser/ui/views/media_router/cast_dialog_coordinator.cc
++++ b/chrome/browser/ui/views/media_router/cast_dialog_coordinator.cc
+@@ -35,6 +35,14 @@ void CastDialogCoordinator::ShowDialogWithToolbarAction(
+     MediaRouterDialogActivationLocation activation_location,
+     AfterShownCallback after_shown_callback) {
+   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
++  // MediaRouterDialogControllerViews::CreateMediaRouterDialog
++  // already null-checks GetBrowserViewForBrowser before routing here, so
++  // this is currently unreachable on chromeless Atrium windows. Guard
++  // defensively anyway rather than relying on that caller invariant.
++  if (!browser_view) {
++    std::move(after_shown_callback).Run(ShowCastDialogStatus::kWindowClosed);
++    return;
++  }
+   browser_view->toolbar_button_provider()
+       ->GetPinnedToolbarActions()
+       ->GetBubbleAnchorAsync(
+@@ -84,8 +92,15 @@ void CastDialogCoordinator::ShowDialogCenteredForBrowserWindow(
+     const base::Time& start_time,
+     MediaRouterDialogActivationLocation activation_location,
+     AfterShownCallback after_shown_callback) {
+-  Show(views::BubbleAnchor(
+-           BrowserView::GetBrowserViewForBrowser(browser)->top_container()),
++  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
++  // Same upstream-guarded invariant as ShowDialogWithToolbarAction
++  // above - defensive guard against a null BrowserView on chromeless
++  // Atrium windows rather than relying on the caller having checked first.
++  if (!browser_view) {
++    std::move(after_shown_callback).Run(ShowCastDialogStatus::kWindowClosed);
++    return;
++  }
++  Show(views::BubbleAnchor(browser_view->top_container()),
+        views::BubbleBorder::TOP_CENTER, controller, browser->GetProfile(),
+        start_time, activation_location, nullptr,
+        std::move(after_shown_callback));
+diff --git a/chrome/browser/ui/views/passwords/password_bubble_view_base.cc b/chrome/browser/ui/views/passwords/password_bubble_view_base.cc
+index c28dcec8a16dc..d69a9d5fbc5c2 100644
+--- a/chrome/browser/ui/views/passwords/password_bubble_view_base.cc
++++ b/chrome/browser/ui/views/passwords/password_bubble_view_base.cc
+@@ -67,6 +67,10 @@ void PasswordBubbleViewBase::ShowBubble(content::WebContents* web_contents,
+   DCHECK(!g_manage_passwords_bubble_ ||
+          !g_manage_passwords_bubble_->GetWidget()->IsVisible());
+ 
++  // Atrium: a chromeless window has no BrowserView/toolbar_button_provider,
++  // so a null provider is expected here (reachable via the form-submit
++  // auto-popup path). There is no toolbar surface to anchor a save-password
++  // bubble to in that case, so skip showing it instead of crashing.
+   auto* button_provider = ToolbarButtonProvider::From(browser);
+   if (!button_provider) {
+     // TODO(crbug.com/520672542): Support password bubble in WebUI Browser.
+diff --git a/chrome/browser/ui/views/permissions/chooser_bubble_ui.cc b/chrome/browser/ui/views/permissions/chooser_bubble_ui.cc
+index 3a205edd3a87e..176f6678fa6e6 100644
+--- a/chrome/browser/ui/views/permissions/chooser_bubble_ui.cc
++++ b/chrome/browser/ui/views/permissions/chooser_bubble_ui.cc
+@@ -239,11 +239,26 @@ base::OnceClosure ShowDeviceChooserDialogForExtension(
+     return base::DoNothing();
+   }
+ 
++  // Atrium: a chromeless window has no BrowserView, so the
++  // toolbar_button_provider() deref below would crash. Mirror the
++  // null-ExtensionsToolbar guard just below: no BrowserView means no
++  // extensions toolbar to show the chooser widget from either.
++  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
++  if (!browser_view) {
++    return base::DoNothing();
++  }
++
++  // Atrium: toolbar_button_provider() registration is conditional even when
++  // browser_view is non-null (see toolbar_view.cc), so it can still be null
++  // here. No provider means no extensions toolbar either.
++  ToolbarButtonProvider* button_provider = browser_view->toolbar_button_provider();
++  if (!button_provider) {
++    return base::DoNothing();
++  }
++
+   // `GetExtensionsToolbarDesktop` may return `nullptr`, for instance in
+   // extension popup windows.
+-  auto* extensions_toolbar = BrowserView::GetBrowserViewForBrowser(browser)
+-                                 ->toolbar_button_provider()
+-                                 ->GetExtensionsToolbarDesktop();
++  auto* extensions_toolbar = button_provider->GetExtensionsToolbarDesktop();
+   if (!extensions_toolbar) {
+     return base::DoNothing();
+   }
+diff --git a/chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_bubble_controller.cc b/chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_bubble_controller.cc
+index 13207f8db2d08..1932dd12dac93 100644
+--- a/chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_bubble_controller.cc
++++ b/chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_bubble_controller.cc
+@@ -125,8 +125,14 @@ void SendTabToSelfBubbleController::ShowBubbleImpl(
+                          browser_weak_ptr));
+       return;
+     }
+-    anchor = ToolbarButtonProvider::From(browser)->GetBubbleAnchor(
+-        kActionSendTabToSelf);
++    // Atrium: a chromeless window never registers a ToolbarButtonProvider,
++    // so From() can return null here (reachable via the context-menu "Send
++    // to Your Devices" entry). Leave `anchor` at its default-constructed,
++    // unanchored value instead of crashing.
++    if (ToolbarButtonProvider* button_provider =
++            ToolbarButtonProvider::From(browser)) {
++      anchor = button_provider->GetBubbleAnchor(kActionSendTabToSelf);
++    }
+   }
+ 
+   ShowBubbleWithAnchor(reason, browser_weak_ptr, std::move(anchor));
+@@ -142,8 +148,14 @@ void SendTabToSelfBubbleController::ShowBubbleWithAnchor(
+     }
+     // PinnedToolbarActions failed to find an anchor. Try ToolbarButtonProvider
+     // as it has fallback anchor logic.
+-    auto new_anchor = ToolbarButtonProvider::From(browser.get())
+-                          ->GetBubbleAnchor(kActionSendTabToSelf);
++    // Atrium: a chromeless window never registers a ToolbarButtonProvider,
++    // so From() can return null here. Bail out instead of crashing.
++    ToolbarButtonProvider* button_provider =
++        ToolbarButtonProvider::From(browser.get());
++    if (!button_provider) {
++      return;
++    }
++    auto new_anchor = button_provider->GetBubbleAnchor(kActionSendTabToSelf);
+     if (new_anchor.IsNull()) {
+       return;
+     }
+diff --git a/chrome/browser/ui/views/webid/fedcm_account_selection_view_desktop.cc b/chrome/browser/ui/views/webid/fedcm_account_selection_view_desktop.cc
+index b3ac15220750b..94360f6aab9be 100644
+--- a/chrome/browser/ui/views/webid/fedcm_account_selection_view_desktop.cc
++++ b/chrome/browser/ui/views/webid/fedcm_account_selection_view_desktop.cc
+@@ -13,6 +13,7 @@
+ #include "base/metrics/histogram_functions.h"
+ #include "base/metrics/histogram_macros.h"
+ #include "base/strings/utf_string_conversions.h"
++#include "build/build_config.h"
+ #include "chrome/browser/actor/actor_util.h"
+ #include "chrome/browser/net/system_network_context_manager.h"
+ #include "chrome/browser/ui/actions/chrome_action_id.h"
+@@ -51,6 +52,10 @@
+ #include "ui/views/widget/widget.h"
+ #include "ui/views/window/dialog_delegate.h"
+ 
++#if BUILDFLAG(IS_MAC)
++#include "chrome/browser/ui/atrium/atrium_fedcm_anchor_hook.h"
++#endif  // BUILDFLAG(IS_MAC)
++
+ namespace {
+ 
+ // We could have a situation where the WebContents with an actor task opens a
+@@ -196,6 +201,25 @@ void FedCmAccountSelectionView::ShowDialogWidget() {
+     return;
+   }
+ 
++#if BUILDFLAG(IS_MAC)
++  // The FedCM dialog is shown via TabDialogManager::ShowDialog,
++  // which dereferences GetHostWidget()->ShouldPaintAsActive()
++  // (chrome/browser/ui/tabs/tab_dialog_manager.cc) with no null check.
++  // GetHostWidget() resolves BrowserElementsViews::GetPrimaryWindowWidget(),
++  // which is null on a chromeless Atrium window - so showing here crashes
++  // (SIGSEGV) the moment a live FedCM request is re-shown, e.g. on tab
++  // activation via the TabStripModel observer. This is the modal sibling of
++  // the bubble-anchor bail; fail closed (skip the dialog)
++  // rather than crash. Real BrowserView windows always resolve a host widget,
++  // so they never take this branch.
++  if (auto* features = tab_->GetTabFeatures()) {
++    if (auto* manager = features->tab_dialog_manager();
++        manager && !manager->GetHostWidget()) {
++      return;
++    }
++  }
++#endif  // BUILDFLAG(IS_MAC)
++
+   input_protector_->VisibilityChanged(true);
+   auto params = std::make_unique<tabs::TabDialogManager::Params>();
+   params->close_on_navigate = true;
+@@ -657,6 +681,17 @@ void FedCmAccountSelectionView::CreateOrUpdateViewAndWidget(
+                          rp_mode, &dialog_type_);
+   }
+   dialog_widget_ = CreateDialogWidget();
++  if (!dialog_widget_) {
++    // CreateDialogWidget's Atrium teardown-race bail (see its
++    // comment) - no anchor was resolvable. Give up on this dialog attempt
++    // cleanly instead of dereferencing a null widget: same reset CloseWidget
++    // uses to drop an un-widget-owned view, then notify the delegate the
++    // same way Show()'s `!tab_` early-out above does.
++    account_selection_view_ = nullptr;
++    parked_dialog_view_.reset();
++    delegate_->OnDismiss(DismissReason::kOther);
++    return;
++  }
+   dialog_widget_->MakeCloseSynchronous(base::BindOnce(
+       &FedCmAccountSelectionView::OnUserClosedDialog, base::Unretained(this)));
+ }
+@@ -1129,10 +1164,28 @@ std::unique_ptr<views::Widget> FedCmAccountSelectionView::CreateDialogWidget() {
+   std::unique_ptr<views::Widget> dialog_widget;
+   CHECK(account_selection_view_);
+   if (dialog_type_ == DialogType::BUBBLE) {
++    views::View* anchor_view = GetAnchorView();
++#if BUILDFLAG(IS_MAC)
++    // GetAnchorView's Atrium fallback (see its comment) covers
++    // the common case, but AtriumBrowserWindow::GetAutofillBubbleAnchor
++    // itself falls back to an unanchored BubbleAnchor during the narrow
++    // !root_view_ teardown window (atrium_browser_window.mm:3606-3619) -
++    // a real race, not a bug, but one this crash fix must not reintroduce.
++    // A still-null anchor here would hit the identical
++    // has_parent()-but-no-anchor_widget() DCHECK in CreateBubbleWidget
++    // (ui/views/bubble/bubble_dialog_delegate_view.cc), just with a
++    // smaller repro window. Bail out cleanly instead - no bubble for this
++    // one request rather than a crash. Real BrowserView windows always
++    // resolve a non-null anchor via the stock RetrieveView path in
++    // GetAnchorView, so they never take this branch.
++    if (!anchor_view) {
++      return nullptr;
++    }
++#endif  // BUILDFLAG(IS_MAC)
+     widget_delegate_ = std::make_unique<AccountSelectionBubbleDelegate>(
+         base::WrapUnique(views::AsViewClass<AccountSelectionBubbleView>(
+             parked_dialog_view_.release())),
+-        GetAnchorView());
++        anchor_view);
+     dialog_widget =
+         base::WrapUnique(views::BubbleDialogDelegate::CreateBubbleDeprecated(
+             widget_delegate_.get()->AsBubbleDialogDelegate(),
+@@ -1205,8 +1258,29 @@ FedCmAccountSelectionView::GetURLLoaderFactory() {
+ }
+ 
+ views::View* FedCmAccountSelectionView::GetAnchorView() {
+-  return BrowserElementsViews::From(tab_->GetBrowserWindowInterface())
+-      ->RetrieveView(kActiveContentsWebViewRetrievalId);
++  views::View* anchor_view =
++      BrowserElementsViews::From(tab_->GetBrowserWindowInterface())
++          ->RetrieveView(kActiveContentsWebViewRetrievalId);
++#if BUILDFLAG(IS_MAC)
++  // kActiveContentsWebViewRetrievalId is only ever registered by
++  // BrowserWindowFeatures::InitPostBrowserViewConstruction, which runs
++  // solely for BrowserView-backed windows - so the lookup above always
++  // misses on a chromeless Atrium window. Returning null here would leave
++  // the bubble's anchor_view null and crash at CreateBubbleWidget's
++  // has_parent()-but-no-anchor_widget() DCHECK (ui/views/bubble/
++  // bubble_dialog_delegate_view.cc) as soon as a page calls
++  // navigator.credentials.get({identity: ...}) - no user gesture required.
++  // Fall back to the same "active content pane" anchor
++  // AtriumBrowserWindow::GetAutofillBubbleAnchor already uses for the
++  // identical toolbar-less reason. GetFedCmFallbackAnchorView no-ops (returns
++  // null, same as the lookup above) for a non-Atrium Browser, so real
++  // BrowserView windows are unaffected.
++  if (!anchor_view) {
++    anchor_view =
++        atrium::GetFedCmFallbackAnchorView(tab_->GetBrowserWindowInterface());
++  }
++#endif  // BUILDFLAG(IS_MAC)
++  return anchor_view;
+ }
+ 
+ AccountSelectionViewBase* FedCmAccountSelectionView::CreateDialogView(
+@@ -1420,6 +1494,14 @@ void FedCmAccountSelectionView::UpdateDialogVisibilityAndPosition() {
+   if (should_show_dialog) {
+     if (!dialog_widget_) {
+       dialog_widget_ = CreateDialogWidget();
++      if (!dialog_widget_) {
++        // Same Atrium teardown-race bail as
++        // CreateOrUpdateViewAndWidget - see CreateDialogWidget's comment.
++        account_selection_view_ = nullptr;
++        parked_dialog_view_.reset();
++        delegate_->OnDismiss(DismissReason::kOther);
++        return;
++      }
+       dialog_widget_->MakeCloseSynchronous(
+           base::BindOnce(&FedCmAccountSelectionView::OnUserClosedDialog,
+                          base::Unretained(this)));
+diff --git a/chrome/browser/ui/webauthn/ambient/ambient_signin_controller.cc b/chrome/browser/ui/webauthn/ambient/ambient_signin_controller.cc
+index 685ee9a304b51..81cf2758ef909 100644
+--- a/chrome/browser/ui/webauthn/ambient/ambient_signin_controller.cc
++++ b/chrome/browser/ui/webauthn/ambient/ambient_signin_controller.cc
+@@ -144,8 +144,19 @@ void AmbientSigninController::ShowBubbleView() {
+   }
+   BrowserWindowInterface* browser =
+       GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(web_contents);
++  if (!browser) {
++    return;
++  }
++  // Chromeless Atrium windows have no BrowserView (and thus no
++  // toolbar_button_provider) to anchor this autofill-style bubble to.
++  // Fail closed rather than deref a null BrowserView - no toolbar button
++  // exists there for the bubble to point at anyway.
++  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
++  if (!browser_view) {
++    return;
++  }
+   ToolbarButtonProvider* button_provider =
+-      BrowserView::GetBrowserViewForBrowser(browser)->toolbar_button_provider();
++      browser_view->toolbar_button_provider();
+   auto anchor = button_provider->GetBubbleAnchor(std::nullopt);
+ 
+   if (!ambient_signin_bubble_view_) {

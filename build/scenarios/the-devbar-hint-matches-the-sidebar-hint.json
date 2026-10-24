@@ -1,0 +1,185 @@
+{
+  "name": "the-devbar-hint-matches-the-sidebar-hint",
+  "description": "the floating address bar's hover hint and a sidebar row's hover hint, compared for font, padding, radius, shadow and colour. hint.js's hideHint() runs at the top of every showHint(), so only one hint bubble ever exists at a time - there is no way to put both on screen in the same frame. The honest reading of 'side by side' is two captures taken under identical conditions (same fixture, same tint, same ambilight-off setting, same button label 'Back') and compared by eye, not a single frame. The sidebar's own back/forward/reload group is removed from its row while the devbar is up (setNavGroupInRow), so the sidebar hint is captured FIRST, before Cmd+Shift+D brings the devbar up for the second capture. Both hovers land on the shared .sbback button built by buildNavGroup, so the label and hotkey text are identical either way - the only thing left to differ is the bubble's own style.",
+  "fixture": "icon-tint-none.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "startup_space": "437b0002-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "hover-sidebar-back",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbnav .nb.sbback'); if (!b) { return 'no-button'; } b.dispatchEvent(new PointerEvent('pointerover', {bubbles: true})); return 'hovered'; })()",
+      "note": "the sidebar's own back/forward/reload group is still in the row here - the devbar has not been opened yet"
+    },
+    {
+      "type": "settle",
+      "ms": 900,
+      "note": "past HOVER_DELAY_MS (600ms) in hint-triggers.js"
+    },
+    {
+      "type": "eval_until",
+      "id": "sidebar-hint-text",
+      "target": "/hint",
+      "expression": "String((document.querySelector('.hint .hint-text') || {}).textContent || 'no hint')",
+      "expected": "Back",
+      "timeout_ms": 6000,
+      "note": "element-anchored, so the sidebar route sends this through chrome.send to HintOverlayWidget's own /hint document rather than rendering locally"
+    },
+    {
+      "type": "eval_until",
+      "id": "sidebar-hint-has-width",
+      "target": "/hint",
+      "expression": "String(document.querySelector('.hint').getBoundingClientRect().width > 0)",
+      "expected": "true",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "eval_until",
+      "id": "sidebar-hint-has-background",
+      "target": "/hint",
+      "expression": "String(getComputedStyle(document.querySelector('.hint')).backgroundColor !== 'rgba(0, 0, 0, 0)')",
+      "expected": "true",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "capture",
+      "id": "sidebar-hint",
+      "duration_ms": 300,
+      "fps": 20
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d",
+      "note": "Developer Mode: brings up the floating address bar and moves back/forward/reload onto it"
+    },
+    {
+      "type": "eval_until",
+      "id": "devbar-back-ready",
+      "target": "/devbar",
+      "expression": "String(!!document.querySelector('.dvnav .nb.sbback'))",
+      "expected": "true",
+      "timeout_ms": 8000,
+      "note": "buildNavGroup builds the same .sbback button onto the devbar once it lands"
+    },
+    {
+      "type": "eval",
+      "id": "hover-devbar-back",
+      "target": "/devbar",
+      "expression": "(() => { const b = document.querySelector('.dvnav .nb.sbback'); if (!b) { return 'no-button'; } b.dispatchEvent(new PointerEvent('pointerover', {bubbles: true})); return 'hovered'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 900,
+      "note": "past HOVER_DELAY_MS (600ms) in hint-triggers.js"
+    },
+    {
+      "type": "eval_until",
+      "id": "devbar-hint-text",
+      "target": "/hint",
+      "expression": "String((document.querySelector('.hint .hint-text') || {}).textContent || 'no hint')",
+      "expected": "Back",
+      "timeout_ms": 6000,
+      "note": "The devbar route also sends this through chrome.send to HintOverlayWidget's own /hint document, the same shared canvas the sidebar hint just rendered on"
+    },
+    {
+      "type": "eval_until",
+      "id": "devbar-hint-has-width",
+      "target": "/hint",
+      "expression": "String(document.querySelector('.hint').getBoundingClientRect().width > 0)",
+      "expected": "true",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "eval_until",
+      "id": "devbar-hint-has-background",
+      "target": "/hint",
+      "expression": "String(getComputedStyle(document.querySelector('.hint')).backgroundColor !== 'rgba(0, 0, 0, 0)')",
+      "expected": "true",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "capture",
+      "id": "devbar-hint",
+      "duration_ms": 300,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hover-sidebar-back",
+      "expected": "\"hovered\"",
+      "desc": "the sidebar's Back button was found and hovered before the devbar came up"
+    },
+    {
+      "type": "eval_equals",
+      "id": "sidebar-hint-text",
+      "expected": "Back",
+      "desc": "The sidebar hint bubble carries the button's label"
+    },
+    {
+      "type": "eval_equals",
+      "id": "sidebar-hint-has-width",
+      "expected": "true",
+      "desc": "The sidebar hint renders at a real width, not clipped to nothing"
+    },
+    {
+      "type": "eval_equals",
+      "id": "sidebar-hint-has-background",
+      "expected": "true",
+      "desc": "The sidebar hint paints a surface, not a transparent box"
+    },
+    {
+      "type": "eval_equals",
+      "id": "devbar-back-ready",
+      "expected": "true",
+      "desc": "the devbar came up and rebuilt the shared .sbback button"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hover-devbar-back",
+      "expected": "\"hovered\"",
+      "desc": "the devbar's Back button was found and hovered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "devbar-hint-text",
+      "expected": "Back",
+      "desc": "The devbar hint bubble carries the same label as the sidebar's, rendered through the shared overlay"
+    },
+    {
+      "type": "eval_equals",
+      "id": "devbar-hint-has-width",
+      "expected": "true",
+      "desc": "The devbar hint renders at a real width, not clipped to nothing"
+    },
+    {
+      "type": "eval_equals",
+      "id": "devbar-hint-has-background",
+      "expected": "true",
+      "desc": "The devbar hint paints a surface, not a transparent box"
+    }
+  ]
+}

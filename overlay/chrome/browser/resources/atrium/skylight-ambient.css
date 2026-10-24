@@ -1,0 +1,24 @@
+/* Copyright 2026 The Atrium Authors */
+
+/* the space background's ambient breathing loop, ported
+   verbatim from swipe-lab.html:958-961. */
+
+/* full-bleed so day-cycle's background paint fills the route
+   root instead of sizing to (empty) content, matching swipe-lab.html:34. */
+.bglayer {
+  position: absolute;
+  inset: 0;
+}
+
+.skyambient .bglayer {
+  animation: ambdrift 26s ease-in-out infinite alternate;
+}
+
+@keyframes ambdrift {
+  from { transform: scale(1.04) translate(-0.6%,-0.5%); }
+  to { transform: scale(1.07) translate(0.7%,0.6%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skyambient .bglayer { animation: none; }
+}

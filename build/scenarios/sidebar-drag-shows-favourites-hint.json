@@ -1,0 +1,57 @@
+{
+  "name": "sidebar-drag-shows-favourites-hint",
+  "description": "The empty favourites grid's hint text stays hidden and out of the way at rest, appears centred in the grid only while a tab row is being dragged, and hides again whether the drag ends in a drop or a plain dragend. Read back with getComputedStyle rather than a class check, since the lifecycle class is JS but the visibility and centring it drives are CSS.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "hint-box",
+      "target": "/sidebar",
+      "expression": "(() => { const grid = document.querySelector('.favgrid'); const hint = grid && grid.querySelector('.favhint'); if (!grid || !hint) { return 'missing dom'; } const box = getComputedStyle(grid); const rest = getComputedStyle(hint).display; return 'rest=' + rest + ' box-display=' + box.display + ' align=' + box.alignItems + ' justify=' + box.justifyContent; })()",
+      "note": "The empty grid's own box does the centring (flex plus align/justify center), read once before any drag touches it."
+    },
+    {
+      "type": "eval",
+      "id": "hint-lifecycle",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.rows > .tabrow'); const grid = document.querySelector('.favgrid'); const hint = grid && grid.querySelector('.favhint'); if (!row || !grid || !hint) { return 'missing dom'; } const restDisplay = getComputedStyle(hint).display; const dt1 = new DataTransfer(); row.dispatchEvent(new DragEvent('dragstart', {bubbles: true, cancelable: true, dataTransfer: dt1})); const duringDrop = getComputedStyle(hint).display; grid.dispatchEvent(new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer: dt1})); grid.dispatchEvent(new DragEvent('drop', {bubbles: true, cancelable: true, dataTransfer: dt1})); const afterDrop = getComputedStyle(hint).display; const dt2 = new DataTransfer(); row.dispatchEvent(new DragEvent('dragstart', {bubbles: true, cancelable: true, dataTransfer: dt2})); const duringEnd = getComputedStyle(hint).display; row.dispatchEvent(new DragEvent('dragend', {bubbles: true, cancelable: true, dataTransfer: dt2})); const afterEnd = getComputedStyle(hint).display; return 'rest=' + restDisplay + ' duringDrop=' + duringDrop + ' afterDrop=' + afterDrop + ' duringEnd=' + duringEnd + ' afterEnd=' + afterEnd; })()",
+      "note": "Two lifecycles in one pass: the first ends in a drop onto the grid itself, the second in a dragend with no drop at all - a drag can end either way."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint-box",
+      "expected": "\"rest=none box-display=flex align=center justify=center\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint-lifecycle",
+      "expected": "\"rest=none duringDrop=block afterDrop=none duringEnd=block afterEnd=none\""
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

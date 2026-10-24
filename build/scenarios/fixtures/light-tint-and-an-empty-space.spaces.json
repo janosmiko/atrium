@@ -1,0 +1,37 @@
+{
+  "spaces": [
+    {
+      "id": "70700001-0000-4000-8000-000000000001",
+      "name": "Red",
+      "emoji": "🟥",
+      "tint": "#F0F4F8",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135200.0,
+          "url": "http://127.0.0.1:8000/light-tint-red.html",
+          "title": "Red"
+        }
+      ],
+      "groups": []
+    },
+    {
+      "id": "70700001-0000-4000-8000-000000000002",
+      "name": "Empty",
+      "emoji": "🧪",
+      "tint": "#F0F4F8",
+      "profileID": "Default",
+      "order": 1,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "70700001-0000-4000-8000-000000000001"
+  }
+}

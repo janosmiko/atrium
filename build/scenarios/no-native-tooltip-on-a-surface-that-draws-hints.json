@@ -1,0 +1,63 @@
+{
+  "name": "no-native-tooltip-on-a-surface-that-draws-hints",
+  "description": "hovering the floating address bar put a plain macOS tooltip on screen beside the designed hint bubble, because only the hovered button parked its own title and the URL input above it kept one. This run brings the bar up, hovers the copy link button, then reads every live title left anywhere in that document. A tooltip cannot be read back from the compositor, so the attribute it needs is the measure, and the capture is the visual check.",
+  "fixture": "icon-tint-none.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "startup_space": "437b0002-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "wait_vlog", "pattern": "Atrium: sidebar rows drawn [1-9]", "timeout_ms": 20000 },
+    { "type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot" },
+    { "type": "settle", "ms": 1000 },
+    { "type": "key", "combo": "cmd+shift+d", "note": "Developer Mode: the floating address bar" },
+    {
+      "type": "eval_until",
+      "id": "devbar-ready",
+      "target": "/devbar",
+      "expression": "String(!!document.querySelector('.dvcopy'))",
+      "expected": "true",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "hover-copy",
+      "target": "/devbar",
+      "expression": "(() => { const b = document.querySelector('.dvcopy'); if (!b) { return 'no-button'; } b.dispatchEvent(new PointerEvent('pointerover', {bubbles: true})); return 'hovered'; })()"
+    },
+    { "type": "settle", "ms": 900, "note": "past HOVER_DELAY_MS (600ms) in hint-triggers.js" },
+    {
+      "type": "eval",
+      "id": "live-titles",
+      "target": "/devbar",
+      "expression": "(() => { const live = [...document.querySelectorAll('[title]')].filter((el) => el.getAttribute('title')); const path = []; for (let el = document.querySelector('.dvcopy'); el; el = el.parentElement) { if (el.getAttribute && el.getAttribute('title')) { path.push(el.className || el.tagName); } } return live.length + '/' + path.length; })()",
+      "note": "the whole document first, then the pointer's own path - macOS shows the nearest title at or above the target"
+    },
+    {
+      "type": "eval",
+      "id": "label-kept",
+      "target": "/devbar",
+      "expression": "(() => { const b = document.querySelector('.dvcopy'); return (b.getAttribute('aria-label') || '') + '|' + (b.dataset.hintTitle || ''); })()",
+      "note": "The parked text is still reachable, and the control is still named for a screen reader"
+    },
+    {
+      "type": "eval_until",
+      "id": "hint-text",
+      "target": "/hint",
+      "expression": "String((document.querySelector('.hint .hint-text') || {}).textContent || 'no hint')",
+      "expected": "Copy URL",
+      "timeout_ms": 6000
+    },
+    { "type": "capture", "id": "warm-up", "duration_ms": 300, "fps": 10, "note": "the first stream in a run can deliver no frames" },
+    { "type": "capture", "id": "devbar-hint-alone", "duration_ms": 600, "fps": 10, "note": "One bubble, no plain tooltip beside it" }
+  ],
+  "assertions": [
+    { "type": "ax_window_count", "expected": 1, "min_area": 200000, "desc": "sanity: one real window rendered" },
+    { "type": "eval_equals", "id": "devbar-ready", "expected": "true", "desc": "setup: the devbar came up" },
+    { "type": "eval_equals", "id": "hover-copy", "expected": "\"hovered\"", "desc": "setup: the copy link button was hovered" },
+    { "type": "eval_equals", "id": "live-titles", "expected": "\"0/0\"", "desc": "No title survives anywhere on the surface, ancestors included" },
+    { "type": "eval_equals", "id": "label-kept", "expected": "\"Copy URL|Copy URL\"", "desc": "The label is parked, not lost" },
+    { "type": "eval_equals", "id": "hint-text", "expected": "Copy URL", "desc": "The designed bubble is the one hint on screen" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

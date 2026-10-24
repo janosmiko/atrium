@@ -1,0 +1,65 @@
+{
+  "name": "quit-after-devtools-cycle",
+  "description": "Matrix D - the one state with recorded evidence of a DROPPED Cmd+Q. Mirrors devtools-close-while-docked's actions exactly, but makes the quit the assertion instead of the liveness window count. On 2026-07-24 that scenario's teardown found the process still alive after Cmd+Q + 2000ms, which is why it deliberately asserts ax_window_count instead - the signal inverts there. Here the app is known to survive the undock (that scenario asserts it), so a FAIL is unambiguously a dropped quit, not a crash.",
+  "fixture": "presenter-startup.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the space and its single tab render"
+    },
+    {
+      "type": "activate",
+      "note": "make Atrium frontmost before any synthetic key"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the window come forward"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+opt+i",
+      "note": "open the dock"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the DevTools frontend load and dock"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+opt+i",
+      "note": "toggle DevTools back off - the undock/teardown path that preceded the observed drop"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "let the detach + focus restore settle"
+    },
+    {
+      "type": "capture",
+      "id": "state",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence of the post-undock state Cmd+Q is pressed in"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog_after",
+      "label": "devtools-undocked",
+      "pattern": "Atrium: devtools pane 0x[0-9a-f]+ docked=0",
+      "note": "the undock really happened - without it the quit below would be testing an ordinary window",
+      "after_pattern": "Atrium: devtools pane 0x[0-9a-f]+ docked=1",
+      "desc": "the undock must come AFTER a dock. Atrium logs 'devtools pane ... docked=0 bounds=0,0 0x0 hide_inspected=0' at LAUNCH, and the line it logs after a real undock is byte-identical - same pane pointer, same zero bounds - so presence alone was true of an app that never opened DevTools. This assertion once passed while DevTools was completely dead. Ordering is the only thing that separates them."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q quits after a DevTools dock/undock cycle (the 2026-07-24 drop)"
+    }
+  ]
+}

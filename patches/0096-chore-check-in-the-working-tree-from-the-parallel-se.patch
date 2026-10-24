@@ -1,0 +1,109 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 30 Aug 2026 19:07:12 +0200
+Subject: [PATCH 096/154] chore: check in the working tree from the parallel
+ sessions
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+A snapshot of everything left in the tree after the per-task commits above: courtyard, the canvas model, the pill, settings, peek controls, the extension surfaces, icon scope, pinch gestures, and the shared BUILD.gn and window edits those touch. Committed as one unit because the work spans several unfinished features and splitting it would misattribute it.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn           | 7 +++++++
+ chrome/browser/ui/cocoa/BUILD.gn     | 1 +
+ chrome/common/pref_names.h           | 7 +++++++
+ tools/gritsettings/resource_ids.spec | 2 +-
+ 4 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 06b72718a0504..b1e1fe9b119c2 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -630,6 +630,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:extension_actions_json",
+     "//chrome/browser/ui/atrium:bounded_icon_store",
+     "//chrome/browser/ui/atrium:icon_backfill",
++    "//chrome/browser/ui/atrium:log_safe_url",
+     "//chrome/browser/ui/atrium:visit_thumbnail_store",
+     "//chrome/browser/ui/atrium:edit_focus_gate",
+     "//chrome/browser/ui/atrium:external_link",
+@@ -641,6 +642,8 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:memory_saver",
+     "//chrome/browser/ui/atrium:move_target_decision",
+     "//chrome/browser/ui/atrium:nav_carve_decision",
++    "//chrome/browser/ui/atrium:sidebar_overview_width",
++    "//chrome/browser/ui/atrium:command_bar_anchor",
+     "//chrome/browser/ui/atrium:menu_dismiss_decision",
+     "//chrome/browser/ui/atrium:native_hotkey_defaults",
+     "//chrome/browser/ui/atrium:command_bar_actions",
+@@ -664,6 +667,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:split_tree_layout",
+     "//chrome/browser/ui/atrium:status_bubble_color_math",
+     "//chrome/browser/ui/atrium:surface_key_route",
++    "//chrome/browser/ui/atrium:url_submit_decision",
+     "//chrome/browser/ui/atrium:window_appearance",
+     "//chrome/browser/ui/atrium:window_close_decision",
+     "//chrome/browser/ui/autofill",
+@@ -977,6 +981,7 @@ static_library("ui") {
+     "//rlz/buildflags",
+     "//services/device/public/cpp:device_features",
+     "//services/device/public/cpp/bluetooth",
++    "//services/data_decoder/public/cpp",
+     "//services/device/public/cpp/geolocation",
+     "//services/metrics/public/cpp:ukm_builders",
+     "//services/network/public/cpp",
+@@ -3555,6 +3560,8 @@ static_library("ui") {
+       "atrium/atrium_profile_bootstrap.cc",
+       "atrium/atrium_status_bubble_hook.h",
+       "atrium/atrium_status_bubble_hook.cc",
++      "atrium/atrium_sad_tab_hook.h",
++      "atrium/atrium_sad_tab_hook.cc",
+   ]
+ 
+   if (is_mac) {
+diff --git a/chrome/browser/ui/cocoa/BUILD.gn b/chrome/browser/ui/cocoa/BUILD.gn
+index b7f06bfbc6c6f..2febcd63974db 100644
+--- a/chrome/browser/ui/cocoa/BUILD.gn
++++ b/chrome/browser/ui/cocoa/BUILD.gn
+@@ -124,6 +124,7 @@ source_set("cocoa") {
+     "//chrome/browser:browser_features",
+     "//chrome/browser:browser_process",
+     "//chrome/browser:chrome_browser_application_mac",
++    "//chrome/browser/ui/atrium:confirm_quit_panel_style",
+     "//chrome/browser:command_updater_impl",
+     "//chrome/browser:global_keyboard_shortcuts_mac",
+     "//chrome/browser:primitives",
+diff --git a/chrome/common/pref_names.h b/chrome/common/pref_names.h
+index 7f2ccebd7e501..9870528b556e7 100644
+--- a/chrome/common/pref_names.h
++++ b/chrome/common/pref_names.h
+@@ -399,6 +399,13 @@ inline constexpr char kContextualSearchWasFullyPrivacyEnabled[] =
+ // window when the user is attempting to quit. Only on Mac.
+ inline constexpr char kConfirmToQuitEnabled[] = "browser.confirm_to_quit";
+ 
++// Mirrors settings.json's opaqueSurround/surroundColor for the confirm-to-quit
++// panel, which has no WebContents to read them from live. -1 means AUTOMATIC.
++inline constexpr char kAtriumConfirmQuitPanelNative[] =
++    "browser.atrium_confirm_quit_panel_native";
++inline constexpr char kAtriumConfirmQuitPanelSurroundColor[] =
++    "browser.atrium_confirm_quit_panel_surround_color";
++
+ // Boolean that indicates whether the browser should show the toolbar when it's
+ // in fullscreen. Mac only.
+ inline constexpr char kShowFullscreenToolbar[] =
+diff --git a/tools/gritsettings/resource_ids.spec b/tools/gritsettings/resource_ids.spec
+index f6096c56c9fe2..5f75fa317fcf1 100644
+--- a/tools/gritsettings/resource_ids.spec
++++ b/tools/gritsettings/resource_ids.spec
+@@ -1814,7 +1814,7 @@
+     # when the count passes the allocation. It fails at RESOURCE GENERATION, so
+     # a change that only runs the node suites will not see it - which is how
+     # clock.js landed one over the line.
+-    "META": {"sizes": {"includes": [90]}},
++    "META": {"sizes": {"includes": [120]}},
+     "includes": [12020],
+   },
+ 

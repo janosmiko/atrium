@@ -1,0 +1,58 @@
+{
+  "name": "newtab-box",
+  "description": "Regression gate: the scrub-preview twin's '+ New Tab' row (SidebarView.newTabPreviewTwin) used to paint a permanent dashed box + faint fill, unconditionally, on every hotkey/click/scrub space switch - the real row (newTabButton) dropped that resting decoration (bare unless hovered), but the twin was never updated. Both fixture spaces are bare (no favorites, no pinned tabs) and share one tint, so the New Tab row is the very first thing rendered and nothing ELSE in that region legitimately changes across the switch - a real settle-time pop is the ONLY thing that can move this region's pixels. Calibrated against a manual repro (build/vm-fixtures/results manual-recon, kept out of git): fixed build measured delta=0.06 between a mid-slide frame (~590ms into the switch) and the settled frame in this exact region; the pre-fix build measured delta=7.81 in the identical region/frames. max_delta=3 sits between the two with margin on both sides.",
+  "fixture": "newtab-box.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "55555555-5555-5555-5555-555555555555",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the docked sidebar render Alpha at rest first"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "key_during_capture",
+      "combo": "cmd+2",
+      "capture_id": "switch",
+      "duration_ms": 1400,
+      "fps": 30,
+      "key_delay_ms": 350,
+      "mid_at_ms": 590,
+      "note": "Cmd+2 switches Alpha -> Beta, same profile - takes the hotkey slide+twin path. One burst yields 'switch' (settled/last frame) and 'switch_mid' (closest to 590ms, when the twin's box was measured fully visible pre-fix)"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "region_stable",
+      "before": "switch_mid",
+      "after": "switch",
+      "region": [
+        10,
+        108,
+        190,
+        26
+      ],
+      "max_delta": 3,
+      "desc": "the New Tab row's own footprint must look the same mid-slide as it does settled - a box popping in/out fails this"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q actually quits (process gone)"
+    }
+  ]
+}

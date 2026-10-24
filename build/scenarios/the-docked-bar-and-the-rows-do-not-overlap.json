@@ -1,0 +1,180 @@
+{
+  "name": "the-docked-bar-and-the-rows-do-not-overlap",
+  "description": "Cmd+Shift+D back from floating docks the sidebar's own address bar. The bar is absolutely positioned at the top of the sidebar, and the room under it is a padding on the pane that slides for .2s - so the bar appearing the instant the class flips leaves it standing over rows still on their way down.\n\nWHY A SAMPLER AND NOT A SCREENSHOT. Overlap is a geometric fact about one frame, and the frames it happens in are the ones a screenshot is least likely to catch: the bar's plate is nearly transparent, so a row under it changes the pixels only slightly, and a capture that misses the 200ms window says nothing either way. The page can watch every frame instead. The sampler runs on requestAnimationFrame from before the first chord to after the second, and on each frame where the bar is actually visible it measures the gap between the bar's bottom edge and the top of the pane's content box. The worst gap over the whole run is the reading: negative means they shared the strip, and the answer names the overlap in pixels when it did.\n\nWHAT THE CAPTURE IS FOR. Both directions stay animated. The mid frame has to differ from the frame before the chord (the transition has begun) and from the settled one (it has not arrived). A fix that simply delayed the bar by a step would pass the sampler and fail these.\n\nBOTH DIRECTIONS ARE DRIVEN. The first chord goes docked to floating, where the rows must wait for the bar to leave; the second goes back, where the bar must wait for the rows. The sampler spans both, so an ordering fixed in one direction only is still caught.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "sampler-armed",
+      "target": "/sidebar",
+      "expression": "(() => { if (!window.__t697) { const s = {worst: 1e9, frames: 0}; window.__t697 = s; const tick = () => { const row = document.querySelector('#atrium-root > .urlrow'); const pane = document.querySelector('.railpane .sidebar'); if (row && pane) { const cs = getComputedStyle(row); if (cs.visibility !== 'hidden' && Number(cs.opacity) > 0.02) { const top = pane.getBoundingClientRect().top + parseFloat(getComputedStyle(pane).paddingTop); const gap = top - row.getBoundingClientRect().bottom; if (gap < s.worst) { s.worst = gap; } s.frames++; } } requestAnimationFrame(tick); }; requestAnimationFrame(tick); } return 'armed'; })()",
+      "expected": "armed",
+      "timeout_ms": 5000,
+      "note": "watches every frame from here on. Only frames where the bar is actually visible are measured - a bar that is faded out cannot overlap anything."
+    },
+    {
+      "type": "settle",
+      "ms": 700,
+      "note": "the docked resting state, sampled: the gap here is what the transition must never drop below."
+    },
+    {
+      "type": "capture",
+      "id": "docked-at-rest",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d",
+      "note": "docked -> floating. The rows must wait for the bar to fade out before they take its room."
+    },
+    {
+      "type": "eval_until",
+      "id": "went-floating",
+      "target": "/sidebar",
+      "expression": "String(document.querySelector('#atrium-root').classList.contains('devbar-shown'))",
+      "expected": "true",
+      "timeout_ms": 5000,
+      "note": "the chord reached the page"
+    },
+    {
+      "type": "settle",
+      "ms": 1200,
+      "note": "let that transition finish, so the burst below catches only the second one"
+    },
+    {
+      "type": "capture",
+      "id": "floating-at-rest",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "key_during_capture",
+      "combo": "cmd+shift+d",
+      "capture_id": "docking",
+      "duration_ms": 1600,
+      "fps": 25,
+      "key_delay_ms": 400,
+      "mid_at_ms": 780,
+      "note": "floating -> docked, the direction that overlapped. The chord fires 400ms into the burst, and the burst then delivers no frames for about 340ms while the chord is driven. That hole is not an ssh round trip - the chord shares the capture's single ssh session, and lib/mid_frame.py has the measurements. The rows move between t=720 and t=850, and this probe at 780 lands inside that window, which is why it stays measured from the burst start rather than moving to mid_after_chord_ms. Registers 'docking' for the settled state and 'docking_mid' for the frame in transit."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "overlap-verdict",
+      "target": "/sidebar",
+      "expression": "(() => { const s = window.__t697; if (!s) { return 'no-sampler'; } if (s.frames < 30) { return 'too-few-frames:' + s.frames; } return s.worst >= 0 ? 'clear' : 'overlap:' + Math.round(s.worst); })()",
+      "note": "the whole run's worst gap, in one word plus the pixels when it is bad."
+    },
+    {
+      "type": "eval",
+      "id": "frames-sampled",
+      "target": "/sidebar",
+      "expression": "String(window.__t697 && window.__t697.frames > 30)",
+      "note": "THE CONTROL: the sampler really did look. A verdict of 'clear' from a sampler that never ran while the bar was visible would be worth nothing."
+    },
+    {
+      "type": "eval_until",
+      "id": "came-back-docked",
+      "target": "/sidebar",
+      "expression": "String(document.querySelector('#atrium-root').classList.contains('devbar-shown'))",
+      "expected": "false",
+      "timeout_ms": 5000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "went-floating",
+      "expected": "true",
+      "desc": "the first chord floated the bar"
+    },
+    {
+      "type": "eval_equals",
+      "id": "came-back-docked",
+      "expected": "false",
+      "desc": "the second chord docked it again, so the direction under test really ran"
+    },
+    {
+      "type": "eval_equals",
+      "id": "frames-sampled",
+      "expected": "\"true\"",
+      "desc": "THE CONTROL: the sampler measured more than 30 frames with the bar visible. Quoted, because a plain `eval` stores the answer as cdp-eval printed it."
+    },
+    {
+      "type": "eval_equals",
+      "id": "overlap-verdict",
+      "expected": "\"clear\"",
+      "desc": "Across every sampled frame of both transitions, the bar's bottom edge never crossed the top of the rows' content box. A failure names the worst overlap in pixels."
+    },
+    {
+      "type": "theme_changed",
+      "before": "docked-at-rest",
+      "after": "floating-at-rest",
+      "region": [
+        40,
+        70,
+        200,
+        60
+      ],
+      "min_delta": 5,
+      "desc": "For the other direction: the first chord really moved this strip, so the sampler's verdict covers a transition that happened rather than one that was skipped."
+    },
+    {
+      "type": "theme_changed",
+      "before": "floating-at-rest",
+      "after": "docking_mid",
+      "region": [
+        40,
+        70,
+        200,
+        60
+      ],
+      "min_delta": 3,
+      "desc": "By the mid frame the docking transition has begun - the strip the bar and the first rows share is no longer the floating resting state.",
+      "note": "The whole swing in this region is about 10 units and the two at-rest captures differ by 0.0, so 3 separates motion from noise."
+    },
+    {
+      "type": "theme_changed",
+      "before": "docking_mid",
+      "after": "docking",
+      "region": [
+        40,
+        70,
+        200,
+        60
+      ],
+      "min_delta": 3,
+      "desc": "And it had not arrived either. A build that jumped straight to the docked state would make these two frames identical, which is what separates an animation from a flip.",
+      "note": "The whole swing in this region is about 10 units and the two at-rest captures differ by 0.0, so 3 separates motion from noise."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "name": "frost-toast-shadow-overlap",
+  "description": "Measures the copy-confirmation toast's own widget bounds and, with two stacked, the shadow band between/around them. Corrects an earlier assumption that this toast lands bottom-left - the code and a first pass here both show it at the corner OPPOSITE the sidebar (top-right for a left sidebar). Long settles after each key press are deliberate: they give a concurrent AX probe (axresize list 0) room to catch the transient widget while it's up.",
+  "fixture": "checkerboard.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {"type": "settle", "ms": 5000, "note": "first paint, and the checkerboard tab loads"},
+    {"type": "activate"},
+    {"type": "settle", "ms": 1500},
+    {
+      "type": "eval",
+      "id": "tab-opened",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.row'); if (!r) return 'no-row'; r.click(); return 'clicked'; })()"
+    },
+    {"type": "settle", "ms": 5000},
+    {
+      "type": "eval",
+      "id": "collapse-pressed",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbtoggle'); if (!b) return 'no-button'; b.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar toggle requested from the chrome row",
+      "timeout_ms": 8000
+    },
+    {"type": "settle", "ms": 3000, "note": "the collapse animation finishes"},
+    {"type": "move", "x": 300, "y": 400, "note": "park inside the page first"},
+    {"type": "settle", "ms": 600},
+    {"type": "move", "x": 20, "y": 400, "note": "cross into the 32pt arming strip from outside it"},
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "timeout_ms": 20000
+    },
+    {"type": "settle", "ms": 2000, "note": "the slide finishes"},
+    {
+      "type": "capture",
+      "id": "panel-alone",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the panel revealed, no toast yet - the before picture"
+    },
+    {
+      "type": "key",
+      "id": "fire-copy-toast-1",
+      "combo": "cmd+shift+c",
+      "note": "single confirmation - for the AX probe's first reading of its widget bounds"
+    },
+    {"type": "settle", "ms": 1000, "note": "up now; long enough for a concurrent axresize list 0 to see it before CONFIRM_MS=1400 elapses"},
+    {
+      "type": "capture",
+      "id": "single-toast",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "one confirmation up - the corner it actually lands in"
+    },
+    {"type": "settle", "ms": 2500, "note": "let it fully dismiss (1400 stay + 250 bye) before the stack test"},
+    {
+      "type": "key",
+      "id": "fire-copy-toast-2",
+      "combo": "cmd+shift+c",
+      "note": "first of two, spaced 350ms apart so both register as genuine presses, not a held-key repeat"
+    },
+    {"type": "settle", "ms": 350},
+    {
+      "type": "key",
+      "id": "fire-copy-toast-3",
+      "combo": "cmd+shift+c"
+    },
+    {"type": "settle", "ms": 700, "note": "both up, stacked, with most of CONFIRM_MS still ahead of the first - room for the AX probe and the capture"},
+    {
+      "type": "capture",
+      "id": "two-toasts",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the answer: two cards stacked, shadow band between/around them, over the still-revealed panel"
+    },
+    {"type": "settle", "ms": 2000, "note": "let both dismiss before quitting"}
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

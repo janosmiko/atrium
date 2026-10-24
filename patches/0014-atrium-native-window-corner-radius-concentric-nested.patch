@@ -1,0 +1,71 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Fri, 24 Jul 2026 22:00:25 +0200
+Subject: [PATCH 014/154] atrium: native window corner radius; concentric
+ nested radii
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The window corner was too square against Safari and Finder. The probe that
+reads the native radius built a toolbar-LESS NSWindow, and the value is
+style-dependent: stock NSThemeFrame caches 16 for a plain titled window but 26
+once the window carries a toolbar, which is the class Atrium is in. Give the
+probe a toolbar and it reports the right value, still read back from AppKit
+rather than hardcoded.
+
+Measured, not guessed - shadowless `screencapture -o` captures expose the
+silhouette's real alpha edge, where the earlier screenshot attempt drowned in
+the drop shadow's falloff. Corner extent @2x: Safari 63px, Finder 63px,
+TextEdit and Ghostty (no toolbar) 35px. Atrium now measures 63px on all four
+corners. Confirmed independently by an AppKit probe across style masks
+(toolbar -> 26.00, no toolbar -> 16.00), and end-to-end against the running
+app via ATRIUM_WINDOW_CORNER_RADIUS: 20 -> 50px, 26 -> 63px, 32 -> 81px.
+
+Moving the window radius exposed the second bug: every nested radius was a
+hardcoded literal tuned against the old value, so they silently desynced. Fix
+the cause rather than the numbers - derive them concentrically (inner = outer
+- gap) so the curves stay parallel and the gap reads uniform around the
+corner instead of pinching at 45 degrees. Content card 12 -> 16, floating
+sidebar overlay 12 -> 21 (rounder: it sits a smaller step in from the edge).
+
+- atrium_corner_radius.{h,cc}: the pure rule, own source_set + gtest
+  (capture_math's posture), floored at 6 so deep insets cannot read square.
+- atrium_window_corner_radius.{h,mm}: the AppKit probe, lifted out of
+  atrium_browser_window.mm's anonymous namespace so the sidebar overlay's
+  translation unit can reach it. ATRIUM_WINDOW_CORNER_RADIUS still overrides.
+- Collapses ~4.3KB of superseded comments documenting two theories
+  that the measurements disproved.
+
+Verified: 8/8 new gtests, full atrium filter green, chrome builds clean, and
+the card gap measures 10.0pt along both straight edges and 9.7-9.9pt through
+the diagonal - a non-concentric card looks right on the edges and pinches only
+at the corner, so measuring one edge would have proved nothing.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index bf352460b257b..7912a01e6ea5b 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -615,6 +615,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:capture_math",
+     "//chrome/browser/ui/atrium:capture_overlay_math",
+     "//chrome/browser/ui/atrium:cdp_response",
++    "//chrome/browser/ui/atrium:corner_radius",
+     "//chrome/browser/ui/atrium:devtools_card_corners",
+     "//chrome/browser/ui/atrium:devtools_pane_selection",
+     "//chrome/browser/ui/atrium:extension_actions_json",
+@@ -3512,6 +3513,8 @@ static_library("ui") {
+       "atrium/atrium_traffic_routing.mm",
+       "atrium/atrium_ui_bridge.h",
+       "atrium/atrium_ui_bridge.mm",
++      "atrium/atrium_window_corner_radius.h",
++      "atrium/atrium_window_corner_radius.mm",
+       "browser_commands_mac.h",
+       "browser_commands_mac.mm",
+       "browser_mac.cc",

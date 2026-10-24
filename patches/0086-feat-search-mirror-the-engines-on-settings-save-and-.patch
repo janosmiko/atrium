@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 30 Aug 2026 00:57:40 +0200
+Subject: [PATCH 086/154] feat(search): mirror the engines on settings save and
+ on service load
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 9c3dd2f400fe8..44d133bb0736a 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -648,6 +648,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:pin_toggle",
+     "//chrome/browser/ui/atrium:pinch_gesture_decision",
+     "//chrome/browser/ui/atrium:restore_plan",
++    "//chrome/browser/ui/atrium:search_engine_mirror",
+     "//chrome/browser/ui/atrium:sidebar_drop_decision",
+     "//chrome/browser/ui/atrium:sidebar_grip_bounds",
+     "//chrome/browser/ui/atrium:sidebar_move_execution_decision",

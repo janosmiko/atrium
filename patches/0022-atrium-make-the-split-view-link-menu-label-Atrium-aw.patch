@@ -1,0 +1,98 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 27 Jul 2026 19:39:09 +0200
+Subject: [PATCH 022/154] atrium: make the split-view link menu label
+ Atrium-aware
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+An earlier change made 'Open Link in Split View' work on Atrium windows, but its label
+still read tabs::TabInterface::IsSplit(), which is permanently false for Atrium
+tabs - Atrium's split lives in AtriumPaneContainerView and never touches
+TabStripModel's split_tabs bookkeeping. An already-split window therefore
+offered not-yet-split wording.
+
+The label now resolves split state, and its axis, through the Atrium side via
+the same narrow-call pattern the execution path uses. Stacked splits say bottom
+rather than claiming a side that does not exist on that axis.
+
+Within the correct axis the side is still picked unconditionally, because
+resolving which pane the link lands in would need the partner pane's position
+exposed too. Naming the wrong side is a smaller error than naming the wrong
+axis, and this is cosmetic.
+
+Non-Atrium windows are byte-identical: both call sites gate on
+IsAtriumBrowserWindowEnabled() before any new code runs.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../render_view_context_menu.cc               | 47 ++++++++++++++++++-
+ 1 file changed, 45 insertions(+), 2 deletions(-)
+
+diff --git a/chrome/browser/renderer_context_menu/render_view_context_menu.cc b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+index 2f355d5cfa6f2..b4a0392ee870e 100644
+--- a/chrome/browser/renderer_context_menu/render_view_context_menu.cc
++++ b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+@@ -940,6 +940,41 @@ std::pair<int, const gfx::VectorIcon*> GetOpenLinkInSplitStringAndIcon(
+   int string_id = IDS_CONTENT_CONTEXT_OPENLINKSPLITVIEW;
+   const gfx::VectorIcon* icon = &(
+       features::IsRoundedIconsEnabled() ? kSplitSceneIcon : kSplitSceneOldIcon);
++  // tab->IsSplit() below is always false for Atrium tabs - Atrium's
++  // split lives in AtriumPaneContainerView and never touches TabStripModel's
++  // split_tabs bookkeeping, so GetSplitData() would be invalid for one too.
++  // Branch through the Atrium side first, mirroring the execution path's own
++  // gate (OpenLinkInSplitView's atrium::IsAtriumBrowserWindowEnabled()
++  // check), and never touch split_data on that branch.
++  if (atrium::IsAtriumBrowserWindowEnabled()) {
++    bool stacked = false;
++    if (atrium::IsAtriumBrowserWindowSplit(browser, &stacked)) {
++      // AtriumBrowserWindow exposes IsSplit()/split_orientation() but no
++      // per-pane position getter, so which exact pane source_web_contents
++      // sits in can't be resolved here - within an orientation, the closest
++      // available "already split" wording is that orientation's default
++      // direction (side-by-side/right, mirrored for RTL; stacked/bottom,
++      // no RTL analog on the vertical axis), which is still preferable to
++      // the default string's "will create a split" implication. Getting the
++      // AXIS right (side-by-side vs stacked) is a separate fix - a
++      // confidently wrong side beats a vague one, a confidently wrong axis
++      // does not.
++      if (stacked) {
++        string_id = IDS_CONTENT_CONTEXT_OPENLINKBOTTOMVIEW;
++        icon = &(features::IsRoundedIconsEnabled() ? kSplitSceneDownIcon
++                                                    : kSplitSceneDownOldIcon);
++      } else {
++        string_id = base::i18n::IsRTL() ? IDS_CONTENT_CONTEXT_OPENLINKLEFTVIEW
++                                        : IDS_CONTENT_CONTEXT_OPENLINKRIGHTVIEW;
++        icon = &(features::IsRoundedIconsEnabled()
++                     ? (base::i18n::IsRTL() ? kSplitSceneLeftIcon
++                                            : kSplitSceneRightIcon)
++                     : (base::i18n::IsRTL() ? kSplitSceneLeftOldIcon
++                                            : kSplitSceneRightOldIcon));
++      }
++    }
++    return {string_id, icon};
++  }
+   if (tab && tab->IsSplit()) {
+     split_tabs::SplitTabData* split_data =
+         browser->tab_strip_model()->GetSplitData(tab->GetSplit().value());
+@@ -1934,8 +1969,16 @@ void RenderViewContextMenu::AppendLinkItems() {
+         auto [string_id, icon] = GetOpenLinkInSplitStringAndIcon(
+             tab, GetBrowser()->GetBrowserForMigrationOnly());
+ 
+-        if (tabs::kSplitViewHorizontalDirectAccess.Get() &&
+-            !(tab && tab->IsSplit())) {
++        // tab->IsSplit() is always false for Atrium tabs (see
++        // GetOpenLinkInSplitStringAndIcon above), so without the Atrium
++        // check this layout submenu would offer a layout choice even when
++        // already split, though OpenLinkInAtriumSplit ignores it in that
++        // case and just loads into the existing partner pane.
++        const bool already_split =
++            (tab && tab->IsSplit()) ||
++            (atrium::IsAtriumBrowserWindowEnabled() &&
++             atrium::IsAtriumBrowserWindowSplit(GetBrowser()));
++        if (tabs::kSplitViewHorizontalDirectAccess.Get() && !already_split) {
+           split_layout_submenu_ = std::make_unique<SplitViewLayoutMenuModel>(
+               base::BindOnce(&RenderViewContextMenu::OpenLinkInSplitView,
+                              base::Unretained(this)));

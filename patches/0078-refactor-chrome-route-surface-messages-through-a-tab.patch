@@ -1,0 +1,71 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 27 Aug 2026 19:44:01 +0200
+Subject: [PATCH 078/154] refactor(chrome): route surface messages through a
+ table, and settle six sidebar faults
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+One commit because the window file carries all of them and its arms
+were moved while the other edits landed beside them.
+
+THE ROUTER. OnSurfaceMessage was 804 lines: 68 if-arms answering 69
+names, a 20-name overview forwarder and the capture verb parser. The
+arms are now one handler each, bound by a table of 90 rows in a second
+TU of the window, and SurfaceMessageRouter maps a name to its handler.
+Each handler carries its arm verbatim, redundant name check included, so
+the two arms one name had keep their order. A browser test walks the
+table against kSurfaceMessages. The window file went from 10054 lines
+to 9388 and its function to a Route call plus the verb fallback.
+
+THE SIDEBAR WIDTH has one owner. The window's cached copy drifted from
+the core's store and from the page three separate ways, and one writer
+never wrote the store at all, so a Cmd+S restore after a drag brought
+back the pre-drag width. The window reads the store now.
+
+A FAVOURITE'S ROW is hidden by the core. The live strip marks a tab a
+tile has claimed, the core turns that into the row's token and skips it
+in both the model build and every visible-to-persisted mapping, so the
+two index spaces agree - which is what erasing the row in C++ broke.
+
+THE ROWS ANNOUNCE THEMSELVES. The page sends sidebarRowsDrawn after
+each render and the window logs it, so a capture can wait on the line
+instead of on a settle that caught an empty sidebar five runs in six.
+
+THE HOTKEY PATH SAYS WHAT IT DID. A chord that reaches the window logs
+matched, fired, or declined by which gate. With the sidebar's render
+widget holding first responder, Cmd+S fires; the recorded miss was the
+harness dropping the chord, not the responder.
+
+TWO BROWSER TESTS SKIP with a reason where the dylib is deployed, and
+the negative half moves to a unit test in a binary nothing starts the
+context in.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 54223b088bba1..f2c31e53e65da 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3528,6 +3528,8 @@ static_library("ui") {
+       "atrium/atrium_settings_window.cc",
+       "atrium/atrium_hex_color.cc",
+       "atrium/atrium_ambilight_cadence.cc",
++      "atrium/atrium_browser_window_surface_routes.cc",
++      "atrium/atrium_surface_message_router.cc",
+       "atrium/atrium_edge_tint.cc",
+       "atrium/atrium_page_color.cc",
+       "atrium/atrium_settings_source.cc",
+@@ -3584,6 +3586,7 @@ static_library("ui") {
+       "atrium/atrium_settings_window.h",
+       "atrium/atrium_hex_color.h",
+       "atrium/atrium_ambilight_cadence.h",
++      "atrium/atrium_surface_message_router.h",
+       "atrium/atrium_edge_tint.h",
+       "atrium/atrium_page_color.h",
+       "atrium/atrium_settings_source.h",

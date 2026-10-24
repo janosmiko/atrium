@@ -1,0 +1,142 @@
+{
+  "name": "a-row-dropped-on-its-own-page-opens-a-split",
+  "description": "A real cgevent drag of sidebar row 0 onto the left quarter of its own window's page. Before, the release off the sidebar went to the other-window path, found no window and tore the tab off. Now the window keeps it and opens a split with the dragged page on the left.\n\nBoth rows are clicked live first, and the second click leaves row 1 in the pane, so row 0 is not a pane yet. The drag starts at row 0's centre and ends 60px into the page, halfway down. Screen coordinates are the sidebar's client rectangles plus the 30px the window sits below the screen top.",
+  "fixture": "frost-two-tabs.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "wake-first",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 2) { return 'rows ' + rows.length; } rows[0].click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "wake-second",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 2) { return 'rows ' + rows.length; } rows[1].click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval_until",
+      "id": "layout",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 2) { return 'rows ' + rows.length; } return rows.slice(0, 2).map((r) => r.dataset.tabId ? 'live' : 'cold').join(','); })()",
+      "expected": "live,live",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "spy",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; window.__dragId = rows[0].dataset.tabId; window.__otherId = rows[1].dataset.tabId; return window.__dragId && window.__otherId ? 'spying' : 'cold'; })()"
+    },
+    {
+      "type": "eval",
+      "id": "row-point",
+      "target": "/sidebar",
+      "expression": "(() => { const r = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')][0]; if (!r) { return 'none'; } const b = r.getBoundingClientRect(); return Math.round(b.left + b.width / 2) + ',' + Math.round(30 + b.top + b.height / 2); })()"
+    },
+    {
+      "type": "eval",
+      "id": "page-point",
+      "target": "/sidebar",
+      "expression": "Math.round(window.innerWidth + 60) + ',' + Math.round(30 + window.innerHeight / 2)",
+      "note": "60px past the sidebar's right edge, well inside the page's left quarter."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "drag",
+      "from_eval": "row-point",
+      "steps": 40,
+      "to_eval": "page-point"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "eval_until",
+      "id": "split",
+      "target": "/sidebar",
+      "expression": "(() => { const segs = [...document.querySelectorAll('.railpane:not(.ovrailpane) .splitrow .sseg')].map((s) => s.dataset.tabId === window.__dragId ? 'dragged' : s.dataset.tabId === window.__otherId ? 'other' : '?'); return segs.length ? segs.join(',') : 'no split'; })()",
+      "expected": "dragged,other",
+      "timeout_ms": 5000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "one window, so the release did not tear the tab off"
+    },
+    {
+      "type": "eval_equals",
+      "id": "wake-first",
+      "expected": "\"clicked\"",
+      "desc": "the first row went live"
+    },
+    {
+      "type": "eval_equals",
+      "id": "wake-second",
+      "expected": "\"clicked\"",
+      "desc": "and the second, which the pane now shows"
+    },
+    {
+      "type": "eval_equals",
+      "id": "layout",
+      "expected": "live,live",
+      "desc": "both rows are live, so each carries a tab id"
+    },
+    {
+      "type": "eval_equals",
+      "id": "spy",
+      "expected": "\"spying\"",
+      "desc": "both tab ids read"
+    },
+    {
+      "type": "eval_equals",
+      "id": "split",
+      "expected": "dragged,other",
+      "desc": "THE MEASUREMENT: one split row, the dragged page on the left"
+    },
+    {
+      "type": "vlog",
+      "label": "the-window-kept-the-drop",
+      "pattern": "Atrium: own-window drop of tab [0-9]+ at edge [0-9]+ of tab [0-9]+"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "the-drop-was-not-refused",
+      "pattern": "own-window drop of tab [0-9]+ refused"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

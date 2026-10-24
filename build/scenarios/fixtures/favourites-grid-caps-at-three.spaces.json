@@ -1,0 +1,53 @@
+{
+  "spaces": [
+    {
+      "id": "77200001-0000-4000-8000-000000000001",
+      "name": "Wide",
+      "emoji": "📐",
+      "tint": "#12282E",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135200.0,
+          "url": "http://127.0.0.1:8000/favicon-page.html",
+          "title": "Start"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "favorites": [
+    {
+      "url": "http://127.0.0.1:8000/icon-tint-orange.html",
+      "title": "One",
+      "profileID": "Default"
+    },
+    {
+      "url": "http://127.0.0.1:8000/icon-tint-blue.html",
+      "title": "Two",
+      "profileID": "Default"
+    },
+    {
+      "url": "http://127.0.0.1:8000/brand-dark-red-icon.html",
+      "title": "Three",
+      "profileID": "Default"
+    },
+    {
+      "url": "http://127.0.0.1:8000/icon-tint-white-one.html",
+      "title": "Four",
+      "profileID": "Default"
+    },
+    {
+      "url": "http://127.0.0.1:8000/icon-tint-white-two.html",
+      "title": "Five",
+      "profileID": "Default"
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 520,
+    "schemaVersion": 1,
+    "activeSpaceID": "77200001-0000-4000-8000-000000000001"
+  }
+}

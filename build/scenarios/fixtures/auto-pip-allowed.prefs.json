@@ -1,0 +1,13 @@
+{
+  "profile": {
+    "content_settings": {
+      "exceptions": {
+        "auto-picture-in-picture": {
+          "file:///*,*": {
+            "setting": 1
+          }
+        }
+      }
+    }
+  }
+}

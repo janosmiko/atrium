@@ -1,0 +1,98 @@
+{
+  "name": "header-narrow",
+  "description": "The pinned-section header (workspace icon/name) must render flush with the tab rows below it at a NARROW sidebar width. Fixture has a pinned tab, a grouped tab (folder header), and a plain tab so all three leading edges are visible in one frame for a by-eye comparison, alongside SidebarGeometryTests' exact pixel assertion.\n\nthe frame was captured and never looked at, so a sidebar that stopped honouring the fixture's 200pt width passed identically. Leading-edge alignment is a relation between two regions of ONE frame and no assertion in this harness can express it - theme_changed and region_stable both compare one region across two frames. What IS expressible, and what alignment presupposes, is that the rows occupy the width the fixture asked for. So the scenario now hovers a row and measures where the hover fill lands: it must light at x=16..136, and must NOT reach x=286. Together those bracket the sidebar between 200pt and the content pane.\n\nHover, not geometry, because the fill is the only thing a pointer can make the sidebar redraw, and it paints the row's whole box - so its horizontal extent IS the row's. Coordinates are read off the 'News' folder header row occupies y 210..240 (text 220..230), rows span x 10..210, and the content pane starts at x=220 reading a flat 238,238,238 at variance 0.0.",
+  "fixture": "header-alignment.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "33333333-3333-3333-3333-333333333333",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the space and sidebar render at the fixture's 200pt sidebarWidth"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot, and a hover on a background window is not worth measuring"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 600,
+      "note": "park the pointer in blank page content (measured 238,238,238 var 0.0) so the rest frame is a known un-hovered baseline. Without this the pointer is wherever the previous scenario left it - on the 2026-08-10 run it was already sitting on a sidebar row"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "narrow",
+      "duration_ms": 500,
+      "fps": 20,
+      "note": "docked sidebar at narrow width, nothing hovered - still the by-eye alignment frame"
+    },
+    {
+      "type": "move",
+      "x": 170,
+      "y": 224,
+      "note": "THE MEASUREMENT: hover the 'News' folder header. x=170 is inside a 200pt sidebar's rows (x 10..210) and 34px clear of the measured region, so the fill is what moves the pixels and not the cursor sprite"
+    },
+    {
+      "type": "settle",
+      "ms": 700,
+      "note": "past the .12s background transition on .row.frow"
+    },
+    {
+      "type": "capture",
+      "id": "narrow-hover",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the same header with its hover fill up"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "theme_changed",
+      "before": "narrow",
+      "after": "narrow-hover",
+      "region": [
+        16,
+        214,
+        120,
+        20
+      ],
+      "min_delta": 3.0,
+      "desc": "the folder header lights its hover fill at the sidebar's leading edge - the rows are drawn and reachable",
+      "note": "THRESHOLD, derived not guessed. The fill is rgba(255,255,255,.15) (sidebar.css:273). Its effective white-alpha was MEASURED at 0.0635, where the same move lit a header row: region [12,194,190,22] went 106.3,125.6,141.8 -> 116.0,133.8,148.8, i.e. 9.7/(255-106.3), 8.2/(255-125.6), 7.0/(255-141.8). That row was the .sechdrow, which carries opacity:.5, so a .row.frow with no such halving is 0.127. This region reads 211.8,220.6,226.7 at rest, so a working fill lands at 0.127*(43.2,34.4,28.3) = 7.9. The floor is 0.00 exactly: three separate captures on 2026-08-10 differ by 0.00 over sidebar regions with no cursor in them. 3.0 sits 2.6x under the signal with the floor at zero. The alpha is measured and the background is re-measured for THIS palette rather than the threshold being carried over: the same working fill read 14.55 on the dark sidebar and reads 7.9 on the light one."
+    },
+    {
+      "type": "region_stable",
+      "before": "narrow",
+      "after": "narrow-hover",
+      "region": [
+        286,
+        212,
+        80,
+        26
+      ],
+      "max_delta": 1.0,
+      "desc": "and it does NOT reach x=286 - the sidebar is the narrow one the fixture asked for",
+      "note": "The other half of the width bracket, and the half that fails if the persisted sidebarWidth stops being applied. At 200pt this region is blank content pane, measured 238.0,238.0,238.0 at variance 0.0, and 0.00 delta between the two captures. At 380pt it would be inside the hovered row and would move by about 8. max_delta 1.0 is 8x under that and above a floor of zero."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q actually quits (process gone)"
+    }
+  ]
+}

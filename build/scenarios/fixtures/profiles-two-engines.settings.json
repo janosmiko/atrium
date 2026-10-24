@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "appIconVariant": "solarized-ink",
+  "animationsEnabled": true,
+  "startupBehavior": "restoreLastActive",
+  "downloadsDirectory": null,
+  "promptForDownload": false,
+  "sidebarPosition": "left",
+  "horizontalScrollOverride": "auto",
+  "archiveThreshold": "twelveHours",
+  "memorySaverThreshold": "never",
+  "importPromptShown": false,
+  "autoPipEnabled": true,
+  "confirmToQuitEnabled": false,
+  "glassOpacity": 0.55,
+  "opaqueSurround": false,
+  "surroundColor": null,
+  "searchEnginesSeed": 1,
+  "searchEngines": [
+    {
+      "id": "alpha",
+      "name": "Alpha Engine",
+      "keyword": "engine-alpha.com",
+      "url": "http://127.0.0.1:8000/engine-alpha.html?q=%s",
+      "enabled": true,
+      "builtin": false
+    },
+    {
+      "id": "bravo",
+      "name": "Bravo Engine",
+      "keyword": "engine-bravo.com",
+      "url": "http://127.0.0.1:8000/engine-bravo.html?q=%s",
+      "enabled": true,
+      "builtin": false
+    }
+  ]
+}

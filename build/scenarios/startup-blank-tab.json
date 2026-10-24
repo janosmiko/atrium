@@ -1,0 +1,50 @@
+{
+  "name": "startup-blank-tab",
+  "description": "The Startup row: changing it changes what the next launch opens.\n\nWHAT WAS WRONG. Swift gated the startup tab on the row - StartupTabJSON.swift:42-47 wrapped the most-recently-active-tab computation in `startupBehavior == .blankTab ? \"about:blank\" : ...`. The Rust port dropped the gate and kept the computation: launch.rs::plan() read the spaces document and never looked at the row. The row had meanwhile been wired into SessionStartupPref, which --no-startup-window and the disabled SessionService make unreachable, so the pane said 'wired' about a pref nobody read. The row is now threaded into plan() (ABI 8 -> 9) and the pref writer is gone.\n\nWHY THIS FIXTURE. presenter-startup.spaces.json's active space 'Foreign' holds exactly one tab, https://example.org/, and it carries a lastActiveAt - so it IS the most recently active tab, the one startup_tab_of() returns and the one restoreLastActive opens. A space with nothing to restore would resolve to about:blank on either setting and the scenario would pass without the row existing.\n\nTHE CONTROL IS ALREADY MEASURED, so this launch does not have to run twice. The same fixture, the same startup_space and the same log line under the default restoreLastActive read `startup tab 'https://example.org/'`. This scenario stages blankTab and demands 'about:blank' in that position. One setting is the only difference between the two readings.\n\nWHY NO QUIT ASSERTION. Nothing to restore means the shown window opens tab-less and ProfileBootstrap auto-opens the palette (atrium_profile_bootstrap.cc:456-472), and an open palette forwards Cmd+Q to the main menu instead of the window - the failure quit-empty-no-palette exists to hold, still red there. Grading a quit here would import that unrelated red into a startup-row question. Liveness is held instead by the window count and by the palette's own line.",
+  "fixture": "cmdw-foreign-profile.spaces.json",
+  "settings": "startup-blank-tab.settings.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: bootstrapping [0-9]+ profile\\(s\\); showing .Profile 1. first with startup tab .about:blank.",
+      "timeout_ms": 20000,
+      "note": "THE GATE, re-read by the assertion below: ProfileBootstrap logging the plan atrium_core_launch_plan returned. A build that ignored the row prints the document's own tab here instead. THE QUOTES ARE DOTS ON PURPOSE - wait_vlog greps inside the VM over ssh and refuses any pattern carrying a single quote (cannot survive the remote shell, logged once per poll); the first run,, failed this gate for that reason alone while the assertion below, evaluated on the host in Python, matched the very same line. The dots stand where the log's own quotes are, so the gate still demands about:blank in the startup-tab position and nothing looser. Keep this note on ONE line: a newline inside it is read as the next action."
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "the window the absence below is about. Measured on the default-setting run: 'Atrium: tab 1 url https://example.org/' lands 1.6s after this bootstrap line when the tab IS restored, and the deferred second profile's tab 8.4s after. 6s clears the first with margin, so an absence graded here is the line never coming rather than the log being read too early"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-row-decided-the-startup-tab",
+      "pattern": "Atrium: bootstrapping [0-9]+ profile\\(s\\); showing 'Profile 1' first with startup tab 'about:blank'",
+      "note": "THE MEASUREMENT: the plan the core returned names about:blank for a document whose active space has a live most-recently-active tab. Only the Startup row can produce that - launch.rs::plan() asks it BEFORE the document, and on RestoreLastActive the same document yields https://example.org/ (measured, see the description)."
+    },
+    {
+      "type": "vlog_absent",
+      "label": "the-documents-tab-never-opened",
+      "pattern": "Atrium: tab [0-9]+ url http://dl\\.localhost",
+      "note": "The other space's startup tab must not open. Its url is a page the harness SERVES, so this can fail: pointed at a remote one it passed because that page could never load, which says nothing about whether the tab was opened."
+    },
+    {
+      "type": "vlog",
+      "label": "the-window-opened-tab-less",
+      "pattern": "Atrium: command bar widget showing",
+      "note": "CORROBORATION from the far side of the same decision. ProfileBootstrap clears startup_url when it is about:blank and then calls OpenCommandBar(is_startup_open=true) exactly in that case (atrium_profile_bootstrap.cc:456-472), so this line fires only on the no-restored-tab path. A build that had restored https://example.org/ would stay palette-free by design."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "liveness: one real window exists, so the absence above was measured against a running app",
+      "note": "KNOWN RED, AND THE NUMBER IS LEFT ALONE DELIBERATELY. Measured expected=1 got=2, the second window reported as subrole=AXUnknown, area 694272, pos 0,30, size 1024x678, empty title - the startup palette's own overlay, at the browser window's exact geometry. The 1 came from a misreading of command-bar, which reads got=1 only because it presses Escape and waits for the command bar widget closing line BEFORE its count; this scenario leaves the palette up by design, since a palette that never opened would mean a tab had been restored. So 2 is what a correct blankTab launch shows. Raising the number here would be tuning an expectation to an observation, which is the one thing this suite must not do - whoever owns this scenario next should choose between expected=2 with that reasoning written down, or dropping the assertion as redundant against the three gates above, which already prove a window was built and shown."
+    }
+  ],
+  "serve_fixtures": true
+}

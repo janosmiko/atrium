@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 21 Sep 2026 16:39:44 +0200
+Subject: [PATCH 143/154] fix(media): keep a mini player click from activating
+ Atrium
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../video_overlay_window_native_widget_mac.mm       | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm b/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm
+index 63d667da852c5..62e53d208dfb8 100644
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm
+@@ -9,6 +9,10 @@
+ #include "chrome/browser/ui/views/overlay/video_overlay_window_views.h"
+ #include "components/remote_cocoa/common/native_widget_ns_window.mojom.h"
+ 
++@interface NSWindow (PrivateAPI)
++- (void)_setPreventsActivation:(BOOL)preventsActivation;
++@end
++
+ VideoOverlayWindowNativeWidgetMac::VideoOverlayWindowNativeWidgetMac(
+     VideoOverlayWindowViews* widget)
+     : NativeWidgetMac(widget) {}
+@@ -30,4 +34,13 @@ void VideoOverlayWindowNativeWidgetMac::OnWidgetInitDone() {
+   // player stays on screen.
+   GetNativeWindow().GetNativeNSWindow().accessibilitySubrole =
+       NSAccessibilitySystemDialogSubrole;
++  // A click must not activate Atrium, or back-to-tab sends no app activation
++  // and AeroSpace never switches workspace. Widget:: CHECKs a floating z-order.
++  SetActivationIndependence(true);
++  // Independence alone still lets a click activate Atrium: set after creation,
++  // it never reaches the window server tag that decides a click's activation.
++  NSWindow* window = GetNativeWindow().GetNativeNSWindow();
++  if (window && [window respondsToSelector:@selector(_setPreventsActivation:)]) {
++    [window _setPreventsActivation:YES];
++  }
+ }

@@ -1,0 +1,71 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Fri, 24 Jul 2026 23:20:46 +0200
+Subject: [PATCH 015/154] atrium: default confirm-to-quit off so a Cmd+Q tap
+ quits
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Cmd+Q resolved to IDC_EXIT (matched off the app menu's terminate: item),
+which is a reserved command, so ChromeCommandDispatcherDelegate's
+prePerformKeyEquivalent claimed the chord and ran chrome::AttemptUserExit
+-> BrowserProcessPlatformPart::AttemptExit -> confirmQuitIfNeeded. With
+kConfirmToQuitEnabled at Chromium's stock default of true, a plain tap
+fails the hold-to-quit loop and the quit is cancelled - so Cmd+Q read as
+"randomly does nothing" while the app-menu item still quit (that route
+carries no key event, so the gate never engages).
+
+Register the pref false instead. An earlier change shipped this same
+default and validated it across a 4-state matrix; a later one reverted it to
+stock, which re-broke the keystroke. The Settings > General and app-menu
+toggles still turn the guard on, so the opt-in is intact.
+
+Also correct the postPerformKeyEquivalent comment in the Atrium dispatcher
+delegate: that Cmd+Q branch is unreachable, because prePerform claims the
+chord first on every pass.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/cocoa/confirm_quit.cc | 27 ++++++++++++++-----------
+ 1 file changed, 15 insertions(+), 12 deletions(-)
+
+diff --git a/chrome/browser/ui/cocoa/confirm_quit.cc b/chrome/browser/ui/cocoa/confirm_quit.cc
+index c0c47804f79ec..a36a97c4bca77 100644
+--- a/chrome/browser/ui/cocoa/confirm_quit.cc
++++ b/chrome/browser/ui/cocoa/confirm_quit.cc
+@@ -15,18 +15,21 @@ void RecordHistogram(ConfirmQuitMetric sample) {
+ }
+ 
+ void RegisterLocalState(PrefRegistrySimple* registry) {
+-  // Atrium: registers the stock default (true - ask before
+-  // quitting). A prior milestone shipped this default as
+-  // false, because a plain Cmd+Q tap never satisfies the hold-to-quit loop
+-  // and so silently no-ops in the empty/NTP and web-focused states. This
+-  // supersedes that workaround: users demonstrably do hit this prompt
+-  // (one report was of it rendering behind windows) and asked for an
+-  // explicit way to turn it off, so the Settings > General "Ask before
+-  // quitting" toggle (AtriumHostOps.set_confirm_to_quit) is now the
+-  // supported opt-out, and the default reverts to matching stock Chrome. The
+-  // app-menu toggle (toggleConfirmToQuit:) and the new Settings toggle both
+-  // read/write this SAME pref, so they always agree.
+-  registry->RegisterBooleanPref(prefs::kConfirmToQuitEnabled, true);
++  // Atrium: opt-IN, unlike stock Chrome's true. An earlier change had
++  // restored the stock default on the theory that the Settings > General "Ask
++  // before quitting" toggle made it safely opt-out-able. It does not, because
++  // of where the gate sits: Cmd+Q resolves to IDC_EXIT (a RESERVED command,
++  // matched off the app menu's terminate: item), so
++  // ChromeCommandDispatcherDelegate::prePerformKeyEquivalent claims the chord
++  // and runs chrome::AttemptUserExit -> BrowserProcessPlatformPart::
++  // AttemptExit -> confirmQuitIfNeeded. With the pref on, a plain TAP fails
++  // the hold-to-quit loop and the quit is cancelled - so Cmd+Q reads as
++  // "randomly does nothing" while the app-menu item still quits (that route
++  // has no key event, so the gate never engages). Defaulting to false makes
++  // the tap quit; the toggle still turns the hold-to-quit guard on for anyone
++  // who wants it. The app-menu toggle (toggleConfirmToQuit:) and the Settings
++  // toggle read/write this SAME pref, so all three always agree.
++  registry->RegisterBooleanPref(prefs::kConfirmToQuitEnabled, false);
+ }
+ 
+ }  // namespace confirm_quit

@@ -1,0 +1,326 @@
+/* Copyright 2026 The Atrium Authors */
+
+/* --sbm-h is JS-set per hover/volume state (36/72/108px), not a constant: a
+   controller's own height now varies, so the room the block and the tab list
+   below it reserve has to follow whichever one is expanded. The 36px default
+   is the rest height, kept as the var() fallback for the same reason 38
+   scenarios click rows by pixel: it must hold even before JS runs. */
+
+/* Under the tab list, above the space dots bar - the 44px .railpane .sidebar
+   already keeps clear for the dots. The pinned extension strip sits at the top
+   of the column (sidebar-ext-strip.css), so the two never meet.
+   Absolute and a sibling of #atrium-root for the strip's reason: the tab
+   list's replaceChildren() rebuilds must not reach it. */
+.sbm-block {
+  position: absolute;
+  left: var(--sb-pad-lead);
+  right: var(--sb-pad-trail);
+  bottom: 44px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* Three controllers of room: (rows-1) rest-height rows plus their gaps,
+     plus the one row that may be expanded. Only one controller can be
+     hovered or have its volume band open at a time, so a single --sbm-h
+     for "the expanded row" is enough - the sum is the same regardless of
+     which of the rows it is. A fourth controller would take the tab list's
+     own height, so the rest is scrolled to. */
+  height: calc((var(--sbm-rows, 0) - 1) * 42px + var(--sbm-h, 36px));
+  overflow-y: auto;
+  /* Scrolls but never shows it: chrome, not content, as .scrollzone does. */
+  scrollbar-width: none;
+  z-index: 5;
+  opacity: 1;
+  /* The block is #atrium-root's sibling, not a child of .sidebar, so it never
+     reaches the font that rule sets and drew in the UA serif default. */
+  font: 13px var(--sans, system-ui, -apple-system, sans-serif);
+  /* Height too: the block grows upward from its own bottom edge, so a snap
+     here reads as the card jumping while the row inside it eases. */
+  transition: opacity .2s ease, translate .2s ease, height .2s ease;
+  /* On the block, not on the row it measures: an element is never its own
+     query container, so the narrow-sidebar rules below could not reach a row
+     that carried the container itself. The block is the row's width. */
+  container: sbmitem / inline-size;
+}
+
+.sbm-block::-webkit-scrollbar {
+  display: none;
+}
+
+/* display: none cannot be transitioned, and the rows under the block ease
+   their padding over the same .2s (as on the strip). */
+.sbm-block.sbm-hidden {
+  opacity: 0;
+  translate: 0 6px;
+  pointer-events: none;
+}
+
+/* One grid per state rather than a second shape for the same box: rest is the
+   transport itself, hover opens a title row above it for the tab's name and
+   the window controls, and the volume band is a third row grown into on top
+   of that - never a floating popover, so it has to be a track like the other
+   two. */
+.sbm-item {
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  height: 36px;
+  display: grid;
+  /* The favicon and the volume button hold the two edges, the transport keeps
+     its three buttons together between them, and the two 1fr tracks take the
+     rest. Even 1fr tracks spread the transport over the whole row, which drifts
+     the buttons apart as the sidebar widens.
+     auto, not 16px, on the favicon: it drops out on a narrow row, and an auto
+     track with no item in it is zero wide. */
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto minmax(0, 1fr) auto;
+  /* The transport is the last track and the track above it takes whatever room
+     is left, so the buttons hold the item's bottom edge at every height the
+     growth passes through. Fixed 36px tracks overflowed the box while it
+     animated, which slid the whole transport past the block's clipped bottom
+     edge and back. The resting row is this same grid with an empty top track:
+     the title and the window controls are display: none until hover.
+     minmax(0, ...) because a bare 1fr floors at its content, and the title's
+     own line box then held the top track open and pushed the transport down
+     by a line while the row was still short. */
+  grid-template-rows: minmax(0, 1fr) 36px;
+  grid-template-areas:
+      "title title title title title pip  close"
+      "fav   .     prev  play  next  .    vol";
+  align-items: center;
+  justify-items: center;
+  /* Columns only. A row gap counts against the 36px tracks the item's own
+     height is the sum of, so an 8px one made the two-row grid need 80px in a
+     72px box and pushed the transport 8px below its band. */
+  column-gap: 8px;
+  row-gap: 0;
+  /* The row's own box: same radius and the same lead inset. */
+  border-radius: 8px;
+  padding: 0 8px 0 9px;
+  background: var(--fill);
+  transition: height .2s ease, background .12s;
+}
+
+.sbm-item:hover {
+  background: var(--fillhover);
+}
+
+/* Only the height changes: the grid above already holds the title row. */
+.sbm-item:is(:hover, .sbm-vol-open) {
+  height: 72px;
+}
+
+/* The band takes the bottom track and lifts the transport by its own height.
+   The two fixed tracks stay a pair against the bottom edge, so neither one
+   overflows the box while it grows. */
+.sbm-item.sbm-vol-open {
+  height: 108px;
+  grid-template-rows: minmax(0, 1fr) 36px 36px;
+  grid-template-areas:
+      "title   title   title   title   title   pip     close"
+      "fav     .       prev    play    next    .       vol"
+      "volband volband volband volband volband volband volband";
+}
+
+/* The title and the window controls belong to the expanded state. Every
+   selector here carries .sbm-item: a bare .sbm-pip-btn ties with the .sbm-btn
+   display below it and loses on order, so the button showed at rest. */
+.sbm-item .sbm-title,
+.sbm-item .sbm-pip-btn,
+.sbm-item .sbm-close-btn,
+.sbm-item .sbm-volband {
+  display: none;
+}
+
+.sbm-item:is(:hover, .sbm-vol-open) .sbm-title {
+  display: block;
+}
+
+.sbm-item:is(:hover, .sbm-vol-open) .sbm-pip-btn,
+.sbm-item:is(:hover, .sbm-vol-open) .sbm-close-btn {
+  display: flex;
+}
+
+.sbm-item.sbm-vol-open .sbm-volband {
+  display: flex;
+  align-items: center;
+}
+
+.sbm-fv {
+  grid-area: fav;
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.sbm-fv img {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+}
+
+/* The transport carries four 24px buttons, six 8px gaps and the row's own
+   padding, which needs 161px before the favicon takes its 24px. The favicon is
+   the element to drop: it names the tab, and the four controls are what the row
+   is for. */
+@container sbmitem (max-width: 192px) {
+  .sbm-fv {
+    display: none;
+  }
+
+  /* The two spacer tracks and the row's own padding pushed the transport right
+     once the favicon went: one spacer sat before the buttons, the other between
+     the last two, and the volume button ended up against the trailing padding.
+     space-evenly spends the spare room on five equal spaces instead, so the
+     edges measure what the gaps between the buttons do. */
+  .sbm-item {
+    /* 24px, not auto: an auto track grows to the widest thing in it, and the
+       title spans the first two, so the spaces stayed equal between the tracks
+       while the gaps between the buttons did not. */
+    grid-template-columns: repeat(4, 24px);
+    grid-template-areas:
+        "title title pip  close"
+        "prev  play  next vol";
+    justify-content: space-evenly;
+    column-gap: 0;
+    padding: 0;
+  }
+
+  .sbm-item.sbm-vol-open {
+    grid-template-areas:
+        "title   title   pip     close"
+        "prev    play    next    vol"
+        "volband volband volband volband";
+  }
+}
+
+.sbm-title {
+  grid-area: title;
+  justify-self: stretch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: default;
+  /* The UA's "normal" line-height varies by platform font, so a stacked
+     second row could outgrow the band it shares. */
+  line-height: 1;
+}
+
+.sbm-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border: 0;
+  padding: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: default;
+  transition: background .12s;
+}
+
+.sbm-btn:hover {
+  background: var(--fillhover);
+}
+
+.sbm-btn[aria-pressed="true"] {
+  background: var(--fillhover);
+}
+
+/* A track the page cannot skip keeps its place so the transport never
+   reflows between pages. */
+.sbm-btn:disabled {
+  opacity: .35;
+}
+
+.sbm-btn:disabled:hover {
+  background: transparent;
+}
+
+.sbm-play {
+  grid-area: play;
+}
+
+.sbm-pip-btn {
+  grid-area: pip;
+  justify-self: end;
+}
+
+.sbm-close-btn {
+  grid-area: close;
+  justify-self: end;
+}
+
+.sbm-prev {
+  grid-area: prev;
+}
+
+.sbm-next {
+  grid-area: next;
+}
+
+.sbm-vol-btn {
+  grid-area: vol;
+  justify-self: end;
+}
+
+.sbm-glyph {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sbm-volband {
+  grid-area: volband;
+  justify-self: stretch;
+  padding: 0 2px;
+}
+
+/* The UA range carries its own margin and a taller box than the 36px band
+   leaves room for, so it drew hard against the item's bottom edge. */
+.sbm-vol-range {
+  width: 100%;
+  height: 20px;
+  margin: 0;
+  accent-color: currentColor;
+}
+
+/* The lane the tab list gives up, on top of the room the dots bar already
+   holds. Spent here rather than through a token declared on :root: a custom
+   property is substituted where it is declared, so a lane written at the root
+   would read the row count the root has, not the one the block drew with.
+   +6px over the block's own height: the one gap it would otherwise share
+   with the controller above it, so the list doesn't sit flush on the block. */
+#atrium-root.sbm-reflow .railpane .sidebar {
+  padding-bottom: calc(50px + (var(--sbm-rows, 0) - 1) * 42px + var(--sbm-h, 36px));
+}
+
+/* The railless render, whose .sidebar is the root's own child. */
+#atrium-root.sbm-reflow.sbroot > .sidebar {
+  padding-bottom: calc(40px + (var(--sbm-rows, 0) - 1) * 42px + var(--sbm-h, 36px));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sbm-block,
+  .sbm-item,
+  .sbm-btn {
+    transition: none;
+  }
+}

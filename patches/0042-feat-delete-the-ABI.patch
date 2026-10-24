@@ -1,0 +1,81 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 14:16:56 +0200
+Subject: [PATCH 042/154] feat: delete the ABI
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+atrium_bridge.h, atrium_ui_bridge.h and atrium_ui_bridge.mm are gone: 3,699
+lines of frozen vtable, export declarations and the dlopen loader that
+resolved 63 symbols into nil-checked groups so a missing dylib degraded to
+vanilla Chromium. A statically linked crate cannot be absent, so every
+degraded branch was dead the day Swift was deleted.
+
+Seventeen files lose their include. Nothing calls dlopen for Atrium any more.
+
+AtriumHost is retired rather than replaced. It was an opaque handle Swift
+used to name a window, and its definition was
+`reinterpret_cast<AtriumHost*>(this)` - the controller's own address wearing
+a different type. With no ABI to hide the type from, it collapses to the
+BrowserController* it always was, and ControllerFor keeps validating against
+the live registry, which is the part that was ever load-bearing.
+
+The comments that cite the header's doc blocks by name keep the names -
+SIDEBAR WIDTH, SPLIT VIEW, EDIT FOCUS, TAB CYCLING. Those blocks are the
+semantics of each op rather than its signature, and are worth reading before
+rebuilding one. docs/host-ops-inventory.md says how to get them back.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn                              | 3 ---
+ chrome/browser/ui/browser.cc                            | 1 -
+ chrome/browser/ui/views/frame/browser_window_factory.cc | 1 -
+ 3 files changed, 5 deletions(-)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index d958b992d5b5e..8d65a1478167f 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3501,7 +3501,6 @@ static_library("ui") {
+ 
+   if (is_mac) {
+     sources += [
+-      "atrium/atrium_bridge.h",
+       "atrium/atrium_browser_controller.h",
+       "atrium/atrium_browser_controller.mm",
+       "atrium/atrium_browser_window.h",
+@@ -3521,8 +3520,6 @@ static_library("ui") {
+       "atrium/atrium_peek_widget.mm",
+       "atrium/atrium_sidebar_overlay_widget.h",
+       "atrium/atrium_sidebar_overlay_widget.mm",
+-      "atrium/atrium_ui_bridge.h",
+-      "atrium/atrium_ui_bridge.mm",
+       "atrium/atrium_window_corner_radius.h",
+       "atrium/atrium_window_corner_radius.mm",
+       "browser_commands_mac.h",
+diff --git a/chrome/browser/ui/browser.cc b/chrome/browser/ui/browser.cc
+index 367aa897611aa..fc68f5c8d0b83 100644
+--- a/chrome/browser/ui/browser.cc
++++ b/chrome/browser/ui/browser.cc
+@@ -294,7 +294,6 @@
+ #if BUILDFLAG(IS_MAC)
+ #include "chrome/browser/ui/atrium/atrium_peek_intercept.h"
+ #include "chrome/browser/ui/atrium/atrium_status_bubble_hook.h"
+-#include "chrome/browser/ui/atrium/atrium_ui_bridge.h"
+ #include "ui/display/display.h"
+ #include "ui/display/screen.h"
+ #include "ui/display/types/display_constants.h"
+diff --git a/chrome/browser/ui/views/frame/browser_window_factory.cc b/chrome/browser/ui/views/frame/browser_window_factory.cc
+index 3f4a712d0319d..f377af3b13130 100644
+--- a/chrome/browser/ui/views/frame/browser_window_factory.cc
++++ b/chrome/browser/ui/views/frame/browser_window_factory.cc
+@@ -20,7 +20,6 @@
+ #if BUILDFLAG(IS_MAC)
+ #include "chrome/browser/ui/atrium/atrium_browser_window.h"
+ #include "chrome/browser/ui/atrium/atrium_little_marker.h"
+-#include "chrome/browser/ui/atrium/atrium_ui_bridge.h"
+ #endif  // BUILDFLAG(IS_MAC)
+ 
+ #if defined(USE_AURA)

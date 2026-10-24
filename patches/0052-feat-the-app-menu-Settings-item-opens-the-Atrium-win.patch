@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 21:10:18 +0200
+Subject: [PATCH 052/154] feat: the app menu Settings item opens the Atrium
+ window
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Recovered from e155a72b08382 rather than reinvented, then cut down. The
+original carried a dylib gate and a degraded path that forwarded to
+AppController's showPreferences: when no Swift answered. Neither has a
+meaning now - the window is backed by a statically linked core - so the
+handler holds no original target and always opens ours.
+
+THE VALIDATION ANSWER, decided rather than inherited. Retargeting stops
+AppController's -validateUserInterfaceItem: running for this item, because
+AppKit asks the item's explicit target, so an answer has to be given. It is
+YES, and not merely because that is simplest: stock gates the item on
+canOpenNewBrowser because chrome://settings is a TAB needing a browser window
+to host it. This window is its own top-level window, one per process, and
+opens from a running app with every browser window closed. The stock condition
+is about a constraint this window does not have.
+
+Verified by settings-menu-item, 5 of 5: retargeted at startup, the item
+claimed, the window built, the route ready, and two windows with the second
+titled 'Atrium Settings'. The click assertion was measured absent on a run
+that opened the menu and stopped, so it cannot pass on the menu appearing.
+The captured menu also shows the item ENABLED, which is the validation answer
+visible on screen.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 5c179d1b2ee4d..7ee3eef019001 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3496,6 +3496,7 @@ static_library("ui") {
+       "atrium/atrium_peek_intercept.cc",
+       "atrium/atrium_peek_navigation_throttle.cc",
+       "atrium/atrium_settings_window.cc",
++      "atrium/atrium_settings_menu_hook.mm",
+       "atrium/atrium_profile_bootstrap.h",
+       "atrium/atrium_profile_bootstrap.cc",
+       "atrium/atrium_status_bubble_hook.h",
+@@ -3529,6 +3530,7 @@ static_library("ui") {
+       "atrium/atrium_peek_intercept.h",
+       "atrium/atrium_peek_navigation_throttle.h",
+       "atrium/atrium_settings_window.h",
++      "atrium/atrium_settings_menu_hook.h",
+       "atrium/atrium_peek_widget.h",
+       "atrium/atrium_peek_widget.mm",
+       "atrium/atrium_sidebar_overlay_widget.h",

@@ -1,0 +1,128 @@
+{
+  "name": "sidebar-header-and-folder-geometry",
+  "description": "Three sidebar chrome geometry checks sharing one fixture, since the dom-shim has no layout and each needs a real VM frame.\n\nthe fixture carries two folders (News, Sports) so 'the next row' after the first folder's last row is the SECOND folder's own head - a real .row element, not the Tabs section header or the New Tab button that would otherwise sit between a single folder and the plain rows below it. .scrollinner and .rows both carry a flat 4px gap (commit 98407918fe1f6 dropped the old -6px .fold margin that used to cancel a 10px section gap down to that same 4px); the eval compares the two gaps directly rather than asserting a literal pixel count, so it survives either value moving in lockstep later.\n\nthe fixture's two plain tabs (Plain One, Plain Two) also answer the row-gap half of the check on their own, so one fixture covers both. The offset eval reads the vertical centre of .wsic (the space name's icon slot) against the space name label's own centre.\n\nthe fixture's single space still renders through buildRail (the >=1 threshold), so its .spacedots bar sits beside .rail rather than inside .sidebar - the DOM position where .sidebar button's cursor:inherit override cannot reach a .sdot's own cursor rule.",
+  "fixture": "sidebar-header-and-folder-geometry.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "74774774-7477-4774-8774-747747747747",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "example-domain.html?g1",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/example-domain.html?g1",
+      "timeout_ms": 20000,
+      "note": "gate: the first grouped tab committed, so the space and its folders are live"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the sidebar model arrive and the rail render both folders and the plain rows"
+    },
+    {
+      "type": "eval",
+      "id": "folder-gap-matches-row-gap",
+      "target": "/sidebar",
+      "expression": "(() => { const frow1 = document.querySelector('.row.frow'); const fold1 = frow1.nextElementSibling; const rows = fold1.querySelectorAll('.tabrow'); const lastFolderRow = rows[rows.length - 1]; const nextRow = fold1.nextElementSibling; const plainRows = document.querySelectorAll('.rows > .tabrow'); const folderGap = nextRow.getBoundingClientRect().top - lastFolderRow.getBoundingClientRect().bottom; const rowGap = plainRows[1].getBoundingClientRect().top - plainRows[0].getBoundingClientRect().bottom; return String(Math.round(folderGap) === Math.round(rowGap)); })()",
+      "note": "the gap from the first folder's last row to the second folder's head, against the gap between the two plain rows"
+    },
+    {
+      "type": "eval",
+      "id": "folder-gap-values",
+      "target": "/sidebar",
+      "expression": "(() => { const frow1 = document.querySelector('.row.frow'); const fold1 = frow1.nextElementSibling; const rows = fold1.querySelectorAll('.tabrow'); const lastFolderRow = rows[rows.length - 1]; const nextRow = fold1.nextElementSibling; const plainRows = document.querySelectorAll('.rows > .tabrow'); const folderGap = nextRow.getBoundingClientRect().top - lastFolderRow.getBoundingClientRect().bottom; const rowGap = plainRows[1].getBoundingClientRect().top - plainRows[0].getBoundingClientRect().bottom; return folderGap.toFixed(2) + ' vs ' + rowGap.toFixed(2); })()",
+      "note": "RECORDED, NOT ASSERTED: the raw gaps folder-gap-matches-row-gap only compares as rounded booleans - kept so a mismatch names the actual pixel drift instead of just failing"
+    },
+    {
+      "type": "eval",
+      "id": "wsname-icon-label-centred",
+      "target": "/sidebar",
+      "expression": "(() => { const dot = document.querySelector('.wsic'); const label = document.querySelector('.wsname span:last-child'); const d = dot.getBoundingClientRect(); const l = label.getBoundingClientRect(); const dotCenter = d.top + d.height / 2; const labelCenter = l.top + l.height / 2; return String(Math.abs(dotCenter - labelCenter) < 1); })()",
+      "note": "the space icon's vertical centre against the space name's, under 1px apart"
+    },
+    {
+      "type": "eval",
+      "id": "space-dot-cursor",
+      "target": "/sidebar",
+      "expression": "(() => { const dot = document.querySelector('.sdot'); return dot ? getComputedStyle(dot).cursor : 'MISSING'; })()",
+      "note": "the space dot's own computed cursor, read where the rail actually renders it - beside .rail, not inside .sidebar"
+    },
+    {
+      "type": "eval",
+      "id": "head-body-gaps-open",
+      "target": "/sidebar",
+      "expression": "(() => { const gap = (frow) => { const fold = frow.nextElementSibling; return Math.round(fold.getBoundingClientRect().top - frow.getBoundingClientRect().bottom); }; const rows = document.querySelectorAll('.folderlist > .frow'); return rows[0].dataset.folderId.slice(0, 4) + ':' + gap(rows[0]) + ' ' + rows[1].dataset.folderId.slice(0, 4) + ':' + gap(rows[1]); })()",
+      "note": "Review: .folderlist > .fold + .frow only spaces one folder's END from the NEXT folder's head - a folder's OWN head-to-body gap (frow immediately followed by its own fold, the opposite sibling order) must stay 0, or the fix leaked a stray band under every header"
+    },
+    {
+      "type": "capture",
+      "id": "folders-open",
+      "duration_ms": 200,
+      "fps": 10,
+      "note": "both folders open, for the eye"
+    },
+    {
+      "type": "eval",
+      "id": "close-sports",
+      "target": "/sidebar",
+      "expression": "(() => { const frow = [...document.querySelectorAll('.folderlist > .frow')].find((f) => f.dataset.folderId === '22222222-7477-4774-8774-747747747747'); frow.click(); return frow.classList.contains('closedH') ? 'closing' : 'no-toggle'; })()",
+      "note": "the delegated .frow click handler toggles the folder - not an OS-level hit-test like the nav row, so a DOM click is the real path here"
+    },
+    {
+      "type": "settle",
+      "ms": 500,
+      "note": "past .fold's .26s grid-template-rows transition"
+    },
+    {
+      "type": "eval",
+      "id": "head-body-gaps-closed",
+      "target": "/sidebar",
+      "expression": "(() => { const gap = (frow) => { const fold = frow.nextElementSibling; return Math.round(fold.getBoundingClientRect().top - frow.getBoundingClientRect().bottom); }; const rows = document.querySelectorAll('.folderlist > .frow'); return rows[0].dataset.folderId.slice(0, 4) + ':' + gap(rows[0]) + ' ' + rows[1].dataset.folderId.slice(0, 4) + ':' + gap(rows[1]); })()",
+      "note": "re-measured with Sports collapsed: its own head-to-body gap must still read 0, same as News's, open or closed"
+    },
+    {
+      "type": "capture",
+      "id": "folders-closed",
+      "duration_ms": 200,
+      "fps": 10,
+      "note": "Sports collapsed, News still open, for the eye"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "folder-gap-matches-row-gap",
+      "expected": "\"true\"",
+      "note": "the folder's bottom gap equals the plain-row gap"
+    },
+    {
+      "type": "eval_equals",
+      "id": "wsname-icon-label-centred",
+      "expected": "\"true\"",
+      "note": "icon and name share one vertical centre, within 1px"
+    },
+    {
+      "type": "eval_equals",
+      "id": "space-dot-cursor",
+      "expected": "\"default\"",
+      "note": "the space dot keeps the sidebar's default arrow, not a pointer hand"
+    },
+    {
+      "type": "eval_equals",
+      "id": "head-body-gaps-open",
+      "expected": "\"1111:0 2222:0\"",
+      "note": "Review: the .fold + .frow fix must not touch a folder's own head-to-body gap"
+    },
+    {
+      "type": "eval_equals",
+      "id": "head-body-gaps-closed",
+      "expected": "\"1111:0 2222:0\"",
+      "note": "Review: same guarantee with Sports collapsed - no stray band appears under a closed header either"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits"
+    }
+  ]
+}

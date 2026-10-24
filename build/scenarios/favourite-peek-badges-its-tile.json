@@ -1,0 +1,43 @@
+{
+  "name": "favourite-peek-badges-its-tile",
+  "description": "While a Peek opened from a favourite's tab is up, that favourite's tile wears the peeked page's favicon in its top-right corner, the way Arc draws it. Escape takes the badge away. Built on favourite-off-site-link-opens-a-peek, which established that the link opens a peek at all. The peeked page is served by the fixture server, whose /favicon.ico is the icon the badge shows.",
+  "fixture": "favourite-off-site-link.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {"type": "settle", "ms": 4000, "note": "first paint, and the sidebar announces itself"},
+    {"type": "activate"},
+    {"type": "settle", "ms": 1500},
+    {"type": "click", "x": 40, "y": 121, "note": "the only favourite tile. This click OPENS and CLAIMS the tab, so the tile carries its tab id."},
+    {"type": "wait_vlog", "pattern": "Atrium: favourite claimed tab", "timeout_ms": 20000, "note": "VACUITY GUARD: no claim, no tile to badge"},
+    {"type": "eval_until", "id": "landed", "target": "favourite-links.html", "expression": "location.pathname", "expected": "/favourite-links.html", "timeout_ms": 20000},
+    {"type": "settle", "ms": 2000},
+    {"type": "eval_until", "id": "no-badge-before", "target": "/sidebar", "expression": "String(document.querySelectorAll('.peekbadge').length)", "expected": "0", "timeout_ms": 4000, "note": "no peek, no badge"},
+    {"type": "click", "x": 480, "y": 250, "note": "the off-site target=_blank link, at favourite-off-site-link-opens-a-peek's coordinates"},
+    {"type": "wait_vlog", "pattern": "Atrium: peek widget showing for parent", "timeout_ms": 15000, "note": "GATE: the card opened"},
+    {"type": "wait_vlog", "pattern": "Atrium: peek badge for tab [1-9]", "timeout_ms": 20000, "note": "GATE: the peek's favicon arrived and the browser pushed the badge"},
+    {"type": "eval_until", "id": "badge-on", "target": "/sidebar", "expression": "(() => { const tiles = [...document.querySelectorAll('.fav')].filter((f) => f.querySelector('.peekbadge')); if (tiles.length !== 1) { return 'tiles=' + tiles.length; } const img = tiles[0].querySelector('.peekbadge img'); if (!/[?]r=[1-9]/.test(img.src)) { return 'no-rev'; } return img.complete && img.naturalWidth > 0 ? 'loaded' : 'pending'; })()", "expected": "loaded", "timeout_ms": 8000, "note": "THE MEASUREMENT: exactly one tile wears the badge and its favicon really loaded"},
+    {"type": "capture", "id": "badged", "duration_ms": 400, "fps": 20, "note": "the tile with its badge, beside the card"},
+    {"type": "key", "combo": "escape", "note": "Escape is an accelerator on the peek widget itself"},
+    {"type": "settle", "ms": 1500, "note": "the dismiss animation"},
+    {"type": "eval_until", "id": "badge-off", "target": "/sidebar", "expression": "String(document.querySelectorAll('.peekbadge').length)", "expected": "0", "timeout_ms": 4000, "note": "the badge left with the card"},
+    {"type": "capture", "id": "dismissed", "duration_ms": 400, "fps": 20},
+    {"type": "click", "x": 480, "y": 250, "note": "the same link again, for a second peek"},
+    {"type": "eval_until", "id": "badge-on-again", "target": "/sidebar", "expression": "String(document.querySelectorAll('.fav > .peekbadge').length)", "expected": "1", "timeout_ms": 20000, "note": "GATE: the second peek badged the tile"},
+    {"type": "eval", "id": "peek-to-blank", "target": "example-domain-tall.html", "expression": "(location.href = 'about:blank', 'navigated')", "note": "about:blank has no icon, so the driver never reports one"},
+    {"type": "eval_until", "id": "badge-gone-on-no-icon", "target": "/sidebar", "expression": "String(document.querySelectorAll('.peekbadge').length)", "expected": "0", "timeout_ms": 8000, "note": "THE SECOND MEASUREMENT: the icon-less page took the badge away while the card stays up"}
+  ],
+  "assertions": [
+    {"type": "eval_equals", "id": "landed", "expected": "/favourite-links.html", "desc": "VACUITY GUARD: the favourite's tab loaded its page"},
+    {"type": "eval_equals", "id": "no-badge-before", "expected": "0", "desc": "no badge before the peek"},
+    {"type": "vlog", "label": "peek-opened", "pattern": "Atrium: peek widget showing for parent", "desc": "the link opened the card"},
+    {"type": "eval_equals", "id": "badge-on", "expected": "loaded", "desc": "THE ASSERTION: one favourite tile wears the peeked page's favicon"},
+    {"type": "eval_equals", "id": "badge-off", "expected": "0", "desc": "Escape took the badge away"},
+    {"type": "eval_equals", "id": "badge-on-again", "expected": "1", "desc": "a second peek badged the tile again"},
+    {"type": "eval_equals", "id": "badge-gone-on-no-icon", "expected": "0", "desc": "a page with no icon clears the badge"},
+    {"type": "ax_window_count", "expected": 2, "min_area": 200000, "desc": "VACUITY GUARD: the card is still up, so the page change and not a close cleared the badge"},
+    {"type": "vlog", "label": "badge-cleared", "pattern": "Atrium: peek badge for tab 0 rev 0$", "desc": "the close path pushed the clear"},
+    {"type": "quit", "desc": "Cmd+Q still quits cleanly"}
+  ]
+}

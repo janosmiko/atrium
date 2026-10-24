@@ -1,0 +1,124 @@
+{
+  "name": "command-bar-favourite-finds-its-moved-tab",
+  "description": "Enter on a command bar favourite called OpenOrActivateUrl, whose exact-string match misses once the favourite's tab has navigated - the same mismatch, but for the favourite's own accept rather than the engine one. Reuses the redirecting-favourite fixture: the tile opens and claims a tab, then the page's own meta refresh moves it off the stored url before the command bar ever gets involved, so a fix that only worked for an unmoved favourite would still pass here and prove nothing.",
+  "fixture": "redirecting-favourite.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "click",
+      "x": 40,
+      "y": 121,
+      "note": "the only favourite tile, at a sibling scenario's own coordinates. This click OPENS and CLAIMS the tab everything below is about."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: favourite claimed tab",
+      "timeout_ms": 20000,
+      "note": "VACUITY GUARD: without a claimed tab there is nothing for the command bar accept to find by key"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "long enough for the page to load AND for the meta refresh to commit, which is what moves the tab off the tile's stored url"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the /commandbar document commit and take the field"
+    },
+    {
+      "type": "type",
+      "text": "Redirecting"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "the autocomplete pass and the favourite row land together"
+    },
+    {
+      "type": "eval",
+      "id": "offered-fav-url",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbfav') || {}).dataset?.cbUrl || 'none')",
+      "note": "the row on screen really is the favourite's own, by its stored url"
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "the top row's Enter - the favourite row, matching only its stored title"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar favourite accepted",
+      "timeout_ms": 20000,
+      "note": "the accept reached BrowserController at all"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "Liveness, and a guard against a click landing somewhere that spawned a window."
+    },
+    {
+      "type": "eval_equals",
+      "id": "offered-fav-url",
+      "expected": "\"http://127.0.0.1:8000/redirect-to-lab.html\"",
+      "desc": "VACUITY GUARD: the row Enter is about to accept carries the favourite's stored url, not something the query merely matched by chance"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: command bar favourite accepted",
+      "desc": "THE POSITIVE HALF: Enter on the favourite row reached AcceptCommandBarFavorite"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: favourite activated the tab it opened, by key",
+      "desc": "THE ASSERTION: found by the marker the claim left, not by a url string the moved tab no longer carries - this line only fires through ActivateFavoriteRow, which OpenOrActivateUrl never calls"
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: cold sidebar row opening",
+      "max": 1,
+      "desc": "at most the tile's own first open - before the fix the accept opened a second copy here, because the moved tab's exact url matched nothing"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: cold sidebar row opening",
+      "desc": "the floor beside that ceiling: the tile's own open still happened, so the ceiling above is not passing on a run that opened nothing at all"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+ "schemaVersion": 1,
+ "themes": {
+  "a276b001-0000-0000-0000-000000000001": {
+   "ambientEnabled": false,
+   "darkAdaptation": 0.45,
+   "effects": {
+    "frost": 0,
+    "grain": 0.55,
+    "vignette": 0.34,
+    "warmth": -0.16
+   },
+   "name": "Nocturne",
+   "nightShiftEnabled": false,
+   "opacity": 1,
+   "stops": [
+    {
+     "alpha": 1,
+     "color": "#1B1F3A",
+     "x": 0.3,
+     "y": 0.22
+    },
+    {
+     "alpha": 0.9,
+     "color": "#7A3B5E",
+     "x": 0.76,
+     "y": 0.55
+    },
+    {
+     "alpha": 1,
+     "color": "#0C0E16",
+     "x": 0.14,
+     "y": 0.86
+    }
+   ],
+   "version": 1
+  },
+  "a276b002-0000-0000-0000-000000000002": {
+   "ambientEnabled": false,
+   "darkAdaptation": 0.45,
+   "effects": {
+    "frost": 0,
+    "grain": 0.45,
+    "vignette": 0.38,
+    "warmth": -0.2
+   },
+   "name": "Abyss",
+   "nightShiftEnabled": false,
+   "opacity": 1,
+   "stops": [
+    {
+     "alpha": 1,
+     "color": "#0E3A4C",
+     "x": 0.42,
+     "y": 0.3
+    },
+    {
+     "alpha": 0.9,
+     "color": "#14647A",
+     "x": 0.1398243400621118,
+     "y": 0.7531550480769231
+    },
+    {
+     "alpha": 1,
+     "color": "#071219",
+     "x": 0.4607676630434782,
+     "y": 0.6943252060439561
+    }
+   ],
+   "version": 1
+  }
+ }
+}

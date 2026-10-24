@@ -1,0 +1,59 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 15:03:58 +0200
+Subject: [PATCH 043/154] feat: Cmd+Opt+Down and Up walk the sidebar's order
+ again
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Axis 1 of tab cycling. Those two combos have been completely inert since the
+Swift cut - no stock command owns them - because the order they walked lived
+in the Swift model.
+
+The sidebar's order is not the strip's, which is the whole reason this axis
+exists beside stock Ctrl-Tab: a space keeps rows for tabs that are not open,
+and the user reorders rows by dragging. BuildSidebarTabsJSON is where that
+order surfaces now, so the walk reads it and flattens it in DRAWN order -
+pinned, then each folder's rows, then the ordinary tabs. Favourites are tiles
+rather than rows, and a favourite is not a tab, so they are not in the cycle.
+
+The row choice is a pure unit with nine cases, because each of its decisions
+is a thing a reader assumes rather than checks:
+
+  A single row is not a cycle. Returning it re-activates the tab the user is
+  already on, which looks like the key doing nothing while it did something.
+
+  Nothing selected enters the list from the end the walk is heading towards.
+  The active tab is not always a row - a favourite-bound tab is never
+  persisted into the space, and a space switch leaves nothing marked
+  mid-flight - so refusing would make the key dead in exactly the cases where
+  the user is most likely to press it.
+
+  A cold row is a target. It is on screen, so the cycle must reach it; it has
+  no id, so its URL goes through OpenSidebarColdTab, the same funnel a click
+  uses and the one holding the scheme and realised-window checks.
+
+Axis 0, Ctrl-Tab, is NOT done and is not pretended to be. It needs a recency
+list nothing here keeps, and unlike axis 1 it is not inert: it falls through
+to stock strip cycling, which is a reasonable meaning to leave in place. The
+detector and early return that make that fall-through work are untouched.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 8d65a1478167f..636e4df200e93 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -625,6 +625,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:little_marker",
+     "//chrome/browser/ui/atrium:command_bar_matches",
+     "//chrome/browser/ui/atrium:command_intercept_decision",
++    "//chrome/browser/ui/atrium:tab_cycle",
+     "//chrome/browser/ui/atrium:command_target_decision",
+     "//chrome/browser/ui/atrium:peek_decision",
+     "//chrome/browser/ui/atrium:routing_navigation_decision",

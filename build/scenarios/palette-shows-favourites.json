@@ -1,0 +1,97 @@
+{
+  "name": "palette-shows-favourites",
+  "description": "a favourite must be reachable from the command bar. Reuses the earlier fixture, the only one carrying a favourite whose page the profile actually visits - the same URL is the startup tab, so accepting the favourite has a live tab to activate rather than a page to open.\n\nThe measurement is the accept, not the pixels. 'Blue Favicon Site' matches the favourite and nothing in the fixture's history, so pressing Enter on the top row exercises commandBarFavoriteAccept. OpenSidebarColdTab logs a line every time it opens a tab, and the favourite's page is already open, so the ABSENCE of that line after the accept is the proof the palette took the activate path - the same path a favourite tile click takes now.",
+  "fixture": "favourite-icon.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the sidebar render and the startup tab commit, so the favourite has a live tab to activate"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "settle",
+      "ms": 1200,
+      "note": "let the palette's WebContents commit and take the field"
+    },
+    {
+      "type": "capture",
+      "id": "palette-empty",
+      "duration_ms": 300,
+      "fps": 20
+    },
+    {
+      "type": "type",
+      "text": "Blue Favicon"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "the autocomplete pass and the favourite rows land together"
+    },
+    {
+      "type": "capture",
+      "id": "palette-typed",
+      "duration_ms": 300,
+      "fps": 20,
+      "note": "the favourite row, labelled, at the top"
+    },
+    {
+      "type": "key",
+      "combo": "return",
+      "note": "accept the top row, which is the favourite"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "after-accept",
+      "duration_ms": 300,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: command bar favourite accepted",
+      "label": "favourite-row-was-accepted",
+      "desc": "THE POSITIVE HALF: Enter on the top row reached commandBarFavoriteAccept with the favourite's url. Without this the absence check below is vacuous - an accept that did nothing would also open no tab. The line no longer carries a URL; the fixture holds only this one favourite, so the bare prefix still names the accept."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "Atrium: cold sidebar row opening",
+      "label": "favourite-activated-not-reopened",
+      "desc": "THE OTHER HALF: and it reused the live tab rather than opening a second copy. OpenSidebarColdTab logs on every tab it opens, so its absence - PAIRED with the line above proving the accept happened at all - shows OpenOrActivateUrl took its activate branch."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

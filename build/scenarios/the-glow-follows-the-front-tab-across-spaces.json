@@ -1,0 +1,120 @@
+{
+  "name": "the-glow-follows-the-front-tab-across-spaces",
+  "description": "Space Crimson shows a crimson page, space Teal a teal one. A switch activates the other space's front tab, so the band beside the card must read teal after the chord and crimson again after the return.",
+  "fixture": "page-tint-two-spaces.spaces.json",
+  "settings": "icon-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "theme-color-crimson.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/theme-color-crimson.html",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: ambilight edges",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "on-crimson",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "capture",
+      "id": "on-teal",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "eval_until",
+      "id": "teal-page",
+      "target": "theme-color-teal.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/theme-color-teal.html",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "capture",
+      "id": "back-on-crimson",
+      "duration_ms": 400,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "teal-page",
+      "expected": "http://127.0.0.1:8000/theme-color-teal.html",
+      "label": "the-teal-page-really-came-to-the-front"
+    },
+    {
+      "type": "theme_changed",
+      "before": "on-crimson",
+      "after": "on-teal",
+      "region": [
+        206,
+        460,
+        16,
+        100
+      ],
+      "min_delta": 5,
+      "label": "the-band-moved-to-teal"
+    },
+    {
+      "type": "theme_changed",
+      "before": "on-teal",
+      "after": "back-on-crimson",
+      "region": [
+        206,
+        460,
+        16,
+        100
+      ],
+      "min_delta": 5,
+      "label": "and-back-to-crimson"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

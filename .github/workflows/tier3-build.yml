@@ -1,0 +1,49 @@
+name: Tier 3 - build and browsertests
+
+# Never on push. build-shell.sh caps jobs at ncpu-4 to keep the machine usable
+# during a long build, and firing that on every push undoes the trade.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_browsertests:
+        description: Run browsertests in the VM after the build
+        type: boolean
+        default: false
+  schedule:
+    - cron: '0 3 * * *'  # 03:00 UTC nightly
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tier3
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: [self-hosted, macOS, chromium-checkout]
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Build Atrium.app
+        run: make build
+
+      - name: ABI test
+        run: make cpp-test
+
+      - name: Browsertests in the VM
+        # browser_tests puts real windows on the desktop on macOS, so it runs
+        # inside the Tart VM and nowhere else.
+        if: inputs.run_browsertests
+        run: |
+          # vm.sh defaults to a volume this machine does not have. The probe
+          # VMs are provisioned once, under the runner account's home.
+          export TART_HOME="$HOME/tart"
+          test -d "$TART_HOME" || { echo "no VM store at $TART_HOME"; exit 1; }
+          ./build/scripts/vm.sh start
+          ./build/scripts/vm.sh deploy
+          ./build/scripts/vm.sh run-gtest

@@ -1,0 +1,33 @@
+{
+ "spaces": [
+  {
+   "id": "7ab00764-0000-4000-8000-000000000764",
+   "name": "Favs",
+   "emoji": "F",
+   "tint": "oceanBlue",
+   "profileID": "Default",
+   "order": 0,
+   "pinnedTabs": [],
+   "tabs": [
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/edit-focus-field.html",
+     "title": "Ordinary Row"
+    }
+   ],
+   "groups": []
+  }
+ ],
+ "favorites": [
+  {
+   "url": "http://127.0.0.1:8000/favicon-page.html",
+   "title": "Plain Fav",
+   "profileID": "Default"
+  }
+ ],
+ "appState": {
+  "sidebarWidth": 280,
+  "schemaVersion": 1,
+  "activeSpaceID": "7ab00764-0000-4000-8000-000000000764"
+ }
+}

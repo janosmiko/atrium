@@ -1,0 +1,87 @@
+{
+  "name": "sidebar-drag-onto-name-pins",
+  "description": "The pinned section renders no placeholder while it is empty, and a regular tab dragged onto the space name lights it up and pins the tab. The drag is synthesised as real dragstart/dragover/drop DOM events with a DataTransfer, the same events installRowDrag listens for - a log line saying the message was sent is not proof the row moved, so the pinned state is read back off the DOM after the round trip to the browser and back.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "no-placeholder",
+      "target": "/sidebar",
+      "expression": "(() => { const strip = document.querySelector('.pinstrip'); return strip ? 'pinstrip still renders' : 'no pinstrip'; })()",
+      "note": "The fixture pins nothing, so the old empty-state text would show here if it still rendered."
+    },
+    {
+      "type": "eval",
+      "id": "name-is-target",
+      "target": "/sidebar",
+      "expression": "(() => { const name = document.querySelector('.wsname'); return name && name.dataset.dropzone === 'pinned' ? 'name is the pin target' : 'name dropzone is ' + (name ? name.dataset.dropzone : 'missing element'); })()"
+    },
+    {
+      "type": "eval",
+      "id": "drag",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.rows > .tabrow'); const name = document.querySelector('.wsname'); if (!row) { return 'no-row'; } if (!name) { return 'no-wsname'; } const title = row.querySelector('.tl').textContent; const dt = new DataTransfer(); row.dispatchEvent(new DragEvent('dragstart', {bubbles: true, cancelable: true, dataTransfer: dt})); name.dispatchEvent(new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer: dt})); const lit = name.classList.contains('dropinto'); name.dispatchEvent(new DragEvent('drop', {bubbles: true, cancelable: true, dataTransfer: dt})); return 'dragged ' + title + ' onto the space name, ' + (lit ? 'highlighted' : 'NOT highlighted'); })()",
+      "note": "The same dragstart/dragover/drop sequence a real drag fires, dispatched directly rather than driven by cgevent - installRowDrag's listeners cannot tell the two apart, and this is deterministic where an OS-level drag onto a moving row is not."
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval_until",
+      "id": "pinned-after",
+      "target": "/sidebar",
+      "expression": "(() => { const titles = [...document.querySelectorAll('.fold[data-folder-body=\"__pinned__\"] .tabrow .tl')].map(n => n.textContent); return titles.includes('Ambilight Split') ? 'pinned' : 'not pinned yet: ' + titles.join(','); })()",
+      "expected": "pinned",
+      "timeout_ms": 6000,
+      "note": "Polled rather than sampled once - the pin has to round-trip through the browser and back before the section re-renders."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "no-placeholder",
+      "expected": "\"no pinstrip\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "name-is-target",
+      "expected": "\"name is the pin target\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "drag",
+      "expected": "\"dragged Ambilight Split onto the space name, highlighted\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "pinned-after",
+      "expected": "pinned",
+      "desc": "the dragged tab renders under the pinned section after the round trip"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

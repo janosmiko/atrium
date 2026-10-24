@@ -1,0 +1,99 @@
+{
+  "name": "the-floating-sidebar-resizes-by-its-edge",
+  "description": "The reporter could not resize the revealed panel, and then found the handle drawn outside it. The in-window seam cannot serve the panel: the panel is a child window and takes every event over its own frame, so a band under it is dead and a band just outside it is not on the sidebar at all. The handle now lives inside the page, which is where the lab puts it while the sidebar floats (.ovresize, swipe-lab.html:42).\n\nA browser test can send the two messages the handle sends and watch the panel follow. Only a real pointer press on real coordinates proves the handle is where the pointer will find it, which is what this does.",
+  "fixture": "lab-compare.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1800
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "collapse the pane, which is the state the edge zone arms in"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 400,
+      "note": "the left window edge, where the reveal is armed"
+    },
+    {
+      "type": "settle",
+      "ms": 1800,
+      "note": "the panel slides in and the band follows it to x=225"
+    },
+    {
+      "type": "eval",
+      "id": "panel-width-before",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.clientWidth)",
+      "note": "the panel's own width before the drag"
+    },
+    {
+      "type": "drag",
+      "x1": 221,
+      "y1": 400,
+      "x2": 321,
+      "y2": 400,
+      "note": "the page's own handle. The panel opens at the 220 default and, at kOverlayHorizontalInset 5, spans 5-225, so .ovresize - the 7px strip at its trailing edge - is 218 to 225 and 221 is the middle of it. Move the gap and this number moves with it. Dragging 100 points right asks for a 316-wide panel."
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "the commit lands and the band's last layout pass prints"
+    },
+    {
+      "type": "eval",
+      "id": "panel-aligned-after",
+      "target": "/sidebar",
+      "expression": "(() => { const s = document.querySelector('.sidebar'); return s ? (s.clientWidth - document.documentElement.clientWidth) : 'no sidebar'; })()",
+      "note": "the panel's contents against the panel's own viewport. A page still holding the pre-drag width reads the difference here, which is the docked bug on the floating side."
+    },
+    {
+      "type": "eval",
+      "id": "panel-width-after",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.clientWidth)",
+      "note": "a drag that never reached the handle leaves this unchanged"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_changed",
+      "before": "panel-width-before",
+      "after": "panel-width-after",
+      "label": "the-drag-widened-the-panel"
+    },
+    {
+      "type": "eval_equals",
+      "id": "panel-aligned-after",
+      "expected": "0",
+      "label": "the-contents-came-with-the-panel",
+      "desc": "The band moving proves the panel grew. This proves the page grew with it."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "DCHECK failed",
+      "label": "no-dcheck-fired"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

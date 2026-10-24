@@ -1,0 +1,99 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 23 Jul 2026 13:18:33 +0200
+Subject: [PATCH 010/154] atrium: devtools bridge, pane selection, CDP response
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/devtools/BUILD.gn                 |  6 ++++++
+ chrome/browser/devtools/devtools_window.cc       | 16 +++++++++++++++-
+ chrome/browser/devtools/devtools_window_views.cc |  7 +++++++
+ 3 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/chrome/browser/devtools/BUILD.gn b/chrome/browser/devtools/BUILD.gn
+index f2a7f5db9ebe4..6c2f2bec1786c 100644
+--- a/chrome/browser/devtools/BUILD.gn
++++ b/chrome/browser/devtools/BUILD.gn
+@@ -121,6 +121,12 @@ static_library("devtools") {
+     "//chrome/browser/search",
+     "//chrome/browser/search_engines",
+     "//chrome/browser/sync",
++    # AtriumCanDockDevtools/MaybeUpdateAtriumDockedDevtools's
++    # declarations (devtools_window.cc/devtools_window_views.cc's gated
++    # seams) - the browser_elements_views_impl precedent for
++    # depending on this dependency-free headers-only target instead of the
++    # rest of the mac-only atrium sources.
++    "//chrome/browser/ui/atrium:headers",
+     "//chrome/browser/ui/autofill",
+     "//chrome/browser/ui/dialogs",
+     "//chrome/browser/ui/select_file_policy",
+diff --git a/chrome/browser/devtools/devtools_window.cc b/chrome/browser/devtools/devtools_window.cc
+index af2ccacf691c7..d35e810848e29 100644
+--- a/chrome/browser/devtools/devtools_window.cc
++++ b/chrome/browser/devtools/devtools_window.cc
+@@ -46,6 +46,7 @@
+ #include "chrome/browser/search_engines/template_url_service_factory.h"
+ #include "chrome/browser/tab_list/tab_list_interface.h"
+ #include "chrome/browser/task_manager/web_contents_tags.h"
++#include "chrome/browser/ui/atrium/atrium_devtools_bridge.h"
+ #include "chrome/browser/ui/dialogs/browser_dialogs.h"
+ #include "chrome/browser/ui/prefs/prefs_tab_helper.h"
+ #include "chrome/browser/ui/scoped_tabbed_browser_displayer.h"
+@@ -1073,6 +1074,12 @@ void DevToolsWindow::Show(const DevToolsToggleAction& action) {
+     if (auto* devtools_ui_controller =
+             DevtoolsUIController::From(inspected_browser)) {
+       devtools_ui_controller->UpdateDevtools(inspected_web_contents);
++    } else {
++      // DevtoolsUIController::From returns null for an Atrium
++      // chromeless window (it never builds one) - a no-op everywhere else
++      // (non-Atrium browser, or the dylib never connected).
++      atrium::MaybeUpdateAtriumDockedDevtools(inspected_browser,
++                                              inspected_web_contents);
+     }
+     main_web_contents_->SetInitialFocus();
+     inspected_window->Show();
+@@ -1378,7 +1385,14 @@ DevToolsWindow* DevToolsWindow::Create(
+ #endif  // BUILDFLAG(IS_MAC)
+     DevtoolsUIController* devtools_ui_controller =
+         browser ? DevtoolsUIController::From(browser) : nullptr;
+-    if (!devtools_ui_controller || !devtools_ui_controller->CanDockDevtools()) {
++    if ((!devtools_ui_controller || !devtools_ui_controller->CanDockDevtools()) &&
++        // An Atrium chromeless window has no DevtoolsUIController
++        // (BrowserView-only construction path above), so the check above
++        // always falls through to here for one - consult
++        // atrium::AtriumCanDockDevtools instead of forcing can_dock false.
++        // A no-op (byte-identical to stock) when `browser` isn't
++        // Atrium-managed or the dylib never connects.
++        !(browser && atrium::AtriumCanDockDevtools(browser))) {
+       can_dock = false;
+     }
+   }
+diff --git a/chrome/browser/devtools/devtools_window_views.cc b/chrome/browser/devtools/devtools_window_views.cc
+index 41fc07f29683d..8143123f813bf 100644
+--- a/chrome/browser/devtools/devtools_window_views.cc
++++ b/chrome/browser/devtools/devtools_window_views.cc
+@@ -4,6 +4,7 @@
+ 
+ #include "chrome/browser/devtools/devtools_ui_controller.h"
+ #include "chrome/browser/devtools/devtools_window.h"
++#include "chrome/browser/ui/atrium/atrium_devtools_bridge.h"
+ #include "chrome/browser/ui/browser.h"
+ #include "chrome/browser/ui/browser_window.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+@@ -138,6 +139,12 @@ void DevToolsWindow::UpdateBrowserWindow() {
+   if (auto* devtools_ui_controller =
+           DevtoolsUIController::From(inspected_browser)) {
+     devtools_ui_controller->UpdateDevtools(inspected_web_contents);
++  } else {
++    // DevtoolsUIController::From returns null for an Atrium
++    // chromeless window (it never builds one) - a no-op everywhere else
++    // (non-Atrium browser, or the dylib never connected).
++    atrium::MaybeUpdateAtriumDockedDevtools(inspected_browser,
++                                            inspected_web_contents);
+   }
+ }
+ 

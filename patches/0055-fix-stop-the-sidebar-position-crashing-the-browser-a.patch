@@ -1,0 +1,83 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 10 Aug 2026 10:47:19 +0200
+Subject: [PATCH 055/154] fix: stop the sidebar position crashing the browser,
+ and wire the settings that reached nothing
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The settings surface rendered real values, persisted real edits, and applied
+none of them. LoadSettingsJSON had exactly one caller: the surface pushing
+values back to its own page.
+
+- Warn before quitting reaches Chrome's confirm-to-quit pref. Proven by
+  sending the same chord twice in one launch with only the toggle between
+  them, and grading that the app went on serving afterwards.
+- Sidebar position, opaque surround, glass opacity and sidebar width apply
+  through one seam, on a successful write and on a startup seed that reads
+  each store once.
+- Startup behaviour reaches the launch plan. Swift gated the startup tab on
+  it and the port kept the computation while dropping the gate.
+- hotkeys.json is installed. It would have refused every payload anyway:
+  the reader demanded schema 1 while the core emits 2.
+
+A stored sidebar position of "right" crashed the browser before any window
+existed. Not a half-built window, as first assumed: sidebar_host_ is the
+deleted SwiftUI arm's view host, permanently null since the Swift package
+went, so that function was a guaranteed null dereference for any caller. It
+had no caller for months. The accessor is gone now, so a fourth occurrence
+is a compile error rather than a fourth silent no-op.
+
+Cmd+Q reaches the menu again from the settings window. A surface holding
+first responder claims the chord, because CommandDispatcher only calls
+postPerformKeyEquivalent when the view hierarchy declines and a live render
+widget never does.
+
+Three command decisions moved to the Rust core; ABI 6 to 9 across the night.
+236 C++ tests, checked by name rather than by count after finding two suites
+the default filter silently skipped.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 0e09b501d64db..15cd42f19df47 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -615,6 +615,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:capture_math",
+     "//chrome/browser/ui/atrium:capture_overlay_math",
+     "//chrome/browser/ui/atrium:cdp_response",
++    "//chrome/browser/ui/atrium:confirm_to_quit",
+     "//chrome/browser/ui/atrium:corner_radius",
+     "//chrome/browser/ui/atrium:devtools_card_corners",
+     "//chrome/browser/ui/atrium:devtools_pane_selection",
+@@ -623,12 +624,15 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:edit_focus_gate",
+     "//chrome/browser/ui/atrium:extension_popup_watchdog_policy",
+     "//chrome/browser/ui/atrium:little_marker",
++    "//chrome/browser/ui/atrium:native_hotkey_defaults",
+     "//chrome/browser/ui/atrium:command_bar_matches",
+     "//chrome/browser/ui/atrium:tab_cycle",
+     "//chrome/browser/ui/atrium:peek_decision",
+     "//chrome/browser/ui/atrium:slot_presentation_table",
++    "//chrome/browser/ui/atrium:startup_behavior",
+     "//chrome/browser/ui/atrium:status_bubble_color_math",
+     "//chrome/browser/ui/atrium:surface_key_route",
++    "//chrome/browser/ui/atrium:window_appearance",
+     "//chrome/browser/ui/autofill",
+     "//chrome/browser/ui/autofill:impl",
+     "//chrome/browser/ui/autofill/payments",
+@@ -3526,6 +3530,8 @@ static_library("ui") {
+       "atrium/atrium_native_hotkey_map.mm",
+       "atrium/atrium_surface_key_route_mac.h",
+       "atrium/atrium_surface_key_route_mac.mm",
++      "atrium/atrium_surface_quit_route_mac.h",
++      "atrium/atrium_surface_quit_route_mac.mm",
+       "atrium/atrium_peek_intercept.h",
+       "atrium/atrium_peek_navigation_throttle.h",
+       "atrium/atrium_settings_window.h",

@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 1 Sep 2026 13:40:12 +0200
+Subject: [PATCH 109/154] feat(settings): add a Profiles pane and move the
+ space's own settings onto it
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+A space carried its own search engine and hibernate override, so two spaces on
+one profile could disagree about both. The profile owns them now, and the space
+pane's read-only Profile row becomes a picker.
+
+The pane lists every profile with its space count, and Not used for one no
+space claims. Its right side edits that profile's own values, including the
+three that live in Chromium prefs rather than in the store, and opens the stock
+data pages in a tab of the profile they belong to.
+
+The retirement is all of it or none: the two space routes, their wire names,
+three ABI exports and three mutate verbs go together. Leaving a writer alive
+would leave a control editing a field nothing reads. ABI 43 to 44.
+
+The migration reads the old per-space keys through a legacy field the loader
+clears, so an existing store carries its engine and its override across rather
+than losing them.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 5803d5005a170..395b6ec430a44 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -653,6 +653,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:peek_decision",
+     "//chrome/browser/ui/atrium:pin_toggle",
+     "//chrome/browser/ui/atrium:pinch_gesture_decision",
++    "//chrome/browser/ui/atrium:profile_page_url",
+     "//chrome/browser/ui/atrium:restore_plan",
+     "//chrome/browser/ui/atrium:search_engine_mirror",
+     "//chrome/browser/ui/atrium:settings_json_cache",

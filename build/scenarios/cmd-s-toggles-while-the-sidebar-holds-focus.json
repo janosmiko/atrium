@@ -1,0 +1,90 @@
+{
+  "name": "cmd-s-toggles-while-the-sidebar-holds-focus",
+  "description": "Cmd+S collapses the sidebar when the sidebar's own WebUI holds first responder. A click on a row is enough to give it focus - which is how a user reaches this state, since the chord is about the surface they just touched.\n\nThe control is the hotkey trace: the dispatcher logs which action the chord matched and what became of it, so a chord that reached the window and was declined names its reason, and a chord the harness never delivered leaves no line at all. Both used to read the same - a docked pane and a guess.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "click",
+      "x": 100,
+      "y": 311,
+      "note": "a real pointer click on the active row (y re-measured after the rows grew to 36px and the pill moved down 16px) - a DOM click over CDP does not move macOS first responder, which the first run proved with responder=BridgedContentView. The active row does not navigate, so the only thing that changes is who holds focus."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "docked",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "the collapse animates"
+    },
+    {
+      "type": "capture",
+      "id": "collapsed",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: dead-chord probe cmd\\+s at prePerform .*responder=RenderWidgetHostViewCocoa.*url=chrome://atrium.top-chrome/sidebar",
+      "label": "the-sidebar-held-first-responder",
+      "desc": "THE CONTROL: the chord arrived while the sidebar's render widget was first responder, which is the case under test. Without this the scenario grades the working path."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: hotkey toggleSidebar fired",
+      "label": "the-chord-fired",
+      "desc": "The dispatcher matched the chord and the toggle ran. A declined chord logs its reason on the same prefix instead."
+    },
+    {
+      "type": "theme_changed",
+      "before": "docked",
+      "after": "collapsed",
+      "region": [
+        40,
+        300,
+        180,
+        200
+      ],
+      "min_delta": 15,
+      "desc": "In pixels: the pane collapsed, so the column the rows stood in now shows the page card.",
+      "note": "The docked sidebar's row area."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

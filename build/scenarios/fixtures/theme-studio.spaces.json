@@ -1,0 +1,21 @@
+{
+  "spaces": [
+    {
+      "id": "66666666-6666-6666-6666-666666666666",
+      "name": "Studio",
+      "emoji": "🎨",
+      "tint": "atriumGreen",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {"lastActiveAt": 805135094.0, "url": "https://example.com/", "title": "Example Domain"}
+      ]
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "66666666-6666-6666-6666-666666666666"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Atrium side panel test",
+  "version": "1.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlIW7yWEOiE3+BYhuc0ROWpWB3XUqCXO1ICmphkShgnekJSJ4L4sVH4cs3XjXSDo8rZC4K+t5tyx7vgZCH6d8Sr/6D+A9qB2S2d8rTdSKPMQ8wWwvBDBhhKcqPyT05kWNNHgZRvWQIegQbSxCiCTs1IVA4bt7fdrPn42vfDMZV57+nOC0n6WBne8kFJdZ984rPQr1QJ78SvjfOL+DvXjWAliW/RnhE74LTRCFP5gJqrieNxphDrVKmeEbhNEx99mJnROkd/Yx4lxwv7MlsIQU8IEt0oCzl871zfVtlzhUh+tXVgrXo7ZzJFKPeO8DwI/hivC+m819wpjzPJ61ChIAUQIDAQAB",
+  "permissions": ["sidePanel"],
+  "side_panel": {"default_path": "panel.html"},
+  "action": {"default_title": "Atrium side panel test"},
+  "background": {"service_worker": "worker.js"}
+}

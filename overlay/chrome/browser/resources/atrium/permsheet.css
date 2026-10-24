@@ -1,0 +1,44 @@
+/* Copyright 2026 The Atrium Authors
+   Use of this source code is governed by the Apache License, Version 2.0
+   found in the LICENSE file. */
+
+/* The permission sheet: same scrim+card language as commandbar.css. The colors,
+   radii, font and shadow come from overlay.css's ov-scrim/ov-card. */
+
+.psscrim {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.pscard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(420px, 80vw);
+  padding: 22px 24px;
+}
+
+.psorigin {
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pslist {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--ov-mute);
+}
+
+.psactions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-block-start: 4px;
+}

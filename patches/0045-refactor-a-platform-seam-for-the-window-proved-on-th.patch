@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 17:34:58 +0200
+Subject: [PATCH 045/154] refactor: a platform seam for the window, proved on
+ the traffic lights
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+AtriumWindowPlatform is the interface the Atrium window will hold instead of
+reaching for AppKit itself. Shaped like BrowserNativeWidget: pure virtual, no
+platform type in the header, one mac-only implementation behind a factory.
+
+The traffic lights go first because they are the hardest small block. The
+collapse path does not just hide them - it fades them over the pane animation
+and hides them for real only at the end, since a fully transparent control
+still takes clicks, and it asks again at that moment because an expand can
+land while the fade is in flight. SetWindowControlsVisible carries that as a
+confirm_hide callback rather than flattening it to a boolean.
+
+The second call site, the sidebar side switch, is the same operation with a
+zero duration.
+
+standardWindowButton no longer appears in atrium_browser_window.mm.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index f4cfb99ca6b2d..30368d4aaa62d 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3504,6 +3504,8 @@ static_library("ui") {
+     sources += [
+       "atrium/atrium_browser_controller.h",
+       "atrium/atrium_browser_controller.cc",
++      "atrium/atrium_window_platform.h",
++      "atrium/atrium_window_platform_mac.mm",
+       "atrium/atrium_browser_window.h",
+       "atrium/atrium_browser_window.mm",
+       "atrium/atrium_capture.h",

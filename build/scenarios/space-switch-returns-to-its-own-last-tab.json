@@ -1,0 +1,154 @@
+{
+  "name": "space-switch-returns-to-its-own-last-tab",
+  "description": "A space switch shows the destination space's OWN last tab. It used to show that space's first drawn row (SelectSpace, ShowRow(rows.front())), so leaving a space and coming back lost your place whenever you were not on its first row.\n\nTHE DISCRIMINATOR IS THE SECOND ROW. The first space holds two tabs and the scenario moves to the SECOND one before leaving. Under the old rule the return shows the first row; under the new one it shows the second. With a single-tab space the two rules agree and the scenario would pass on either.\n\nWHY visibilityState AND NOT A PIXEL READ. Both pages are ordinary documents and a capture cannot tell which is on the pane without knowing what each looks like. The renderer's own answer is exact: the tab on the pane reports visible, the one behind it reports hidden. Reading BOTH is what makes it a comparison rather than a hope - a run where neither page attached would leave a single read unsatisfied and prove nothing about which won.\n\nWHY THE ROW IS CLICKED FROM JS. A pixel click depends on row heights, the grid above them and the pinned section, all of which move for reasons that have nothing to do with this rule. The click goes through the row's own handler either way, which is the path a user takes.\n\nNo favourites in the fixture. A favourite would be a second reason for a page to stay on screen across a switch, and this scenario is about the ordinary rows.",
+  "fixture": "space-switch-returns-to-its-own-last-tab.json",
+  "startup_space": "2ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "edit-focus-field.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/edit-focus-field.html",
+      "timeout_ms": 20000,
+      "note": "GATE: the first space really restored its first tab, so the move to the second row below starts from a known place"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "activate",
+      "note": "an ssh-launched Atrium is not frontmost on a clean snapshot, and the chords below would land in Finder"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval",
+      "id": "open-second-row",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.row')]; const hit = rows.find(r => (r.textContent || '').includes('Second Row Of First Space')); if (!hit) { return 'no-row among ' + rows.map(r => (r.textContent || '').trim()).join('|'); } hit.click(); return 'clicked'; })()",
+      "note": "THE SETUP: move off the first row. Clicked through the row's own handler rather than by pixel, because row heights move for reasons unrelated to this rule."
+    },
+    {
+      "type": "eval_until",
+      "id": "second-row-showing",
+      "target": "long-page.html",
+      "expression": "document.visibilityState",
+      "expected": "visible",
+      "timeout_ms": 20000,
+      "note": "GATE: the second row is on the pane. Everything after this is about whether the space REMEMBERS it."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "leave for the second space, which holds a different page"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 0 -> 1",
+      "timeout_ms": 8000,
+      "note": "gate the setup: the document really moved"
+    },
+    {
+      "type": "eval_until",
+      "id": "other-space-showing",
+      "target": "favicon-page.html",
+      "expression": "document.visibilityState",
+      "expected": "visible",
+      "timeout_ms": 20000,
+      "note": "the second space put its own page up, which is the same rule seen from the other side"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left",
+      "note": "back to the first space, and this is the whole question"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 1 -> 0",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "past the glide and the rebuild the switch posts"
+    },
+    {
+      "type": "eval",
+      "id": "returned-to-second-row",
+      "target": "long-page.html",
+      "expression": "document.visibilityState",
+      "note": "THE READ THIS SCENARIO EXISTS FOR. Visible means the space came back to where it was."
+    },
+    {
+      "type": "eval",
+      "id": "first-row-stayed-behind",
+      "target": "edit-focus-field.html",
+      "expression": "document.visibilityState",
+      "note": "the other half of the comparison. Under the old rows.front() rule THIS is the page that would be visible."
+    },
+    {
+      "type": "capture",
+      "id": "after-return",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the record of which page came back"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window throughout",
+      "label": "one-window-still"
+    },
+    {
+      "type": "eval_equals",
+      "id": "open-second-row",
+      "expected": "\"clicked\"",
+      "desc": "THE CONTROL. A 'no-row among ...' answer lists what the sidebar actually drew, so a miss names the rows rather than failing blind."
+    },
+    {
+      "type": "eval_equals",
+      "id": "second-row-showing",
+      "expected": "visible",
+      "desc": "the setup held: the space was showing its SECOND row when it was left"
+    },
+    {
+      "type": "eval_equals",
+      "id": "returned-to-second-row",
+      "expected": "\"visible\"",
+      "desc": "THE RULE: the space came back to the tab it was last showing, not to its first row"
+    },
+    {
+      "type": "eval_equals",
+      "id": "first-row-stayed-behind",
+      "expected": "\"hidden\"",
+      "desc": "and the first row stayed off the pane. This is the assertion the old rows.front() rule fails."
+    },
+    {
+      "type": "vlog",
+      "label": "both-switches-really-happened",
+      "pattern": "Atrium: active space 1 -> 0",
+      "note": "the return leg as a graded assertion, so a run whose second chord never landed fails here rather than passing on a pane that never moved"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

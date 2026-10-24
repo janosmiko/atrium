@@ -1,0 +1,30 @@
+{
+  "spaces": [
+    {
+      "id": "44444444-4444-4444-4444-444444444444",
+      "name": "Two",
+      "emoji": "🔢",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135094.0,
+          "url": "http://0y.localhost:8000/example-domain.html?org",
+          "title": "Example Domain"
+        },
+        {
+          "lastActiveAt": 805135131.0,
+          "url": "http://dl.localhost:8000/example-domain.html?com",
+          "title": "Example Domain"
+        }
+      ]
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 260,
+    "schemaVersion": 1,
+    "activeSpaceID": "44444444-4444-4444-4444-444444444444"
+  }
+}

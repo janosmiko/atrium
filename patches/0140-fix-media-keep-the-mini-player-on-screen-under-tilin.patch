@@ -1,0 +1,45 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 21 Sep 2026 08:17:02 +0200
+Subject: [PATCH 140/154] fix(media): keep the mini player on screen under
+ tiling window managers
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../overlay/video_overlay_window_native_widget_mac.h     | 1 +
+ .../overlay/video_overlay_window_native_widget_mac.mm    | 9 +++++++++
+ 2 files changed, 10 insertions(+)
+
+diff --git a/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.h b/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.h
+index 51526b85c1017..6274973757a8a 100644
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.h
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.h
+@@ -26,6 +26,7 @@ class VideoOverlayWindowNativeWidgetMac : public views::NativeWidgetMac {
+   void PopulateCreateWindowParams(
+       const views::Widget::InitParams& widget_params,
+       remote_cocoa::mojom::CreateWindowParams* params) override;
++  void OnWidgetInitDone() override;
+ };
+ 
+ #endif  // CHROME_BROWSER_UI_VIEWS_OVERLAY_VIDEO_OVERLAY_WINDOW_NATIVE_WIDGET_MAC_H_
+diff --git a/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm b/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm
+index ba3d0d20187e8..63d667da852c5 100644
+--- a/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm
++++ b/chrome/browser/ui/views/overlay/video_overlay_window_native_widget_mac.mm
+@@ -22,3 +22,12 @@ void VideoOverlayWindowNativeWidgetMac::PopulateCreateWindowParams(
+   params->window_class = remote_cocoa::mojom::WindowClass::kFrameless;
+   params->style_mask = NSWindowStyleMaskFullSizeContentView;
+ }
++
++void VideoOverlayWindowNativeWidgetMac::OnWidgetInitDone() {
++  NativeWidgetMac::OnWidgetInitDone();
++  // Tiling window managers (AeroSpace) manage every AXStandardWindow and hide
++  // it on a workspace change. They leave an AXSystemDialog alone, so the mini
++  // player stays on screen.
++  GetNativeWindow().GetNativeNSWindow().accessibilitySubrole =
++      NSAccessibilitySystemDialogSubrole;
++}

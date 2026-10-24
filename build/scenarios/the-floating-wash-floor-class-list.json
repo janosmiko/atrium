@@ -1,0 +1,98 @@
+{
+  "name": "the-floating-wash-floor-class-list",
+  "description": "Investigation: A sibling scenario already proves the floor holds legible text down over a synthetic fixture, so before touching the floor value this reads the root element's own class list and its resolved background the moment the panel is up - the same reveal a sibling scenario uses, with an eval inserted right after the reveal gate instead of a pixel measurement.",
+  "fixture": "panel-legibility.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "tab-opened",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.row'); if (!r) return 'no-row'; r.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "collapse-pressed",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbtoggle'); if (!b) return 'no-button'; b.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar toggle requested from the chrome row",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the collapse animation finishes before anything is read"
+    },
+    {
+      "type": "move",
+      "x": 300,
+      "y": 400,
+      "note": "park inside the page first, same as a sibling scenario"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "move",
+      "x": 20,
+      "y": 400,
+      "note": "cross into the 32pt arming strip from outside it"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "the slide finishes"
+    },
+    {
+      "type": "eval",
+      "id": "root-class-list",
+      "target": "/sidebar",
+      "expression": "(() => { const html = document.documentElement; const cs = getComputedStyle(html); return JSON.stringify({className: html.className, background: cs.backgroundColor, floatWashFloor: cs.getPropertyValue('--atrium-float-wash-floor').trim(), glassAlpha: cs.getPropertyValue('--atrium-glass-alpha').trim()}); })()"
+    },
+    {
+      "type": "capture",
+      "id": "panel-over-page",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "same region a sibling scenario measures, for a by-eye cross-check"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

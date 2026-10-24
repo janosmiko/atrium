@@ -1,0 +1,98 @@
+{
+  "name": "media-row-grows-upward",
+  "description": "A hovered media controller keeps its transport where it sits and opens the title row above it. The block is pinned to its own bottom edge, so the card grows upward and the favicon, previous, play, next and volume stay under the pointer.\n\nThe sample taken while the row is still growing is the one that matters. Two fixed 36px tracks overflow the box during the .2s and slide the transport past the block's clipped bottom edge, which a settled before-and-after pair cannot see. A 1fr track above the transport pins it at every height the growth passes through.\n\nA JS class cannot stand in for the pointer here: the expanded state is a :hover rule, and the whole question is what the pointer does to the layout.",
+  "fixture": "repeated-row-drags.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "seed",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumMediaSessionsChanged([{id:'98',title:'Older Track',faviconURL:'',host:'one.example',playing:true,muted:false,canPrev:true,canNext:true,canSeek:false,pictureInPicture:false},{id:'99',title:'Newer Track',faviconURL:'',host:'two.example',playing:true,muted:false,canPrev:true,canNext:true,canSeek:false,pictureInPicture:false}]); window.sbmPlayLift = () => { const item = document.querySelectorAll('body > .sbm-block .sbm-item')[1]; const play = item.querySelector('.sbm-play').getBoundingClientRect(); return Math.round(item.getBoundingClientRect().bottom - (play.top + play.bottom) / 2); }; window.sbmRowHeight = () => Math.round(document.querySelectorAll('body > .sbm-block .sbm-item')[1].getBoundingClientRect().height); return String(document.querySelectorAll('body > .sbm-block .sbm-item').length); })()"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "eval",
+      "id": "at-rest",
+      "target": "/sidebar",
+      "expression": "(() => window.sbmPlayLift() + ',' + window.sbmRowHeight())()"
+    },
+    {
+      "type": "move",
+      "x": 80,
+      "y": 648
+    },
+    {
+      "type": "settle",
+      "ms": 80
+    },
+    {
+      "type": "eval",
+      "id": "pinned-at-every-height",
+      "target": "/sidebar",
+      "expression": "(() => { const item = document.querySelectorAll('body > .sbm-block .sbm-item')[1]; const offsets = [36, 44, 56, 68, 72].map((h) => { item.style.height = h + 'px'; const box = item.getBoundingClientRect(); const play = item.querySelector('.sbm-play').getBoundingClientRect(); return Math.round(box.bottom - (play.top + play.bottom) / 2); }); item.style.height = ''; return offsets.join(','); })()"
+    },
+    {
+      "type": "settle",
+      "ms": 700
+    },
+    {
+      "type": "eval",
+      "id": "grown",
+      "target": "/sidebar",
+      "expression": "(() => { const item = document.querySelectorAll('body > .sbm-block .sbm-item')[1]; return (item.matches(':hover') ? 'hover' : 'no-hover') + ',' + window.sbmPlayLift() + ',' + window.sbmRowHeight(); })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "seed",
+      "expected": "\"2\"",
+      "desc": "two controllers to draw"
+    },
+    {
+      "type": "eval_equals",
+      "id": "at-rest",
+      "expected": "\"18,36\"",
+      "desc": "the resting row is one 36px tab row and its transport centres 18px above the row's bottom edge"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pinned-at-every-height",
+      "expected": "\"18,18,18,18,18\"",
+      "desc": "the transport centres 18px above the item's bottom edge at every height the .2s growth passes through, so it never slides"
+    },
+    {
+      "type": "eval_equals",
+      "id": "grown",
+      "expected": "\"hover,18,72\"",
+      "desc": "the row grew to 72px and the transport kept its 18px lift: the title row opened above it"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

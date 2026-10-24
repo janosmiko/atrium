@@ -1,0 +1,40 @@
+{
+  "name": "toast-wears-the-space-tint",
+  "description": "A toast reads its paper color and border radius from the same --atrium-space-tint C++ pushes into the sidebar document (PushOverlayTheme), because toast-stack.js's .toast.ov-card shares overlay.css's tokens with the command bar and the permission sheet. No shipped UI path reaches showToast with the keyboard yet (the command bar has no shelf row, Put on Shelf and Rewind are context-menu only, and snoozed-tab-return has no caller), so the scenario raises one directly: a dynamic import of the sidebar's own toast-stack.js module, same-origin under the WebUI CSP. The fixture's startup space carries tint oceanBlue, which rust/atrium-core/src/tint.rs resolves to #0F2B46, so the expected triplet is 15 43 70.",
+  "fixture": "hotkey-rebind.spaces.json",
+  "hotkeys": "sidebar-rebind.hotkeys.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {"type": "wait_vlog", "pattern": "Atrium: tab [0-9]+ title Example Domain", "timeout_ms": 20000},
+    {"type": "settle", "ms": 4000},
+    {"type": "activate"},
+    {"type": "settle", "ms": 1000},
+    {"type": "eval", "id": "toast-trigger", "target": "/sidebar",
+     "expression": "(import('./toast-stack.js').then((m) => m.showToast({color: '#B58ED0', title: 'Shelved', sub: 'Example Domain', keys: '⌘Z'})), 'started')",
+     "note": "raises a toast directly through the sidebar's own module - no shipped keyboard path reaches showShelfToast yet"},
+    {"type": "settle", "ms": 800},
+    {"type": "eval", "id": "toast-count", "target": "/sidebar",
+     "expression": "String(document.querySelectorAll('.toast.ov-card').length)"},
+    {"type": "eval", "id": "toast-tint", "target": "/sidebar",
+     "expression": "getComputedStyle(document.documentElement).getPropertyValue('--atrium-space-tint').trim()",
+     "note": "AC: the pushed tint is what the toast's --ov-paper mixes in, not a hardcoded color"},
+    {"type": "eval", "id": "toast-radius", "target": "/sidebar",
+     "expression": "getComputedStyle(document.querySelector('.toast')).borderRadius",
+     "note": "AC: the default look's card radius, proving the shared token reached the card"},
+    {"type": "eval", "id": "toast-caps", "target": "/sidebar",
+     "expression": "String(document.querySelectorAll('.toast .ctk .ov-key').length)",
+     "note": "AC: ⌘Z is two caps"},
+    {"type": "capture", "id": "toast-visible", "duration_ms": 300, "fps": 20, "note": "the tinted toast in the sidebar's corner"}
+  ],
+  "assertions": [
+    {"type": "ax_window_count", "expected": 1, "min_area": 200000, "desc": "sanity: one real window rendered"},
+    {"type": "eval_equals", "id": "toast-trigger", "expected": "\"started\"", "desc": "the import kicked off - eval returns synchronously via the comma expression"},
+    {"type": "eval_equals", "id": "toast-count", "expected": "\"1\"", "desc": "exactly one toast card rendered"},
+    {"type": "eval_equals", "id": "toast-tint", "expected": "\"15 43 70\"", "desc": "the sidebar document carries the startup space's tint (oceanBlue #0F2B46)"},
+    {"type": "eval_equals", "id": "toast-radius", "expected": "\"18px\"", "desc": "the toast wears the shared overlay card radius"},
+    {"type": "eval_equals", "id": "toast-caps", "expected": "\"2\"", "desc": "⌘Z reads as two keycaps"},
+    {"type": "quit", "desc": "Cmd+Q still quits cleanly"}
+  ]
+}

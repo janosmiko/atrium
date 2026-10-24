@@ -1,0 +1,88 @@
+{
+  "name": "favourites-outgoing-pane-mid-slide",
+  "description": "The outgoing half of a cross-profile swipe must show favourite tiles the whole way across, and the pinned copy must not paint over the incoming pane's own tiles while it travels in.\n\nA rail pane whose profile is the pinned grid's own draws empty slots rather than tiles: the tiles are the pinned copy's, and the slots only hold their room so the rows below do not slide up under it. That makes 'which grid is visible' the whole question during a slide. While the outgoing pane is still on screen the pinned copy has to stay up, because the pane underneath it has nothing of its own to show. The foreign pane sliding in draws its own tiles from the first spanned frame, and the pinned copy, anchored at the sidebar's full width, must stay clear of that pane's rect rather than paint over it.\n\nThe fixture starts on Second (Default profile) and Cmd+Shift+Right pages to Third (Second profile), so the gesture crosses a profile boundary and the OUTGOING pane is the one the pinned grid was drawn for.\n\nA rAF sampler watches every frame rather than a chosen one: the blank lasted only as long as the slide, and a settled capture never saw it. It counts frames where the outgoing pane's tiles are visible neither in the pinned copy nor in the pane's own grid, and separately probes the incoming pane's own tile at its own screen point with elementFromPoint, so a frame where the pinned copy still paints on top of it is caught even though the incoming grid's visibility flag reads visible. The capture is the picture of the same window, for a human to look at.",
+  "fixture": "three-spaces-two-profiles.json",
+  "startup_space": "3ab00002-0000-4000-8000-000000000002",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "started-on-the-second-space",
+      "target": "long-page.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/long-page.html",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval_until",
+      "id": "sampler-armed",
+      "target": "/sidebar",
+      "expression": "(() => { if (window.__slide) { return 'armed'; } const s = {blank: 0, frames: 0, inBlocked: 0, inFrames: 0}; window.__slide = s; const tick = () => { const root = document.getElementById('atrium-root'); const pinned = root && [...root.children].find(el => el.classList.contains('favgrid')); if (pinned) { const drawnFor = pinned.dataset.profileId || ''; const own = [...root.querySelectorAll('.railpane')].find(p => (p.dataset.profileId || '') === drawnFor); const box = own && own.getBoundingClientRect(); const onScreen = !!box && box.right > 1 && box.left < (root.clientWidth - 1); if (onScreen) { s.frames++; const pinnedUp = getComputedStyle(pinned).visibility !== 'hidden' && pinned.querySelectorAll('.fav').length > 0; const grid = own.querySelector('.favgrid'); const ownUp = !!grid && getComputedStyle(grid).visibility !== 'hidden' && grid.querySelectorAll('.fav').length > 0; if (!pinnedUp && !ownUp) { s.blank++; } } const foreign = [...root.querySelectorAll('.railpane.otherprofile')].find(p => { const b = p.getBoundingClientRect(); return b.right > 1 && b.left < (root.clientWidth - 1); }); const tile = foreign && foreign.querySelector('.favgrid .fav'); if (tile) { const b = tile.getBoundingClientRect(); const cx = b.left + b.width / 2, cy = b.top + b.height / 2; const tileOnScreen = cx > 0 && cx < root.clientWidth && cy > 0 && cy < window.innerHeight; if (tileOnScreen) { s.inFrames++; const top = document.elementFromPoint(cx, cy); const grid2 = foreign.querySelector('.favgrid'); if (!top || !grid2.contains(top)) { s.inBlocked++; } } } } requestAnimationFrame(tick); }; requestAnimationFrame(tick); return 'armed'; })()",
+      "expected": "armed",
+      "timeout_ms": 5000,
+      "note": "Counts a frame blank when the outgoing pane's tiles are in neither grid. A grid that is visible but holds only .favslot boxes counts as blank, which is exactly the reported defect. Only while that pane is still on screen: once the rail has landed on the other profile the pane is gone and the pinned copy is meant to be down, waiting for the rebuild. inBlocked probes the incoming pane's own tile with elementFromPoint rather than trusting its visibility flag, so it catches the pinned copy painting over it even while that pane's own grid reads visible. Gated on the TILE's own centre point being inside the viewport, not just the pane's box: elementFromPoint returns null for a point beyond clientWidth, and the pane's box can already claim 1px on screen while its tile centre has not slid in yet."
+    },
+    {
+      "type": "key_during_capture",
+      "combo": "cmd+shift+right",
+      "capture_id": "crossing",
+      "duration_ms": 1600,
+      "fps": 25,
+      "key_delay_ms": 400,
+      "mid_at_ms": 620,
+      "note": "The chord fires 400ms into the burst and the settle spring runs about 280ms after it, so the probe at 620ms lands inside the slide. Registers 'crossing' for the settled state and 'crossing_mid' for the frame in transit."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 1 -> 2",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "no-blank-frame",
+      "target": "/sidebar",
+      "expression": "(() => { const s = window.__slide; return 'blank=' + s.blank + ' sampled=' + (s.frames > 30) + ' inBlocked=' + s.inBlocked + ' inSampled=' + (s.inFrames > 20); })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "label": "one-window-still",
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "no-blank-frame",
+      "expected": "\"blank=0 sampled=true inBlocked=0 inSampled=true\"",
+      "desc": "Not one frame of the gesture left the outgoing pane's tiles unshown, and not one frame put the pinned copy on top of the incoming pane's own tile. Both `sampled` flags guard against a probe that never ran reporting a false zero."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: active space 1 -> 2",
+      "label": "the-rail-really-crossed-the-boundary",
+      "desc": "The gesture paged across the profile boundary, so the frames above are a cross-profile slide rather than a swipe that never left the space."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

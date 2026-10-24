@@ -1,0 +1,193 @@
+{
+  "name": "space-cycle-edit-focus-gate",
+  "description": "Live check: Cmd+Shift+Right/Left are now SHIPPED DEFAULTS for nextSpace/previousSpace (the direct user report), and both are also AppKit's standard extend-selection-to-line-end chord, so the edit-focus gate must cover them - this is the first shipped default in the gated set. Extends the edit-focus-gate.json mechanism (same fixture page reporting its input selection into document.title via TabEventForwarder::TitleWasSet, same gate vlog lines) rather than inventing a new one; the only new ingredient is a THREE-space fixture (space-cycle.spaces.json) so a cold, never-yet-visited space's tab materializing on landing gives an objective, per-hop-unique vlog line for 'the space really switched', not just 'the gate said fire'. Starts on the MIDDLE space (Elsewhere) so both neighbors are cold: phase 0 proves nextSpace's Cmd+Shift+Right switches forward (Elsewhere -> Third, Third's tab materializes for the first time); phase 1 proves previousSpace's Cmd+Shift+Left switches backward twice (Third -> Elsewhere -> Editing, Editing's tab materializing for the first time, landing on the gate test's own field); phase 2 is the positive-control/gated-block pair, run for Cmd+Shift+Right specifically (the exact combo named in the bug report) against that now-focused field.",
+  "fixture": "space-cycle.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "a276b002-0000-0000-0000-000000000002",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the sidebar render and the startup space's (Elsewhere) tab commit"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot; without this every key/click lands in Finder"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "PHASE 0, THE CHECK (nextSpace default): nothing editable focused, so the gate short-circuits to fire on kind=none - this is the SHIPPED DEFAULT, no hotkeys.json override at all. Should land on Third, whose tab has never been active and is therefore cold (the landing semantics)."
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval_until",
+      "id": "third-page",
+      "target": "peek-target.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-target.html",
+      "timeout_ms": 8000,
+      "note": "OBJECTIVE PROOF nextSpace really switched (not just that the gate decided fire in the abstract): Third's tab was cold at launch, so this URL can only commit if the space actually changed and materialized it."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left",
+      "note": "PHASE 1a: previousSpace default, first hop, Third -> Elsewhere. Elsewhere was the startup space so its tab is already live - this hop is just transit, nothing new to assert."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left",
+      "note": "PHASE 1b, THE CHECK (previousSpace default): second hop, Elsewhere -> Editing. Editing's tab has never been active either, so it is still cold - a second independent materialize proof, and it also lands us on the gate test's own field-bearing page."
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval_until",
+      "id": "editing-page",
+      "target": "edit-focus-field.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/edit-focus-field.html",
+      "timeout_ms": 8000,
+      "note": "OBJECTIVE PROOF previousSpace really switched, same reasoning as the nextSpace check above, using the one other tab that was cold at launch."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: edit focus kind 1 tab",
+      "timeout_ms": 8000,
+      "note": "C++ pushed a positive kNone for the freshly-committed page, same pre-condition edit-focus-gate.json checks before clicking in"
+    },
+    {
+      "type": "click",
+      "x": 450,
+      "y": 180,
+      "note": "PHASE 2 SETUP: click into the field (measured centre, per edit-focus-gate.json). Its focus handler puts the caret at the END of \"hello world\" and reports the collapsed range."
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: edit focus kind 2 tab",
+      "timeout_ms": 8000,
+      "note": "kPageEditable pushed - the gate's real signal has arrived"
+    },
+    {
+      "type": "click",
+      "x": 280,
+      "y": 180,
+      "note": "Re-click the SAME already-focused field near its left inner edge to move the caret near the START of \"hello world\" without a blur/refocus cycle (the page's 'focus' listener - which resets the caret to the end - only fires on the blurred-to-focused transition, not on a second click while already focused). This is what makes Cmd+Shift+RIGHT's extend-to-end meaningful: extending right from the end would be a no-op. MEASURED, not guessed: pixel-scanned edit-focus-gate.json's own phase1-blocked capture - the field's rendered border starts at x=259, inner white at x=263, first glyph stroke of 'hello' at x=271. The old x=250 sat 9-13px LEFT of that border, on page background, which is what blurred the field before the chord arrived. x=280 lands ~17px inside the measured inner edge, safely inside the input and still left of the text midpoint (~x=327), so the selection this produces still meaningfully differs from the end."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "PHASE 2, THE CHECK (the exact combo from the bug report): gated chord with a page text field focused. Must NOT switch space and must NOT open anything - must extend the field's selection to the end of the line instead."
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "phase2-blocked",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "still the Editing space, still the fixture page, no space-switch chrome change, \"hello world\" partially selected from the click point to the end"
+    },
+    {
+      "type": "click",
+      "x": 450,
+      "y": 420,
+      "note": "PHASE 3 SETUP (the control): click a neutral part of the page - empty background - to blur the input, same coordinates edit-focus-gate.json uses. Both phases click into this same window first, so the only difference is WHERE it lands."
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: edit focus kind 1 tab",
+      "timeout_ms": 8000,
+      "note": "blur observed - back to kNone, nothing typable holds the keyboard"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "PHASE 3, THE CONTROL: the very same gated chord, same shipped default, now that nothing editable has focus. Must FIRE and switch space - proof phase 2's block came from live focus state, not from the hotkey being dead. Elsewhere is already materialized (the startup space) so no fresh commit is expected; ax_window_count below is the corroboration instead."
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "phase3-control-fired",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "back on Elsewhere - the same chord that was blocked moments ago now fires"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "third-page",
+      "expected": "http://127.0.0.1:8000/peek-target.html",
+      "label": "next-space-default-switched",
+      "desc": "Cmd+Shift+Right, the shipped default with no rebind, switched to a space whose tab had never been active - only possible if nextSpace actually fired and the space actually changed."
+    },
+    {
+      "type": "eval_equals",
+      "id": "editing-page",
+      "expected": "http://127.0.0.1:8000/edit-focus-field.html",
+      "label": "previous-space-default-switched",
+      "desc": "Cmd+Shift+Left, the shipped default with no rebind, switched to the OTHER space whose tab had never been active."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: edit focus gate fire \\(native route\\)",
+      "label": "native-route-owns-the-chord",
+      "desc": "Cmd+Shift+Arrow is now matched in prePerformKeyEquivalent (NativeHotkeyAction::kNextSpace) instead of by a SwiftUI keyboardShortcut, because the HTML sidebar's WebContents swallowed the chord before SwiftUI ever saw it. This line only appears when the native map MATCHED the event - MatchAction runs first and returns to super without gating when nothing matches - so it is the proof the new route, not the old one, is carrying the switch."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: edit focus gate pass-page-editable \\(native route\\)",
+      "label": "native-route-yields-to-a-focused-field",
+      "desc": "+ the native route must keep yielding Cmd+Shift+Right to a focused text field (ComboEditsText classifies cmd+shift+arrow as text-editing). Unlike the swift-route line below, this one is NOT deduped to decision transitions - MayFireHotkeyForEvent logs every gated press - so it records the actual keystroke rather than a render."
+    },
+    {
+      "type": "vlog",
+      "pattern": "ATRIUM-SEL-[0-9]+-11",
+      "label": "keystroke-reached-the-field",
+      "desc": "Effect: the fixture page's own selection report crossed the bridge into the run log. -11 is the line's end, so Cmd+Shift+Right performed its real AppKit moveToRightEndOfLineAndModifySelection: job INSIDE the field - this also independently proves the space did not switch, since a switch would have blurred the field and reported ATRIUM-SEL-blurred instead."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "Exactly one window throughout: unlike edit-focus-gate.json (which rebinds the chord onto the native openCommandBar intercept too, so its control opens a second window), this task's defaults never open a palette - the corroboration here is that the control's space-switch is a same-window navigation, not a new surface."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q actually quits (process gone)"
+    }
+  ]
+}

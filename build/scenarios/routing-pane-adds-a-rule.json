@@ -1,0 +1,178 @@
+{
+  "name": "routing-pane-adds-a-rule",
+  "description": "A route created in the Routing pane is honoured by route_for_url on the next matching navigation - no relaunch. Home (oceanBlue) starts active with Work (sunsetOrange) as its sibling, same profile so the reroute stays a plain SelectSpace rather than a cross-profile reopen. The routing fixture stages an EMPTY rule list, so file_contains has a baseline the added rule cannot already match. The pane is driven through eval on /settings - .engine-add, then the pattern field's blur commit, then the target-space select's change commit - the same two-commit shape settings-confirm-quit-toggle.json uses for its toggle, because the row cannot validate matchType+pattern+targetSpaceID in one write from an Add click alone. A typed URL in the command bar is the real navigation: AtriumRoutingNavigationThrottle sits on WillStartRequest for every tab, not only command-bar ones, so this is the same trigger search-engines-tab-to-youtube.json uses, not a special path.",
+  "fixture": "routing-pane-adds-a-rule.spaces.json",
+  "routing": "routing-pane-adds-a-rule.routing.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "437a0001-0000-4000-8000-00000000ad01",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://dl\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the Home tab committed, so the app and profile are live"
+    },
+    {"type": "settle", "ms": 4000},
+    {"type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot"},
+    {"type": "settle", "ms": 1000},
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "Home tint (oceanBlue) baseline"
+    },
+    {"type": "key", "combo": "cmd+comma", "note": "open the settings window"},
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings surface ready",
+      "timeout_ms": 15000
+    },
+    {"type": "settle", "ms": 2000, "note": "let PushSettings and PushRouting's thread-pool reads land"},
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: routing rules pushed",
+      "timeout_ms": 8000,
+      "note": "the pane's data source loaded - the list has something to be empty FROM"
+    },
+    {
+      "type": "eval",
+      "id": "open-routing-pane",
+      "target": "/settings",
+      "expression": "(() => { const item = document.querySelector('.settings-rail-item[data-pane=\"routing\"]'); if (!item) { return 'no routing rail item'; } item.click(); return 'clicked'; })()"
+    },
+    {"type": "settle", "ms": 500},
+    {
+      "type": "eval",
+      "id": "routing-rows-before-add",
+      "target": "/settings",
+      "expression": "document.querySelectorAll('.engine-row').length",
+      "note": "The pane lists the rules the store holds - zero, from the empty staged file"
+    },
+    {
+      "type": "eval",
+      "id": "click-add",
+      "target": "/settings",
+      "expression": "(() => { const add = document.querySelector('.engine-add'); if (!add) { return 'no engine-add button'; } add.click(); return 'clicked'; })()",
+      "note": "The add control this pane previously had none of"
+    },
+    {"type": "settle", "ms": 500},
+    {
+      "type": "eval",
+      "id": "fill-pattern",
+      "target": "/settings",
+      "expression": "(() => { const input = document.querySelector('.engine-detail input[name=\"pattern\"]'); if (!input) { return 'no pattern field'; } input.value = 'corp.example'; input.dispatchEvent(new Event('blur', {bubbles: true})); return 'committed'; })()",
+      "note": "matchType defaults to contains and targetSpaceID defaults to the first space, so this alone validates and sends"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: routing rules written",
+      "timeout_ms": 5000,
+      "note": "Write half: the pattern-only commit reached the core"
+    },
+    {"type": "settle", "ms": 1000, "note": "let the write's reply repaint the detail panel with the saved rule"},
+    {
+      "type": "eval",
+      "id": "retarget-to-work",
+      "target": "/settings",
+      "expression": "(() => { const select = document.querySelector('.engine-detail select[name=\"targetSpaceID\"]'); if (!select) { return 'no target select'; } select.value = '437a0002-0000-4000-8000-00000000ad02'; select.dispatchEvent(new Event('change', {bubbles: true})); return 'committed'; })()",
+      "note": "The add control creates a rule with its match type, pattern AND target space - this is the third field"
+    },
+    {"type": "settle", "ms": 1500, "note": "the second write's round trip"},
+    {
+      "type": "key",
+      "combo": "cmd+w",
+      "note": "closes the key Settings window - cmd+t opens a tab in the KEY window, and Settings does not have one"
+    },
+    {"type": "settle", "ms": 1000, "note": "let the close finish and key status pass to the browser window"},
+    {"type": "key", "combo": "cmd+t", "note": "open the command bar for a REAL navigation, not a store read"},
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {"type": "settle", "ms": 2000},
+    {"type": "type", "text": "http://corp.example/", "note": "a URL whose host matches the rule just saved"},
+    {"type": "settle", "ms": 2000},
+    {"type": "key", "combo": "return", "note": "commit the typed URL - the navigation the throttle sees"},
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: routed http://corp\\.example into space 437a0002-0000-4000-8000-00000000ad02",
+      "timeout_ms": 8000,
+      "note": "route_for_url honoured the rule on this navigation, in the SAME run the rule was saved in - no relaunch"
+    },
+    {"type": "settle", "ms": 1500, "note": "let the space switch and repaint settle"},
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "should now show Work tint (sunsetOrange)"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "routing-rows-before-add",
+      "expected": "0",
+      "desc": "An empty store draws an empty list, not a hidden or broken pane"
+    },
+    {
+      "type": "vlog",
+      "label": "the-rule-was-written",
+      "pattern": "Atrium: routing rules written"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-unusable-argument-refusal",
+      "pattern": "Atrium: the routing surface sent an object the core"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-write-failure",
+      "pattern": "Atrium: the routing write failed"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-schema-decline",
+      "pattern": "Atrium: routing\\.json is at a schema this build cannot"
+    },
+    {
+      "type": "file_contains",
+      "label": "the-pattern-reached-disk",
+      "file": "routing",
+      "path": "rules.0.pattern",
+      "value": "corp.example"
+    },
+    {
+      "type": "file_contains",
+      "label": "the-target-space-reached-disk",
+      "file": "routing",
+      "path": "rules.0.targetSpaceID",
+      "value": "437a0002-0000-4000-8000-00000000ad02"
+    },
+    {
+      "type": "file_contains",
+      "label": "the-match-type-reached-disk",
+      "file": "routing",
+      "path": "rules.0.matchType",
+      "value": "contains"
+    },
+    {
+      "type": "vlog",
+      "label": "the-route-fired-on-a-real-navigation",
+      "pattern": "Atrium: routed http://corp\\.example into space 437a0002-0000-4000-8000-00000000ad02"
+    },
+    {
+      "type": "vlog",
+      "label": "the-space-actually-switched",
+      "pattern": "Atrium: active space 0 -> 1 'Work'"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

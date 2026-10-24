@@ -1,0 +1,62 @@
+{
+  "name": "the-glow-waits-for-the-load",
+  "description": "On reddit.com the band went orange from the favicon at once and then jumped to the sampled colours when the page had painted. Now the declared and favicon path holds while the active tab loads, the sampler skips a loading tab, and the stop of the load is where the colours arrive. The fixture is the dark page with a red icon: the log shows the hold, and the band still ends at the brand colour the sibling scenario pins.",
+  "fixture": "ambilight-brand.spaces.json",
+  "settings": "icon-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "brand-dark-red-icon.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/brand-dark-red-icon.html",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+r"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: ambilight edges L=#7A1A1A",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: page tint held for the load",
+      "label": "the-tint-held-while-the-page-loaded",
+      "desc": "THE MEASUREMENT: a tint event landed while the tab was loading and was held instead of painted."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: ambilight edges L=#7A1A1A R=#7A1A1A",
+      "label": "the-brand-still-arrives-after-the-load",
+      "desc": "The hold is not a loss: once the load stopped the sampler ran and the grey edge took the brand, the same number the favicon scenario pins."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

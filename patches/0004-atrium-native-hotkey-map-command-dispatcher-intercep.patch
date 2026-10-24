@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 23 Jul 2026 13:18:01 +0200
+Subject: [PATCH 004/154] atrium: native hotkey map + command-dispatcher
+ intercepts
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/global_keyboard_shortcuts_mac.mm | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/chrome/browser/global_keyboard_shortcuts_mac.mm b/chrome/browser/global_keyboard_shortcuts_mac.mm
+index bc8c1e5d952c1..3ebda048bbb6b 100644
+--- a/chrome/browser/global_keyboard_shortcuts_mac.mm
++++ b/chrome/browser/global_keyboard_shortcuts_mac.mm
+@@ -86,6 +86,11 @@ GetDelayedShortcutsNotPresentInMainMenu() {
+     // ---    -----  -----  ------ --------               -------
+       {true,  false, false, false, kVK_LeftArrow,         IDC_BACK},
+       {true,  false, false, false, kVK_RightArrow,        IDC_FORWARD},
++      // Arc's "Blank Window" (Ctrl+Cmd+N) - Atrium has no
++      // distinct blank/no-restore window concept, so this reuses the stock
++      // New Window command via the same delayed-shortcut mechanism as the
++      // Back/Forward arrow keys above ("Cmd+N machinery").
++      {true,  false, true,  false, kVK_ANSI_N,            IDC_NEW_WINDOW},
+   });
+   // clang-format on
+   return *keys;

@@ -1,0 +1,5 @@
+chromium_tag=151.0.7922.47
+chromium_commit=c583827a354674180dc8856eb65aeb3f0afa5ee9
+atrium_tree=53fa330f930a201532f1935d500871c7c954161b
+patch_count=154
+archive_tag=atrium-archive/151.0.7922.47

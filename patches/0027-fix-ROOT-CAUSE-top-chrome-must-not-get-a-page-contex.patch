@@ -1,0 +1,72 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Fri, 7 Aug 2026 05:15:27 +0200
+Subject: [PATCH 027/154] fix: ROOT CAUSE - top chrome must not get a page
+ context menu
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The diagnostic named it on the first reproduction:
+
+    Atrium: no AutocompleteClassifier for profile
+      path=System Profile otr=1 guest=0 system=1 regular=0
+
+Atrium's chrome layer - sidebar, pill, foyer - is WebUI hosted on the SYSTEM
+profile: AtriumChromeContext builds its context from
+ProfileManager::GetSystemProfilePath(). Right-clicking selected text in the
+sidebar therefore built a full PAGE context menu against a system profile, and
+that menu assumes a content profile throughout. AppendSearchProvider alone
+dereferences AutocompleteClassifierFactory and TemplateURLServiceFactory,
+neither of which serves a system profile (no .WithSystem(), which defaults to
+kNone), so the browser process segfaulted and took the session with it.
+
+Guarding those two services was the mitigation shipped first, and it is
+whack-a-mole: every profile-keyed service this menu grows in future is the same
+crash again. The rule is that a page menu has no business on chrome content.
+These surfaces build their own DOM menus - see sidebar-menu.js - and
+the native one was never wanted. No page content is hosted on the system
+profile in this browser, so keying on it is both safe and accurate.
+
+The two service guards stay. They cost nothing, they are correct on their own
+terms, and their logging is what turned four rounds of theorising into one
+named profile.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../render_view_context_menu.cc               | 21 +++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+diff --git a/chrome/browser/renderer_context_menu/render_view_context_menu.cc b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+index c65527f7da9b0..4d34131165ff1 100644
+--- a/chrome/browser/renderer_context_menu/render_view_context_menu.cc
++++ b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+@@ -1246,6 +1246,27 @@ bool RenderViewContextMenu::IsInProgressiveWebApp() const {
+ }
+ 
+ void RenderViewContextMenu::InitMenu() {
++  // ATRIUM: top chrome gets no PAGE context menu.
++  //
++  // Atrium's chrome layer - the sidebar, the pill, the foyer - is WebUI hosted
++  // on the SYSTEM profile (AtriumChromeContext uses
++  // ProfileManager::GetSystemProfilePath). Right-clicking selected text there
++  // built this menu, and it assumes a content profile throughout: the search
++  // section alone dereferences AutocompleteClassifierFactory and
++  // TemplateURLServiceFactory, neither of which serves a system profile, so
++  // the BROWSER process segfaulted and took the session with it.
++  //
++  // Guarding those two services individually is whack-a-mole - every future
++  // profile-keyed service this menu grows is the same crash. The rule is that
++  // a page menu has no business on chrome content at all: these surfaces build
++  // their own DOM menus (see sidebar-menu.js) and the native one was never
++  // wanted. The system profile hosts no page content in this browser, so
++  // keying on it is safe as well as accurate.
++  if (Profile* const profile = GetProfile();
++      profile && profile->IsSystemProfile()) {
++    return;
++  }
++
+   RenderViewContextMenuBase::InitMenu();
+ 
+   const bool use_simplified_menu_for_text_selection =

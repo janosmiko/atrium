@@ -1,0 +1,57 @@
+{
+  "appState" : {
+    "activeSpaceID" : "00000000-0000-4000-8000-000000000001",
+    "archiveEpoch" : 788918400,
+    "schemaVersion" : 6,
+    "sidebarWidth" : 220,
+    "sidebarWidthMigrated" : true
+  },
+  "archived" : [
+
+  ],
+  "doorways" : [
+
+  ],
+  "favorites" : [
+
+  ],
+  "notes" : [
+
+  ],
+  "profiles" : [
+    {
+      "id" : "Default",
+      "name" : "Personal"
+    }
+  ],
+  "shelf" : [
+
+  ],
+  "snoozed" : [
+
+  ],
+  "spaces" : [
+    {
+      "emoji" : "🏠",
+      "groups" : [
+
+      ],
+      "id" : "00000000-0000-4000-8000-000000000001",
+      "name" : "Personal",
+      "order" : 0,
+      "pinnedCollapsed" : false,
+      "pinnedTabs" : [
+
+      ],
+      "profileID" : "Default",
+      "tabs" : [
+        {
+          "title" : "One",
+          "url" : "https://example.com/one"
+        }
+      ],
+      "tint" : "atriumSolarized",
+      "tintStrength" : 1
+    }
+  ]
+}

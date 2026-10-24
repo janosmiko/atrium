@@ -1,0 +1,467 @@
+{
+  "name": "a-space-return-shows-the-tab-again",
+  "description": "leave a space and come back, and the card must still show the tab it was showing.\n\nTHE MECHANISM. One TabStripModel holds every space's tabs, and the card shows its active WebContents. Leaving a space with nothing to open clears the card by hand (SelectSpace's ShowTab(nullptr) branch), and the strip's active tab does not change while that happens. Coming back asks SelectSpace to open the space's first row - which IS that same active tab, so TabStripModel::SetSelection notifies nobody, Browser::OnActiveTabChanged never runs, and nothing re-attaches the page. The card stays blank with its row still highlighted.\n\nWHY THE SECOND SPACE HAS NO TABS. That is what puts the outbound trip down the clearing branch. A second space holding a tab of its own would activate it for real, which fires the notification and hides the defect entirely.\n\nWHY THE PAGE IS SOLID RED. peek-scrim-red.html and the region below are both borrowed from peek-scrim, which measured this exact strip as flat 255,0,0 with a variance of 0.0 - so the numbers here are read rather than reasoned. Its mean across the three channels is 85. Both spaces carry the same near-white tint, so the empty card that replaces the page reads near 245 in the same strip: the two states cannot be confused, and an identical tint on both spaces keeps the switch itself out of the comparison.\n\nWHY THE ROUND TRIP REPEATS TWENTY TIMES. The report says 'sometimes'. A single return that happened to work would close the question the wrong way, so the chord walks out and back twenty times and the card is read after the first, the tenth and the twentieth.",
+  "fixture": "a-space-and-an-empty-one.json",
+  "serve_fixtures": true,
+  "startup_space": "69669669-6966-4966-8966-696696696696",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "peek-scrim-red.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-scrim-red.html",
+      "timeout_ms": 20000,
+      "note": "GATE: the red page really committed as the startup tab, so the strip has the tab this scenario is about before anything asks for a switch"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "activate",
+      "note": "an ssh-launched Atrium is not frontmost, so the chord would land in Finder"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the page on screen, before any switch - the baseline both later reads are graded against"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right",
+      "note": "round trip 1: out to the empty space, which is what clears the card"
+    },
+    {
+      "type": "settle",
+      "ms": 2200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left",
+      "note": "back to the red space, where its first row is already the strip's active tab"
+    },
+    {
+      "type": "settle",
+      "ms": 2200
+    },
+    {
+      "type": "capture",
+      "id": "after-1",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "one round trip is enough to show the defect"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 2200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 2200
+    },
+    {
+      "type": "capture",
+      "id": "after-10",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "halfway, in case the return only degrades with repetition"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 2200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 2200
+    },
+    {
+      "type": "capture",
+      "id": "after-20",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the twentieth, which is what 'always' has to mean"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "region_mean",
+      "capture": "before",
+      "x": 240,
+      "y": 400,
+      "w": 60,
+      "h": 150,
+      "min_mean": 70,
+      "max_mean": 100,
+      "label": "the-strip-really-is-the-page",
+      "desc": "THE CONTROL. Solid #ff0000 means 85 across the three channels. Without this a run whose window never drew, or whose region missed the card, would let the two reads below pass on nothing."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: active space 0 -> 1 ",
+      "label": "the-chord-left-the-space",
+      "desc": "SelectSpace names both ends, so a run that never moved cannot satisfy this"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: active space 1 -> 0 ",
+      "label": "and-came-back",
+      "desc": "the return half. Paired with the line above, so the reads below cannot pass by nothing having happened."
+    },
+    {
+      "type": "region_mean",
+      "capture": "after-1",
+      "x": 240,
+      "y": 400,
+      "w": 60,
+      "h": 150,
+      "min_mean": 70,
+      "max_mean": 100,
+      "label": "the-page-is-back-after-one-trip",
+      "desc": "THE ASSERTION THIS SCENARIO EXISTS FOR. On the broken build this strip shows the empty card - a near-white tint under white at a tenth alpha, about 245 - and lands far outside this band."
+    },
+    {
+      "type": "region_mean",
+      "capture": "after-10",
+      "x": 240,
+      "y": 400,
+      "w": 60,
+      "h": 150,
+      "min_mean": 70,
+      "max_mean": 100,
+      "label": "and-after-ten",
+      "desc": "the intermittency half: a return that only works for the first few trips fails here"
+    },
+    {
+      "type": "region_mean",
+      "capture": "after-20",
+      "x": 240,
+      "y": 400,
+      "w": 60,
+      "h": 150,
+      "min_mean": 70,
+      "max_mean": 100,
+      "label": "and-after-twenty",
+      "desc": "Twenty A-to-B-and-back switches, and the card still shows the tab"
+    },
+    {
+      "type": "region_stable",
+      "before": "before",
+      "after": "after-20",
+      "region": [
+        240,
+        400,
+        60,
+        150
+      ],
+      "max_delta": 4,
+      "desc": "the same page, not merely a red one: the strip is pixel-for-pixel what it was before the first switch"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "label": "the-window-survived-the-round-trips",
+      "desc": "liveness only. It passes whether or not the card blanks, so it is not evidence about this defect - the reads above are."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly after the round trips"
+    }
+  ]
+}

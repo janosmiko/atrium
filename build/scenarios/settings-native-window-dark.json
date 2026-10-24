@@ -1,0 +1,181 @@
+{
+  "name": "settings-native-window-dark",
+  "description": "the dark sibling of settings-native-window, launched with the system in dark appearance. Same gate and the same checks. The renderer must report dark, so a light run cannot pass as a dark one.",
+  "system_appearance": "dark",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so the app is up"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "activate",
+      "note": "Atrium frontmost, so the chord reaches it"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "no vlog wait, so the capture below starts before the page is ready"
+    },
+    {
+      "type": "capture",
+      "id": "first-paint",
+      "duration_ms": 1500,
+      "fps": 20,
+      "note": "the window's first frames, before the theme push: no white or black flash"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings surface ready",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings window vibrancy installed",
+      "timeout_ms": 10000,
+      "note": "gate: the native settings window was created"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "eval",
+      "id": "native-and-see-through",
+      "target": "/settings",
+      "expression": "(() => { const r = document.documentElement; const clear = (el) => !!el && getComputedStyle(el).backgroundColor === 'rgba(0, 0, 0, 0)'; return r.classList.contains('atrium-native-chrome') && clear(r) && clear(document.body) && clear(document.querySelector('.settings-sidebar')); })()",
+      "note": "THE MEASUREMENT: native with the mode off, and nothing opaque above the vibrancy in the sidebar column"
+    },
+    {
+      "type": "eval",
+      "id": "content-opaque-system-ground",
+      "target": "/settings",
+      "expression": "(() => { const hex = document.documentElement.style.getPropertyValue('--atrium-surround-color'); if (!/^#[0-9a-f]{6}$/.test(hex)) { return false; } const n = parseInt(hex.slice(1), 16); const c = [n >> 16, (n >> 8) & 255, n & 255]; const want = 'rgb(' + c.join(', ') + ')'; return getComputedStyle(document.querySelector('.settings-body')).backgroundColor === want && Math.max(...c) - Math.min(...c) <= 4; })()",
+      "note": "THE MEASUREMENT: the content column is opaque in the pushed system colour, and that colour is a neutral grey, not the blue-grey glass"
+    },
+    {
+      "type": "eval",
+      "id": "cards-and-ink-read",
+      "target": "/settings",
+      "expression": "(() => { const px = (s) => { const n = (s.match(/[\\d.]+/g) || []).map(Number); const c = s.startsWith('color(') ? n.slice(0, 3).map((v) => v * 255) : n.slice(0, 3); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }; const g = document.querySelector('.settings-group'); const b = document.querySelector('.settings-body'); const h = document.querySelector('.settings-heading'); if (!g || !b || !h) { return false; } const ground = px(getComputedStyle(b).backgroundColor); return Math.abs(px(getComputedStyle(g).backgroundColor) - ground) >= 5 && Math.abs(px(getComputedStyle(h).color) - ground) >= 100; })()",
+      "note": "the group cards lift off the ground by a visible step, and the heading ink contrasts with it"
+    },
+    {
+      "type": "eval",
+      "id": "renderer-is-dark",
+      "target": "/settings",
+      "expression": "matchMedia('(prefers-color-scheme: dark)').matches",
+      "note": "gate: the appearance reached the app"
+    },
+    {
+      "type": "eval",
+      "id": "colours",
+      "target": "/settings",
+      "expression": "(() => { const cs = (s, p) => { const el = document.querySelector(s); return el ? getComputedStyle(el)[p] : 'none'; }; return 'surround=' + document.documentElement.style.getPropertyValue('--atrium-surround-color') + ' body=' + cs('.settings-body', 'backgroundColor') + ' card=' + cs('.settings-group', 'backgroundColor') + ' ink=' + cs('.settings-heading', 'color') + ' dark=' + matchMedia('(prefers-color-scheme: dark)').matches; })()",
+      "note": "recorded: the numbers behind the checks above"
+    },
+    {
+      "type": "eval",
+      "id": "root-fills",
+      "target": "/settings",
+      "expression": "(() => { const r = document.getElementById('atrium-root').getBoundingClientRect(); return r.left === 0 && Math.round(r.width) === document.documentElement.clientWidth; })()",
+      "note": "no stripe at either side"
+    },
+    {
+      "type": "capture",
+      "id": "settled",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "eval",
+      "id": "appearance-pane",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.settings-rail-item[data-pane=\"appearance\"]'); if (!b) { return 'no-pane'; } b.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "capture",
+      "id": "appearance",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "a pane full of controls, for the eye"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-vibrancy-was-installed",
+      "pattern": "Atrium: settings window vibrancy installed"
+    },
+    {
+      "type": "region_every_frame",
+      "capture": "first-paint",
+      "x": 400,
+      "y": 48,
+      "w": 450,
+      "h": 14,
+      "min_mean": 15,
+      "max_mean": 120,
+      "label": "no-white-flash-at-first-paint",
+      "desc": "the blank strip above the heading stays dark in every frame, from the grey glass before paint (83) to the dark ground (30)"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "note": "the browser window and the settings window"
+    },
+    {
+      "type": "eval_equals",
+      "id": "renderer-is-dark",
+      "expected": "true",
+      "desc": "the run is really dark"
+    },
+    {
+      "type": "eval_equals",
+      "id": "native-and-see-through",
+      "expected": "true",
+      "desc": "settings is native with the mode off, and the sidebar column is see-through"
+    },
+    {
+      "type": "eval_equals",
+      "id": "content-opaque-system-ground",
+      "expected": "true",
+      "desc": "the content column is opaque in a neutral system colour"
+    },
+    {
+      "type": "eval_equals",
+      "id": "cards-and-ink-read",
+      "expected": "true",
+      "desc": "the group cards and the text read on the ground"
+    },
+    {
+      "type": "eval_equals",
+      "id": "root-fills",
+      "expected": "true",
+      "desc": "the settings root fills the window"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

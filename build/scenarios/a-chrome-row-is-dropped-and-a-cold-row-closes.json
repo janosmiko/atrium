@@ -1,0 +1,74 @@
+{
+  "name": "a-chrome-row-is-dropped-and-a-cold-row-closes",
+  "description": "Five chrome://settings rows survived a quit and came back as rows that answered neither a click nor their x: the cold-row opener refuses every chrome: URL, and sidebarTabClosed carries the empty id a cold row has. Two checks in one launch. First, the store carries a chrome://settings row between a live page and a cold one, and the sidebar draws only the two pages - the load dropped the row nothing could reopen. Second, the x on the cold row removes it: the census afterwards holds the live row alone. Rows are chosen by DATA (a data-url with no data-tab-id is the cold case), never by position, and the click is a DOM event on the x itself, because the sidebar layout has moved under hardcoded coordinates before.",
+  "fixture": "chrome-row-and-cold-row.spaces.json",
+  "serve_fixtures": true,
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval_until",
+      "id": "census-after-launch",
+      "target": "/sidebar",
+      "expression": "[...document.querySelectorAll('[data-dropzone=\"tabs\"] .tabrow')].map((r) => (r.dataset.tabId ? 'live' : 'cold') + ':' + ((r.dataset.url || '').split('/')[2] || '?')).join(' ')",
+      "expected": "live:dl.localhost:8000 cold:0y.localhost:8000",
+      "timeout_ms": 15000,
+      "note": "THE FIRST GATE. A 'cold:settings' entry here means the chrome:// row survived the load."
+    },
+    {
+      "type": "eval",
+      "id": "click-the-cold-rows-x",
+      "target": "/sidebar",
+      "expression": "(() => { const row = [...document.querySelectorAll('[data-dropzone=\"tabs\"] .tabrow')].find((r) => r.dataset.url && !r.dataset.tabId && !r.dataset.elsewhereTabId); if (!row) { return 'no cold row'; } const x = row.querySelector('.x'); if (!x) { return 'no x'; } x.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window})); return 'clicked ' + row.dataset.url; })()"
+    },
+    {
+      "type": "eval_until",
+      "id": "census-after-close",
+      "target": "/sidebar",
+      "expression": "[...document.querySelectorAll('[data-dropzone=\"tabs\"] .tabrow')].map((r) => (r.dataset.tabId ? 'live' : 'cold') + ':' + ((r.dataset.url || '').split('/')[2] || '?')).join(' ')",
+      "expected": "live:dl.localhost:8000",
+      "timeout_ms": 10000,
+      "note": "THE SECOND GATE. The cold row still listed means its x sent nothing the browser acted on."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "census-after-launch",
+      "expected": "live:dl.localhost:8000 cold:0y.localhost:8000",
+      "desc": "the chrome://settings row is dropped on load, the two pages stay in order"
+    },
+    {
+      "type": "eval_equals",
+      "id": "click-the-cold-rows-x",
+      "expected": "\"clicked http://0y.localhost:8000/example-domain.html?org\"",
+      "desc": "the click landed on the cold row's own x"
+    },
+    {
+      "type": "eval_equals",
+      "id": "census-after-close",
+      "expected": "live:dl.localhost:8000",
+      "desc": "the x on a cold row removes it"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

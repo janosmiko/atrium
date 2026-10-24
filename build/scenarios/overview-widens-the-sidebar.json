@@ -1,0 +1,168 @@
+{
+  "name": "overview-widens-the-sidebar",
+  "description": "The sidebar takes at least the overview minimum while the rail is parked on the Overview pane, and hands the user's own width back when the rail leaves it. The pane is a rail pane inside the sidebar's own document, so the only thing that can widen it is the browser - the page holds no width of its own beyond the --atrium-docked-width the native side pushes.\n\nTHE FIXTURE STAGES appState.sidebarWidth 280, which is under the 380 minimum, so opening the pane is a real change rather than a re-assertion. 380 is duplicated here as a literal because a scenario cannot read a C++ constant; it is kOverviewSidebarMinWidth in atrium_sidebar_overview_width.h, derived from overview.css. THIS SCENARIO STAGES ITS OWN FIXTURE rather than the shared lab-compare.spaces.json: 280 is also LEGACY_DEAD_SIDEBAR_WIDTH in spaces.rs, so migrate_sidebar_width resets an unmigrated file's 280 to 220 on load. overview-widens-the-sidebar.spaces.json sets sidebarWidthMigrated true so the staged 280 survives; the shared fixture must stay unmigrated, since the-floating-sidebar-resizes-by-its-edge depends on it opening at the 220 default. If that constant moves, the during-read below has to move with it.\n\nTHE GATE IS THE SWIPE, copied from overview-is-a-rail-pane: dx=+90 at (140,300) is the scrub that reaches the pane before the first workspace, measured there rather than assumed here. Leaving is the same gesture mirrored (dx=-90), so the exit needs no coordinate this scenario has never measured - a dot click would.\n\nWHY THE READ IS clientWidth AND NOT A CAPTURE: the widen animates over 150ms and a frame diff cannot say what width it settled at. document.documentElement.clientWidth is the sidebar WebView's viewport, which is the layout slot the window resizes, so it is the width itself rather than a picture of it. The during-read answers 'wide' or the number it actually found, so a failure names the width instead of just saying false.\n\nWHY A RELAUNCH RATHER THAN file_contains FOR THE SAVED WIDTH: the user's width must be unchanged after the round trip, and file_value.py fails an assertion whose expected value the staged fixture already held - a match against a fixture that started at 280 would pass against a build with no writer at all, so the harness refuses it by design. The relaunch asks the same question through the product: nothing is restaged, so the width the second launch comes up at is whatever spaces.json now holds. A widen that had gone through SetSidebarWidth instead of the live path would come back at 380.",
+  "fixture": "overview-widens-the-sidebar.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "width-before",
+      "target": "/sidebar",
+      "expression": "document.documentElement.clientWidth",
+      "expected": 280,
+      "timeout_ms": 8000,
+      "note": "the fixture's own width, before any gesture - the baseline both later reads are compared against"
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 140,
+      "y": 300,
+      "dx": 90,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "to-overview",
+      "duration_ms": 260,
+      "fps": 25,
+      "note": "Scrub to the pane before the first workspace. dx=+90 measured in overview-is-a-rail-pane: the wheel listener negates deltaX, so a rightward gesture goes back."
+    },
+    {
+      "type": "settle",
+      "ms": 1800,
+      "note": "the swipe settles the pane, then the width animation runs for 150ms"
+    },
+    {
+      "type": "eval_until",
+      "id": "width-during",
+      "target": "/sidebar",
+      "expression": "document.documentElement.clientWidth >= 380 ? 'wide' : document.documentElement.clientWidth",
+      "expected": "wide",
+      "timeout_ms": 8000,
+      "note": "Answers the width it found when the answer is no, so a failure names it."
+    },
+    {
+      "type": "capture",
+      "id": "widened",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the Overview pane at its own width - the visual half of the during-read"
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 140,
+      "y": 300,
+      "dx": -90,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "back-to-space",
+      "duration_ms": 260,
+      "fps": 25,
+      "note": "the same gesture mirrored, back onto the first workspace"
+    },
+    {
+      "type": "settle",
+      "ms": 1800
+    },
+    {
+      "type": "eval_until",
+      "id": "width-after",
+      "target": "/sidebar",
+      "expression": "document.documentElement.clientWidth",
+      "expected": 280,
+      "timeout_ms": 8000,
+      "note": "Leaving the pane gives the user's width back"
+    },
+    {
+      "type": "relaunch",
+      "note": "Cmd+Q and start again against the same files, nothing restaged - the second launch reads its width out of whatever spaces.json now holds"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "width-after-relaunch",
+      "target": "/sidebar",
+      "expression": "document.documentElement.clientWidth",
+      "expected": 280,
+      "timeout_ms": 8000,
+      "note": "Read through the product: 380 here would mean the widen was written to spaces.json"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "liveness, and a guard against the pane opening a second window again",
+      "label": "one-window-still"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: overview pane entered",
+      "label": "the-browser-was-told-the-rail-parked",
+      "desc": "Separates a scrub that never reached the pane from a widen that never happened. Without it, a failed during-read blames the width for a gesture that landed on a workspace."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: overview pane left",
+      "label": "the-browser-was-told-the-rail-moved-on",
+      "desc": "The half that has no other reporter. sidebarOverviewPaneRendered fires from the settle on a leading pane, so it can only ever say the rail arrived."
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: overview pane entered",
+      "max": 1,
+      "label": "the-rail-parked-once",
+      "desc": "One swipe in, one swipe out. A second 'entered' is the leave settle widening the sidebar straight back before it narrows again, and the width it then remembers is a mid-animation one."
+    },
+    {
+      "type": "eval_equals",
+      "id": "width-before",
+      "expected": 280,
+      "desc": "the fixture's width, before the pane"
+    },
+    {
+      "type": "eval_equals",
+      "id": "width-during",
+      "expected": "wide",
+      "desc": "The sidebar reached at least the overview minimum while the pane was on screen"
+    },
+    {
+      "type": "eval_equals",
+      "id": "width-after",
+      "expected": 280,
+      "desc": "The user's width came back when the rail left the pane"
+    },
+    {
+      "type": "eval_equals",
+      "id": "width-after-relaunch",
+      "expected": 280,
+      "desc": "The saved width is untouched - the second launch reads it from spaces.json"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly after the round trip"
+    }
+  ]
+}

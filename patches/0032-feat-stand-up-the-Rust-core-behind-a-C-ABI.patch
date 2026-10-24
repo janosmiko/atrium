@@ -1,0 +1,45 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 00:13:11 +0200
+Subject: [PATCH 032/154] feat: stand up the Rust core behind a C ABI
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The model is moving to Rust (decision-3). This is the scaffolding: a crate
+that builds under GN, a hand-written C header, and nothing behind it yet.
+
+The crate has two copies. rust/atrium-core in the Atrium repo is the one you
+edit; this one is a copy, because GN cannot build anything outside its own
+checkout and the sync server has no Atrium repo at all. `make rust-verify`
+fails when they drift.
+
+cbindgen is not vendored, so include/atrium_core.h is written by hand and
+nothing generates it. Two tests hold the header and the crate together:
+atrium_core_abi_unittest.cc compares the header's ATRIUM_CORE_ABI_VERSION
+against what the linked library reports, and a cargo test reads the header
+directly so the same check runs without a Chromium checkout.
+
+The header's define is unsigned. A bare 1 is an int, and comparing it to the
+uint32_t the function returns is a -Wsign-compare error under -Werror.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/DEPS | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/chrome/browser/DEPS b/chrome/browser/DEPS
+index 60010fad1fd64..579824478d9f0 100644
+--- a/chrome/browser/DEPS
++++ b/chrome/browser/DEPS
+@@ -491,6 +491,9 @@ include_rules = [
+   "+services/viz/public",
+   "+services/viz/privileged",
+   "+skia/ext",
++  # First-party Atrium code. It sits under third_party only because GN cannot
++  # build a crate that lives outside the checkout.
++  "+third_party/atrium",
+   "+third_party/boringssl/src/include",
+   "+third_party/content_analysis_sdk",
+   "+third_party/crashpad",

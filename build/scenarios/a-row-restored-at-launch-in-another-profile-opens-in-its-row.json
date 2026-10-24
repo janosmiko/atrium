@@ -1,0 +1,87 @@
+{
+  "name": "a-row-restored-at-launch-in-another-profile-opens-in-its-row",
+  "fixture": "a-cold-row-in-another-profile.spaces.json",
+  "startup_space": "22222222-2222-2222-2222-222222222222",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "description": "The recorded case: Atrium starts on a space of a profile that is not the Default one. The space's last active row must open in that space, with its page in the pane. In the recording the page area stayed empty, the row drew cold, and each click on it added a new row. Bravo belongs to the Second profile and the app starts on it.",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "let the launch restore settle"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "rows-at-launch",
+      "target": "/sidebar",
+      "expression": "(() => [...document.querySelectorAll('.railpane[data-space-index=\"1\"] [data-dropzone=\"tabs\"] .tabrow')].map((x) => (x.dataset.url || '-').replace(/^.*\\?/, '') + ':' + (x.dataset.tabId ? 'live' : x.dataset.elsewhereTabId ? 'else' : 'cold')).join(' | '))()"
+    },
+    {
+      "type": "eval",
+      "id": "bravo-point",
+      "target": "/sidebar",
+      "expression": "(() => { const r = [...document.querySelectorAll('.railpane[data-space-index=\"1\"] [data-dropzone=\"tabs\"] .tabrow')].find((x) => (x.dataset.url || '').endsWith('?bravo')); if (!r) { return 'no-row'; } const b = r.getBoundingClientRect(); return Math.round(b.left + 60) + ',' + Math.round((b.top + b.bottom) / 2 + 30); })()"
+    },
+    {
+      "type": "click",
+      "from_eval": "bravo-point"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "bravo-point-2",
+      "target": "/sidebar",
+      "expression": "(() => { const r = [...document.querySelectorAll('.railpane[data-space-index=\"1\"] [data-dropzone=\"tabs\"] .tabrow')].find((x) => (x.dataset.url || '').endsWith('?bravo')); if (!r) { return 'no-row'; } const b = r.getBoundingClientRect(); return Math.round(b.left + 60) + ',' + Math.round((b.top + b.bottom) / 2 + 30); })()",
+      "note": "read again, because a new row can move it"
+    },
+    {
+      "type": "click",
+      "from_eval": "bravo-point-2",
+      "note": "the recording shows one new row for each click"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "rows-after",
+      "target": "/sidebar",
+      "expression": "(() => [...document.querySelectorAll('.railpane[data-space-index=\"1\"] [data-dropzone=\"tabs\"] .tabrow')].map((x) => (x.dataset.url || '-').replace(/^.*\\?/, '') + ':' + (x.dataset.tabId ? 'live' : x.dataset.elsewhereTabId ? 'else' : 'cold')).join(' | '))()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "rows-at-launch",
+      "expected": "\"bravo:live | cold:cold\"",
+      "desc": "THE MEASUREMENT: the restored row is live in its own space at launch"
+    },
+    {
+      "type": "eval_equals",
+      "id": "rows-after",
+      "expected": "\"bravo:live | cold:cold\"",
+      "desc": "and clicks on it add no row"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

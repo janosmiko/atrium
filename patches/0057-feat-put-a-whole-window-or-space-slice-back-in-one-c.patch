@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 11 Aug 2026 10:54:16 +0200
+Subject: [PATCH 057/154] feat: put a whole window or space slice back in one
+ call
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Every other sidebar verb is per-gesture: one row moves, one tab closes, one
+cold tile reopens. Order, selection and folder membership have no verb at all,
+so a restore assembled out of them would be long, racy and lossy. This takes
+Rewind's slice WHOLE instead.
+
+atrium_core_restore_slice validates the payload before it writes anything - a
+space that does not exist, a scope the payload contradicts, a row with no URL,
+and the document is byte-identical to what it was. A row whose live tab is
+still around keeps its RowToken and is moved; a row that is gone is rewritten
+cold, so reopening it adopts that row rather than adding a second.
+
+The core hands back the half a document cannot do: which tabs to close, which
+rows to reopen, and which tab to land on. RestoreSidebarSlice does them in that
+order - closing first, so the strip never flashes the union of two states.
+
+Selection arrives one of two ways, never both: a live tab id when the moment's
+selected row survived, or a "selected" flag on one reopen entry when it did
+not, because Chromium never reuses a tab id.
+
+OpenSidebarColdTab takes `foreground` explicitly now: a restore reopens many
+rows and only one of them may take the selection.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 68eb1203a8cab..e1d238b23256b 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -629,6 +629,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:command_bar_matches",
+     "//chrome/browser/ui/atrium:tab_cycle",
+     "//chrome/browser/ui/atrium:peek_decision",
++    "//chrome/browser/ui/atrium:restore_plan",
+     "//chrome/browser/ui/atrium:slot_presentation_table",
+     "//chrome/browser/ui/atrium:status_bubble_color_math",
+     "//chrome/browser/ui/atrium:surface_key_route",

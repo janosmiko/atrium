@@ -1,0 +1,67 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Fri, 7 Aug 2026 06:35:15 +0200
+Subject: [PATCH 028/154] fix: suppress the chrome-layer context menu where it
+ is SHOWN, not built
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The InitMenu guard emptied Chromium's own menu model, which stopped the crash -
+but the menu still appeared. macOS contributes Look Up, Speech, Writing Tools
+and Services for a text selection independently of Chromium's model, so what
+was left was a menu containing only the system items and none of ours.
+
+ChromeWebContentsViewDelegateViewsMac::ShowContextMenu now returns before
+building anything when the WebContents is on the system profile - which is
+where Atrium's chrome layer lives. Nothing is built, so nothing is shown.
+
+The InitMenu guard stays as defence in depth: it covers any other path that
+constructs this menu without going through the Mac view delegate.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ ...me_web_contents_view_delegate_views_mac.mm | 22 +++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+diff --git a/chrome/browser/ui/views/tab_contents/chrome_web_contents_view_delegate_views_mac.mm b/chrome/browser/ui/views/tab_contents/chrome_web_contents_view_delegate_views_mac.mm
+index 564c8c000c5be..570dc0fffced3 100644
+--- a/chrome/browser/ui/views/tab_contents/chrome_web_contents_view_delegate_views_mac.mm
++++ b/chrome/browser/ui/views/tab_contents/chrome_web_contents_view_delegate_views_mac.mm
+@@ -8,6 +8,7 @@
+ #include <optional>
+ 
+ #import "chrome/browser/renderer_host/chrome_render_widget_host_view_mac_delegate.h"
++#include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+ #include "chrome/browser/ui/cocoa/renderer_context_menu/render_view_context_menu_mac_cocoa.h"
+@@ -70,6 +71,27 @@ ChromeWebContentsViewDelegateViewsMac::GetDragDestDelegate() {
+ void ChromeWebContentsViewDelegateViewsMac::ShowContextMenu(
+     content::RenderFrameHost& render_frame_host,
+     const content::ContextMenuParams& params) {
++  // ATRIUM: top chrome gets no context menu at all.
++  //
++  // Atrium's chrome layer - sidebar, pill, foyer - is WebUI on the SYSTEM
++  // profile (AtriumChromeContext uses ProfileManager::GetSystemProfilePath),
++  // and a page menu there crashed the browser: it dereferences profile-keyed
++  // services no system profile has.
++  //
++  // Suppressed HERE rather than only in RenderViewContextMenu::InitMenu
++  // because that empties Chromium's own model while macOS still contributes
++  // Look Up / Speech / Writing Tools / Services for a text selection - so the
++  // menu still appeared, just with nothing of ours in it. Returning before the
++  // menu is built is what stops it showing.
++  //
++  // These surfaces build their own DOM menus (sidebar-menu.js), and
++  // no page content is hosted on the system profile in this browser.
++  Profile* const profile =
++      Profile::FromBrowserContext(web_contents_->GetBrowserContext());
++  if (profile && profile->IsSystemProfile()) {
++    return;
++  }
++
+   BuildMenuAsync(
+       render_frame_host, params,
+       base::BindOnce(&ChromeWebContentsViewDelegateViewsMac::ShowMenu,

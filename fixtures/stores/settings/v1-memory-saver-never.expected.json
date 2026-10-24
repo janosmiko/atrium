@@ -1,0 +1,204 @@
+{
+    "schemaVersion": 1,
+    "appIconVariant": "auto",
+    "animationsEnabled": false,
+    "startupBehavior": "restoreLastActive",
+    "promptForDownload": true,
+    "sidebarPosition": "left",
+    "horizontalScrollOverride": "auto",
+    "archiveThreshold": "twelveHours",
+    "memorySaverEnabled": false,
+    "memorySaverThreshold": "twoHours",
+    "favoriteKeepAliveEnabled": true,
+    "favoriteKeepAliveThreshold": "fiveMinutes",
+    "notificationTimeout": "fiveSeconds",
+    "skylightWeather": "clear",
+    "skylightNightShift": true,
+    "chromePageTint": false,
+    "aiModel": "onDevice",
+    "ollamaHost": "localhost",
+    "ollamaPort": 11434,
+    "ollamaModel": "llama3",
+    "customEndpointUrl": "",
+    "customEndpointModel": "gpt-4o-mini",
+    "customEndpointMaxTokens": 0,
+    "customEndpointTimeoutSeconds": 0,
+    "aiPageTextCap": 100000,
+    "aiEnabled": true,
+    "autoSummarize": true,
+    "vimModeEnabled": false,
+    "translateLanguage": "",
+    "importPromptShown": true,
+    "autoPipEnabled": true,
+    "confirmToQuitEnabled": true,
+    "addressBarPinned": false,
+    "externalLinksOpenInLittle": true,
+    "glassOpacity": 0.55,
+    "opaqueSurround": true,
+    "surroundColor": "#12282E",
+    "borderWidth": 10,
+    "overlayAccent": "brand",
+    "searchEngines": [
+        {
+            "id": "google",
+            "name": "Google",
+            "keyword": "google.com",
+            "url": "https://www.google.com/search?q=%s",
+            "enabled": true,
+            "builtin": true
+        },
+        {
+            "id": "duckduckgo",
+            "name": "DuckDuckGo",
+            "keyword": "duckduckgo.com",
+            "url": "https://duckduckgo.com/?q=%s",
+            "enabled": true,
+            "builtin": true
+        },
+        {
+            "id": "kagi",
+            "name": "Kagi",
+            "keyword": "kagi.com",
+            "url": "https://kagi.com/search?q=%s",
+            "enabled": true,
+            "builtin": true
+        },
+        {
+            "id": "bing",
+            "name": "Bing",
+            "keyword": "bing.com",
+            "url": "https://www.bing.com/search?q=%s",
+            "enabled": true,
+            "builtin": true
+        },
+        {
+            "id": "ecosia",
+            "name": "Ecosia",
+            "keyword": "ecosia.org",
+            "url": "https://www.ecosia.org/search?q=%s",
+            "enabled": true,
+            "builtin": true
+        },
+        {
+            "id": "youtube",
+            "name": "YouTube",
+            "keyword": "youtube.com",
+            "url": "https://www.youtube.com/results?search_query=%s",
+            "enabled": true,
+            "builtin": true
+        },
+        {
+            "id": "github",
+            "name": "GitHub",
+            "keyword": "github.com",
+            "url": "https://github.com/search?q=%s",
+            "enabled": true,
+            "builtin": true
+        },
+        {
+            "id": "reddit",
+            "name": "Reddit",
+            "keyword": "reddit.com",
+            "url": "https://www.reddit.com/search/?q=%s",
+            "enabled": true,
+            "builtin": true
+        },
+        {
+            "id": "wikipedia",
+            "name": "Wikipedia",
+            "keyword": "wikipedia.org",
+            "url": "https://en.wikipedia.org/w/index.php?search=%s",
+            "enabled": true,
+            "builtin": true
+        },
+        {
+            "id": "amazon",
+            "name": "Amazon",
+            "keyword": "amazon.com",
+            "url": "https://www.amazon.com/s?k=%s",
+            "enabled": true,
+            "builtin": true
+        },
+        {
+            "id": "gmaps",
+            "name": "Google Maps",
+            "keyword": "maps.google.com",
+            "url": "https://www.google.com/maps/search/%s",
+            "enabled": true,
+            "builtin": true
+        },
+        {
+            "id": "gimages",
+            "name": "Google Images",
+            "keyword": "images.google.com",
+            "url": "https://www.google.com/search?tbm=isch&q=%s",
+            "enabled": true,
+            "builtin": true
+        },
+        {
+            "id": "perplexity",
+            "name": "Perplexity",
+            "keyword": "perplexity.ai",
+            "url": "https://www.perplexity.ai/search?q=%s",
+            "enabled": true,
+            "builtin": true
+        },
+        {
+            "id": "chatgpt",
+            "name": "ChatGPT",
+            "keyword": "chatgpt.com",
+            "url": "https://chatgpt.com/?q=%s",
+            "enabled": true,
+            "builtin": true
+        },
+        {
+            "id": "claude",
+            "name": "Claude",
+            "keyword": "claude.ai",
+            "url": "https://claude.ai/new?q=%s",
+            "enabled": true,
+            "builtin": true
+        },
+        {
+            "id": "x",
+            "name": "X",
+            "keyword": "x.com",
+            "url": "https://x.com/search?q=%s",
+            "enabled": true,
+            "builtin": true
+        },
+        {
+            "id": "stackoverflow",
+            "name": "Stack Overflow",
+            "keyword": "stackoverflow.com",
+            "url": "https://stackoverflow.com/search?q=%s",
+            "enabled": true,
+            "builtin": true
+        },
+        {
+            "id": "npm",
+            "name": "npm",
+            "keyword": "npmjs.com",
+            "url": "https://www.npmjs.com/search?q=%s",
+            "enabled": true,
+            "builtin": true
+        },
+        {
+            "id": "crates",
+            "name": "crates.io",
+            "keyword": "crates.io",
+            "url": "https://crates.io/search?q=%s",
+            "enabled": true,
+            "builtin": true
+        }
+    ],
+    "searchEnginesSeed": 1,
+    "swipeCommitThreshold": 0.15,
+    "swipeSlowCommit": 0.3,
+    "swipeBlendFactor": 6.0,
+    "swipeHoldSilenceGap": 0.5,
+    "swipeOvershootCap": 0.4,
+    "swipeSettleDur": 0.28,
+    "swipeSpringDamp": 0.86,
+    "swipeFollowTau": 0.15
+}

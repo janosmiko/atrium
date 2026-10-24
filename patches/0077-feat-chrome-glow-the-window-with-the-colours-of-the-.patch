@@ -1,0 +1,67 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 27 Aug 2026 15:09:27 +0200
+Subject: [PATCH 077/154] feat(chrome): glow the window with the colours of the
+ page's own edges
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The chrome carried one flat colour, sampled from a declared theme-color.
+Most pages declare none, so it never moved. When it did move, the bound
+was applied to the value rather than to the screen: the window paints
+that value at the glass alpha, so at the shipped 0.2 a 22 percent shift
+arrived as about 4 percent, which is one to ten RGB units.
+
+The window now reads its own viewport eight times a second, downscaled
+to 24x24 on the GPU before the readback so a tick moves 2.3KB rather
+than megabytes. Four edge means come off that one copy, each resolved
+separately so the bound and the contrast floor apply per edge, and they
+are painted as gradients out of the page card into the chrome.
+
+The rate is a ladder - 125ms, 500ms, 2000ms - stepping down after eight
+unchanged reads and snapping back the moment anything moves. A hidden or
+occluded tab is never read. An unchanged read paints nothing.
+
+An error page is never sampled: it is Chromium's own chrome in the
+site's clothes, and it declares white, so every failed load would wash
+the window the same way. That rule gates both the readback and the
+declared-tag path - gating only the first still let the white through.
+
+A tab already loaded commits nothing when it comes to the front, so the
+sampler runs on an active-tab change too. Without it a reload was the
+only gesture that moved the chrome off the last page to navigate.
+
+ABI 39 -> 40: atrium_core_page_tint takes the glass alpha, because the
+bound and the contrast floor now grade the composited colour.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index f374052d3246b..54223b088bba1 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3527,6 +3527,9 @@ static_library("ui") {
+       "atrium/atrium_pinch_gesture_decision.cc",
+       "atrium/atrium_settings_window.cc",
+       "atrium/atrium_hex_color.cc",
++      "atrium/atrium_ambilight_cadence.cc",
++      "atrium/atrium_edge_tint.cc",
++      "atrium/atrium_page_color.cc",
+       "atrium/atrium_settings_source.cc",
+       "atrium/atrium_routing_navigation_throttle.cc",
+       "atrium/atrium_routing_navigation_throttle.h",
+@@ -3580,6 +3583,9 @@ static_library("ui") {
+       "atrium/atrium_peek_navigation_throttle.h",
+       "atrium/atrium_settings_window.h",
+       "atrium/atrium_hex_color.h",
++      "atrium/atrium_ambilight_cadence.h",
++      "atrium/atrium_edge_tint.h",
++      "atrium/atrium_page_color.h",
+       "atrium/atrium_settings_source.h",
+       "atrium/atrium_custom_endpoint_keychain_mac.h",
+       "atrium/atrium_custom_endpoint_keychain_mac.mm",

@@ -1,0 +1,107 @@
+{
+  "name": "the-sidebar-resizes-and-remembers",
+  "description": "dragging the sidebar's edge changes its width, and the width survives a relaunch.\n\nWHAT WAS MISSING. The sidebar could not be resized because there was no handle to drag - not because a drag path was broken. The lab has a .resizer sibling of .sidebar and it was never ported, while the host's own SetSidebarWidthLive sat built and uncalled. Three pieces existed separately and nothing connected them.\n\nTWO MESSAGES, WHICH IS THE POINT OF THE SPLIT. sidebarWidthLive fires per pointer move and resizes without animating - an animation per move would fight the finger. sidebarWidthCommit fires once on release, animates to the settled width, and persists it. The host had both entry points for exactly this reason.\n\nWHY THE RELAUNCH IS THE REAL ASSERTION. A drag that resizes and then forgets is a second bug, and it was the likelier one: nothing in this build wrote appState.sidebarWidth at all. So the width being correct on screen proves only half. Reading it back after a relaunch, from a file nothing restaged, is what proves the commit reached disk.\n\nTHE GRIP IS A VIEW, NOT A PAGE ELEMENT, and that is what this now tests. A page-side handle was built first and never received a press across six runs - provably correct under a synthetic dispatch, provably hit-testable, with the window's caption carve ruled out. Views owns mouse handling for its own children, so the grip needs nothing delivered to a renderer. It sits between the sidebar and the pane, six points wide, which puts its centre at x=223 on a 220-wide sidebar.\n\nTHE MESSAGE GATES ARE GONE with it: there is no chrome.send in this path. What proves the drag now is the width on disk after a relaunch, which was always the assertion that mattered.\n\nTHE FIXTURE'S WIDTH IS 260 ON PURPOSE. It staged 280 before, which is exactly LEGACY_DEAD_SIDEBAR_WIDTH - the one value migrate_sidebar_width rewrites to the 220 default, because a dead SwiftUI-era build wrote 280 for everyone. So a fixture staging 280 tests the migration rather than the width, and the sidebar correctly opened at 220 while the file said 280. That looked for a while like the stored width never being applied, and it was the test case at fault rather than the app.\n\nAt 260 the sidebar opens at 260, the grip spans 260-266, and its centre is 263. The drag then asks for 340, which the fixture cannot already hold - so the file read is still a measurement.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://dl\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: launch 1 is up with its startup tab committed"
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "the sidebar renders and the handle is in the DOM"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "before-drag",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the sidebar at its rendered width, measured at ~220"
+    },
+    {
+      "type": "drag",
+      "x1": 263,
+      "y1": 400,
+      "x2": 343,
+      "y2": 400,
+      "note": "the grip's band. The fixture stages 260 and a launch applies it, so the sidebar opens at 260 and the grip spans 260-266 - centre 263. Dragging 80 points right asks for 340"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the commit animates to the settled width and writes it"
+    },
+    {
+      "type": "capture",
+      "id": "after-drag",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the widened sidebar"
+    },
+    {
+      "type": "relaunch",
+      "note": "THE HALF A CAPTURE CANNOT REACH. Cmd+Q, then Atrium again against the SAME files with nothing restaged - so a width read after this can only have come from the first launch's write"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://dl\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: launch 2 is up. wait_vlog greps the LIVE log, so this cannot be a stale match from launch 1"
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "after-relaunch",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the sidebar on launch 2, at the width launch 1 settled on"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog_absent",
+      "label": "no-collapse-was-stored",
+      "pattern": "Atrium: the settings write failed",
+      "note": "a write that failed would leave the width in the surface only, which a capture cannot tell from a real one"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "note": "one window after the relaunch - two would mean the quit left something standing and the read below is of the wrong process"
+    }
+  ],
+  "teardown_assertions": [
+    {
+      "type": "file_contains",
+      "label": "the-settled-width-reached-disk",
+      "file": "spaces",
+      "path": "appState.sidebarWidth",
+      "value": 340,
+      "note": "The fixture stages 280, so 340 can only have been written by the release. Read in teardown, after the app is gone, because the write flushes on the core's own schedule"
+    }
+  ]
+}

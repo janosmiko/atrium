@@ -1,0 +1,95 @@
+{
+  "name": "the-copy-link-hint-names-its-hotkey",
+  "description": "The floating address bar's copy link button (.dvcopy) hovers to a hint naming Cmd+Shift+C, the key IsCopyLinkKeyEquivalent matches on the raw NSEvent. That chord is never registered with NativeHotkeyMap, so bindingFor has nothing to return for it - the key comes from a FALLBACK_KEYS entry, the same table sbback/sbfwd/sbreload use for their own unregistered Chromium accelerators. This run hovers the button and reads the hint's label and key off the shared overlay.",
+  "fixture": "icon-tint-none.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "startup_space": "437b0002-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d",
+      "note": "Developer Mode: brings up the floating address bar with the copy link button"
+    },
+    {
+      "type": "eval_until",
+      "id": "devbar-copy-ready",
+      "target": "/devbar",
+      "expression": "String(!!document.querySelector('.dvcopy'))",
+      "expected": "true",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "hover-devbar-copy",
+      "target": "/devbar",
+      "expression": "(() => { const b = document.querySelector('.dvcopy'); if (!b) { return 'no-button'; } b.dispatchEvent(new PointerEvent('pointerover', {bubbles: true})); return 'hovered'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 900,
+      "note": "past HOVER_DELAY_MS (600ms) in hint-triggers.js"
+    },
+    {
+      "type": "eval_until",
+      "id": "hint-text",
+      "target": "/hint",
+      "expression": "String((document.querySelector('.hint .hint-text') || {}).textContent || 'no hint')",
+      "expected": "Copy URL",
+      "timeout_ms": 6000,
+      "note": "the devbar route sends this through chrome.send to HintOverlayWidget's own /hint document"
+    },
+    {
+      "type": "eval",
+      "id": "hint-keys",
+      "target": "/hint",
+      "expression": "[...document.querySelectorAll('.hint .hint-keys .ov-key')].map((k) => k.textContent).join('')"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "devbar-copy-ready",
+      "expected": "true",
+      "desc": "the devbar came up with its copy link button"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hover-devbar-copy",
+      "expected": "\"hovered\"",
+      "desc": "the copy link button was found and hovered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint-text",
+      "expected": "Copy URL",
+      "desc": "The hint carries the button's label"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hint-keys",
+      "expected": "\"⌘⇧C\"",
+      "desc": "The hint names Cmd+Shift+C, the key IsCopyLinkKeyEquivalent actually dispatches"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+Name: Atrium model core
+Short Name: atrium-core
+URL: This is the canonical public repository
+Version: N/A
+Revision: N/A
+License: Apache-2.0
+License File: //LICENSE
+Security Critical: yes
+Shipped: yes
+
+Description:
+First-party Atrium code, not a third-party import. It sits under third_party
+because GN cannot reach outside the Chromium checkout, and the crate has to be
+inside the tree for GN to build it. The copy you edit lives in the Atrium repo
+at rust/atrium-core; `make rust-verify` fails when the two drift apart.
+
+Local Modifications:
+None.

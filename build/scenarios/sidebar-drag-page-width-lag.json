@@ -1,0 +1,68 @@
+{
+  "name": "sidebar-drag-page-width-lag",
+  "description": "Measures how far the page's own width report trails the card during a grip drag, in milliseconds, without reading a pixel.\n\nThe fixture's sampler records every innerWidth it sees against Date.now(). SetSidebarWidthLive VLOGs each width it sets against the same wall clock. build/scripts/page-width-lag.py joins the two by width and prints the per-step delay.\n\nWhy not the pixel rig: sidebar-drag-keeps-the-page-on-the-grip-frame's drag-lag-frames.py tests that the marker sits 60px before the card's right edge, which is only true at one card width. At the startup width the page's viewport sits 14px inside its card, so that script reports the page as trailing while nothing is moving at all.\n\nThe heavy page (3000 paragraphs) is active at launch. The grip spans 260-266, so its centre is 263, and 40 steps over 80 points is 2 points a step.\n\nThis run only collects the numbers. It carries no timing assertion yet because a threshold picked before the first measurement would be a guess, and a scenario that cannot fail is worse than none.",
+  "fixture": "right-marker.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://dl\\.localhost",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "reset",
+      "target": "dl.localhost",
+      "expression": "window.__atriumWidthReset()"
+    },
+    {
+      "type": "drag",
+      "x1": 263,
+      "y1": 400,
+      "x2": 343,
+      "y2": 400,
+      "steps": 40
+    },
+    {
+      "type": "eval",
+      "id": "quiet",
+      "target": "dl.localhost",
+      "expression": "window.__atriumWidthQuiet(400)",
+      "note": "RECORDED, not asserted. It used to be an eval_until gate. On this 3000-paragraph page a native window-edge resize costs the same 6s and would fail it too, so it measured the page rather than the grip - see a-window-edge-drag-is-the-control-for-the-grip-drag, which asserts the grip against that control in one run."
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "eval",
+      "id": "widths",
+      "target": "dl.localhost",
+      "expression": "window.__atriumWidthLog()"
+    },
+    {
+      "type": "eval",
+      "id": "settled",
+      "target": "dl.localhost",
+      "expression": "String(window.innerWidth)"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "quit"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+# a bare `ruff check` inherited whatever ruff defaulted to, and a
+# Mason upgrade moved that default, turning 0 findings into 113 with no code
+# change. This names the rule set explicitly (the Makefile `lint` target pins the version).
+
+[lint]
+select = [
+    # ruff's long-standing default, spelled out instead of inherited.
+    "E4",
+    "E7",
+    "E9",
+    "F",
+    # Reviewed against the 113 findings and adopted:
+    "EXE001",  # a file with a shebang must be marked executable
+    "ISC004",  # implicit string concat inside a collection literal needs parens
+    "SIM115",  # open() must use a context manager
+    "C408",    # dict()/list() calls a literal can express just as well
+    "PLW1510", # subprocess.run needs an explicit check= argument
+    "I001",    # import block ordering
+]
+
+# UP031 (75 of the 113 findings) and FLY002 (2) were reviewed and left
+# unselected, not ignored, so a future ruff release cannot silently turn them
+# back on.

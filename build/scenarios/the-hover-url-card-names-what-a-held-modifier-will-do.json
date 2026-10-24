@@ -1,0 +1,239 @@
+{
+  "name": "the-hover-url-card-names-what-a-held-modifier-will-do",
+  "description": "Hovering a link shows its URL, and holding a modifier changes where a click on it would open. The card now says which, and the hint clears when the key comes up, with the pointer never leaving the link.\n\nThe labels follow blink::NavigationPolicyFromEventModifiers' mac branch (navigation_policy.cc) and the two intercepts browser.cc puts ahead of it: Shift and Option both peek, Cmd opens a background tab, Cmd+Shift a focused one, and Cmd+Option a little window. Option used to be SAVE_TO_DISK and Cmd+Option used to reach stock AddToNewSplit, which NOTREACHEDs on an Atrium window.\n\nwindow.atriumSetNavModifiers is the receiver AtriumBrowserWindow::SetSidebarNavModifiers pushes from the native flagsChanged monitor. The sweep drives that receiver directly, the way the devbar hint scenario does, since the pointer is over the page and the document sees no keydown of its own. One real chord at the end proves the native path reaches this widget too.",
+  "fixture": "long-page.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "arm-link",
+      "target": "long-page",
+      "expression": "(() => { const a = document.createElement('a'); a.href = 'https://short.example/a'; a.textContent = 'short link'; a.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;z-index:99;background:rgba(0,0,0,.02)'; document.body.appendChild(a); return 'armed'; })()",
+      "note": "a URL short enough to show whole, so a changed card text can only be the hint"
+    },
+    {
+      "type": "move",
+      "x": 600,
+      "y": 300,
+      "note": "REAL pointer move onto the link. It does not move again for the rest of the run."
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval_until",
+      "id": "card-shows-the-url",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? t.textContent : 'no card'; })()",
+      "expected": "https://short.example/a",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "no-modifier-no-hint",
+      "target": "/toast",
+      "expression": "(() => { const h = document.querySelector('.toasts .toast .cthint'); return h ? h.textContent : ''; })()"
+    },
+    {
+      "type": "eval",
+      "id": "push-shift",
+      "target": "/toast",
+      "expression": "(() => { window.atriumSetNavModifiers(true, false, false); return 'pushed'; })()"
+    },
+    {
+      "type": "eval_until",
+      "id": "shift-says-peek",
+      "target": "/toast",
+      "expression": "(() => { const h = document.querySelector('.toasts .toast .cthint'); return h ? h.textContent : 'no hint'; })()",
+      "expected": "Peek",
+      "timeout_ms": 6000,
+      "note": "Shift+click is intercepted as a peek before a window is created"
+    },
+    {
+      "type": "eval",
+      "id": "push-cmd",
+      "target": "/toast",
+      "expression": "(() => { window.atriumSetNavModifiers(false, true, false); return 'pushed'; })()"
+    },
+    {
+      "type": "eval_until",
+      "id": "cmd-says-background-tab",
+      "target": "/toast",
+      "expression": "(() => { const h = document.querySelector('.toasts .toast .cthint'); return h ? h.textContent : 'no hint'; })()",
+      "expected": "Background tab",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "eval",
+      "id": "push-cmd-shift",
+      "target": "/toast",
+      "expression": "(() => { window.atriumSetNavModifiers(true, true, false); return 'pushed'; })()"
+    },
+    {
+      "type": "eval_until",
+      "id": "cmd-shift-says-new-tab",
+      "target": "/toast",
+      "expression": "(() => { const h = document.querySelector('.toasts .toast .cthint'); return h ? h.textContent : 'no hint'; })()",
+      "expected": "New tab",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "eval",
+      "id": "push-cmd-option",
+      "target": "/toast",
+      "expression": "(() => { window.atriumSetNavModifiers(false, true, true); return 'pushed'; })()"
+    },
+    {
+      "type": "eval_until",
+      "id": "cmd-option-says-little-window",
+      "target": "/toast",
+      "expression": "(() => { const h = document.querySelector('.toasts .toast .cthint'); return h ? h.textContent : 'no hint'; })()",
+      "expected": "Little window",
+      "timeout_ms": 6000,
+      "note": "Cmd+Option is NEW_SPLIT_VIEW, which browser.cc spends on a little window"
+    },
+    {
+      "type": "eval",
+      "id": "push-option",
+      "target": "/toast",
+      "expression": "(() => { window.atriumSetNavModifiers(false, false, true); return 'pushed'; })()"
+    },
+    {
+      "type": "eval_until",
+      "id": "option-says-peek",
+      "target": "/toast",
+      "expression": "(() => { const h = document.querySelector('.toasts .toast .cthint'); return h ? h.textContent : 'no hint'; })()",
+      "expected": "Peek",
+      "timeout_ms": 6000,
+      "note": "Option alone is NEW_WINDOW since navigation_policy.cc's mac branch stopped calling it a download, so the peek intercept takes it"
+    },
+    {
+      "type": "capture",
+      "id": "hover-card-with-a-modifier-hint",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "eval",
+      "id": "url-survived-the-sweep",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? t.textContent : 'no card'; })()",
+      "note": "The hint changed five times and the URL itself never did"
+    },
+    {
+      "type": "eval",
+      "id": "release-all",
+      "target": "/toast",
+      "expression": "(() => { window.atriumSetNavModifiers(false, false, false); return 'released'; })()"
+    },
+    {
+      "type": "eval_until",
+      "id": "release-clears-the-hint",
+      "target": "/toast",
+      "expression": "(() => { const h = document.querySelector('.toasts .toast .cthint'); return h ? h.textContent : 'no hint'; })()",
+      "expected": "",
+      "timeout_ms": 6000,
+      "note": "Releasing removes the hint, pointer still on the link"
+    },
+    {
+      "type": "key",
+      "combo": "shift+escape",
+      "note": "one REAL chord, so the run proves the native flagsChanged monitor reaches this widget and not only the eval-driven receiver. Escape over a loaded page does nothing else."
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "card-shows-the-url",
+      "expected": "https://short.example/a",
+      "desc": "the card is up and showing the hovered link"
+    },
+    {
+      "type": "eval_equals",
+      "id": "no-modifier-no-hint",
+      "expected": "\"\"",
+      "desc": "with no modifier held the card says nothing extra"
+    },
+    {
+      "type": "eval_equals",
+      "id": "shift-says-peek",
+      "expected": "Peek",
+      "desc": "Shift is the peek intercept"
+    },
+    {
+      "type": "eval_equals",
+      "id": "cmd-says-background-tab",
+      "expected": "Background tab",
+      "desc": "Cmd is NEW_BACKGROUND_TAB"
+    },
+    {
+      "type": "eval_equals",
+      "id": "cmd-shift-says-new-tab",
+      "expected": "New tab",
+      "desc": "Cmd+Shift is NEW_FOREGROUND_TAB"
+    },
+    {
+      "type": "eval_equals",
+      "id": "cmd-option-says-little-window",
+      "expected": "Little window",
+      "desc": "Cmd+Option opens the link in a little window"
+    },
+    {
+      "type": "eval_equals",
+      "id": "option-says-peek",
+      "expected": "Peek",
+      "desc": "Option alone is NEW_WINDOW, which the peek intercept takes"
+    },
+    {
+      "type": "eval_equals",
+      "id": "url-survived-the-sweep",
+      "expected": "\"https://short.example/a\"",
+      "desc": "The pointer never moved and the URL never changed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "release-clears-the-hint",
+      "expected": "",
+      "desc": "The hint disappears on release"
+    },
+    {
+      "type": "vlog",
+      "label": "native-push-reaches-the-hover-widget",
+      "pattern": "Atrium: hover url modifiers shift=1",
+      "desc": "the real chord went through SetSidebarNavModifiers into this widget, not only through the eval receiver"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

@@ -1,0 +1,156 @@
+{
+  "name": "hover-card-reaches-its-fit-width-on-the-first-hover",
+  "description": "the hover card is laid out inside the toast widget's own WebContents, which is sized from what the card itself reports - so a card could never report itself wider than the widget already was, and a first hover (nothing to grow from) clipped a correctly-elided middle-ellipsis fit with an END-style CSS ellipsis instead. This scenario hovers a long link ONCE, with no warm-up hover before it, since a second hover can succeed off a width the first one already established and would hide the defect.\n\ntextContent alone cannot catch the bug: CSS text-overflow:ellipsis clips the PAINTED box without touching the DOM text elideMiddle already set correctly. The real check is geometric - .ctl's scrollWidth (the full content, including anything CSS would hide) must not exceed its clientWidth (what is actually visible), which makes 'the CSS net never fires' measurable.",
+  "fixture": "long-page.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "past the show debounce the hover path keeps"
+    },
+    {
+      "type": "eval",
+      "id": "arm-one-long-link",
+      "target": "long-page",
+      "expression": "(() => { const a = document.createElement('a'); a.href = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PLtaskEightEightFive&index=1&t=42s'; a.textContent = a.href; a.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;z-index:99;background:rgba(0,0,0,.02)'; document.body.appendChild(a); return 'one full-viewport link'; })()",
+      "note": "a single link covering the whole card, so this hover is the FIRST one this page ever fires - no prior card to have already grown"
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 400,
+      "note": "the FIRST real pointer move in this run - no earlier hover to have already sized the widget"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "past the hover show debounce"
+    },
+    {
+      "type": "eval_until",
+      "id": "card-elided",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? String(t.textContent.includes('\\u2026')) : 'no card'; })()",
+      "expected": "true",
+      "timeout_ms": 6000,
+      "note": "The link is long enough that elideMiddle must shorten it"
+    },
+    {
+      "type": "eval",
+      "id": "card-text",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? t.textContent : 'no card'; })()",
+      "note": "diagnostic: the actual elided string, for the report"
+    },
+    {
+      "type": "eval",
+      "id": "card-keeps-real-prefix-and-suffix",
+      "target": "/toast",
+      "expression": "(() => { const full = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PLtaskEightEightFive&index=1&t=42s'; const t = document.querySelector('.toasts .toast .ctl'); if (!t) { return 'no card'; } const shown = t.textContent; const parts = shown.split('\\u2026'); if (parts.length !== 2) { return 'not one ellipsis: ' + shown; } const [pre, suf] = parts; return String(pre.length > 0 && suf.length > 0 && full.startsWith(pre) && full.endsWith(suf)); })()",
+      "note": "A MIDDLE ellipsis keeps both ends. A CSS end-ellipsis would instead leave the DOM text (which this reads) as the untouched full elideMiddle fit, so this alone cannot see an end-clip - the geometry check below does."
+    },
+    {
+      "type": "eval",
+      "id": "card-not-clipped-by-css",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); if (!t) { return 'no card'; } return String(t.scrollWidth <= t.clientWidth + 1); })()",
+      "note": "ScrollWidth is the label's full content width including anything overflow:hidden is hiding. If it exceeds clientWidth (what is actually visible), the CSS safety net fired and end-clipped a fit that elideMiddle already got right."
+    },
+    {
+      "type": "eval",
+      "id": "card-width",
+      "target": "/toast",
+      "expression": "(() => { const c = document.querySelector('.toasts .toast'); return c ? String(Math.round(c.getBoundingClientRect().width)) : 'no card'; })()",
+      "note": "diagnostic: the card's actual rendered width on the first hover, for the report"
+    },
+    {
+      "type": "eval",
+      "id": "label-scroll-and-client-width",
+      "target": "/toast",
+      "expression": "(() => { const t = document.querySelector('.toasts .toast .ctl'); return t ? (Math.round(t.scrollWidth) + '/' + Math.round(t.clientWidth)) : 'no card'; })()",
+      "note": "diagnostic: scrollWidth/clientWidth pair backing card-not-clipped-by-css, for the report"
+    },
+    {
+      "type": "capture",
+      "id": "first-hover-long-url-card",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "a screenshot of the first-hover card showing the middle ellipsis whole, not end-clipped"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "move",
+      "x": 110,
+      "y": 300,
+      "note": "off the page onto the sidebar, which clears the card"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "card-cleared",
+      "target": "/toast",
+      "expression": "String(document.querySelectorAll('.toasts .toast').length)"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "card-elided",
+      "expected": "true",
+      "desc": "the long link needed eliding"
+    },
+    {
+      "type": "eval_equals",
+      "id": "card-keeps-real-prefix-and-suffix",
+      "expected": "\"true\"",
+      "desc": "A middle ellipsis, both ends real substrings of the source URL"
+    },
+    {
+      "type": "eval_equals",
+      "id": "card-not-clipped-by-css",
+      "expected": "\"true\"",
+      "desc": "On the FIRST hover, the label's full content fits its visible box - the CSS ellipsis net never fired"
+    },
+    {
+      "type": "eval_equals",
+      "id": "card-cleared",
+      "expected": "\"0\"",
+      "desc": "unhover still clears the card"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

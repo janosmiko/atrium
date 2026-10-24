@@ -1,0 +1,186 @@
+{
+  "name": "profiles-pane-move-space",
+  "description": "moving a space to a different profile from the Spaces pane's picker updates both profiles' counts live, and the move survives a relaunch. Bravo starts on the Second profile; the picker moves it to Default, and afterwards Default carries both spaces while Second carries none.\n\nTHE PERSISTENCE ASSERTION IS file_contains ON spaces.1.profileID, not a re-read alone: file_value.py fails an assertion whose expected value the staged fixture already holds, and the fixture stages 'Second' there - so a match on 'Default' cannot be the fixture's own value and can only be this scenario's own write reaching disk.\n\nTHE POST-RELAUNCH READ IS vlog_after, not vlog. atrium_settings_window.cc's PushSpaces() runs every time the settings window opens, so 'Atrium: spaces pushed' is already true from launch 1's own cmd+comma - the same trap settings-confirm-quit-toggle.json's own note records for its 'settings pushed' line. Anchoring after the harness's own 'atrium harness: launch 2 begins here' marker makes the assertion about the SECOND launch's own settings window specifically.",
+  "fixture": "profiles-two-engines.spaces.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "alpha-tab-committed",
+      "target": "example-domain.html",
+      "expression": "location.search",
+      "expected": "?alpha",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so the app is up. NOT a wait_vlog: LogSafeUrl (atrium_log_safe_url.cc:12-25) logs scheme and host only, so a url-and-query pattern can never match the log - profiles-pane-two-engines.json's own startup gate uses this same eval_until for the reason"
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma"
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "let the window build and its route load"
+    },
+    {
+      "type": "eval",
+      "id": "pane",
+      "target": "/settings",
+      "expression": "(() => { window.atriumSelectSettingsPane('spaces'); const item = document.querySelector('.settings-space-item[data-space=\"1\"]'); if (!item) return 'no-item'; item.click(); const paneOk = document.querySelector('.settings-rail-item[data-pane=\"spaces\"].selected'); const itemOk = document.querySelector('.settings-space-item[data-space=\"1\"].selected'); return (paneOk && itemOk) ? 'spaces' : 'not-selected'; })()",
+      "note": "select the pane by its id and the row by its data-space, not by a coordinate the rail or list layout can move - selects Bravo (index 1). Re-queries .selected after the click rather than reading the captured node: renderSettings replaces the DOM on click (settings.js:2398-2402), so the old node is detached and always reads not-selected"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "before",
+      "target": "/settings",
+      "expression": "(() => { const sel = document.querySelector('.settings-space-profile'); return sel ? sel.value : 'no-select'; })()",
+      "note": "Bravo's picker reads the fixture's own profile before anything here changes it"
+    },
+    {
+      "type": "eval",
+      "id": "move",
+      "target": "/settings",
+      "expression": "(() => { const sel = document.querySelector('.settings-space-profile'); if (!sel) return 'no-select'; sel.value = 'Default'; sel.dispatchEvent(new Event('change', {bubbles: true})); return 'changed'; })()",
+      "note": "THE MEASUREMENT: moves Bravo onto the Default profile"
+    },
+    {
+      "type": "eval",
+      "id": "select-profiles-pane",
+      "target": "/settings",
+      "expression": "(() => { window.atriumSelectSettingsPane('profiles'); return 'profiles'; })()",
+      "note": "the same window the move was made in - settingsSpaceProfileChanged chains its push onto the write's completion, so no close and reopen is needed to see the new counts. The vlog_after anchor below is 'settings pane selected spaces', logged by the pane action before the move"
+    },
+    {
+      "type": "eval_until",
+      "id": "counts",
+      "target": "/settings",
+      "expression": "(() => { const items = [...document.querySelectorAll('.settings-profile-item:not(.settings-profile-new)')]; return items.map((item) => item.children[0].textContent + ' ' + item.children[1].textContent).join('|'); })()",
+      "expected": "Alpha 2 spaces|Bravo Not used",
+      "timeout_ms": 10000,
+      "note": "gate+read: polls the live pane's own render, rather than a wait_vlog on 'Atrium: spaces pushed' - that line already fired once from this window's own open, so such a gate matches the stale line and the read races the move's real push"
+    },
+    {
+      "type": "relaunch",
+      "note": "Cmd+Q, then Atrium again against the SAME staged fixture - nothing restaged. This is the half a click cannot reach: whether the byte from the change above actually reached disk."
+    },
+    {
+      "type": "eval_until",
+      "id": "alpha-tab-committed-relaunch",
+      "target": "example-domain.html",
+      "expression": "location.search",
+      "expected": "?alpha",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed a second time, so launch 2 is up. Not a wait_vlog: LogSafeUrl strips the url to scheme and host, so it can never carry the query string this gate needs - the fresh page load after relaunch is what proves launch 2, not a stale match from launch 1"
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate",
+      "note": "launch 2 is ssh-started too and is not frontmost by itself, same as launch 1"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "the settings window did not survive Cmd+Q - open it again, with no click, so this is a read rather than a second write"
+    },
+    {
+      "type": "settle",
+      "ms": 7000,
+      "note": "same build/route/core-values delay as the first open"
+    },
+    {
+      "type": "eval",
+      "id": "after",
+      "target": "/settings",
+      "expression": "(() => { window.atriumSelectSettingsPane('spaces'); const item = document.querySelector('.settings-space-item[data-space=\"1\"]'); if (!item) return 'no-item'; item.click(); const sel = document.querySelector('.settings-space-profile'); return sel ? sel.value : 'no-select'; })()",
+      "note": "re-reads the same picker, on the fresh window launch 2 built - nothing here was carried over from launch 1's own DOM"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "desc": "sanity: the browser window and the settings window"
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-spaces-pane-opened-on-bravo",
+      "id": "pane",
+      "expected": "\"spaces\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "bravo-starts-on-second",
+      "id": "before",
+      "expected": "\"Second\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-picker-change-reached-the-select",
+      "id": "move",
+      "expected": "\"changed\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "both-counts-moved",
+      "id": "counts",
+      "expected": "Alpha 2 spaces|Bravo Not used"
+    },
+    {
+      "type": "vlog_after",
+      "label": "the-counts-read-followed-the-real-move-push",
+      "pattern": "Atrium: spaces pushed, [0-9]+ bytes",
+      "after_pattern": "Atrium: settings pane selected spaces",
+      "note": "a plain vlog for 'spaces pushed' would already be true from this settings window's own open, before anything here moved a space - anchoring after 'settings pane selected spaces' (logged by the pane action, before the move) makes this a claim about the move's own re-push specifically, the same idiom the relaunch assertion below already uses"
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-move-survived-the-relaunch",
+      "id": "after",
+      "expected": "\"Default\""
+    },
+    {
+      "type": "file_contains",
+      "label": "the-write-changed-the-bytes-on-disk",
+      "file": "spaces",
+      "path": "spaces.1.profileID",
+      "value": "Default",
+      "note": "THE ASSERTION THAT SEPARATES PERSISTENCE FROM REPAINT. The staged fixture holds 'Second' at this path, so a match on 'Default' cannot be the fixture's own value - file_value.py fails outright if it ever is."
+    },
+    {
+      "type": "vlog_after",
+      "label": "the-second-launch-read-the-move",
+      "pattern": "Atrium: spaces pushed, [0-9]+ bytes",
+      "after_pattern": "atrium harness: launch 2 begins here",
+      "note": "THE RELAUNCH HALF. A plain vlog for 'spaces pushed' would already be true from launch 1's own open and its own move - anchoring after the harness's launch-2 marker makes this a claim about the SECOND cmd+comma specifically."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

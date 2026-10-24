@@ -1,0 +1,28 @@
+# Copyright 2026 The Atrium Authors
+
+import("//chrome/common/features.gni")
+import("//tools/grit/grit_rule.gni")
+import("//ui/webui/webui_features.gni")
+
+# Hand-written grit target rather than build_webui - see the .grd header for
+# why. output_dir puts the generated headers under chrome/, so consumers write
+# #include "chrome/grit/atrium_resources.h".
+grit("resources") {
+  source = "atrium_resources.grd"
+  defines = chrome_grit_defines
+  outputs = [
+    "grit/atrium_resources.h",
+    "grit/atrium_resources_map.cc",
+    "grit/atrium_resources_map.h",
+    "atrium_resources.pak",
+  ]
+  output_dir = "$root_gen_dir/chrome"
+
+  # Emits the on-disk path into the resource map so a dev build can serve the
+  # file from the source tree instead of the pak. Requires
+  # --load-webui-from-disk at runtime as well.
+  grit_flags = [
+    "-E",
+    "add_filepath_to_resource_map=${load_webui_from_disk}",
+  ]
+}

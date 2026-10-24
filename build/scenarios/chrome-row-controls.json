@@ -1,0 +1,139 @@
+{
+  "name": "chrome-row-controls",
+  "description": "The pinned chrome row exists and its four controls act on the VISIBLE tab. The row is sidebar-level, not per-pane - a copy inside a rail pane would scrub away with a swipe, which is the defect the address row was hoisted for. Each control resolves CurrentlyDisplayedWebContents on the C++ side and logs the tab id it landed on, so a control wired to the wrong window or to no window at all is a missing line rather than a silent no-op. The toggle goes LAST: it hides the sidebar, and every eval after it would have no surface to run against.",
+  "fixture": "presenter-startup.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "let the space and its tab render. 6s, not 3.5: during startup the window can have more than one sidebar document loading at once, and cdp-eval takes the FIRST target whose url matches - so an eval that lands in that window reads a document whose module graph has not installed yet."
+    },
+    {
+      "type": "eval",
+      "id": "row-controls",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.sbnav'); if (!row) { return 'no row'; } return [...row.children].map((b) => b.className).join('|'); })()",
+      "note": "Order is the layout - the row is a flex container and nothing reorders it - so the class list IS the assertion."
+    },
+    {
+      "type": "eval",
+      "id": "row-is-sidebar-level",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.sbnav'); const panes = [...document.querySelectorAll('.railpane')]; if (!row) { return 'no row'; } if (!panes.length) { return 'no rail'; } return panes.some((p) => p.contains(row)) ? 'inside a pane' : 'beside the panes'; })()",
+      "note": "Guards its own premise: with no rail rendered, 'no rail' fails the assertion rather than passing it vacuously."
+    },
+    {
+      "type": "eval",
+      "id": "address-row-is-sidebar-level",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = document.querySelectorAll('.urlrow'); const panes = [...document.querySelectorAll('.railpane')]; if (rows.length !== 1) { return rows.length + ' address rows'; } return panes.some((p) => p.contains(rows[0])) ? 'inside a pane' : 'beside the panes'; })()",
+      "note": "The reported defect: one address row per pane, all of them translating with the swipe."
+    },
+    {
+      "type": "eval",
+      "id": "back",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbnav .sbback'); if (!b) { return 'no-button'; } b.dispatchEvent(new PointerEvent('pointerdown', {clientX: 8, clientY: 8, bubbles: true})); b.dispatchEvent(new PointerEvent('pointerup', {clientX: 8, clientY: 8, bubbles: true})); return 'pressed'; })()",
+      "note": "down then straight up, well under the hold threshold - a hold asks for the timeline instead"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "forward",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbnav .sbfwd'); if (!b) { return 'no-button'; } b.dispatchEvent(new MouseEvent('click', {bubbles: true})); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "reload",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbnav .sbreload'); if (!b) { return 'no-button'; } b.dispatchEvent(new MouseEvent('click', {bubbles: true})); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the reload land before the sidebar is taken away"
+    },
+    {
+      "type": "eval",
+      "id": "toggle",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbnav .sbtoggle'); if (!b) { return 'no-button'; } b.dispatchEvent(new MouseEvent('click', {bubbles: true})); return 'clicked'; })()",
+      "note": "LAST: this hides the sidebar, so nothing after it can query that surface"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "row-controls",
+      "expected": "\"sbtd|nb sbtoggle|nb first sbback|nb sbfwd|nb sbreload\"",
+      "note": "The lab's order: the toggle beside the traffic lights, then back, forward, reload (swipe-lab.html:3662). Back carries first, the lab's own right-group anchor."
+    },
+    {
+      "type": "eval_equals",
+      "id": "row-is-sidebar-level",
+      "expected": "\"beside the panes\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "address-row-is-sidebar-level",
+      "expected": "\"beside the panes\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "back",
+      "expected": "\"pressed\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "forward",
+      "expected": "\"clicked\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "reload",
+      "expected": "\"clicked\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "toggle",
+      "expected": "\"clicked\""
+    },
+    {
+      "type": "vlog",
+      "label": "back-reached-the-visible-tab",
+      "pattern": "Atrium: sidebar back on tab [0-9]+",
+      "note": "The tab id is in the line on purpose: it is the one CurrentlyDisplayedWebContents resolved to, so a control acting on some other window cannot produce it."
+    },
+    {
+      "type": "vlog",
+      "label": "forward-reached-the-visible-tab",
+      "pattern": "Atrium: sidebar forward on tab [0-9]+"
+    },
+    {
+      "type": "vlog",
+      "label": "reload-reached-the-visible-tab",
+      "pattern": "Atrium: sidebar reload on tab [0-9]+"
+    },
+    {
+      "type": "vlog",
+      "label": "toggle-reached-the-window",
+      "pattern": "Atrium: sidebar toggle requested from the chrome row",
+      "note": "The toggle takes Cmd+S's own path - BrowserController::ToggleSidebar - rather than a second implementation, so there is no tab id to name here."
+    }
+  ]
+}

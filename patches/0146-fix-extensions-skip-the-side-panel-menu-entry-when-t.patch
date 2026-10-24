@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 24 Sep 2026 17:23:27 +0200
+Subject: [PATCH 146/154] fix(extensions): skip the side panel menu entry when
+ there is no side panel
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/extensions/extension_context_menu_model.cc | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/chrome/browser/extensions/extension_context_menu_model.cc b/chrome/browser/extensions/extension_context_menu_model.cc
+index 94417bcccd3ae..a772b9983398f 100644
+--- a/chrome/browser/extensions/extension_context_menu_model.cc
++++ b/chrome/browser/extensions/extension_context_menu_model.cc
+@@ -1002,9 +1002,11 @@ void ExtensionContextMenuModel::AddSidePanelEntryIfPresent(
+     return;
+   }
+ 
+-  AddSeparator(ui::NORMAL_SEPARATOR);
+   SidePanelUI* const side_panel_ui = browser_->GetFeatures().side_panel_ui();
+-  CHECK(side_panel_ui);
++  if (!side_panel_ui) {
++    return;
++  }
++  AddSeparator(ui::NORMAL_SEPARATOR);
+   bool is_side_panel_open = side_panel_ui->IsSidePanelEntryShowing(
+       SidePanelEntryKey(SidePanelEntryId::kExtension, extension.id()));
+   AddItemWithStringId(TOGGLE_SIDE_PANEL_VISIBILITY,

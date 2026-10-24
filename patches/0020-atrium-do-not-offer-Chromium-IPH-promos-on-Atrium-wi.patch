@@ -1,0 +1,99 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 27 Jul 2026 15:21:28 +0200
+Subject: [PATCH 020/154] atrium: do not offer Chromium IPH promos on Atrium
+ windows
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+An AtriumBrowserWindow is not a BrowserView, so BrowserWindowFeatures never
+calls Init() on the user-education interface, state_ stays kUninitialized
+forever, and every promo attempt logged at ERROR on each navigation. The
+promos could not have anchored anywhere either - they attach to toolbar and
+app-menu surfaces a chromeless window does not have.
+
+Suppress at the source rather than silencing the log line: both promo entry
+points now return kBlockedByContext behind the same gate already established.
+
+Gate via BrowserWindowInterface::GetType(), not is_type_normal() - the
+precedent at browser_window_features.cc holds a Browser*, this constructor
+only has the interface.
+
+Side effect worth noting: the startup path used to queue promo params silently
+into a queue nothing ever drained on these windows.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../browser_user_education_interface_impl.cc  | 23 ++++++++++++++++++-
+ .../browser_user_education_interface_impl.h   |  1 +
+ 2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/chrome/browser/ui/views/user_education/impl/browser_user_education_interface_impl.cc b/chrome/browser/ui/views/user_education/impl/browser_user_education_interface_impl.cc
+index 0b2a4e96922cd..716a4cb6b5d46 100644
+--- a/chrome/browser/ui/views/user_education/impl/browser_user_education_interface_impl.cc
++++ b/chrome/browser/ui/views/user_education/impl/browser_user_education_interface_impl.cc
+@@ -14,6 +14,7 @@
+ #include "base/task/single_thread_task_runner.h"
+ #include "base/types/pass_key.h"
+ #include "chrome/browser/feature_engagement/tracker_factory.h"
++#include "chrome/browser/ui/atrium/atrium_feature_check.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/user_education/browser_user_education_service.h"
+ #include "chrome/browser/ui/views/user_education/impl/browser_feature_promo_controller.h"
+@@ -37,7 +38,9 @@ void PostShowPromoFailure(user_education::FeaturePromoParams params,
+ 
+ BrowserUserEducationInterfaceImpl::BrowserUserEducationInterfaceImpl(
+     BrowserWindowInterface* browser)
+-    : BrowserUserEducationInterface(browser), profile_(browser->GetProfile()) {}
++    : BrowserUserEducationInterface(browser),
++      browser_(browser),
++      profile_(browser->GetProfile()) {}
+ BrowserUserEducationInterfaceImpl::~BrowserUserEducationInterfaceImpl() {
+   ClearQueuedPromos();
+ }
+@@ -165,6 +168,15 @@ bool BrowserUserEducationInterfaceImpl::HasFeaturePromoBeenDismissed(
+ 
+ bool BrowserUserEducationInterfaceImpl::MaybeShowFeaturePromo(
+     user_education::FeaturePromoParams params) {
++  // Chromeless Atrium windows have no BrowserView, so Init() never runs and
++  // user education can never initialize or find a surface to anchor to.
++  if (atrium::IsAtriumBrowserWindowEnabled() &&
++      browser_->GetType() == BrowserWindowInterface::TYPE_NORMAL) {
++    PostShowPromoFailure(std::move(params),
++                         user_education::FeaturePromoResult::kBlockedByContext);
++    return false;
++  }
++
+   // Trying to show a promo before the browser is initialized can result in a
+   // failure to retrieve accelerators, which can cause issues for screen reader
+   // users.
+@@ -204,6 +216,15 @@ bool BrowserUserEducationInterfaceImpl::MaybeShowFeaturePromo(
+ 
+ bool BrowserUserEducationInterfaceImpl::MaybeShowStartupFeaturePromo(
+     user_education::FeaturePromoParams params) {
++  // Chromeless Atrium windows have no BrowserView, so Init() never runs and
++  // user education can never initialize or find a surface to anchor to.
++  if (atrium::IsAtriumBrowserWindowEnabled() &&
++      browser_->GetType() == BrowserWindowInterface::TYPE_NORMAL) {
++    PostShowPromoFailure(std::move(params),
++                         user_education::FeaturePromoResult::kBlockedByContext);
++    return false;
++  }
++
+   if (state_ == State::kUninitialized ||
+       state_ == State::kInitializationPending) {
+     queued_params_.push_back(std::move(params));
+diff --git a/chrome/browser/ui/views/user_education/impl/browser_user_education_interface_impl.h b/chrome/browser/ui/views/user_education/impl/browser_user_education_interface_impl.h
+index 0fb547f707ef2..858fde6e024d9 100644
+--- a/chrome/browser/ui/views/user_education/impl/browser_user_education_interface_impl.h
++++ b/chrome/browser/ui/views/user_education/impl/browser_user_education_interface_impl.h
+@@ -88,6 +88,7 @@ class BrowserUserEducationInterfaceImpl : public BrowserUserEducationInterface {
+   };
+ 
+   State state_ = State::kUninitialized;
++  raw_ptr<BrowserWindowInterface> browser_ = nullptr;
+   raw_ptr<Profile> profile_ = nullptr;
+   std::vector<user_education::FeaturePromoParams> queued_params_;
+   user_education::UserEducationContextPtr user_education_context_;

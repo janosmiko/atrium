@@ -1,0 +1,250 @@
+{
+  "name": "favourite-typed-url-opens-a-new-tab",
+  "description": "A favourite's tab is pinned to the site its tile names. Typing another site's URL in the address bar used to navigate that tab away, which left the tile bound to a page it does not name and cost the user the favourite in one keystroke. A URL on the SAME site is that site's own navigation and still moves the tab.\n\nTHE FIXTURE IS THE DETECTOR. Its favourite (favicon-page.html) is deliberately NOT the space's startup tab. A live tab already on the favourite's URL is activated by URL and never claimed, and an unclaimed tab is not a favourite's tab as far as the address bar can tell - so a fixture that opened with the page already showing would prove nothing. The startup tab is edit-focus-field.html, the control row.\n\nCROSS-SITE ON ONE SERVER. The fixture server answers on 127.0.0.1:8000 and on localhost:8000, and those two are different sites by the eTLD+1 rule the decision uses - neither host has a registry, so the hosts compare whole. That gives a genuinely cross-site pair whose page still loads, with no network and no second server.\n\nROW COUNTS. The Rust core hides a row whose URL is a favourite's, so the favourite's own tab never joins the list (favourite-is-not-a-tab-row). One row at rest is the control; the second is the tab the cross-site submission opens. The tile's binding is read as data-fav-tab, which MergeFavoriteClaims writes from the claim the tab carries - the tile paints as bound off exactly that.",
+  "fixture": "favourite-and-a-plain-row.spaces.json",
+  "startup_space": "7ab00764-0000-4000-8000-000000000764",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "click",
+      "x": 40,
+      "y": 121,
+      "note": "The only favourite tile, at a-favourite-click-reuses-its-tab's own coordinates - one favourite and the same 280pt sidebar, so the first cell sits in the same place. This click is what OPENS and CLAIMS the tab everything below is about."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: favourite claimed tab",
+      "timeout_ms": 20000,
+      "note": "VACUITY GUARD. Only OpenFavoriteTab stamps the claim, and only a claimed tab can take the favourite path in the address bar. Without this a click that missed the tile would leave every reading below describing an ordinary tab."
+    },
+    {
+      "type": "eval_until",
+      "id": "bound_before",
+      "target": "/sidebar",
+      "expression": "(() => { const f = document.querySelector('.fav'); if (!f) { return 'no tile'; } return f.dataset.favTab ? 'bound' : 'unbound'; })()",
+      "expected": "bound",
+      "timeout_ms": 15000,
+      "note": "the claim reached the tile, so 'still bound' below is a change this run could have seen"
+    },
+    {
+      "type": "eval_until",
+      "id": "rows_before",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.tabrow').length)",
+      "expected": "1",
+      "timeout_ms": 15000,
+      "note": "the control row alone. The favourite's own tab is open by now and is NOT one of these - that is the core's rule, and it is why the count below moves by exactly one."
+    },
+    {
+      "type": "eval",
+      "id": "click-address-row",
+      "target": "/sidebar",
+      "expression": "(() => { const bar = document.querySelector('#sbUrl'); if (!bar) { return 'no row'; } bar.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window})); return 'clicked'; })()",
+      "note": "Dispatched on the row rather than aimed by coordinate. The old click at 140,70 stopped landing when the sidebar layout moved, which is the same drift prompt-grows-out-of-the-address-row already records against its own plan's x/y. sidebar.js reads e.target.closest('#sbUrl'), which a bubbling synthetic click satisfies the same as a real one."
+    },
+    {
+      "type": "eval_until",
+      "id": "submit_other_site",
+      "target": "/commandbar",
+      "expression": "(() => { const c = document.querySelector('.cbcard'); if (!c) { return 'no card'; } return c.classList.contains('cbanchored') ? 'anchored' : 'centred'; })()",
+      "expected": "anchored",
+      "timeout_ms": 20000,
+      "note": "GATE: the click reached the palette carrying the row's box. Everything typed below goes into a field that is not there without this, and 'no card' names a click that missed the row."
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "the field takes the keyboard and the prefill's own pass lands before anything is typed over it"
+    },
+    {
+      "type": "type",
+      "text": "http://localhost:8000/example-domain.html",
+      "note": "another site, typed over the favourite's tab. The anchored open selects the prefilled URL end to end, so this replaces it."
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar opened a new tab beside the favourite's",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "the tab loads and the snapshot re-pushes before the two readings below"
+    },
+    {
+      "type": "eval_until",
+      "id": "rows_after",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.tabrow').length)",
+      "expected": "2",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "eval_until",
+      "id": "bound_after",
+      "target": "/sidebar",
+      "expression": "(() => { const f = document.querySelector('.fav'); if (!f) { return 'no tile'; } return f.dataset.favTab ? 'bound' : 'unbound'; })()",
+      "expected": "bound",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "eval",
+      "id": "click-favourite-again",
+      "target": "/sidebar",
+      "expression": "(() => { const cell = document.querySelector('.fav'); if (!cell) { return 'no tile'; } cell.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window})); return 'clicked'; })()",
+      "note": "The same coordinate, 40,121, worked at action 3 and stopped landing here once a tab had opened and the sidebar re-rendered. sidebar.js reads e.target.closest('.fav'), which a bubbling synthetic click satisfies."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: favourite activated its own tab",
+      "timeout_ms": 20000,
+      "note": "and it travelled by id, which is only possible while the tile still carries one"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "click-address-row-again",
+      "target": "/sidebar",
+      "expression": "(() => { const bar = document.querySelector('#sbUrl'); if (!bar) { return 'no row'; } bar.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window})); return 'clicked'; })()",
+      "note": "The same-site half's address row click. Dispatched on the row for the reason action 7 gives - the 140,70 coordinate stopped landing when the sidebar layout moved."
+    },
+    {
+      "type": "eval_until",
+      "id": "submit_same_site",
+      "target": "/commandbar",
+      "expression": "(() => { const c = document.querySelector('.cbcard'); if (!c) { return 'no card'; } return c.classList.contains('cbanchored') ? 'anchored' : 'centred'; })()",
+      "expected": "anchored",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "the field takes the keyboard, for the reason above"
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/long-page.html",
+      "note": "another page on the favourite's own host - the half that must still move the tab it is typed over"
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "eval_until",
+      "id": "same-site-tab-page",
+      "target": "long-page.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/long-page.html",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "click-address-row",
+      "expected": "\"clicked\"",
+      "desc": "the address row was there to click, so a later /commandbar miss is the palette's fault and not a stale coordinate"
+    },
+    {
+      "type": "eval_equals",
+      "id": "click-address-row-again",
+      "expected": "\"clicked\"",
+      "desc": "the row was there for the same-site submit too"
+    },
+    {
+      "type": "eval_equals",
+      "id": "click-favourite-again",
+      "expected": "\"clicked\"",
+      "desc": "the favourite tile was there for the second click, so a missing activation vlog is the feature's"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "Liveness, and a guard against a click landing somewhere that spawned a window."
+    },
+    {
+      "type": "eval_equals",
+      "id": "bound_before",
+      "expected": "bound",
+      "desc": "VACUITY GUARD: the tile really was bound before the typing, so losing the binding was something this run could have measured."
+    },
+    {
+      "type": "eval_equals",
+      "id": "rows_before",
+      "expected": "1",
+      "desc": "VACUITY GUARD: the list starts at the control row, so the count below is a move rather than an absolute nobody checked."
+    },
+    {
+      "type": "eval_equals",
+      "id": "submit_other_site",
+      "expected": "anchored",
+      "desc": "VACUITY GUARD: the row click really opened the palette on the row, so the URL below was typed into a field rather than into nothing."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: command bar opened a new tab beside the favourite's",
+      "desc": "THE ASSERTION, from the native side: the decision took the new-tab branch rather than loading the URL into the tab in front."
+    },
+    {
+      "type": "eval_equals",
+      "id": "rows_after",
+      "expected": "2",
+      "desc": "and the sidebar shows it - one more row than the run started with. Before the fix the count stayed at 1, because the URL went into the favourite's tab, whose row the core hides."
+    },
+    {
+      "type": "eval_equals",
+      "id": "bound_after",
+      "expected": "bound",
+      "desc": "The tile still points at its tab. A navigated-away favourite loses this, and its next click opens another copy."
+    },
+    {
+      "type": "eval_equals",
+      "id": "submit_same_site",
+      "expected": "anchored",
+      "desc": "and the second click opened it again, so the same-site URL was typed into a field too"
+    },
+    {
+      "type": "eval_equals",
+      "id": "same-site-tab-page",
+      "expected": "http://127.0.0.1:8000/long-page.html",
+      "desc": "A URL on the favourite's own site still moves its tab. Without this the run would pass on a build that answers 'new tab' to everything."
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: command bar opened a new tab beside the favourite's",
+      "max": 1,
+      "desc": "and it moved that tab INSTEAD of opening another one. The ceiling is what pins it - the presence assertion above passes just as well on a build that opens a tab for every submission."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

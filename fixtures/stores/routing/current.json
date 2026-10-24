@@ -1,0 +1,19 @@
+{
+  "rules" : [
+    {
+      "enabled" : true,
+      "id" : "00000000-0000-4000-8000-000000000001",
+      "matchType" : "contains",
+      "pattern" : "example.com",
+      "targetSpaceID" : "00000000-0000-4000-8000-000000000002"
+    },
+    {
+      "enabled" : false,
+      "id" : "00000000-0000-4000-8000-000000000003",
+      "matchType" : "regex",
+      "pattern" : "^https://example\\.org/docs",
+      "targetSpaceID" : "00000000-0000-4000-8000-000000000004"
+    }
+  ],
+  "schemaVersion" : 1
+}

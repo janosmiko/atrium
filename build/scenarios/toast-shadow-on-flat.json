@@ -1,0 +1,46 @@
+{
+  "name": "toast-shadow-on-flat",
+  "description": "The copy-confirmation's shadow edge, read against a flat page instead of the checkerboard - the checkerboard's own ~20px tile period makes a soft shadow gradient indistinguishable from ordinary tile-edge variance. Same Cmd+Shift+C trigger already confirmed to land top-right.",
+  "fixture": "solid-orange.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {"type": "settle", "ms": 5000, "note": "first paint, and the solid-orange tab loads"},
+    {"type": "activate"},
+    {"type": "settle", "ms": 1500},
+    {
+      "type": "eval",
+      "id": "tab-opened",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.row'); if (!r) return 'no-row'; r.click(); return 'clicked'; })()"
+    },
+    {"type": "settle", "ms": 5000},
+    {
+      "type": "key",
+      "id": "fire-copy-toast",
+      "combo": "cmd+shift+c",
+      "note": "same trigger as frost-toast-shadow-overlap, confirmed there to land top-right"
+    },
+    {"type": "settle", "ms": 1000, "note": "up now, well inside CONFIRM_MS=1400"},
+    {
+      "type": "capture",
+      "id": "toast-on-flat",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the answer: the card's shadow edge over a page with no competing pattern"
+    },
+    {"type": "settle", "ms": 2000, "note": "let it dismiss before quitting"}
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

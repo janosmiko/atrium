@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="icon" type="image/png" href="/icon-tint-red.png">
+<title>Staged Load</title>
+<!-- The harness serves this directory with python3 -m http.server, which has
+     no delay route. A parse-blocking spin is the only hold available, and a
+     spin reports no progress while it runs. So the subresources are declared
+     first, where the preload scanner finds them and progress climbs, and the
+     spin at the end holds DidStopLoading off for three seconds at a fraction
+     well under 1. -->
+<body style="margin:0;height:100vh;background:#202830">
+<script>
+  for (let i = 0; i < 40; i++) {
+    const img = document.createElement('img');
+    img.src = '/icon-tint-red.png?n=' + i;
+    img.width = 1;
+    img.height = 1;
+    document.body.appendChild(img);
+  }
+</script>
+<script>
+  const until = Date.now() + 3000;
+  while (Date.now() < until) {
+    // Spin.
+  }
+</script>
+</body>

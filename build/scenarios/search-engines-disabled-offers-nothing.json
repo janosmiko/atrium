@@ -1,0 +1,100 @@
+{
+  "name": "search-engines-disabled-offers-nothing",
+  "description": "Search engines plan: a starter turned off in settings mirrors to TemplateURLService as absent, so its keyword offers nothing. This is the negative case for search-engines-tab-to-youtube.json: same flow, but the settings fixture ships YouTube with enabled: false, so typing the exact same keyword must produce no row and Tab must open no scope. Without this, a mirror that ignored the enabled flag entirely would still pass the positive scenario.",
+  "fixture": "two-tabs.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "settings": "engines-youtube-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "GATE: the restored tab has committed, so the app is up and the profile is live"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the reserved chrome context lands about 670ms after startup and the palette's WebContents needs it"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the /commandbar document commit and take the field"
+    },
+    {
+      "type": "type",
+      "text": "youtube.com"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the keyword pass has to finish before any row could carry an engine"
+    },
+    {
+      "type": "eval",
+      "id": "offered-keyword",
+      "target": "/commandbar",
+      "expression": "String((document.querySelector('.cbrow[data-cb-keyword]') || {}).dataset?.cbKeyword || 'none')",
+      "note": "the disabled engine's keyword resolves to no TemplateURL, so no row carries it"
+    },
+    {
+      "type": "key",
+      "combo": "tab",
+      "note": "Tab has no scope to enter"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "scope-count-after-tab",
+      "target": "/commandbar",
+      "expression": "String(document.querySelectorAll('.cbscopeon').length)",
+      "note": "THE MEASUREMENT: Tab opened no scope, because the mirror never gave TemplateURLService a disabled engine's keyword"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "offered-keyword",
+      "expected": "\"none\"",
+      "desc": "the disabled starter offers no Tab-to-search row"
+    },
+    {
+      "type": "eval_equals",
+      "id": "scope-count-after-tab",
+      "expected": "\"0\"",
+      "desc": "and Tab entered no scope, since there was nothing to enter"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

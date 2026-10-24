@@ -1,0 +1,119 @@
+{
+  "name": "edge-reveal-control",
+  "description": "Defect 4 CONTROL. Identical to overview-survives-a-hidden-sidebar except the rail is never moved to Overview, so the sidebar is showing an ordinary SPACE when it is hidden. Its only job is to say whether the edge-hover reveal works at all on this build. If this fails too, the reveal is broken independently of the Overview pane and belongs to its own task; if it passes, the pane is what breaks it.",
+  "fixture": "lab-compare.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "settle",
+      "ms": 1800
+    },
+    {
+      "type": "capture",
+      "id": "before-hide",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the ordinary space sidebar, before it is hidden"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "collapse the sidebar. cmds-sidebar-collapse proves this chord reaches the app on this build."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "hidden",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "graded proof the collapse happened - without this a failed reveal cannot be told from a sidebar that never hid"
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 400,
+      "note": "the left window edge, where the reveal is armed. x=3 rather than 0: the true edge can land outside the window on a retina backing scale."
+    },
+    {
+      "type": "settle",
+      "ms": 1800,
+      "note": "the reveal animates in"
+    },
+    {
+      "type": "capture",
+      "id": "revealed",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "what the edge hover actually brought back"
+    },
+    {
+      "type": "move",
+      "x": 500,
+      "y": 400,
+      "note": "leave the edge. 500 is clear of both the arming strip and the revealed pane, so the pointer is outside the zone at either of its two widths"
+    },
+    {
+      "type": "settle",
+      "ms": 1800,
+      "note": "the pane animates shut over kSidebarResizeAnimationDuration; this is the same wait the reveal above is given"
+    },
+    {
+      "type": "capture",
+      "id": "hidden-again",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the strip after the pointer left - this must read like 'hidden', not like 'revealed'"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "theme_changed",
+      "before": "hidden",
+      "after": "revealed",
+      "region": [
+        20,
+        90,
+        60,
+        250
+      ],
+      "min_delta": 8,
+      "label": "the-edge-hover-brought-the-sidebar-back",
+      "desc": "Asserts the strip CHANGED between hidden and revealed, so it is RED while the reveal is broken and goes green when it works. Measured 2026-08-17: delta=0.00 - the hover brought nothing back, on an ordinary SPACE with no Overview involved. That is what makes this the control: the reveal is broken independently of the Overview pane."
+    },
+    {
+      "type": "theme_changed",
+      "label": "leaving-the-edge-hid-it-again",
+      "before": "revealed",
+      "after": "hidden-again",
+      "region": [
+        20,
+        90,
+        60,
+        250
+      ],
+      "min_delta": 8,
+      "note": "The same region and threshold the reveal is graded on, read in the other direction. A reveal that never closes would leave this delta at 0, which is exactly the reading the reveal itself gave before the fix"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits with the sidebar hidden"
+    }
+  ]
+}

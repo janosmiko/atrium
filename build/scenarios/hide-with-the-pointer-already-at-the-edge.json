@@ -1,0 +1,113 @@
+{
+  "name": "hide-with-the-pointer-already-at-the-edge",
+  "description": "Hides the sidebar with the pointer already sitting on the reveal edge, which is the ordering that crashed a user on the first Cmd+S: DCHECK !needs_adopt_ref_ under AtriumSidebarOverlayWidget::Show, reached from the edge reveal inside an NSTrackingArea dispatch. The panel's widget installs its own strip tracker while it is being constructed, and AppKit can deliver mouseEntered during that install when the pointer is already inside - so the callback runs before anything owns the widget.\n\nREAD THIS BEFORE TRUSTING A GREEN RUN. This scenario does NOT reproduce that crash. It passes against the build that shipped it, which was checked by reverting the fix and running it again. The harness teleports the pointer between discrete positions, and the crash needs the continuous stream a real mouse produces while a tracking area is being installed under it. A drag would produce that stream but holds a button down, and OnStripEntered refuses outright while any button is held.\n\nWhat it IS worth: it is the only scenario that hides with the pointer on the edge at all - the control, edge-reveal-control, always hides with the pointer elsewhere and moves there afterwards. So it covers the ordering, and it will catch a future fault in this path that does not depend on sub-frame timing. It is not a regression test for the crash it is named after, and nobody should treat it as one.",
+  "fixture": "lab-compare.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 400,
+      "note": "BEFORE the hide, which is the whole point. x=3 rather than 0 for the control's reason: the true edge can land outside the window on a retina backing scale."
+    },
+    {
+      "type": "settle",
+      "ms": 800,
+      "note": "let the pointer settle inside the zone, so the arming that follows happens under it rather than racing it"
+    },
+    {
+      "type": "capture",
+      "id": "before-hide",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the docked sidebar, with the pointer already on the edge"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+s",
+      "note": "hide. This arms the reveal zone under a pointer that is already inside it - the ordering that crashes."
+    },
+    {
+      "type": "settle",
+      "ms": 600,
+      "note": "the collapse lands and arms the 6pt strip UNDER the pointer, which is the state being tested"
+    },
+    {
+      "type": "move",
+      "x": 60,
+      "y": 400,
+      "note": "Just outside the strip. A pointer that never leaves generates no mouseEntered at all - ArmZone attaches with assumeInside:NO - so the reveal never ran and the floor assertion caught it. 60 rather than 30: the arming strip is 32 wide, matching the panel's own reveal zone, and 30 is inside it."
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 400,
+      "note": "Back in, which fires the reveal and builds the panel's widget WITH THE POINTER ON THE EDGE. That is the condition: the widget installs its own strip tracker underneath the pointer while it is being constructed."
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "move",
+      "x": 3,
+      "y": 415,
+      "note": "A wiggle inside the strip, so a tracking area installed during that construction has an event to deliver."
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "long enough for the reveal to build its widget and slide in, and for a crash to have happened if one is going to"
+    },
+    {
+      "type": "capture",
+      "id": "after-hide",
+      "duration_ms": 400,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "label": "the-app-survived-hiding-under-the-pointer",
+      "desc": "THE assertion. A crashed app has no window at all, so this reads 0 against the build that shipped the crash. It is deliberately about liveness and not about what the panel looks like - the control scenario already covers the appearance, and it covers it in the ordering that never crashed."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "DCHECK failed",
+      "label": "no-dcheck-fired",
+      "desc": "Names the failure rather than inferring it from a missing window. Without this a scenario that never reached the gesture - a chord that missed, a window that never came up - would look the same as one that survived it."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: sidebar edge reveal opening",
+      "label": "the-reveal-actually-ran",
+      "desc": "The floor under both assertions above. A run where the pointer missed the zone crashes nothing and asserts nothing, and would pass the two of them on a build that still has the bug."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly, which also proves the app was alive to receive it"
+    }
+  ]
+}

@@ -1,0 +1,166 @@
+{
+  "name": "hard-flick-settle-timing",
+  "wip": true,
+  "description": "extends the frame-capture settle-timing diagnostic (build/scenarios/scrub-settle-timing.json) with a genuinely hard flick, because that fixture's own fast-flick (dx=-45, phase_ms=120) never crossed commitSettleDampingAnchorVelocity (6 progress/s) - measured commitScrub initialVelocity was only 0.85-1.38 progress/s, so the velocity-hardened settle-damping branch was never exercised by any gesture the harness could synthesize. This is a scenario-JSON-only change: cgevent's scroll primitive already accepts arbitrary dx/phase_ms (build/vm-tools/cgevent.swift splits totalDeltaX evenly across phase_ms/step_ms with no upper bound), so no tool code change was needed. Same fixture, startup space, and 3-gesture dance as scrub-settle-timing.json - identical gentle drag (dx=90 phase_ms=900 momentum_ms=0, low velocity by design, the baseline) - but the fast-flick's dx is raised from -45 to -450 at the same phase_ms=120/momentum_ms=300 shape, targeting a nominal dx*1000/phase_ms of 3750pt/s: On the -45/120 fixture the actual/nominal ratio measured 0.455-0.735 across two runs (170.78 and 275.75pt/s against a 375pt/s nominal), so this dx gives an expected actual range of ~1700-2760pt/s (8.5-13.8 progress/s at width 200) - comfortably above the 1200pt/s (6 progress/s) anchor even at the worst observed ratio. wip: true (diagnostic/measurement helper, not a regression gate, same as its parent scenario); run by explicit name, not swept by `all`. CONFOUND REMOVAL: the first VM run of this fixture found the gentle-drag capture's settle signal masked by a pixel burst arriving 1.1-1.2s late, matching the known cold-VM-runloop-lag window (the gentle drag was structurally the first gesture, ~3.8s after launch). Fixed by inserting an uncaptured warm-up round trip (Elsewhere -> Editing -> Elsewhere, same dx=-90/90 phase_ms=900 momentum_ms=0 shape as the existing bridge hop) ahead of the gentle-drag capture, each leg gated by wait_vlog on its destination's own tab-url line so the runloop is provably caught up before the capture window opens - not a longer fixed settle, which is insufficient on a cold VM (fixed sleeps assume event processing keeps pace with wall clock; it does not, right after a cold restore). Reordering the two captures instead (hard-flick first) was rejected: it would only TRANSFER the cold-launch confound onto the hard-flick capture, whose settle is the one measurement already proven clean by this exact bridge-hop-then-capture pattern. The round trip returns to Elsewhere so the gentle-drag capture below, and everything after it, is byte-for-byte unchanged.",
+  "fixture": "space-cycle.spaces.json",
+  "startup_space": "a276b002-0000-0000-0000-000000000002",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the sidebar render and the startup space's (Elsewhere) tab commit"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "scroll",
+      "x": 100,
+      "y": 200,
+      "dx": -90,
+      "phase_ms": 900,
+      "momentum_ms": 0,
+      "note": "WARM-UP HOP 1 of 2 (confound removal, unasserted, uncaptured): absorbs the cold-VM-runloop-lag window by exercising a real commit-and-settle cycle before the gentle-drag capture opens, mirroring this fixture's own bridge-hop pattern below (already proven to leave the hard-flick capture cleanly measurable). Elsewhere -> Editing via .previous."
+    },
+    {
+      "type": "eval_until",
+      "id": "warmup1-page",
+      "target": "edit-focus-field.html",
+      "expression": "location.href",
+      "expected": "file:///Users/admin/atrium-probe/vm-fixtures/edit-focus-field.html",
+      "timeout_ms": 300000,
+      "note": "gates on warm-up hop 1 actually landing on Editing (not the generic 'activated on host' line - that pattern would already be satisfied by nothing yet here, but reusing it for hop 2 below would false-pass instantly since the runner's wait_vlog greps the whole cumulative log, not just new lines)."
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "scroll",
+      "x": 100,
+      "y": 200,
+      "dx": 90,
+      "phase_ms": 900,
+      "momentum_ms": 0,
+      "note": "WARM-UP HOP 2 of 2 (unasserted, uncaptured): returns to the original start space (Elsewhere) via .next, so the gentle-drag capture below is topologically identical to before this change."
+    },
+    {
+      "type": "eval_until",
+      "id": "warmup2-page",
+      "target": "favicon-page.html",
+      "expression": "location.href",
+      "expected": "file:///Users/admin/atrium-probe/vm-fixtures/favicon-page.html",
+      "timeout_ms": 300000,
+      "note": "gates on warm-up hop 2 actually landing back on Elsewhere (favicon-page.html is Elsewhere's tab, unique to this space) before the gentle-drag capture window opens."
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 100,
+      "y": 200,
+      "dx": 90,
+      "phase_ms": 900,
+      "momentum_ms": 0,
+      "capture_id": "gentle-drag",
+      "duration_ms": 2200,
+      "fps": 30,
+      "note": "GENTLE DRAG, unchanged from scrub-settle-timing.json: long phase_ms, no momentum tail. Positive dx commits .next: Elsewhere -> Third. This gesture is deliberately low-velocity (the baseline), so it is not the one boosted here."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "third-page",
+      "target": "peek-target.html",
+      "expression": "location.href",
+      "expected": "file:///Users/admin/atrium-probe/vm-fixtures/peek-target.html",
+      "timeout_ms": 8000,
+      "note": "OBJECTIVE PROOF the gentle drag actually committed a workspace change (Third's tab, cold at launch)"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "scroll",
+      "x": 100,
+      "y": 200,
+      "dx": -90,
+      "phase_ms": 900,
+      "momentum_ms": 0,
+      "note": "BRIDGE HOP (unasserted, uncaptured): negative dx commits .previous, Third -> Elsewhere, to reach the OTHER cold neighbor with a genuine single-commit gesture - same shape scrub-settle-timing.json uses."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ activated on host",
+      "timeout_ms": 300000,
+      "note": "gates on the bridge hop's own completion instead of a fixed sleep - see swipe-scroll-phase.json's identical action for the full rationale."
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 100,
+      "y": 200,
+      "dx": -450,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "hard-flick",
+      "duration_ms": 1600,
+      "fps": 30,
+      "note": "HARD FLICK (dx raised from a sibling scenario's -45 to -450, same phase_ms/momentum_ms shape): short phase_ms + decaying momentum tail, sized to cross commitSettleDampingAnchorVelocity - see this file's own description for the ratio math. Negative dx commits .previous: Elsewhere -> Editing."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "editing-page",
+      "target": "edit-focus-field.html",
+      "expression": "location.href",
+      "expected": "file:///Users/admin/atrium-probe/vm-fixtures/edit-focus-field.html",
+      "timeout_ms": 8000,
+      "note": "OBJECTIVE PROOF the hard flick actually committed a workspace change (Editing's tab, cold at launch)"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "third-page",
+      "expected": "file:///Users/admin/atrium-probe/vm-fixtures/peek-target.html",
+      "label": "gentle-drag-committed",
+      "desc": "gentle drag drove a real workspace change end to end"
+    },
+    {
+      "type": "eval_equals",
+      "id": "editing-page",
+      "expected": "file:///Users/admin/atrium-probe/vm-fixtures/edit-focus-field.html",
+      "label": "hard-flick-committed",
+      "desc": "hard flick drove a real workspace change end to end"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window throughout every hop"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q actually quits (process gone)"
+    }
+  ]
+}

@@ -1,0 +1,240 @@
+{
+  "name": "editing-a-setting-does-not-rebuild-the-window",
+  "description": "renderSettings used to clear and rebuild the whole window - rail, heading, pin and every row - on every edit, which is what read on screen as a blink. The fix (updateRowInPlace/buildRowNode/syncSaveErrorBanner in settings.js) swaps just the edited row's DOM and leaves the rest of the tree alone, falling back to the old full rebuild only for a pane switch or the two structural AI keys.\n\nA CAPTURE CANNOT GRADE THIS. A blink is a claim about the tree being torn down and rebuilt, not about a wrong pixel - a full rebuild that happens to repaint the same values in the same place looks identical to a narrow update in any still frame or short clip. The build/scripts/settings-test.mjs suite already proved the DOM-node-identity version of this claim under the dom-shim; what a VM run can add is that the SAME claim holds against the real renderer, with the real chrome.send round trip driving it, not a shim.\n\nSO THIS SCENARIO WATCHES THE TREE ITSELF, with a MutationObserver on #atrium-root (childList, subtree). Every renderSettings full rebuild does root.textContent = '' then re-appends the rail, the pin and the body as root's own children - that is a childList mutation whose RECORD TARGET IS ROOT ITSELF. updateRowInPlace's replaceWith runs deep inside body (on a row, or on a row's parent card), so it is a childList mutation whose target is that deeper node - root's own child list never changes. Counting only mutations whose target === root turns 'was the window torn down' into a number: nonzero for a full rebuild, zero for a narrow one.\n\nAN OBSERVER PROVEN ONLY BY ITS ZERO IS NOT PROVEN. A MutationObserver attached to the wrong node, disconnected early, or never actually installed reports zero mutations for EVERY case, including the one that should read nonzero - and zero is the passing answer for the claim this scenario exists to make. So before the row edit is trusted, this scenario forces a real full rebuild (an ordinary pane switch, General to Appearance) and requires the SAME observer to report a CHANGED root-hit count across that switch. Only once that is proven does the row edit's zero mean anything.\n\nTHE ROW UNDER TEST IS 'Warn before quitting' (confirmToQuitEnabled), the same row build/scenarios/settings-confirm-quit-toggle.json already drives, for the same reason: it is wired to a real pref, so a full round trip (click, optimistic repaint, chrome.send, the core's write, atriumSetSaveResult's reply) is guaranteed rather than hoped for. The fixture stages confirmToQuitEnabled true and the click turns it OFF, so the final Cmd+Q is never held by the hold-to-quit gate the row itself controls - the same trick settings-confirm-quit-toggle.json uses and explains at length.\n\nWHAT WOULD MAKE THIS PASS ON NOTHING, and why it does not: an observer that never fired would read root-hits unchanged (0) across BOTH the pane switch and the row edit - that is caught by requiring the pane-switch case to CHANGE. A row edit that silently did nothing (a dead click, a detached handler) would also leave root-hits at 0, indistinguishable from a correct narrow update by that measurement alone - so the row-edit phase also asserts the row's own displayed value changed (Off -> On is the click's own optimistic repaint; the vlog lines below confirm the write left the surface and came back) and that SOME mutation was seen at all (total-hits changed), so a narrow update that repainted the row is told apart from an edit that repainted nothing.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "settings": "confirm-quit-on.settings.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so the app is up"
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate",
+      "note": "Atrium frontmost, so the chord reaches it"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "open the settings window on General, where Warn before quitting lives"
+    },
+    {
+      "type": "settle",
+      "ms": 7000,
+      "note": "the window builds, the route loads, and the core's values land a beat after the labels"
+    },
+    {
+      "type": "capture",
+      "id": "general-before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "General, Warn before quitting reading On (the fixture stages it true)"
+    },
+    {
+      "type": "eval",
+      "id": "install-observer",
+      "target": "/settings",
+      "expression": "(() => { const root = document.getElementById('atrium-root'); if (!root) { return 'no root'; } window.__rootHits = 0; window.__totalHits = 0; window.__obs = new MutationObserver((records) => { for (const r of records) { window.__totalHits++; if (r.type === 'childList' && r.target === root) { window.__rootHits++; } } }); window.__obs.observe(root, {childList: true, subtree: true}); return 'watching'; })()",
+      "note": "THE INSTRUMENT. root === document.getElementById('atrium-root'), the same element installSettings(root) was handed. childList+subtree sees every insertion and removal anywhere under it; recording each record's OWN target (not just that something changed) is what lets 'the window was torn down' (target is root itself) be told apart from 'one row's DOM was swapped' (target is a node deep inside body) after the fact."
+    },
+    {
+      "type": "eval",
+      "id": "root-before-switch",
+      "target": "/settings",
+      "expression": "String(window.__rootHits)",
+      "note": "the baseline, immediately after installing - must be 0, nothing has happened to the tree yet"
+    },
+    {
+      "type": "eval",
+      "id": "switch-to-appearance",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.settings-rail-item[data-pane=\"appearance\"]'); if (!b) { return 'no-pane'; } b.click(); return document.querySelector('.settings-rail-item[data-pane=\"appearance\"].selected') ? 'selected' : 'not-selected'; })()",
+      "note": "AN ORDINARY PANE SWITCH - the one render path this fix deliberately leaves as a full rebuild. This is the proof step: if the observer cannot see THIS tear-down, it cannot be trusted to see the absence of one below."
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "the pane-swap rebuild and its CSS animation settle"
+    },
+    {
+      "type": "eval",
+      "id": "root-after-switch",
+      "target": "/settings",
+      "expression": "String(window.__rootHits)",
+      "note": "THE OBSERVER'S OWN PROOF OF LIFE. renderSettings's full rebuild replaces root's rail, pin and body as one batch of root's own children - if this has not changed from root-before-switch's 0, the observer is attached to the wrong node, was never installed, or Mutation records are not reaching it, and nothing measured below can be trusted"
+    },
+    {
+      "type": "eval",
+      "id": "switch-back-to-general",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.settings-rail-item[data-pane=\"general\"]'); if (!b) { return 'no-pane'; } b.click(); return document.querySelector('.settings-rail-item[data-pane=\"general\"].selected') ? 'selected' : 'not-selected'; })()",
+      "note": "back to the pane Warn before quitting lives on - itself a second full rebuild, which is why the counters are reset AFTER this, not before"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "reset-and-read-value-before-edit",
+      "target": "/settings",
+      "expression": "(() => { window.__rootHits = 0; window.__totalHits = 0; const row = [...document.querySelectorAll('.settings-row')].find((r) => /warn before quitting/i.test(r.textContent || '')); const btn = row && row.querySelector('button.settings-row-toggle'); const value = btn ? (btn.getAttribute('aria-pressed') || btn.textContent.trim()) : 'no-row'; return 'reset, value=' + value; })()",
+      "note": "counters zeroed with a clean slate AFTER both pane switches above have finished mutating the tree, so only the row edit below is being measured. Also reads the toggle's CURRENT value as the before-half of a changed-value check - the fixture stages confirmToQuitEnabled true, so this should read On"
+    },
+    {
+      "type": "eval",
+      "id": "toggle-warn-before-quitting",
+      "target": "/settings",
+      "expression": "(() => { const row = [...document.querySelectorAll('.settings-row')].find((r) => /warn before quitting/i.test(r.textContent || '')); if (!row) { return 'no Warn before quitting row'; } const btn = row.querySelector('button.settings-row-toggle'); if (!btn) { return 'row has no toggle button: ' + row.innerHTML.slice(0, 120); } const was = btn.getAttribute('aria-checked') || btn.textContent.trim(); btn.click(); return 'clicked, was ' + was; })()",
+      "note": "THE MEASUREMENT. Dispatched on the button itself, not a screen coordinate - see settings-confirm-quit-toggle.json's own note on why a coordinate click missed here once already."
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the click repaints at once; the write is a round trip through the thread pool and back, which is what setSaveResult's reply also has to leave untouched at the root"
+    },
+    {
+      "type": "capture",
+      "id": "general-after",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "Warn before quitting reading Off, rail and heading unmoved"
+    },
+    {
+      "type": "eval",
+      "id": "root-after-edit",
+      "target": "/settings",
+      "expression": "String(window.__rootHits)",
+      "note": "THE CLAIM ITSELF. Must still read 0 - the edit and the browser's save reply between them are two renderSettings-shaped events in the old code, and either one rebuilding the tree would move this off 0."
+    },
+    {
+      "type": "eval",
+      "id": "total-after-edit",
+      "target": "/settings",
+      "expression": "String(window.__totalHits)",
+      "note": "paired with root-after-edit so a dead click (nothing mutated anywhere) cannot pass as a correct narrow update - see total-changed-by-edit below"
+    },
+    {
+      "type": "eval",
+      "id": "value-after-edit",
+      "target": "/settings",
+      "expression": "(() => { const row = [...document.querySelectorAll('.settings-row')].find((r) => /warn before quitting/i.test(r.textContent || '')); const btn = row && row.querySelector('button.settings-row-toggle'); return btn ? (btn.getAttribute('aria-pressed') || btn.textContent.trim()) : 'no-row'; })()",
+      "note": "the value half of the same pairing - the row must actually show the new value, not merely leave the root's children alone while displaying nothing new"
+    },
+    {
+      "type": "eval",
+      "id": "raw-counts-for-the-record",
+      "target": "/settings",
+      "expression": "'root=' + window.__rootHits + ' total=' + window.__totalHits",
+      "note": "not graded by any assertion below - this id exists only so the exact counts land in the run log (every eval action's result is logged regardless of assertions) for a human reading the run afterward"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-window-was-built",
+      "pattern": "Atrium: settings window built"
+    },
+    {
+      "type": "vlog",
+      "label": "the-route-answered",
+      "pattern": "Atrium: settings surface ready"
+    },
+    {
+      "type": "vlog",
+      "label": "the-core-supplied-the-values",
+      "pattern": "Atrium: settings pushed, [0-9]+ bytes"
+    },
+    {
+      "type": "vlog",
+      "label": "the-edit-reached-disk",
+      "pattern": "Atrium: settings written",
+      "note": "the positive half of root-after-edit's absence claim - proves the round trip this scenario is measuring actually completed, rather than root staying at 0 because nothing happened at all"
+    },
+    {
+      "type": "eval_equals",
+      "id": "install-observer",
+      "expected": "\"watching\"",
+      "desc": "the observer was really installed, so every read below is a measurement rather than an untouched initial value"
+    },
+    {
+      "type": "eval_equals",
+      "id": "root-before-switch",
+      "expected": "\"0\"",
+      "desc": "the baseline: nothing has mutated the tree between install and this read"
+    },
+    {
+      "type": "eval_equals",
+      "id": "switch-to-appearance",
+      "expected": "\"selected\"",
+      "desc": "the pane switch this scenario uses to prove the observer works actually landed"
+    },
+    {
+      "type": "eval_changed",
+      "before": "root-before-switch",
+      "after": "root-after-switch",
+      "desc": "THE OBSERVER'S PROOF OF LIFE, required before the row-edit zero below means anything: an ordinary pane switch is a full renderSettings rebuild, and this must show root's OWN child list changed. An observer reporting no change here would report no change for everything, including a real regression"
+    },
+    {
+      "type": "eval_equals",
+      "id": "switch-back-to-general",
+      "expected": "\"selected\"",
+      "desc": "back on the pane the row under test lives on"
+    },
+    {
+      "type": "eval_equals",
+      "id": "reset-and-read-value-before-edit",
+      "expected": "\"reset, value=true\"",
+      "desc": "the toggle reads On before the edit - the fixture stages confirmToQuitEnabled true, so a value other than true here means the wrong row was found or the fixture did not stage as expected"
+    },
+    {
+      "type": "eval_equals",
+      "id": "root-after-edit",
+      "expected": "\"0\"",
+      "desc": "THE FIX, STATED AS A NUMBER. Both the optimistic click and the browser's save reply have run by the time this is read, and root's own children were never touched by either. The regression it guards against is exactly a nonzero answer here"
+    },
+    {
+      "type": "eval_changed",
+      "before": "root-before-switch",
+      "after": "total-after-edit",
+      "desc": "total-hits went from 0 (root-before-switch's own reading, reused as the pre-edit zero since reset-and-read-value-before-edit re-zeroed both counters to the same value) to something nonzero - the edit mutated SOMETHING, so a dead click cannot pass root-after-edit's zero by doing nothing at all"
+    },
+    {
+      "type": "eval_changed",
+      "before": "reset-and-read-value-before-edit",
+      "after": "value-after-edit",
+      "desc": "the row's own displayed value actually flipped - paired with root-after-edit's absence claim so an edit that touched nothing visible cannot pass as a correct narrow update"
+    },
+    {
+      "type": "file_contains",
+      "label": "the-write-changed-the-bytes-on-disk",
+      "file": "settings",
+      "path": "confirmToQuitEnabled",
+      "value": false,
+      "note": "the same persistence-vs-repaint separation settings-confirm-quit-toggle.json uses - every eval and vlog assertion above is satisfiable by a build that repaints and writes nothing"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "desc": "sanity: the browser window and the settings window, both still standing"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q quits cleanly - confirmToQuitEnabled is false after the edit above, so this is not held by the hold-to-quit gate the row itself controls"
+    }
+  ]
+}

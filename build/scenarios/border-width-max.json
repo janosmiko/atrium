@@ -1,0 +1,20 @@
+{
+  "name": "border-width-max",
+  "description": "At the wide end. Captures the window with borderWidth at the store's maximum of 10, so the tinted gap around the web card can be checked for pinching at the corner. The geometry is asserted in AtriumNativeChromeOverlaysBrowserTest.TheGutterStaysConcentricAtEveryOfferedWidth; this scenario exists to put the same three widths in front of a person.",
+  "fixture": "two-tabs.spaces.json",
+  "settings": "border-width-max.settings.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "wait_vlog", "pattern": "Atrium: sidebar rows drawn [1-9]", "timeout_ms": 20000 },
+    { "type": "activate" },
+    { "type": "settle", "ms": 1500 },
+    { "type": "capture", "id": "warm-up", "duration_ms": 300, "fps": 10, "note": "the first stream in a run can deliver no frames" },
+    { "type": "capture", "id": "border-width-10", "duration_ms": 300, "fps": 10 }
+  ],
+  "assertions": [
+    { "type": "ax_window_count", "expected": 1, "min_area": 200000, "desc": "a window was really up when the frame was taken" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly at the widest border" }
+  ]
+}

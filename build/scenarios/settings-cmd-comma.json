@@ -1,0 +1,168 @@
+{
+  "name": "settings-cmd-comma",
+  "description": "Cmd+comma opens the settings window, and the /settings route inside it loads.\n\nThe chord is claimed in prePerformKeyEquivalent, on the raw NSEvent, not through the IDC seam. Measured: on an HTML surface this chord reaches prePerform and never postPerform, so the intercept decision never sees it and un-gating that alone brings nothing back.\n\nThis also proves a requirement that a restored tab could not: a top-chrome URL will not load as an ordinary tab (measured, ERR_INVALID_URL). It needs a host, and this is the host.\n\nEvery assertion here was measured on the run BEFORE the chord was sent - the window count was 1, and neither settings line was in the log.\n\nThe rail is a 190px left column, so a click at fixed coordinates lands on whatever sits there. This selects each pane by '.settings-rail-item[data-pane]'.click() and read the '.selected' class back, the same element-targeted pattern the-native-view-toggle-fades-in.json and the-appearance-pane-picks-the-app-icon.json already use.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so the app is up"
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate",
+      "note": "Atrium frontmost, so the chord reaches it"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "one window, no settings"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "THE MEASUREMENT"
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "let the window build and its route load"
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence of the settings window and its pane rail"
+    },
+    {
+      "type": "eval",
+      "id": "select-appearance",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.settings-rail-item[data-pane=\"appearance\"]'); if (!b) return 'no-pane'; b.click(); return document.querySelector('.settings-rail-item[data-pane=\"appearance\"].selected') ? 'selected' : 'not-selected'; })()",
+      "note": "the Appearance pane in the rail. The rail is a 190px LEFT column, so a fixed coordinate lands on blank space. Selecting by '.settings-rail-item[data-pane]' and reading the '.selected' class back is the pattern the-native-view-toggle-fades-in.json and the-appearance-pane-picks-the-app-icon.json already use for this exact rail."
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "appearance",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence of the Appearance rows and their values"
+    },
+    {
+      "type": "eval",
+      "id": "select-inputs",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.settings-rail-item[data-pane=\"inputs\"]'); if (!b) return 'no-pane'; b.click(); return document.querySelector('.settings-rail-item[data-pane=\"inputs\"].selected') ? 'selected' : 'not-selected'; })()",
+      "note": "the Inputs pane in the rail - same element-click pattern as select-appearance above, not a fixed coordinate"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "inputs",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence of the shortcut rows built from the hotkeys store"
+    },
+    {
+      "type": "eval",
+      "id": "select-spaces",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.settings-rail-item[data-pane=\"spaces\"]'); if (!b) return 'no-pane'; b.click(); return document.querySelector('.settings-rail-item[data-pane=\"spaces\"].selected') ? 'selected' : 'not-selected'; })()",
+      "note": "the Spaces pane in the rail - same element-click pattern, not a fixed coordinate"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "spaces",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence of the space list and the detail panel"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "label": "the-appearance-pane-was-selected",
+      "id": "select-appearance",
+      "expected": "\"selected\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-inputs-pane-was-selected",
+      "id": "select-inputs",
+      "expected": "\"selected\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-spaces-pane-was-selected",
+      "id": "select-spaces",
+      "expected": "\"selected\""
+    },
+    {
+      "type": "vlog",
+      "label": "the-chord-reached-the-menu-item",
+      "pattern": "Atrium: settings menu item claimed",
+      "note": "There is no prePerform claim to match. The chord completes the renderer round trip, reaches postPerform, and fires the retargeted Settings item - so this line is what says the chord arrived"
+    },
+    {
+      "type": "vlog",
+      "label": "the-window-was-built",
+      "pattern": "Atrium: settings window built"
+    },
+    {
+      "type": "vlog",
+      "label": "the-route-loaded-and-answered",
+      "pattern": "Atrium: settings surface ready",
+      "note": "settingsReady only arrives when the /settings module ran and chrome.send reached the host. This is what a tab could not prove"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "note": "the browser window AND the settings window. One means the chord did nothing"
+    },
+    {
+      "type": "vlog",
+      "label": "the-core-supplied-the-values",
+      "pattern": "Atrium: settings pushed, [0-9]+ bytes",
+      "note": "the General rows read from the Rust core. This line only appears after settingsReady, and only when atrium_core_query answered - it is the read path that did not exist at all after the Swift cut"
+    },
+    {
+      "type": "vlog",
+      "label": "the-core-supplied-the-hotkeys",
+      "pattern": "Atrium: hotkeys pushed, [0-9]+ bytes",
+      "note": "the Inputs pane's shortcut rows come from the hotkeys store, read through the core the same way settings are"
+    },
+    {
+      "type": "vlog",
+      "label": "the-core-supplied-the-spaces",
+      "pattern": "Atrium: spaces pushed, [0-9]+ bytes",
+      "note": "the Spaces pane edits spaces, so it takes the whole document rather than one window's sidebar model"
+    }
+  ]
+}

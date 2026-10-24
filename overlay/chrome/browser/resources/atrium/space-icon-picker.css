@@ -1,0 +1,85 @@
+/* Copyright 2026 The Atrium Authors */
+
+/* Own widget now, not a sidebar popover: .ov-card (overlay.css)
+   gives surface, border, radius and shadow; width is this page's own, the
+   same as quickmenu.css's .qm-card, since nothing clips it any more. */
+.spiconpop {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  width: 264px;
+  box-sizing: border-box;
+}
+
+.spicon-top {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.spicon-seg {
+  flex: 1;
+}
+
+.spicon-trash {
+  align-items: center;
+  appearance: none;
+  background: none;
+  border: 0;
+  border-radius: var(--ov-radius-anchor);
+  color: var(--ov-fg);
+  cursor: default;
+  display: flex;
+  flex: none;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.spicon-trash:hover,
+.spicon-trash:focus-visible {
+  background: var(--ov-sel);
+  outline: none;
+}
+
+.spicon-trash .ov-icon {
+  height: 16px;
+  width: 16px;
+}
+
+.spicon-grid {
+  display: grid;
+  gap: 2px;
+  grid-template-columns: repeat(8, 1fr);
+}
+
+.spicon-cell {
+  align-items: center;
+  appearance: none;
+  aspect-ratio: 1;
+  background: none;
+  border: 0;
+  border-radius: var(--ov-radius-anchor);
+  color: var(--ov-fg);
+  cursor: default;
+  display: flex;
+  font-size: 16px;
+  justify-content: center;
+}
+
+.spicon-cell:hover,
+.spicon-cell:focus-visible {
+  background: var(--ov-sel);
+  outline: none;
+}
+
+.spicon-cell[aria-selected="true"] {
+  background: var(--ov-accent);
+  color: var(--ov-accent-ink);
+}
+
+.spicon-cell svg {
+  height: 17px;
+  width: 17px;
+}

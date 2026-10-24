@@ -1,0 +1,316 @@
+{
+  "activeSpace" : 0,
+  "favorites" : [
+    {
+      "color" : "hsl(278,65%,55%)",
+      "id" : "https://example.com/",
+      "selected" : false,
+      "title" : "Example",
+      "url" : "https://example.com/"
+    },
+    {
+      "color" : "hsl(278,65%,55%)",
+      "id" : "https://example.com/two",
+      "selected" : false,
+      "title" : "Second",
+      "url" : "https://example.com/two"
+    }
+  ],
+  "folders" : [
+    {
+      "closed" : false,
+      "id" : "00000000-0000-4000-8000-000000000001",
+      "name" : "Reading",
+      "tabs" : [
+        {
+          "color" : "hsl(278,65%,55%)",
+          "id" : "",
+          "selected" : false,
+          "title" : "Grouped A",
+          "url" : "https://example.com/grouped-a"
+        },
+        {
+          "color" : "hsl(278,65%,55%)",
+          "id" : "",
+          "selected" : false,
+          "title" : "Grouped B",
+          "url" : "https://example.com/grouped-b"
+        }
+      ]
+    }
+  ],
+  "pinned" : [
+    {
+      "kind" : "tab",
+      "color" : "hsl(278,65%,55%)",
+      "id" : "",
+      "selected" : false,
+      "title" : "Inbox",
+      "url" : "https://example.com/inbox"
+    }
+  ],
+  "pinnedCollapsed" : false,
+  "spaceName" : "Work",
+  "spaceTheme" : null,
+  "spaces" : [
+    {
+      "color" : "#5B8DEF",
+      "favorites" : [
+        {
+          "color" : "hsl(278,65%,55%)",
+          "id" : "https://example.com/",
+          "selected" : false,
+          "title" : "Example",
+          "url" : "https://example.com/"
+        },
+        {
+          "color" : "hsl(278,65%,55%)",
+          "id" : "https://example.com/two",
+          "selected" : false,
+          "title" : "Second",
+          "url" : "https://example.com/two"
+        }
+      ],
+      "folders" : [
+        {
+          "closed" : false,
+          "id" : "00000000-0000-4000-8000-000000000001",
+          "name" : "Reading",
+          "tabs" : [
+            {
+              "color" : "hsl(278,65%,55%)",
+              "id" : "",
+              "selected" : false,
+              "title" : "Grouped A",
+              "url" : "https://example.com/grouped-a"
+            },
+            {
+              "color" : "hsl(278,65%,55%)",
+              "id" : "",
+              "selected" : false,
+              "title" : "Grouped B",
+              "url" : "https://example.com/grouped-b"
+            }
+          ]
+        }
+      ],
+      "icon" : "W",
+      "name" : "Work",
+      "pinned" : [
+        {
+          "kind" : "tab",
+          "color" : "hsl(278,65%,55%)",
+          "id" : "",
+          "selected" : false,
+          "title" : "Inbox",
+          "url" : "https://example.com/inbox"
+        }
+      ],
+      "pinnedCollapsed" : false,
+      "profileId" : "work",
+      "tabs" : [
+        {
+          "color" : "hsl(278,65%,55%)",
+          "id" : "11",
+          "selected" : true,
+          "title" : "One",
+          "url" : "https://example.com/one"
+        },
+        {
+          "color" : "hsl(278,65%,55%)",
+          "id" : "12",
+          "selected" : false,
+          "title" : "My Name For It",
+          "url" : "https://example.com/renamed"
+        }
+      ],
+      "theme" : null
+    },
+    {
+      "color" : "#8DEF5B",
+      "favorites" : [
+        {
+          "color" : "hsl(278,65%,55%)",
+          "id" : "https://example.com/",
+          "selected" : false,
+          "title" : "Example",
+          "url" : "https://example.com/"
+        },
+        {
+          "color" : "hsl(278,65%,55%)",
+          "id" : "https://example.com/two",
+          "selected" : false,
+          "title" : "Second",
+          "url" : "https://example.com/two"
+        }
+      ],
+      "folders" : [
+
+      ],
+      "icon" : "S",
+      "name" : "Work Side",
+      "pinned" : [
+
+      ],
+      "pinnedCollapsed" : false,
+      "profileId" : "work",
+      "tabs" : [
+
+      ],
+      "theme" : null
+    },
+    {
+      "color" : "#EF5B8D",
+      "favorites" : [
+        {
+          "color" : "hsl(345,65%,55%)",
+          "id" : "https://example.org/",
+          "selected" : false,
+          "title" : "Org",
+          "url" : "https://example.org/"
+        }
+      ],
+      "folders" : [
+
+      ],
+      "icon" : "P",
+      "name" : "Personal",
+      "pinned" : [
+
+      ],
+      "pinnedCollapsed" : false,
+      "profileId" : "personal",
+      "tabs" : [
+        {
+          "color" : "hsl(345,65%,55%)",
+          "id" : "",
+          "selected" : false,
+          "title" : "Home",
+          "url" : "https://example.org/"
+        }
+      ],
+      "theme" : null
+    },
+    {
+      "color" : "#5BEFEF",
+      "favorites" : [
+        {
+          "color" : "hsl(64,65%,55%)",
+          "id" : "https://example.net/",
+          "selected" : false,
+          "title" : "Net",
+          "url" : "https://example.net/"
+        }
+      ],
+      "folders" : [
+
+      ],
+      "icon" : "O",
+      "name" : "Ops",
+      "pinned" : [
+
+      ],
+      "pinnedCollapsed" : false,
+      "profileId" : "ops",
+      "tabs" : [
+        {
+          "color" : "hsl(64,65%,55%)",
+          "id" : "",
+          "selected" : false,
+          "title" : "Panel",
+          "url" : "https://example.net/panel"
+        }
+      ],
+      "theme" : null
+    },
+    {
+      "color" : "#EFEF5B",
+      "favorites" : [
+        {
+          "color" : "hsl(331,65%,55%)",
+          "id" : "https://example.edu/",
+          "selected" : false,
+          "title" : "Edu",
+          "url" : "https://example.edu/"
+        }
+      ],
+      "folders" : [
+
+      ],
+      "icon" : "T",
+      "name" : "Study",
+      "pinned" : [
+
+      ],
+      "pinnedCollapsed" : false,
+      "profileId" : "study",
+      "tabs" : [
+        {
+          "color" : "hsl(331,65%,55%)",
+          "id" : "",
+          "selected" : false,
+          "title" : "Course",
+          "url" : "https://example.edu/course"
+        }
+      ],
+      "theme" : null
+    },
+    {
+      "color" : "#B0B0B0",
+      "favorites" : [
+
+      ],
+      "folders" : [
+
+      ],
+      "icon" : "A",
+      "name" : "Archive",
+      "pinned" : [
+
+      ],
+      "pinnedCollapsed" : false,
+      "profileId" : "archive",
+      "tabs" : [
+
+      ],
+      "theme" : null
+    },
+    {
+      "color" : "#000000",
+      "favorites" : [
+
+      ],
+      "folders" : [
+
+      ],
+      "icon" : "X",
+      "name" : "<script>alert(1)</script>",
+      "pinned" : [
+
+      ],
+      "pinnedCollapsed" : false,
+      "profileId" : "archive",
+      "tabs" : [
+
+      ],
+      "theme" : null
+    }
+  ],
+  "spaceTint" : "#5B8DEF",
+  "tabs" : [
+    {
+      "color" : "hsl(278,65%,55%)",
+      "id" : "11",
+      "selected" : true,
+      "title" : "One",
+      "url" : "https://example.com/one"
+    },
+    {
+      "color" : "hsl(278,65%,55%)",
+      "id" : "12",
+      "selected" : false,
+      "title" : "My Name For It",
+      "url" : "https://example.com/renamed"
+    }
+  ]
+}

@@ -1,0 +1,155 @@
+{
+  "name": "an-empty-grid-opens-when-a-row-is-dragged-under-the-address-bar",
+  "description": "A space with no favourites draws no grid band at rest, so the space name sits right under the address bar. A real cgevent drag from a tab row up into the strip under the address bar must open the grid: the space name and the rows slide down and the drag-tabs-here hint shows. The drop there makes the first favourite. Coordinates come from the DOM, plus the 30px the window sits below the screen top.",
+  "fixture": "no-favourites-two-rows.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "layout",
+      "target": "/sidebar",
+      "expression": "(() => { const tiles = document.querySelectorAll('[data-dropzone=\"favorites\"] .fav').length; const rows = document.querySelector('.railpane:not(.ovrailpane)').querySelectorAll('[data-dropzone=\"tabs\"] .tabrow').length; return tiles + ' tiles, ' + rows + ' rows'; })()",
+      "expected": "0 tiles, 2 rows",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "rest",
+      "target": "/sidebar",
+      "expression": "(() => { const bar = document.querySelector('#atrium-root > .urlrow').getBoundingClientRect(); const gap = Math.round(document.querySelector('.railpane:not(.ovrailpane)').querySelector('.wsname').getBoundingClientRect().top - bar.bottom); return gap <= 16 ? 'tight' : 'gap ' + gap; })()"
+    },
+    {
+      "type": "eval",
+      "id": "row-point",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.railpane:not(.ovrailpane)').querySelector('[data-dropzone=\"tabs\"] .tabrow').getBoundingClientRect(); return Math.round((b.left + b.right) / 2) + ',' + Math.round((b.top + b.bottom) / 2 + 30); })()"
+    },
+    {
+      "type": "eval",
+      "id": "strip-point",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('#atrium-root > .urlrow').getBoundingClientRect(); return Math.round((b.left + b.right) / 2) + ',' + Math.round(b.bottom + 5 + 30); })()"
+    },
+    {
+      "type": "eval",
+      "id": "spy",
+      "target": "/sidebar",
+      "expression": "(() => { window.__ev = []; for (const t of ['dragstart','dragover','drop','dragend']) { document.addEventListener(t, () => { if (window.__ev[window.__ev.length-1] !== t) { window.__ev.push(t); } }, true); } const orig = chrome.send.bind(chrome); window.__cs = []; chrome.send = (name, args) => { if (name === 'sidebarRowFavorited') { window.__cs.push([name, args]); } return orig(name, args); }; const name = () => document.querySelector('.railpane:not(.ovrailpane)').querySelector('.wsname'); const base = name().getBoundingClientRect().top; window.__shift = 0; window.__open = 'closed'; document.addEventListener('dragover', () => requestAnimationFrame(() => { if (window.__ev.includes('drop')) { return; } window.__shift = Math.max(window.__shift, Math.round(name().getBoundingClientRect().top - base)); const hint = document.querySelector('#atrium-root > .favgrid.dropopen .favhint'); if (hint && hint.getBoundingClientRect().height > 0) { window.__open = 'hint'; } }), true); return 'spying'; })()"
+    },
+    {
+      "type": "drag",
+      "from_eval": "row-point",
+      "to_eval": "strip-point",
+      "steps": 40
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "events",
+      "target": "/sidebar",
+      "expression": "window.__ev.join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "shift",
+      "target": "/sidebar",
+      "expression": "window.__shift >= 30 ? 'pushed' : 'shift ' + window.__shift"
+    },
+    {
+      "type": "eval",
+      "id": "sends",
+      "target": "/sidebar",
+      "expression": "window.__cs.map((c) => c[0] + ':' + c[1].join(',')).join(';')"
+    },
+    {
+      "type": "eval",
+      "id": "open",
+      "target": "/sidebar",
+      "expression": "window.__open"
+    },
+    {
+      "type": "eval_until",
+      "id": "after",
+      "target": "/sidebar",
+      "expression": "(() => [...document.querySelectorAll('[data-dropzone=\"favorites\"] .fav')].map((t) => (t.dataset.favId || '').split('/').pop()).join(' | '))()",
+      "expected": "edit-focus-field.html",
+      "timeout_ms": 8000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "layout",
+      "expected": "0 tiles, 2 rows",
+      "desc": "gates the drag: no favourites and two rows"
+    },
+    {
+      "type": "eval_equals",
+      "id": "rest",
+      "expected": "\"tight\"",
+      "desc": "at rest the space name sits right under the address bar, with no empty grid band"
+    },
+    {
+      "type": "eval_equals",
+      "id": "spy",
+      "expected": "\"spying\"",
+      "desc": "the spies installed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "events",
+      "expected": "\"dragstart,dragover,drop,dragend\"",
+      "desc": "the drag reached drop and dragend"
+    },
+    {
+      "type": "eval_equals",
+      "id": "open",
+      "expected": "\"hint\"",
+      "desc": "THE MEASUREMENT: the strip opened the grid and showed its hint"
+    },
+    {
+      "type": "eval_equals",
+      "id": "shift",
+      "expected": "\"pushed\"",
+      "desc": "and the space name slid down to make room"
+    },
+    {
+      "type": "eval_equals",
+      "id": "sends",
+      "expected": "\"sidebarRowFavorited:0,tabs,-1,0\"",
+      "desc": "the drop made the first favourite"
+    },
+    {
+      "type": "eval_equals",
+      "id": "after",
+      "expected": "edit-focus-field.html",
+      "desc": "and the tile shows"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

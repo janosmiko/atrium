@@ -1,0 +1,56 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sat, 25 Jul 2026 17:53:48 +0200
+Subject: [PATCH 017/154] atrium: give Atrium windows an extension keybinding
+ registry
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+InitPostWindowConstruction resolved views::FocusManager exactly two ways -
+BrowserView::GetBrowserViewForBrowser, else WebUIBrowserWindow::FromBrowser.
+AtriumBrowserWindow is neither, despite owning a real views::Widget, so
+focus_manager stayed null on every chromeless window, the "can be null in
+tests" gate skipped ExtensionKeybindingRegistryViews, and nothing was left for
+accelerator dispatch to find - a default-bound MV3 command registered and
+showed in chrome://extensions/shortcuts but never fired commands.onCommand,
+while Cmd+T worked on the identical input path.
+
+Add a third branch reaching the live widget the same way the existing block at
+the tail of this function does, gated identically on
+IsAtriumBrowserWindowEnabled() && is_type_normal() so only windows that
+actually get an AtriumBrowserWindow are affected. The downstream half already
+worked: AtriumCommandDispatcherDelegate falls through to super's
+prePerformKeyEquivalent, which calls eventHandledByViewsFocusManager. Teardown
+at extension_keybinding_registry_.reset() was already unconditional.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../internal/browser_window_features.cc             | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/chrome/browser/ui/browser_window/internal/browser_window_features.cc b/chrome/browser/ui/browser_window/internal/browser_window_features.cc
+index 0ab887d1ada99..d12b1e32471cd 100644
+--- a/chrome/browser/ui/browser_window/internal/browser_window_features.cc
++++ b/chrome/browser/ui/browser_window/internal/browser_window_features.cc
+@@ -650,6 +650,19 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
+     focus_manager = browser_view->GetFocusManager();
+   } else if (webui_browser_window) {
+     focus_manager = webui_browser_window->widget()->GetFocusManager();
++  } else if (atrium::IsAtriumBrowserWindowEnabled() &&
++             browser->is_type_normal()) {
++    // Atrium: AtriumBrowserWindow is neither a BrowserView nor a
++    // WebUIBrowserWindow, so both lookups above miss and focus_manager would
++    // stay null -- which silently skips ExtensionKeybindingRegistryViews and
++    // leaves the extensions commands API dead on chromeless windows. Reach the
++    // real widget the same way the block at the end of this function
++    // does, and gate identically (browser_window_factory.cc) so this only
++    // fires for windows that actually get an AtriumBrowserWindow.
++    if (views::Widget* const widget = views::Widget::GetWidgetForNativeWindow(
++            browser->window()->GetNativeWindow())) {
++      focus_manager = widget->GetFocusManager();
++    }
+   }
+ 
+   // ---------------------------------------------------------------------------

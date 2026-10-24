@@ -1,0 +1,61 @@
+{
+  "name": "little-window-hotkey",
+  "description": "Stage 2: Cmd+Opt+N opens a Little Atrium window. Stage 1 built the whole little-window path - the controller arm, the marker, the chromeless variant, the Swift strip - and left CreateLittleWindow with NO CALL SITE, so none of it was reachable by a user. Stage 1's own closing note asked for exactly this: an integration probe that the hotkey really yields a window. Counts windows rather than reading a log line, because 'the app thinks it opened one' and 'a window exists' are different claims and only the second is what the feature promises.",
+  "fixture": "two-tabs.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "chromium_flags": "--force-renderer-accessibility",
+  "chromium_flags_note": "Same measurement flag external-link-little-window uses: without it every window's AX subtree stops at the native views and ax_window_kind cannot read the chrome route at all.",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+opt+n",
+      "note": "The default binding. Free of every stock Mac accelerator - Cmd+N stays stock New Window."
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "A little window builds a Browser, a controller and a Swift chrome strip; the reopen scenarios use 2500ms for the same reason."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "desc": "THE MEASUREMENT: one startup window plus the little one. Two is the whole claim - before this stage the hotkey did not exist and the count would stay at one. Counting windows also carries liveness: a crash leaves none, so this cannot pass against an app that died."
+    },
+    {
+      "type": "ax_window_kind",
+      "pattern": "/foyer",
+      "expected": 1,
+      "desc": "THE MEASUREMENT OF KIND, the piece the count alone cannot give: exactly one open window is built around the foyer strip - the chrome only a little window has. A count of 2 is equally true if cmd+opt+n opened an ordinary space window instead of a little one; this is what tells the difference, read off the window's own AX subtree rather than the app's own belief about what it opened."
+    },
+    {
+      "type": "ax_window_kind",
+      "pattern": "/sidebar",
+      "expected": 1,
+      "desc": "And the other window is the startup space window, still whole. Pins the pair: one of each, not two of either."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: CreateLittleWindow opened window-slot",
+      "desc": "Which code path ran. Kept as corroboration only - the two kind assertions above are what the hotkey-summon fixture rests on, because this line says what the app believes it did."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits with a little window open"
+    }
+  ]
+}

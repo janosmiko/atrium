@@ -1,0 +1,165 @@
+{
+  "name": "the-floating-bar-padding-does-not-swallow-page-clicks",
+  "description": "The floating address bar's widget is deliberately BIGGER than the bar it draws: kDevBarShadowPad reserves 10px above, 16px at each side and 20px below, transparent room for the shadow to fall in. That padded box is a window sitting over the page, and such a window hit-tests its whole area, so the band around the bar is a place where page clicks may vanish with nothing visible to explain it.\n\nThe bar itself SHOULD take clicks: it carries back, forward, reload, the URL, copy and pin. So unlike the hint overlay this widget cannot simply decline the mouse, and if the padding is dead the fix is a harder one, closer to what the toast needs.\n\nControlled the same way as the hint measurement. A counter is armed on the page, then two clicks: one far from the bar, one in the padding band just below it. Without the first, a zero in the second could mean the padding ate it, or the coordinate was wrong, or cgevent never landed.\n\nCOORDINATES, measured not guessed. A sibling scenario established that the bubble spans screen x 335..895 and y 50..84 on this window, and the eval below re-reads its box every run so a drift shows up in the log. The probe click sits at 615,95: horizontally the bar's middle, vertically 11px below its bottom edge, which is inside the 20px the window reserves.",
+  "fixture": "long-page.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d",
+      "note": "docked -> floating, so the bar and its padded widget exist at all"
+    },
+    {
+      "type": "eval_until",
+      "id": "bar-shown",
+      "target": "/devbar",
+      "expression": "String(!!document.querySelector('.devbar'))",
+      "expected": "true",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "bar-box-in-its-document",
+      "target": "/devbar",
+      "expression": "(() => { const b = document.querySelector('.devbar'); const r = b.getBoundingClientRect(); return Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.right) + ',' + Math.round(r.bottom) + ' viewport ' + window.innerWidth + 'x' + window.innerHeight; })()",
+      "note": "the bar inside its own widget. The viewport IS the padded box, so the difference between the two is the transparent band this scenario clicks into."
+    },
+    {
+      "type": "eval",
+      "id": "arm-the-page-counter",
+      "target": "long-page",
+      "expression": "(() => { window.__atriumClicks = 0; document.addEventListener('click', () => { window.__atriumClicks++; }, true); return 'armed ' + window.innerWidth + 'x' + window.innerHeight; })()"
+    },
+    {
+      "type": "click",
+      "x": 615,
+      "y": 400,
+      "note": "THE CONTROL: well below the bar and its padding, plain page"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "clicks-clear-of-the-bar",
+      "target": "long-page",
+      "expression": "String(window.__atriumClicks)"
+    },
+    {
+      "type": "click",
+      "x": 615,
+      "y": 95,
+      "note": "THE MEASUREMENT: 11px below the bar's bottom edge, inside the 20px of transparent widget the window reserves for the shadow"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "clicks-in-the-shadow-padding",
+      "target": "long-page",
+      "expression": "String(window.__atriumClicks)"
+    },
+    {
+      "type": "click",
+      "x": 338,
+      "y": 53,
+      "note": "THE WEDGE: 3px into the bar's top-left corner. The plate is a 17px stadium on a 34px box, so this point is 20px from the corner circle's centre - outside the plate, inside its NSView"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "clicks-in-the-corner-wedge",
+      "target": "long-page",
+      "expression": "String(window.__atriumClicks)"
+    },
+    {
+      "type": "click",
+      "x": 615,
+      "y": 67,
+      "note": "THE CONTROL for the wedge: the plate's own centre, which the bar must keep taking"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "clicks-after-the-plate-centre",
+      "target": "long-page",
+      "expression": "String(window.__atriumClicks)"
+    },
+    {
+      "type": "eval",
+      "id": "the-bar-is-still-up",
+      "target": "/devbar",
+      "expression": "String(!!document.querySelector('.devbar'))",
+      "note": "guards the measurement: a click that lands because the bar went away proves nothing"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "clicks-clear-of-the-bar",
+      "expected": "\"1\"",
+      "desc": "THE CONTROL: a click reaches the page where no widget covers it. A failure here is a bad coordinate, not a swallowed click."
+    },
+    {
+      "type": "eval_equals",
+      "id": "the-bar-is-still-up",
+      "expected": "\"true\"",
+      "desc": "the padded widget was genuinely over that point for the second click"
+    },
+    {
+      "type": "eval_equals",
+      "id": "clicks-in-the-shadow-padding",
+      "expected": "\"2\"",
+      "desc": "a click in the bar's transparent shadow band reaches the page. If this reads 1, the band is dead to the mouse, and because the bar itself must stay clickable the fix is the same harder one the toast needs."
+    },
+    {
+      "type": "eval_equals",
+      "id": "clicks-in-the-corner-wedge",
+      "expected": "\"3\"",
+      "desc": "a click in the plate's rounded-off corner reaches the page. If this reads 2 the wedge is still dead to the mouse, which is what the corners looked like to the reporter."
+    },
+    {
+      "type": "eval_equals",
+      "id": "clicks-after-the-plate-centre",
+      "expected": "\"3\"",
+      "desc": "the counter did NOT move: the plate itself still takes its own clicks. A 4 here means the hit test declined the bar as well as its corners."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

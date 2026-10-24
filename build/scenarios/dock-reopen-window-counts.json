@@ -1,0 +1,88 @@
+{
+  "name": "dock-reopen-window-counts",
+  "description": "clicking the Dock icon of a running Atrium terminated the app with 'object cannot be nil' from NSMutableSet, thrown inside app_controller_mac.mm's GetBrowserWindows, which inserted GetWindow()->GetNativeWindow().GetNativeNSWindow() with no guard. A browser whose native window is not realized yields nil. This scenario drives real Dock-reopen Apple Events at the window counts that actually reach that helper. WHAT IT COVERS AND WHAT IT DOES NOT, because an earlier draft of this file claimed more than it did: applicationShouldHandleReopen: calls GetBrowserWindows ONLY when AppKit reports visible windows, and returns as soon as that set is non-empty. So one window and two windows both walk the crash site, and those are the cases here. The zero-window case never reaches GetBrowserWindows at all - it skips to atrium::HandleDockReopen - so it cannot exercise this crash, and it is deliberately absent rather than faked. It is also not reachable from this harness today: Atrium's bootstrap always opens a window (atrium_main_extra_parts.mm forces --no-startup-window and then creates its own), and Cmd+Shift+W does not close an Atrium window on this build, which is an open product question. The first draft pressed Cmd+Shift+W twice and asserted a zero-window reopen; the run log showed the only window closes came from the final Cmd+Q, so both presses did nothing and the phase measured the two-window case a second time. WHAT A GREEN RUN PROVES: four Dock reopens across one and two windows leave the app alive and responsive. It does not prove the guard fired - a healthy run has no nil to skip, and the skip logs when it does.",
+  "fixture": "two-tabs.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the startup space's tab commit before anything is driven"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "reopen",
+      "note": "PHASE 1, one window. AppKit reports a visible window, so this walks GetBrowserWindows with a single entry - the crash site at its simplest."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "reopen",
+      "note": "PHASE 1 again, back to back. A second reopen with no state change in between is the cheapest check that the helper is re-entrant and that the first call left nothing broken behind it."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+n",
+      "note": "PHASE 2 setup: a second window, so GetBrowserWindows iterates more than one entry."
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: Cmd\\+N opened window-slot .* for host",
+      "timeout_ms": 8000,
+      "note": "GATES PHASE 2 AS REAL. Without this, a Cmd+N that silently failed would leave the next two reopens repeating the one-window case while the scenario reported two-window coverage. That is exactly how the first draft of this file went wrong. RegisterHostInSlot was removed with the UI dylib ABI; this line is CreateWindowSlot's own VLOG at atrium_browser_controller.cc, fired by the Cmd+N handler in atrium_native_widget_mac.mm, and names the same event. Pattern deliberately carries no single quote: wait_vlog interpolates it into a single-quoted remote shell string, so a quote in the pattern breaks the grep silently."
+    },
+    {
+      "type": "reopen",
+      "note": "PHASE 2, two windows."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "reopen",
+      "note": "PHASE 2 again, back to back, same reasoning as the repeat in phase 1."
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "pattern": "Atrium: Cmd\\+N opened window-slot .* for host",
+      "label": "second-window-really-opened",
+      "desc": "The two-window phase had two windows. Re-asserted here as well as gated inline so the evidence survives in the results file. rewritten off the deleted RegisterHostInSlot line onto CreateWindowSlot's own VLOG, the same event the Cmd+N setup step actually produces."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "desc": "LIVENESS, and the reason this is listed BEFORE quit. A crashed app has no windows, so this fails if any of the four reopens terminated it. The quit assertion cannot carry that weight: 'no Atrium process remains' passes just as happily against an app that died ten seconds earlier. Two is the real end state - nothing in this scenario closes a window."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits, so the app was alive and responsive at the end rather than merely present"
+    }
+  ]
+}

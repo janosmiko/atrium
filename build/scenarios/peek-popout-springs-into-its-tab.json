@@ -1,0 +1,169 @@
+{
+  "name": "peek-popout-springs-into-its-tab",
+  "description": "The pop-out button grows the peek card out to the pane with a spring, and the page lands as a real tab once it settles. Same fixture, gate and link coordinates as peek-controls-close-the-card.json, and the same .pkc-popout click path (chrome.send('peekControl', ['popout']) into BrowserController::PromotePeek). Also records the page behind the card at 0.96 while the peek is open (AtriumBrowserWindow::SetPeekScrimVisible), and back at full size after. The popout capture starts right after the click with no settle, so the frames span as much of the grow as the SSH round trip allows; the proof of the promote itself is the sidebar tab row count and the vlog line PeekWidget::Close prints once the spring lands.",
+  "fixture": "peek-scrim.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "27027027-2702-4702-8702-270270270270",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the startup tab commit before navigating"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "peek-scrim-red.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-scrim-red.html",
+      "timeout_ms": 15000,
+      "note": "GATE: the red page really committed as the STARTUP tab"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "rows-before",
+      "target": "/sidebar",
+      "expression": "(window.__peekRowsBefore = document.querySelectorAll('.tabrow').length, 'counted')",
+      "note": "the row count before the peek, kept on the document so the after count grades the delta"
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the page at full size, no peek"
+    },
+    {
+      "type": "move",
+      "x": 338,
+      "y": 96,
+      "note": "hover the link before pressing it"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "click",
+      "x": 338,
+      "y": 96,
+      "note": "the link, opening the peek"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: peek widget showing for parent",
+      "timeout_ms": 15000,
+      "note": "GATE: a peek really opened"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the open spring and the backdrop shrink settle"
+    },
+    {
+      "type": "capture",
+      "id": "peeked",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the card over the page, the page at 0.96 behind it"
+    },
+    {
+      "type": "eval",
+      "id": "popout-click",
+      "target": "/peekctl",
+      "expression": "(document.querySelector('.pkc-popout').click(), 'clicked')",
+      "note": "THE MEASUREMENT starts on the very next action"
+    },
+    {
+      "type": "capture",
+      "id": "popout-transition",
+      "duration_ms": 600,
+      "fps": 60,
+      "note": "raw frames spanning the grow, started with no settle in between"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: peek widget closing for parent",
+      "timeout_ms": 15000,
+      "note": "GATE: the spring landed and FinishPromotePeek closed the card"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the tab take over and the backdrop return to full size"
+    },
+    {
+      "type": "capture",
+      "id": "popped",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the promoted page as a full tab"
+    },
+    {
+      "type": "eval",
+      "id": "rows-after",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.tabrow').length - (window.__peekRowsBefore ?? 0))",
+      "note": "AC: exactly one row more than before the peek"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "rows-before",
+      "expected": "\"counted\"",
+      "desc": "the count before the peek was taken"
+    },
+    {
+      "type": "eval_equals",
+      "id": "popout-click",
+      "expected": "\"clicked\"",
+      "desc": "the popout button was there and took the click"
+    },
+    {
+      "type": "eval_equals",
+      "id": "rows-after",
+      "expected": "\"1\"",
+      "desc": "the peeked page landed as one new tab row"
+    },
+    {
+      "type": "theme_changed",
+      "before": "peeked",
+      "after": "popped",
+      "region": [
+        240,
+        400,
+        60,
+        150
+      ],
+      "min_delta": 4.0,
+      "desc": "the dimmed red strip beside the card is gone once the card fills the pane"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits"
+    }
+  ]
+}

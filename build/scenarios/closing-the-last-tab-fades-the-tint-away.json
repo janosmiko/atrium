@@ -1,0 +1,80 @@
+{
+  "name": "closing-the-last-tab-fades-the-tint-away",
+  "description": "With ambilight on and one dark red-iconed tab colouring the window, Cmd+W closes it, and with no tab left the glow band and the backdrop go back to the space's own colour. The window logs the clearing, and the band beside the card changes between the two captures.",
+  "fixture": "ambilight-brand.spaces.json",
+  "settings": "icon-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the sampler settles on the page and the brand"
+    },
+    {
+      "type": "capture",
+      "id": "tinted",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: page tint cleared, no active tab",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "the crossfade runs 300ms"
+    },
+    {
+      "type": "capture",
+      "id": "cleared",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "THE CONTROL: the window stayed open with no tab in it."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: page tint cleared, no active tab",
+      "label": "the-window-cleared-the-tint",
+      "desc": "The last close reached the clearing path."
+    },
+    {
+      "type": "theme_changed",
+      "before": "tinted",
+      "after": "cleared",
+      "region": [
+        206,
+        460,
+        16,
+        100
+      ],
+      "min_delta": 5,
+      "desc": "In pixels: the glow band beside the card changed once the tab was gone."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "name": "ambilight-paints-the-near-edge",
+  "description": "End to end and in pixels: the sidebar carries the colour of the page edge BESIDE it, and the whole chain from surface copy to painted glow is what makes that true.\n\nThe two fixtures are mirrors - crimson-left/blue-right and blue-left/crimson-right. Their whole-frame averages are IDENTICAL, so a sampler that averaged the frame, or a painter that laid one flat wash, reads the same on both and this scenario measures zero. Only a reader that takes the left edge specifically, handing it to a painter that puts it on the left, can move these pixels.\n\nThis is the assertion that joins the two halves proved separately elsewhere: AtriumEdgeTintTest paints a known tint, ambilight-reads-both-edges samples a known page, and neither one observes the seam between them.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "settings": "icon-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the crimson-left page commit and paint, so there is a surface to copy"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "several sampler ticks, and the glow settles before the cadence backs off"
+    },
+    {
+      "type": "capture",
+      "id": "crimson-left",
+      "duration_ms": 500,
+      "fps": 10,
+      "note": "the sidebar beside a crimson left edge"
+    },
+    {
+      "type": "eval_until",
+      "id": "row-clicked",
+      "target": "/sidebar",
+      "expression": "(() => { const r = [...document.querySelectorAll('.row.tabrow')].find(x => x.textContent.includes('Blue Left')); if (!r) return 'no-row'; r.click(); return 'clicked'; })()",
+      "expected": "clicked",
+      "timeout_ms": 5000,
+      "note": "the Blue Left row, found by its title rather than by a coordinate the row heights keep moving."
+    },
+    {
+      "type": "eval_until",
+      "id": "blue-left-page",
+      "target": "ambilight-split-mirror.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/ambilight-split-mirror.html",
+      "timeout_ms": 8000,
+      "note": "the mirrored page committed, read from the page itself"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the commit, the first sample of the new page, and the drift"
+    },
+    {
+      "type": "capture",
+      "id": "blue-left",
+      "duration_ms": 500,
+      "fps": 10,
+      "note": "the sidebar beside a blue left edge"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "blue-left-page",
+      "expected": "http://127.0.0.1:8000/ambilight-split-mirror.html",
+      "label": "the-switch-really-happened",
+      "desc": "THE CONTROL: the mirrored page committed, so the measurement below is not two captures of the same page."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: ambilight edges L=#2020(BF|C0) R=#(BF|C0)2020",
+      "label": "the-sampler-saw-the-mirror",
+      "desc": "The sampler read the mirrored page the other way round. Named exactly, because the whole scenario rests on left and right not being interchangeable."
+    },
+    {
+      "type": "theme_changed",
+      "before": "crimson-left",
+      "after": "blue-left",
+      "region": [
+        206,
+        460,
+        16,
+        100
+      ],
+      "min_delta": 6,
+      "desc": "THE MEASUREMENT: the sidebar backdrop followed the page's LEFT edge from crimson to blue. Both pages carry the same average colour, so nothing but a left-edge read painted on the left can move this region.",
+      "note": "The band the glow paints: 32 DIP out from the card's left edge at about x=225 in the VM frame, at 55 percent of the glass alpha. Re-measured 2026-08-27 when the glow was narrowed and dimmed."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

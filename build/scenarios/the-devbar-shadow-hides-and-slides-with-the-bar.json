@@ -1,0 +1,228 @@
+{
+  "name": "the-devbar-shadow-hides-and-slides-with-the-bar",
+  "description": "Both shadow behaviors, over a BUSY page. A sibling scenario measured the shadow over flat white, where a wash that covers the bar itself and a shadow that falls beside it read the same. The checkerboard is 40px red/cyan squares, so a region that loses its pattern is a cut-out and a region that keeps it darkened is a shadow.\n\nWHERE THE PIXELS ARE. Same window geometry as a sibling scenario (sidebarWidth 280): the bubble spans x=335..895, y=50..84. Its controls are 22px tall and centred, so the bar's own plate is clear at y=79..82 across the middle - that strip is INSIDE the bar, and it is the only place the two designs differ. AtriumOverlayShadowLayer's view is ranked above the devbar's attached NSView by SubviewSorter, so a shadow drawn from the bar's own rect paints its dense core OVER the bar's plate rather than around it.\n\nTHE HIDE AND THE SLIDE. The shadow rect is registered from the container's bounds. Nothing unregisters it when Cmd+Shift+D takes the bar away, and nothing moves it when a downward scroll slides the bar out through atriumSetDevBarAway. Both leave a shadow on a page with no bar over it, which is what the two region_stable readings against the pre-bar frame measure.",
+  "fixture": "devbar-busy-page.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "capture",
+      "id": "no-bar",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "THE BASELINE: the page before any bar exists. Every 'the shadow left with the bar' reading below is against this frame."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d"
+    },
+    {
+      "type": "eval_until",
+      "id": "bubble-up",
+      "target": "/devbar",
+      "expression": "String(document.querySelector('.devbar').classList.contains('away'))",
+      "expected": "false",
+      "timeout_ms": 8000,
+      "note": "THE CONTROL: the bar is up and not away."
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "capture",
+      "id": "bar-up",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "cdp_wheel",
+      "target": "checkerboard.html",
+      "x": 600,
+      "y": 400,
+      "dy": 240,
+      "steps": 6,
+      "note": "the same wheel a sibling scenario uses. The VM cgevent scroll never reached the app as an NSEvent."
+    },
+    {
+      "type": "eval_until",
+      "id": "went-away",
+      "target": "/devbar",
+      "expression": "String(document.querySelector('.devbar').classList.contains('away'))",
+      "expected": "true",
+      "timeout_ms": 5000
+    },
+    {
+      "type": "settle",
+      "ms": 1200,
+      "note": "devbar.css transitions transform and opacity over 200ms, so this is well past the end of the slide."
+    },
+    {
+      "type": "capture",
+      "id": "bar-away",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d",
+      "note": "Developer Mode off - the bar is gone, not merely slid away."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "bar-hidden",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d",
+      "note": "back up, so the hide below starts from a bar that is up rather than one that was already away."
+    },
+    {
+      "type": "eval_until",
+      "id": "back-up",
+      "target": "/devbar",
+      "expression": "String(document.querySelector('.devbar').classList.contains('away'))",
+      "expected": "false",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "hidden-from-shown",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bubble-up",
+      "expected": "false",
+      "desc": "THE CONTROL: the bar came up and was not away."
+    },
+    {
+      "type": "eval_equals",
+      "id": "went-away",
+      "expected": "true",
+      "desc": "THE CONTROL: the downward scroll really slid the bar away."
+    },
+    {
+      "type": "pixels_changed",
+      "before": "no-bar",
+      "after": "bar-up",
+      "region": [500, 85, 120, 8],
+      "min_changed_pct": 30.0,
+      "label": "the-shadow-reaches-the-page",
+      "desc": "THE CONTROL for the two stability readings below: with the bar up, the strip just under it really is darkened. Without this, a build that painted no shadow at all would pass them both."
+    },
+    {
+      "type": "region_mean",
+      "capture": "bar-up",
+      "x": 590,
+      "y": 79,
+      "w": 40,
+      "h": 3,
+      "min_mean": 230,
+      "max_mean": 256,
+      "label": "the-shadow-falls-beside-the-bar-not-over-it",
+      "desc": "The bar's own plate, in the clear strip below its 22px controls. --ov-paper reads near 243 here. A shadow whose core is painted over the bar washes the same strip with 0.30 of --ov-ink and drops it near 190, which is what makes the bar and its halo read as one grey cut-out."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: devbar away, shadow slides -60px over 200ms",
+      "label": "the-slide-devbar-css-owns-reached-the-window",
+      "desc": "The shadow must follow the bar's slide rather than blink out. The distance and the duration are devbar.css's, and the window can only match the bar if they cross the push. Zeroes here mean the shadow snaps."
+    },
+    {
+      "type": "region_stable",
+      "before": "no-bar",
+      "after": "bar-away",
+      "region": [500, 85, 120, 8],
+      "max_delta": 6.0,
+      "label": "the-shadow-slid-away-with-the-bar",
+      "desc": "After the downward scroll the bar is gone from the screen, so the strip it shadowed is the page again. The pixels_changed control above measures what this strip is worth when the shadow IS on it."
+    },
+    {
+      "type": "region_stable",
+      "before": "no-bar",
+      "after": "bar-hidden",
+      "region": [500, 85, 120, 8],
+      "max_delta": 6.0,
+      "label": "no-bar-no-shadow",
+      "desc": "Developer Mode off leaves no bar, so it must leave no shadow either. Read after a slide, which is the common path."
+    },
+    {
+      "type": "region_stable",
+      "before": "no-bar",
+      "after": "hidden-from-shown",
+      "region": [500, 85, 120, 8],
+      "max_delta": 6.0,
+      "label": "no-bar-no-shadow-from-a-bar-that-was-up",
+      "desc": "The other entry: hidden straight from a bar that was up, never slid away. The two paths unregister through different calls."
+    },
+    {
+      "type": "region_mean",
+      "capture": "bar-up",
+      "x": 500,
+      "y": 85,
+      "w": 120,
+      "h": 4,
+      "min_mean": 113,
+      "max_mean": 127,
+      "label": "the-shadow-is-as-dark-as-it-was-at-its-edge",
+      "desc": "The shadow's strength beside the bar must not move while its core is taken off the bar. MEASURED at 119.7 on the 2026-09-02 06:16 build against a page worth 141.5 - a Gaussian of sigma 7 at 30 percent of --ov-ink. A blur read as sigma 14 instead of 7 lands well outside this band."
+    },
+    {
+      "type": "region_mean",
+      "capture": "bar-up",
+      "x": 500,
+      "y": 93,
+      "w": 120,
+      "h": 4,
+      "min_mean": 129,
+      "max_mean": 140,
+      "label": "the-shadow-falls-off-the-way-it-did",
+      "desc": "The far half of the same profile: 134.6 measured on that build, 9 to 12px below the bar. Paired with the reading above this pins the falloff curve, not just one sample of it."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

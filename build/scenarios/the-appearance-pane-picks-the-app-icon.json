@@ -1,0 +1,128 @@
+{
+  "name": "the-appearance-pane-picks-the-app-icon",
+  "description": "The Appearance pane shows the 21 icon tiles, a click on crimson-ink persists the choice, and the Dock icon follows. The startup apply must also log, because the bundle icon is crimson-paper and the setting defaults to it.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the startup tab committed, so the app is up"
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma"
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "let the window build and its route load"
+    },
+    {
+      "type": "eval",
+      "id": "pane",
+      "target": "/settings",
+      "expression": "(() => { window.atriumSelectSettingsPane('appearance'); return document.querySelector('.settings-rail-item[data-pane=\"appearance\"].selected') ? 'appearance' : 'not-selected'; })()",
+      "note": "select the pane by its id, not by a coordinate the rail layout can move"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "tiles",
+      "target": "/settings",
+      "expression": "(() => { const row = document.querySelector('.settings-row-appicon'); if (!row) return 'no-row'; row.scrollIntoView(); const imgs = [...row.querySelectorAll('img')]; return imgs.length + '/' + imgs.filter(i => i.naturalWidth > 0).length; })()",
+      "note": "21 tiles, and every one loaded its PNG through the request filter"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the row with crimson-paper marked"
+    },
+    {
+      "type": "eval",
+      "id": "click",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.settings-app-icon[data-variant=\"crimson-ink\"]'); if (!b) return 'no-tile'; b.click(); return 'clicked'; })()",
+      "note": "THE MEASUREMENT"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the save round trip and the Dock apply"
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "crimson-ink marked"
+    },
+    {
+      "type": "eval",
+      "id": "chosen",
+      "target": "/settings",
+      "expression": "(() => { const on = document.querySelector('.settings-app-icon[aria-checked=\"true\"]'); return on ? on.dataset.variant : 'none'; })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "label": "the-appearance-pane-opened",
+      "id": "pane",
+      "expected": "\"appearance\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "twenty-one-tiles-all-loaded",
+      "id": "tiles",
+      "expected": "\"21/21\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "the-click-reached-a-tile",
+      "id": "click",
+      "expected": "\"clicked\""
+    },
+    {
+      "type": "eval_equals",
+      "label": "crimson-ink-is-marked",
+      "id": "chosen",
+      "expected": "\"crimson-ink\""
+    },
+    {
+      "type": "vlog",
+      "label": "the-startup-apply-ran",
+      "pattern": "Atrium: (app icon variant '[a-z0-9-]+' applied|no app icon for variant '[a-z0-9-]+')",
+      "note": "The VM's settings.json can hold a retired slug. Then the PNG is missing and the bundle icon stays, which is the documented fallback. Either line proves the startup path ran."
+    },
+    {
+      "type": "vlog",
+      "label": "the-dock-followed-the-click",
+      "pattern": "Atrium: app icon variant 'crimson-ink' applied"
+    }
+  ]
+}

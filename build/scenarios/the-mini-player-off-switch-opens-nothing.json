@@ -1,0 +1,100 @@
+{
+  "name": "the-mini-player-off-switch-opens-nothing",
+  "description": "Of the auto mini player: under autoMiniPlayer 'off' nothing opens on its own. The page is the audible one a-video-tab-pops-out-when-you-leave-it uses, so a pass here is the setting refusing rather than the page failing some other condition.",
+  "fixture": "repeated-row-drags.spaces.json",
+  "settings": "auto-mini-player-off.settings.json",
+  "chromium_flags": "--autoplay-policy=no-user-gesture-required",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "the command bar, because restore refuses a file:// row (rust/atrium-core/src/restore.rs scheme_allowed) so the page cannot come from the spaces fixture"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 10000
+    },
+    {
+      "type": "type",
+      "text": "file:///Users/admin/atrium-probe/vm-fixtures/video-with-sound.html"
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "before",
+      "target": "video-with-sound.html",
+      "expression": "window.atriumPipState()",
+      "note": "first, because it also warms the debugging tunnel the eval_until below would otherwise spend its whole budget on"
+    },
+    {
+      "type": "eval_until",
+      "id": "premise",
+      "target": "video-with-sound.html",
+      "expression": "(() => { const v = document.getElementById('video'); return (v.paused ? 'paused' : 'playing') + ',' + (v.muted || v.volume === 0 ? 'muted' : 'unmuted'); })()",
+      "expected": "playing,unmuted",
+      "timeout_ms": 20000,
+      "note": "a later 'in-tab' must mean the gate refused, not that the video never started"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+opt+up",
+      "note": "previousTab, the tab switch away - cmd+shift+left is previousSPACE and changes no tab at all"
+    },
+    {
+      "type": "settle",
+      "ms": 10000
+    },
+    {
+      "type": "eval",
+      "id": "after",
+      "target": "video-with-sound.html",
+      "expression": "window.atriumPipState()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "premise",
+      "expected": "playing,unmuted",
+      "desc": "the video really is playing with sound before the switch"
+    },
+    {
+      "type": "eval_equals",
+      "id": "before",
+      "expected": "\"in-tab\"",
+      "desc": "nothing has popped out while the tab is still the active one"
+    },
+    {
+      "type": "eval_equals",
+      "id": "after",
+      "expected": "\"in-tab\"",
+      "desc": "Of the auto mini player: nothing popped out"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

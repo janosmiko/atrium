@@ -1,0 +1,94 @@
+{
+  "spaces": [
+    {
+      "id": "98298298-2982-4982-8982-982982982981",
+      "name": "Personal",
+      "emoji": "🏠",
+      "tint": "crimson",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "98298298-2982-4982-8982-982982982986",
+      "name": "New Space",
+      "emoji": "✨",
+      "tint": "crimson",
+      "profileID": "Default",
+      "order": 1,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "98298298-2982-4982-8982-982982982982",
+      "name": "BPX",
+      "emoji": "💼",
+      "tint": "oceanBlue",
+      "profileID": "Profile 1",
+      "order": 2,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "98298298-2982-4982-8982-982982982983",
+      "name": "Eventim",
+      "emoji": "🎫",
+      "tint": "atriumGreen",
+      "profileID": "Profile 7",
+      "order": 3,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "98298298-2982-4982-8982-982982982984",
+      "name": "Toptal",
+      "emoji": "🧭",
+      "tint": "oceanBlue",
+      "profileID": "Profile 9",
+      "order": 4,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    },
+    {
+      "id": "98298298-2982-4982-8982-982982982985",
+      "name": "Timi",
+      "emoji": "🐾",
+      "tint": "crimson",
+      "profileID": "Profile 8",
+      "order": 5,
+      "pinnedTabs": [],
+      "tabs": [],
+      "groups": []
+    }
+  ],
+  "favorites": [
+    { "url": "https://gitlab.com/explore", "title": "GitLab", "profileID": "Profile 1" },
+    { "url": "https://outlook.office365.com/mail/", "title": "Outlook", "profileID": "Profile 1" },
+    { "url": "https://bitbucket.org/product", "title": "Bitbucket", "profileID": "Profile 1" },
+    { "url": "https://app.clockify.me/calendar", "title": "Clockify", "profileID": "Profile 1" },
+    { "url": "https://www.youtube.com/", "title": "YouTube", "profileID": "Default" },
+    { "url": "https://music.youtube.com/", "title": "YouTube Music", "profileID": "Default" },
+    { "url": "https://www.reddit.com/?rdt=58850", "title": "Reddit", "profileID": "Default" },
+    { "url": "https://news.ycombinator.com/news", "title": "Hacker News", "profileID": "Default" },
+    { "url": "https://odin.e3y.intra:5001/#/signin", "title": "Odin", "profileID": "Default" },
+    { "url": "https://app.clockify.me/calendar", "title": "Clockify", "profileID": "Default" },
+    { "url": "https://hiring.cafe/", "title": "Hiring Cafe", "profileID": "Default" },
+    { "url": "https://www.linkedin.com/jobs/", "title": "LinkedIn Jobs", "profileID": "Default" },
+    { "url": "https://www.messenger.com/", "title": "Messenger", "profileID": "Default" },
+    { "url": "https://portal.azure.com/#home", "title": "Azure", "profileID": "Profile 2" },
+    { "url": "https://app.clockify.me/tracker#", "title": "Clockify", "profileID": "Profile 2" },
+    { "url": "https://harbor.eventim.net/", "title": "Harbor", "profileID": "Profile 7" },
+    { "url": "https://app.clockify.me/calendar", "title": "Clockify", "profileID": "Profile 7" }
+  ],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "98298298-2982-4982-8982-982982982981"
+  }
+}

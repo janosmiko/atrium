@@ -1,0 +1,44 @@
+{
+  "name": "cmdn-window-slot",
+  "description": "The Cmd+N leg. intercept_for answers IDC_NEW_WINDOW with CommandIntercept::NewWindowSlot (rust/atrium-core/src/commands.rs), and the alternative is not a cosmetic difference: falling through reaches OpenEmptyWindow, which hands the factory-created Browser NO controller. That happened once: the gate needed the deleted dylib's spaces group, so Cmd+N silently produced unwired windows.\n\nThe suite already PRESSES Cmd+N in two places and grades it in neither. quit-two-windows presses it as the setup for a two-window quit and asserts only the palette line and the quit; dock-reopen-window-counts asserts 'Atrium: RegisterHostInSlot', which nothing logs, so it is marked cannot_pass. Neither can tell a wired slot from a stock window, which is exactly the decision the core makes.\n\nThe gate here is the line CreateWindowSlot itself writes (atrium_browser_controller.cc:539). It is worth naming precisely, because dock-reopen-window-counts' cannot_pass prose states this string 'never existed in the tree' and names atrium_browser_controller.mm:538 as the phantom. It does exist, at .cc:539, and it fired on the deployed build during this lane's quit-two-windows run: 'Atrium: Cmd+N opened window-slot 1 for host 0xb3e569340'. The VLOG has two branches off the same statement - 'open_window_slot ... at <point>' when a drop point is supplied, plain 'Cmd+N' when none is. Matching the Cmd+N branch specifically is what keeps this from also matching a drag-out.\n\nSetup is quit-two-windows' opening moves verbatim, including the click at 900,660 rather than an activate: this fixture auto-opens the palette, Escape alone is unreliable at dismissing it, and the click both dismisses and focuses. That sequence is proven to deliver Cmd+N on this build.",
+  "fixture": "empty-window-quit.spaces.json",
+  "themes": "empty-window-quit.themes.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "33333333-3333-3333-3333-333333333333",
+  "app_process": "Atrium",
+  "actions": [
+    {"type": "settle", "ms": 8000, "note": "let the empty space render; the palette auto-opens here"},
+    {"type": "key", "combo": "escape", "note": "first dismiss attempt - unreliable on its own, which is why the click follows"},
+    {"type": "settle", "ms": 1000},
+    {"type": "click", "x": 900, "y": 660, "note": "dismiss the palette for real and put key focus on the browser window, so the chord below is delivered to it"},
+    {"type": "settle", "ms": 2000},
+    {"type": "key", "combo": "cmd+n", "note": "THE MEASUREMENT: IDC_NEW_WINDOW, which intercept_for answers with NewWindowSlot"},
+    {"type": "settle", "ms": 4000, "note": "let the slot be created and its window presented"},
+    {"type": "key", "combo": "escape", "note": "CreateWindowSlot's post-show hook auto-opens the palette on the NEW slot - the run log shows 'command bar widget showing' 7ms after the window-slot line. Left up, it adds a full-window AXUnknown scrim and the count below reads 3. Dismissing it is not softening the count; it removes a named confounder so the count is two real windows and nothing else"},
+    {"type": "settle", "ms": 1000},
+    {"type": "click", "x": 900, "y": 660, "note": "the same belt-and-braces dismiss the opening sequence needs, for the same reason: Escape alone is unreliable on this fixture"},
+    {"type": "settle", "ms": 2000}
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "wired-slot-not-stock-window",
+      "pattern": "Atrium: Cmd\\+N opened window-slot [0-9]+ for host",
+      "note": "THE GATE, and the whole reason this scenario exists apart from quit-two-windows. CreateWindowSlot writes this line; OpenEmptyWindow writes nothing. So a build that loses the NewWindowSlot intercept still opens a second window and still passes the count below - it just opens an unwired one, and only this line can tell. The 'Cmd\\+N' prefix rather than a wildcard pins the no-drop-point branch of the VLOG at atrium_browser_controller.cc:539; the other branch reads 'open_window_slot ... at <point>' and belongs to a drag-out."
+    },
+    {
+      "type": "vlog_absent",
+      "label": "cmdn-still-opens-zero-tabs",
+      "pattern": "Atrium: tab [0-9]+ added",
+      "note": "REGRESSION GUARD. CreateLittleWindow's invalid-seed-URL branch is fixed, but CreateWindowSlot was left alone: it still passes an explicit empty string literal for startup_url, so the ctor's `if (!startup_url.empty())` branch should keep seeing empty from THIS caller and add no tab, same as before the fix. Not a vacuous absence, since an absence assertion needs something positive in front of it: the gate above already proves CreateWindowSlot (not OpenEmptyWindow) is what ran, and empty-window-quit.spaces.json starts the startup window completely tabless with no other path in this scenario that would add one - so if this line ever appeared, it could only be the new slot Cmd+N just opened growing a tab it should not have."
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "desc": "and the slot really produced a second real window, not just a log line",
+      "note": "The effect, asserted separately from the mechanism above so neither can carry the other. A line written by a slot that then failed to present would pass the gate and fail here. Counted only after the new slot's auto-opened palette is dismissed - see the action note; with it up the same run reads 3, the extra being an AXUnknown at the new window's exact bounds."
+    },
+    {"type": "quit", "desc": "Cmd+Q quits with two windows open, through the app's own path"}
+  ]
+}

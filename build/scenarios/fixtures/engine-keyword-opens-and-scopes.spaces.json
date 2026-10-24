@@ -1,0 +1,28 @@
+{
+  "spaces": [
+    {
+      "id": "96100961-0000-4000-8000-000000000961",
+      "name": "Keyword",
+      "emoji": "K",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135200.0,
+          "url": "http://127.0.0.1:8000/example-domain.html?keyword",
+          "title": "Keyword Start"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "favorites": [],
+  "archived": [],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "96100961-0000-4000-8000-000000000961"
+  }
+}

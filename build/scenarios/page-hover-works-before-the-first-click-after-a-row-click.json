@@ -1,0 +1,481 @@
+{
+  "name": "page-hover-works-before-the-first-click-after-a-row-click",
+  "description": "The row-click side of page-hover-works-before-the-first-click. A click on a sidebar row shows a tab through ShowTab, which also arms the reattach heal. First the startup tab with no row click (the baseline), then a cold row (?b), then the live startup row (?a). After each click the pointer moves onto the page's button with no click on the page, and one letter key is typed. Red while the bug is there.",
+  "fixture": "hover-probe.spaces.json",
+  "startup_space": "48b00000-0000-4000-8000-000000000481",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup",
+      "target": "hover-probe.html?a",
+      "expression": "location.search",
+      "expected": "?a",
+      "timeout_ms": 20000,
+      "note": "gate: the app is up on the fixture tab"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "frontmost",
+      "id": "front-startup",
+      "note": "which app and window macOS has as key, before any click on the page"
+    },
+    {
+      "type": "eval",
+      "id": "focus-startup",
+      "target": "hover-probe.html?a",
+      "expression": "String(window.samples.load100) + '/' + String(window.samples.load600)",
+      "note": "document.hasFocus() 100ms and 600ms after the page showed, sampled by the page itself. The reattach heal runs at about 250ms."
+    },
+    {
+      "type": "eval",
+      "id": "base-startup",
+      "target": "hover-probe.html?a",
+      "expression": "(window.m0 = window.moves, window.k0 = window.log.length, 'base ' + window.m0)"
+    },
+    {
+      "type": "move",
+      "x": 640,
+      "y": 380
+    },
+    {
+      "type": "move",
+      "x": 660,
+      "y": 395
+    },
+    {
+      "type": "move",
+      "x": 680,
+      "y": 408
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 420
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "moves-startup",
+      "target": "hover-probe.html?a",
+      "expression": "window.moves - window.m0 > 0 ? 'moved' : 'no moves'",
+      "note": "no moves means the mouseMoved events never reached the renderer: a Cocoa gate"
+    },
+    {
+      "type": "eval",
+      "id": "hover-startup",
+      "target": "hover-probe.html?a",
+      "expression": "String(!!document.querySelector('button:hover'))"
+    },
+    {
+      "type": "eval",
+      "id": "bg-startup",
+      "target": "hover-probe.html?a",
+      "expression": "getComputedStyle(document.getElementById('b')).backgroundColor"
+    },
+    {
+      "type": "key",
+      "combo": "k"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "key-startup",
+      "target": "hover-probe.html?a",
+      "expression": "window.log.slice(window.k0).some((x) => x.startsWith('keydown:k')) ? 'keydown' : 'no keydown'"
+    },
+    {
+      "type": "eval",
+      "id": "diag-startup",
+      "target": "hover-probe.html?a",
+      "expression": "'moves=' + window.moves + ' m0=' + window.m0 + ' last=' + window.lastMove + ' samples=' + JSON.stringify(window.samples) + ' focus=' + document.hasFocus() + ' log=' + window.log.join(',')",
+      "note": "raw numbers for the report, no assertion"
+    },
+    {
+      "type": "eval",
+      "id": "row-b",
+      "target": "/sidebar",
+      "expression": "(() => { const r = [...document.querySelectorAll('[data-dropzone=\"tabs\"] .tabrow')].find((x) => (x.dataset.url || '').endsWith('hover-probe.html?b')); if (!r) { return 'no-row'; } const b = r.getBoundingClientRect(); return Math.round(b.left + 60) + ',' + Math.round((b.top + b.bottom) / 2 + 30); })()",
+      "note": "the row's centre on screen, 30px below its client y"
+    },
+    {
+      "type": "click",
+      "from_eval": "row-b"
+    },
+    {
+      "type": "eval_until",
+      "id": "cold-open",
+      "target": "hover-probe.html?b",
+      "expression": "location.search",
+      "expected": "?b",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "frontmost",
+      "id": "front-cold-row",
+      "note": "which app and window macOS has as key, before any click on the page"
+    },
+    {
+      "type": "eval",
+      "id": "focus-cold-row",
+      "target": "hover-probe.html?b",
+      "expression": "String(window.samples.load100) + '/' + String(window.samples.load600)",
+      "note": "document.hasFocus() 100ms and 600ms after the page showed, sampled by the page itself. The reattach heal runs at about 250ms."
+    },
+    {
+      "type": "eval",
+      "id": "base-cold-row",
+      "target": "hover-probe.html?b",
+      "expression": "(window.m0 = window.moves, window.k0 = window.log.length, 'base ' + window.m0)"
+    },
+    {
+      "type": "move",
+      "x": 640,
+      "y": 380
+    },
+    {
+      "type": "move",
+      "x": 660,
+      "y": 395
+    },
+    {
+      "type": "move",
+      "x": 680,
+      "y": 408
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 420
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "moves-cold-row",
+      "target": "hover-probe.html?b",
+      "expression": "window.moves - window.m0 > 0 ? 'moved' : 'no moves'",
+      "note": "no moves means the mouseMoved events never reached the renderer: a Cocoa gate"
+    },
+    {
+      "type": "eval",
+      "id": "hover-cold-row",
+      "target": "hover-probe.html?b",
+      "expression": "String(!!document.querySelector('button:hover'))"
+    },
+    {
+      "type": "eval",
+      "id": "bg-cold-row",
+      "target": "hover-probe.html?b",
+      "expression": "getComputedStyle(document.getElementById('b')).backgroundColor"
+    },
+    {
+      "type": "key",
+      "combo": "k"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "key-cold-row",
+      "target": "hover-probe.html?b",
+      "expression": "window.log.slice(window.k0).some((x) => x.startsWith('keydown:k')) ? 'keydown' : 'no keydown'"
+    },
+    {
+      "type": "eval",
+      "id": "diag-cold-row",
+      "target": "hover-probe.html?b",
+      "expression": "'moves=' + window.moves + ' m0=' + window.m0 + ' last=' + window.lastMove + ' samples=' + JSON.stringify(window.samples) + ' focus=' + document.hasFocus() + ' log=' + window.log.join(',')",
+      "note": "raw numbers for the report, no assertion"
+    },
+    {
+      "type": "capture",
+      "id": "shot-cold-row",
+      "duration_ms": 400
+    },
+    {
+      "type": "eval",
+      "id": "row-a",
+      "target": "/sidebar",
+      "expression": "(() => { const r = [...document.querySelectorAll('[data-dropzone=\"tabs\"] .tabrow')].find((x) => (x.dataset.url || '').endsWith('hover-probe.html?a')); if (!r) { return 'no-row'; } const b = r.getBoundingClientRect(); return Math.round(b.left + 60) + ',' + Math.round((b.top + b.bottom) / 2 + 30); })()",
+      "note": "the row's centre on screen, 30px below its client y"
+    },
+    {
+      "type": "click",
+      "from_eval": "row-a"
+    },
+    {
+      "type": "eval_until",
+      "id": "live-shown",
+      "target": "hover-probe.html?a",
+      "expression": "document.visibilityState",
+      "expected": "visible",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "frontmost",
+      "id": "front-live-row",
+      "note": "which app and window macOS has as key, before any click on the page"
+    },
+    {
+      "type": "eval",
+      "id": "focus-live-row",
+      "target": "hover-probe.html?a",
+      "expression": "String(window.samples.show100) + '/' + String(window.samples.show600)",
+      "note": "document.hasFocus() 100ms and 600ms after the page showed, sampled by the page itself. The reattach heal runs at about 250ms."
+    },
+    {
+      "type": "eval",
+      "id": "base-live-row",
+      "target": "hover-probe.html?a",
+      "expression": "(window.m0 = window.moves, window.k0 = window.log.length, 'base ' + window.m0)"
+    },
+    {
+      "type": "move",
+      "x": 640,
+      "y": 380
+    },
+    {
+      "type": "move",
+      "x": 660,
+      "y": 395
+    },
+    {
+      "type": "move",
+      "x": 680,
+      "y": 408
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 420
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "moves-live-row",
+      "target": "hover-probe.html?a",
+      "expression": "window.moves - window.m0 > 0 ? 'moved' : 'no moves'",
+      "note": "no moves means the mouseMoved events never reached the renderer: a Cocoa gate"
+    },
+    {
+      "type": "eval",
+      "id": "hover-live-row",
+      "target": "hover-probe.html?a",
+      "expression": "String(!!document.querySelector('button:hover'))"
+    },
+    {
+      "type": "eval",
+      "id": "bg-live-row",
+      "target": "hover-probe.html?a",
+      "expression": "getComputedStyle(document.getElementById('b')).backgroundColor"
+    },
+    {
+      "type": "key",
+      "combo": "k"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "key-live-row",
+      "target": "hover-probe.html?a",
+      "expression": "window.log.slice(window.k0).some((x) => x.startsWith('keydown:k')) ? 'keydown' : 'no keydown'"
+    },
+    {
+      "type": "eval",
+      "id": "diag-live-row",
+      "target": "hover-probe.html?a",
+      "expression": "'moves=' + window.moves + ' m0=' + window.m0 + ' last=' + window.lastMove + ' samples=' + JSON.stringify(window.samples) + ' focus=' + document.hasFocus() + ' log=' + window.log.join(',')",
+      "note": "raw numbers for the report, no assertion"
+    },
+    {
+      "type": "capture",
+      "id": "shot-live-row",
+      "duration_ms": 400
+    },
+    {
+      "type": "click",
+      "x": 700,
+      "y": 420,
+      "note": "the click the user says fixes it"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "eval",
+      "id": "base-ctl-live-row",
+      "target": "hover-probe.html?a",
+      "expression": "(window.m0 = window.moves, 'base ' + window.m0)"
+    },
+    {
+      "type": "move",
+      "x": 640,
+      "y": 380
+    },
+    {
+      "type": "move",
+      "x": 660,
+      "y": 395
+    },
+    {
+      "type": "move",
+      "x": 680,
+      "y": 408
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 420
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "ctl-live-row",
+      "target": "hover-probe.html?a",
+      "expression": "'focus=' + document.hasFocus() + ' moves=' + (window.moves - window.m0 > 0 ? 'yes' : 'no') + ' hover=' + !!document.querySelector('button:hover')"
+    },
+    {
+      "type": "capture",
+      "id": "shot-live-row-after-click",
+      "duration_ms": 400
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "moves-startup",
+      "expected": "\"moved\"",
+      "desc": "startup: pointer moves reach the page before any click"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hover-startup",
+      "expected": "\"true\"",
+      "desc": "startup: the button matches :hover under the pointer"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bg-startup",
+      "expected": "\"rgb(255, 0, 0)\"",
+      "desc": "startup: the hover style paints"
+    },
+    {
+      "type": "eval_equals",
+      "id": "key-startup",
+      "expected": "\"keydown\"",
+      "desc": "startup: a letter key reaches the page"
+    },
+    {
+      "type": "eval_equals",
+      "id": "focus-cold-row",
+      "expected": "\"true/true\"",
+      "desc": "cold-row: the page has focus 100ms and 600ms after it showed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "moves-cold-row",
+      "expected": "\"moved\"",
+      "desc": "cold-row: pointer moves reach the page before any click"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hover-cold-row",
+      "expected": "\"true\"",
+      "desc": "cold-row: the button matches :hover under the pointer"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bg-cold-row",
+      "expected": "\"rgb(255, 0, 0)\"",
+      "desc": "cold-row: the hover style paints"
+    },
+    {
+      "type": "eval_equals",
+      "id": "key-cold-row",
+      "expected": "\"keydown\"",
+      "desc": "cold-row: a letter key reaches the page"
+    },
+    {
+      "type": "eval_equals",
+      "id": "focus-live-row",
+      "expected": "\"true/true\"",
+      "desc": "live-row: the page has focus 100ms and 600ms after it showed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "moves-live-row",
+      "expected": "\"moved\"",
+      "desc": "live-row: pointer moves reach the page before any click"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hover-live-row",
+      "expected": "\"true\"",
+      "desc": "live-row: the button matches :hover under the pointer"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bg-live-row",
+      "expected": "\"rgb(255, 0, 0)\"",
+      "desc": "live-row: the hover style paints"
+    },
+    {
+      "type": "eval_equals",
+      "id": "key-live-row",
+      "expected": "\"keydown\"",
+      "desc": "live-row: a letter key reaches the page"
+    },
+    {
+      "type": "eval_equals",
+      "id": "ctl-live-row",
+      "expected": "\"focus=true moves=yes hover=true\"",
+      "desc": "VACUITY GUARD live-row: after one click on the page, moves reach it and :hover matches"
+    }
+  ]
+}

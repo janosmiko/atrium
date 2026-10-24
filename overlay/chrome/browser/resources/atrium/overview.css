@@ -1,0 +1,471 @@
+/* Copyright 2026 The Atrium Authors
+ *
+ * Shapes come from the lab's .ovwrap/.ovrail (docs/lab/swipe-lab.html). */
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+#atrium-root.overviewroot {
+  height: 100%;
+}
+
+.ovwrap {
+  display: flex;
+  height: 100%;
+  font: 12px var(--sans, system-ui, -apple-system, sans-serif);
+  color: var(--fg, rgba(255, 255, 255, .90));
+  background: var(--bg, #1b232b);
+}
+
+.ovrail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 62px;
+  flex: none;
+  padding: 10px 0;
+  box-sizing: border-box;
+  border-right: 1px solid var(--fill, rgba(255, 255, 255, .10));
+}
+
+.ovbtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 52px;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 2px;
+  background: transparent;
+  color: inherit;
+  font: 9.5px var(--sans, system-ui, sans-serif);
+}
+
+.ovbtn:hover {
+  background: var(--fillhover, rgba(255, 255, 255, .10));
+}
+
+.ovbtn.on {
+  background: var(--fill, rgba(255, 255, 255, .14));
+}
+
+.ovbtn svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The column beside the icon rail: the section name above, its content below.
+   .ovpane keeps the scrolling, so its own height has to come from here. */
+.ovmain {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* One inset for the whole column. Each section used to set its own left
+     padding and most set none, so the chips, cards and rows all started
+     against the rail's border. */
+  padding-inline-start: 10px;
+  box-sizing: border-box;
+}
+
+.ovhead {
+  flex: none;
+  font: 600 14px var(--sans, system-ui, -apple-system, sans-serif);
+  padding: 0 4px 8px 0;
+}
+
+.ovpane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.ovplaceholder {
+  opacity: .55;
+  font-size: 12px;
+  padding: 18px 12px;
+  text-align: center;
+}
+
+/* Downloads section. .dlresults mirrors .ovlist's flex
+   layout so headers/tiles/rows keep the lab's spacing one level deeper -
+   search/chips stay put above them instead of rebuilding on every
+   keystroke. */
+.ovlist {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 4px 26px 0;
+}
+
+.dlresults {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ovgroup {
+  font: 600 10.5px var(--sans, system-ui, sans-serif);
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  opacity: .5;
+  padding: 10px 8px 4px;
+  flex-shrink: 0;
+}
+
+.ovempty {
+  opacity: .55;
+  font-size: 12px;
+  padding: 18px 12px;
+  text-align: center;
+  flex: 1;
+}
+
+.dltools {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 2px 0 8px;
+  flex-shrink: 0;
+}
+
+.dlsearch {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.dlsearch svg {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: .5;
+  pointer-events: none;
+}
+
+.dlsearch input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--fill, rgba(255, 255, 255, .10));
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 4px 10px 4px 27px;
+  font: 12px var(--sans, system-ui, sans-serif);
+  color: inherit;
+  outline: none;
+}
+
+.dlsearch input:focus {
+  border-color: var(--accent, #5B9DF9);
+}
+
+.dlsearch input::placeholder {
+  color: currentColor;
+  opacity: .45;
+}
+
+.dlfbar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 2px 0 10px;
+  flex-shrink: 0;
+}
+
+.dlfchip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--fill, rgba(255, 255, 255, .14));
+  border-radius: 999px;
+  padding: 3px 10px;
+  background: none;
+  color: inherit;
+  font: 11px var(--sans, system-ui, sans-serif);
+  opacity: .7;
+}
+
+.dlfchip:hover {
+  opacity: 1;
+}
+
+.dlfchip.on {
+  background: var(--fill, rgba(255, 255, 255, .12));
+  opacity: 1;
+}
+
+.dlfdot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.dltiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+  margin: 2px 0 8px;
+  flex-shrink: 0;
+}
+
+.dltile {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--fill, rgba(255, 255, 255, .08));
+  flex-shrink: 0;
+}
+
+.dltile .tprev {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 600 12px var(--mono, monospace);
+  color: rgba(255, 255, 255, .9);
+}
+
+.dltile .tname {
+  font-size: 10px;
+  padding: 4px 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: .75;
+}
+
+.dltile .tacts {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 4px;
+}
+
+.dltile .tacts button {
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 5px;
+  padding: 0;
+  font: 600 11px var(--sans, system-ui, sans-serif);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, .4);
+  color: #fff;
+  opacity: 0;
+}
+
+.dltile:hover .tacts button {
+  opacity: .85;
+}
+
+.dlrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 9px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  /* A long list otherwise styled, laid out and painted every row on each
+     frame of the Overview glide. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 46px;
+}
+
+.dlrow:hover {
+  background: var(--fill, rgba(255, 255, 255, .08));
+}
+
+.dlico {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 600 9px var(--mono, monospace);
+  color: #fff;
+  background: var(--fill, rgba(255, 255, 255, .18));
+}
+
+/* Unconstrained, an <img> lays out at its own bitmap size in this centred
+   flex tile rather than filling it - the same containment sidebar.css's
+   .fvimg needs. */
+.dlicoimg {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+.dlinfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.dln {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+
+.dlcap {
+  font-size: 10.5px;
+  opacity: .55;
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dlbar {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, .15);
+  margin: 4px 0 2px;
+  overflow: hidden;
+}
+
+.dlbar span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent, #5B9DF9);
+}
+
+.dlbar.indeterminate::after {
+  content: '';
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent, #5B9DF9);
+  animation: dlbar-indeterminate 1.4s ease-in-out infinite;
+}
+
+@keyframes dlbar-indeterminate {
+  0% { margin-left: -40%; }
+  100% { margin-left: 100%; }
+}
+
+.dlact {
+  opacity: .55;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: 12px var(--sans, system-ui, sans-serif);
+  border-radius: 6px;
+  padding: 3px 7px;
+  flex: none;
+}
+
+.dlact:hover {
+  opacity: 1;
+  background: var(--fillhover, rgba(255, 255, 255, .12));
+}
+
+/* Option turns remove into delete-from-disk - same 18x18 box both ways so
+   toggling Option never shifts the row's layout. */
+.dlact.dlrmb {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.shq {
+  font-size: 10.5px;
+  font-style: italic;
+  opacity: .5;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* the filter toggle that hides the space chips. Sits beside the
+   search field in .dltools, so it takes the same fill and radius the rest of
+   the pane's controls use rather than a shape of its own. */
+.dltbtn {
+  position: relative;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 7px;
+  background: var(--fill, rgba(255, 255, 255, .10));
+  color: inherit;
+  opacity: .7;
+}
+
+.dltbtn:hover,
+.dltbtn.on {
+  background: var(--fillhover, rgba(255, 255, 255, .17));
+  opacity: 1;
+}
+
+/* The active-filter dot. Only rendered while the bar is collapsed, which is the
+   one state where nothing else says a filter is on. */
+.dltbtn .factive {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent, #7FB3D5);
+}
+
+/* the Spaces section's cards. A grid rather than the row list
+   every other section uses - a space has no second line to caption, and the
+   lab makes the tint the point of the card, which a 30px row cannot carry. */
+.ovspaces {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  padding: 4px 2px;
+  align-content: start;
+}
+
+.ovcard {
+  min-height: 76px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: flex-end;
+  font-size: 13px;
+  font-weight: 600;
+  /* The tint carries the identity, so the label has to stay legible over every
+     hue the user can pick. */
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .45);
+  transition: transform .12s, box-shadow .12s;
+}
+
+.ovcard:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .35);
+}

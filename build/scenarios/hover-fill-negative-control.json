@@ -1,0 +1,143 @@
+{
+  "name": "hover-fill-negative-control",
+  "wip": true,
+  "description": "The negative half. Not a gate - a control, run by name when someone needs to know whether the hover assertions can fail at all. `wip: true` keeps it out of `all`, because two of its six assertions are SUPPOSED to be red and a permanently-red scenario in the suite is noise.\n\nWhat it is: header-hover with the hover taken out and nothing else changed. Same fixture, same startup space, same settles, same three captures, same four pixel assertions over the same regions at the same thresholds. The only difference is that all three `move` actions park the pointer in blank page content, so the sidebar is never hovered and no rowHover fill can render.\n\nHow to read it: the two theme_changed assertions must FAIL at delta 0.00, and the two region_stable guards must PASS. That split is the point. If a theme_changed passes here, its 8.81 in header-hover was not the fill - it was capture timing, an ambient repaint, or the cursor sprite - and every threshold derived from it is measuring noise. If a region_stable fails here, the frames are not comparable and the positive run's 0.00 guards were luck.\n\nWhat it does NOT show. The demonstration to run is deleting the --fillhover rule at sidebar.css:273, which is a WebUI resource baked into libchrome_dll.dylib - removing it needs a rebuild, and this lane may not rebuild or touch chrome/. So this control removes the HOVER rather than the RULE. It proves the assertions are sensitive to the fill being absent; it does not prove they would survive a build where the rule is gone but something else repaints the row. That leg stays unrun.\n\nCoverage: the two regions here are every region the three repaired hover gates measure. [16,181,120,16] at min_delta 2.0 is header-hover's pinned-header gate, the faintest fill in the sidebar. [16,256,120,20] at min_delta 3.0 is the folder-header gate, shared verbatim by header-narrow and folder-dwell-popover. So one run controls all three scenarios' positives.",
+  "fixture": "header-alignment.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "33333333-3333-3333-3333-333333333333",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "let the docked sidebar render at rest first - same as the scenario under control"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 600,
+      "note": "park the pointer in blank page content, exactly as header-hover does before its rest frame"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "rest",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "baseline, nothing hovered"
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 610,
+      "note": "THE REMOVAL: header-hover moves to 170,189 here and hovers the PINNED section header. This moves 10px inside blank page content instead, so the pointer travels and the frame advances but no row is ever under it. Moving rather than standing still keeps the only other difference - a pointer that never moves at all - out of the comparison"
+    },
+    {
+      "type": "settle",
+      "ms": 700,
+      "note": "the same wait the fill's .12s transition is given in the positive scenario"
+    },
+    {
+      "type": "capture",
+      "id": "no-hover-pinned",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "stands in for hover-pinned: same moment in the run, no fill"
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 620,
+      "note": "header-hover moves to 170,266 here and hovers the folder header. Again 10px of blank content instead"
+    },
+    {
+      "type": "settle",
+      "ms": 700
+    },
+    {
+      "type": "capture",
+      "id": "no-hover-group",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "stands in for hover-group: same moment in the run, no fill"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered, so a red below is a missing fill and not a missing window"
+    },
+    {
+      "type": "theme_changed",
+      "before": "rest",
+      "after": "no-hover-pinned",
+      "region": [
+        16,
+        181,
+        120,
+        16
+      ],
+      "min_delta": 2.0,
+      "desc": "EXPECTED RED: header-hover's pinned-header gate, verbatim. It reads 4.54 there and must read 0.00 here",
+      "note": "The weakest of the four thresholds in the repaired set, so the one most worth controlling. If this passes with no pointer on the row, 2.0 is under the noise floor and the gate is measuring something other than the .sechdrow fill."
+    },
+    {
+      "type": "region_stable",
+      "before": "rest",
+      "after": "no-hover-pinned",
+      "region": [
+        16,
+        256,
+        120,
+        20
+      ],
+      "max_delta": 1.0,
+      "desc": "EXPECTED GREEN: the folder header stays dark, same as in the positive run",
+      "note": "Kept so the control has a green in it. Two reds and two greens says the capture worked and only the fill-measuring half died; four reds would say the run itself was broken."
+    },
+    {
+      "type": "theme_changed",
+      "before": "rest",
+      "after": "no-hover-group",
+      "region": [
+        16,
+        256,
+        120,
+        20
+      ],
+      "min_delta": 3.0,
+      "desc": "EXPECTED RED: the folder-header gate, verbatim. It reads 8.81 in all three repaired scenarios and must read 0.00 here",
+      "note": "This exact region and threshold is also header-narrow's positive and folder-dwell-popover's only pixel assertion, so this one line controls three scenarios."
+    },
+    {
+      "type": "region_stable",
+      "before": "rest",
+      "after": "no-hover-group",
+      "region": [
+        16,
+        181,
+        120,
+        16
+      ],
+      "max_delta": 1.0,
+      "desc": "EXPECTED GREEN: the pinned header stays dark, the mirror of the guard above"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q actually quits - the app was alive throughout, so the reds above are about pixels and not about a dead process"
+    }
+  ]
+}

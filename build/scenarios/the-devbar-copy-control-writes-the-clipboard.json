@@ -1,0 +1,72 @@
+{
+  "name": "the-devbar-copy-control-writes-the-clipboard",
+  "description": "A click on the floating devbar's copy control reaches the window, which writes the clipboard and logs it. navigator.clipboard used to refuse the unfocused WebUI silently.",
+  "fixture": "icon-tint-none.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d"
+    },
+    {
+      "type": "eval_until",
+      "id": "url-pushed",
+      "target": "/devbar",
+      "expression": "document.querySelector('.dvurl').textContent",
+      "expected": "http://127.0.0.1:8000/icon-tint-white-one.html",
+      "timeout_ms": 8000,
+      "note": "THE CONTROL: the bar holds a url, so a copy has something to send."
+    },
+    {
+      "type": "eval_until",
+      "id": "copy-clicked",
+      "target": "/devbar",
+      "expression": "(document.querySelector('.dvcopy').click(), 'clicked')",
+      "expected": "clicked",
+      "timeout_ms": 5000
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: copied the url",
+      "timeout_ms": 5000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "url-pushed",
+      "expected": "http://127.0.0.1:8000/icon-tint-white-one.html",
+      "desc": "THE CONTROL: the bar carried the url."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: copied the url",
+      "label": "the-window-wrote-the-clipboard",
+      "desc": "The click reached the window's clipboard write."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

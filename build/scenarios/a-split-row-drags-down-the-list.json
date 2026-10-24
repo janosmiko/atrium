@@ -1,0 +1,164 @@
+{
+  "name": "a-split-row-drags-down-the-list",
+  "description": "A real cgevent drag of the collapsed split row below the row under it. The split row did not drag at all before. Now it moves like an ordinary row, and one sidebarRunMoved carries every pane, so the browser moves the members as one run.\n\nRows 0 and 1 are clicked live and split with the message the edge drop sends. The drag starts at the split row's centre and ends on the lower edge of the Example row. Screen coordinates are the sidebar's client rectangles plus the 30px the window sits below the screen top.",
+  "fixture": "split-row-three-tabs.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "wake-first",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 3) { return 'rows ' + rows.length; } rows[0].click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "wake-second",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 3) { return 'rows ' + rows.length; } rows[1].click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval_until",
+      "id": "layout",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; if (rows.length < 2) { return 'rows ' + rows.length; } return rows.slice(0, 2).map((r) => r.dataset.tabId ? 'live' : 'cold').join(','); })()",
+      "expected": "live,live",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "split-them",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; chrome.send('sidebarTabSplit', [rows[1].dataset.tabId, rows[0].dataset.tabId, 'right']); return 'sent'; })()"
+    },
+    {
+      "type": "eval_until",
+      "id": "split-first",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; return rows.map((r) => r.classList.contains('splitrow') ? 'split' : r.querySelector('.tl').textContent).join(','); })()",
+      "expected": "split,Example",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "eval",
+      "id": "spy",
+      "target": "/sidebar",
+      "expression": "(() => { const split = document.querySelector('.railpane:not(.ovrailpane) .splitrow'); window.__cs = []; const orig = chrome.send.bind(chrome); chrome.send = (name, args) => { if (/^sidebar(Tab|Run)/.test(name) && name !== 'sidebarTabDragMoved') { window.__cs.push(name); } return orig(name, args); }; return split && split.draggable ? 'spying' : 'not draggable'; })()"
+    },
+    {
+      "type": "eval",
+      "id": "split-point",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.railpane:not(.ovrailpane) .splitrow'); if (!r) { return 'none'; } const b = r.getBoundingClientRect(); return Math.round(b.left + b.width / 2) + ',' + Math.round(30 + b.top + b.height / 2); })()"
+    },
+    {
+      "type": "eval",
+      "id": "drop-point",
+      "target": "/sidebar",
+      "expression": "(() => { const r = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')][1]; if (!r) { return 'none'; } const b = r.getBoundingClientRect(); return Math.round(b.left + b.width / 2) + ',' + Math.round(30 + b.bottom - 3); })()",
+      "note": "The lower edge of the Example row, so the line goes below it."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "drag",
+      "from_eval": "split-point",
+      "steps": 40,
+      "to_eval": "drop-point"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "eval",
+      "id": "sends",
+      "target": "/sidebar",
+      "expression": "window.__cs.join(';')"
+    },
+    {
+      "type": "eval_until",
+      "id": "order",
+      "target": "/sidebar",
+      "expression": "(() => { const rows = [...document.querySelectorAll('.railpane:not(.ovrailpane) [data-dropzone=\"tabs\"] .tabrow')]; return rows.map((r) => r.classList.contains('splitrow') ? 'split' : r.querySelector('.tl').textContent).join(','); })()",
+      "expected": "Example,split",
+      "timeout_ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "panes",
+      "target": "/sidebar",
+      "expression": "[...document.querySelectorAll('.railpane:not(.ovrailpane) .splitrow .sseg .tl')].map((t) => t.textContent).sort().join(',')"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "one window, so the release did not tear a pane off"
+    },
+    {
+      "type": "eval_equals",
+      "id": "layout",
+      "expected": "live,live",
+      "desc": "both rows are live, so each carries a tab id"
+    },
+    {
+      "type": "eval_equals",
+      "id": "split-first",
+      "expected": "split,Example",
+      "desc": "the split row leads the list"
+    },
+    {
+      "type": "eval_equals",
+      "id": "spy",
+      "expected": "\"spying\"",
+      "desc": "the split row is draggable"
+    },
+    {
+      "type": "eval_equals",
+      "id": "sends",
+      "expected": "\"sidebarRunMoved\"",
+      "desc": "THE MEASUREMENT: exactly one run move, no tear-off and no split"
+    },
+    {
+      "type": "eval_equals",
+      "id": "order",
+      "expected": "Example,split",
+      "desc": "the split row now sits below Example"
+    },
+    {
+      "type": "eval_equals",
+      "id": "panes",
+      "expected": "\"Checkerboard,Panel Legibility Type\"",
+      "desc": "both panes moved with it"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

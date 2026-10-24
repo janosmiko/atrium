@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 11 Aug 2026 10:57:53 +0200
+Subject: [PATCH 062/154] chore: say what the command route and the save-page
+ path actually did
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Two blind spots a VM scenario cannot see past. The command route logged nothing
+about whether the core claimed a command, so "claimed and dropped here" and
+"fell through to the stock handler, which then did nothing" looked identical.
+SavePage opens a sheet, so nothing observable said the command arrived at all;
+the line is anchored to the tab id so a probe can tell which window's tab ran
+it.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/browser_commands.cc | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/chrome/browser/ui/browser_commands.cc b/chrome/browser/ui/browser_commands.cc
+index 83efe1922093d..1e5bff9fbf6fd 100644
+--- a/chrome/browser/ui/browser_commands.cc
++++ b/chrome/browser/ui/browser_commands.cc
+@@ -16,6 +16,7 @@
+ #include "base/command_line.h"
+ #include "base/feature_list.h"
+ #include "base/i18n/rtl.h"
++#include "base/logging.h"
+ #include "base/memory/scoped_refptr.h"
+ #include "base/metrics/field_trial_params.h"
+ #include "base/metrics/histogram_functions.h"
+@@ -64,6 +65,7 @@
+ #include "chrome/browser/ui/autofill/payments/offer_notification_bubble_controller_impl.h"
+ #include "chrome/browser/ui/autofill/payments/save_card_bubble_controller_impl.h"
+ #include "chrome/browser/ui/autofill/payments/virtual_card_enroll_bubble_controller_impl.h"
++#include "chrome/browser/ui/atrium/atrium_browser_controller.h"
+ #include "chrome/browser/ui/bookmarks/bookmark_bar_controller.h"
+ #include "chrome/browser/ui/bookmarks/bookmark_stats.h"
+ #include "chrome/browser/ui/bookmarks/bookmark_utils.h"
+@@ -2208,6 +2210,10 @@ void SavePage(BrowserWindowInterface* browser) {
+   WebContents* current_tab =
+       browser->GetTabStripModel()->GetActiveWebContents();
+   DCHECK(current_tab);
++  // The save panel is a sheet, so nothing observable says the
++  // command reached here. Anchored to the tab id so a probe can tell which
++  // window's tab it ran on.
++  VLOG(1) << "Atrium: tab " << atrium::TabId(current_tab) << " save page";
+   if (current_tab->GetContentsMimeType() == "application/pdf") {
+     base::RecordAction(UserMetricsAction("PDF.SavePage"));
+ #if BUILDFLAG(ENABLE_PDF)

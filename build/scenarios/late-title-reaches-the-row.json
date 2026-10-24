@@ -1,0 +1,108 @@
+{
+  "name": "late-title-reaches-the-row",
+  "description": "a row's persisted title catches up with the page its tab is showing.\n\nA tab is added to the strip before its page has a title, so OnTabAdded's atrium_core_open_tab call writes the row with an empty one. Nothing filled it in afterwards. The sidebar model reads titles off the ROW (sidebar.rs row()), and the live strip it is merged with carries only urls and ids - so re-pushing the surface redraws the same empty string however many times a title arrives. The fix calls atrium_core_note_tab_title from TabEventForwarder::TitleWasSet, which is where a title actually arrives.\n\nWHY A SCENARIO AND NOT ONLY A UNIT TEST. mutate::note_page_title is pinned by three tests in the crate and removing its write fails two of them by name. None of those tests can see whether the C++ side ever calls it: the write and the call are separate halves, and it was the missing CALL that made this bug, not a broken write.\n\nWHY THIS FIXTURE. The startup space, Elsewhere, holds exactly one tab, so the tab this scenario opens is inserted at the top, spaces[1].tabs[0], and the fixture cannot already hold the answer - its one tab is a different page. An EMPTY space does not work: measured on 2026-08-18, cmd+t opens the command bar and Return closes it again without navigating, because there is no tab for the bar to navigate. The run log carries 'command bar widget showing' and then 'command bar widget closing' with no url line between them.\n\nWHY A LOCAL PAGE. routing3-target.html is served from the harness's own http://127.0.0.1:8000, so the title under test is a fixed string this repo owns rather than whatever a remote site happens to send. A scenario should not gate on a page the VM may not reach.\n\nWHY THE FILE READ IS IN TEARDOWN. The row write goes through the core's dirty path and flushes on the app's own schedule, so a read while the app still runs can race it. teardown_assertions is evaluated after the app is gone, which is the harness's way of saying 'after the quit' out loud.",
+  "fixture": "space-cycle.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "a276b002-0000-0000-0000-000000000002",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the sidebar render and the startup tab commit"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 10000,
+      "note": "gate: the bar is up, so the typing below lands in it rather than on the page"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "type",
+      "text": "http://127.0.0.1:8000/routing3-target.html"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "return"
+    },
+    {
+      "type": "eval_until",
+      "id": "routed-page",
+      "target": "routing3-target.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/routing3-target.html",
+      "timeout_ms": 15000,
+      "note": "gate: the page committed, so a title has something to arrive for"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ title Routed Target",
+      "timeout_ms": 15000,
+      "note": "gate: TitleWasSet fired with the fixture's own title. Without this the assertions below would be measuring a page that never named itself"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the row write is a round trip through the core and out to the file"
+    },
+    {
+      "type": "capture",
+      "id": "row-with-title",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the sidebar row as the user sees it - the visual half of what a blank title cost"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-title-arrived",
+      "pattern": "Atrium: tab [0-9]+ title Routed Target",
+      "note": "the event the fix hangs off. A build without the fix passes this one too, which is why the file read below exists"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "note": "one browser window - the command bar is not a window of its own, and a second one would mean the URL opened somewhere this scenario is not reading"
+    }
+  ],
+  "teardown_assertions": [
+    {
+      "type": "file_contains",
+      "label": "the-row-carries-the-page-title",
+      "file": "spaces",
+      "path": "spaces.1.tabs.0.title",
+      "value": "Routed Target",
+      "note": "THE ASSERTION THAT SEPARATES THE FIX FROM A REPAINT. Before the fix this path held an empty string: the row was written at OnTabAdded, when the page had no title, and no later event wrote one. The fixture's one tab is a different page, so a match here cannot be the fixture's own value"
+    },
+    {
+      "type": "file_contains",
+      "label": "the-row-still-points-at-the-page",
+      "file": "spaces",
+      "path": "spaces.1.tabs.0.url",
+      "value": "http://127.0.0.1:8000/routing3-target.html",
+      "note": "the title write must not have disturbed the url the row was opened with - they are written by different calls and only the title one is new"
+    }
+  ]
+}

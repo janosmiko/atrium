@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Wed, 9 Sep 2026 09:26:54 +0200
+Subject: [PATCH 126/154] feat(peek): the card keeps a placeholder while its
+ page loads
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+An adopted popup dropped the loading placeholder the moment it was
+adopted, and since the off-site link change every target=_blank link
+takes that path, so the card was a see-through window over the dimmed
+page until the page painted. The placeholder now stays until the first
+paint, in the overlay paper with a throbber, and drops at once only
+for a blank popup or a navigation that never commits. The origin chip
+names the target host from the start and wears the overlay surface,
+ink, chip radius and hairline, with the danger ink for Not secure.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/browser.cc | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/chrome/browser/ui/browser.cc b/chrome/browser/ui/browser.cc
+index 4c47c74c49f96..29df7e61e460b 100644
+--- a/chrome/browser/ui/browser.cc
++++ b/chrome/browser/ui/browser.cc
+@@ -1753,7 +1753,8 @@ content::WebContents* Browser::AddNewContents(
+     content::WebContents* peeked = new_contents.get();
+     // A refused adopt hands the popup back, and it falls through to the stock
+     // path below still owned - never destroyed under the caller.
+-    new_contents = atrium::AdoptPopupAsPeek(this, std::move(new_contents));
++    new_contents =
++        atrium::AdoptPopupAsPeek(this, std::move(new_contents), target_url);
+     if (!new_contents) {
+       return peeked;
+     }

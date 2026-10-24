@@ -1,0 +1,87 @@
+{
+  "name": "row-menu-wears-the-space-tint",
+  "description": "the sidebar row menu's .ctxmenu wears .ov-card (sidebar.css), so its color reads the tint C++ pushes into the sidebar document (PushOverlayTheme) rather than a sidebar.css literal. Same open gesture and fixture as a-page-click-closes-the-sidebar-menu.json. two-tabs.spaces.json's startup space carries tint oceanBlue, which rust/atrium-core/src/tint.rs resolves to #0F2B46, so the expected triplet is 15 43 70.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: measure nothing until the restored tab has loaded"
+    },
+    {
+      "type": "settle",
+      "ms": 8000,
+      "note": "let both rows reach the sidebar and the snapshot settle"
+    },
+    {
+      "type": "activate",
+      "note": "Atrium frontmost, so a synthetic click lands on it"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "rightclick",
+      "x": 110,
+      "y": 297,
+      "note": "the first tab row - sidebar-row-click.json's own measured coordinate, reused from a sibling scenario"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the menu build"
+    },
+    {
+      "type": "eval",
+      "id": "menu-open",
+      "target": "/sidebar",
+      "expression": "(() => document.querySelector('.ctxmenu') ? 'menu open' : 'no menu')()",
+      "note": "gate: without an open menu the tint reading below proves nothing"
+    },
+    {
+      "type": "eval",
+      "id": "menu-tint",
+      "target": "/sidebar",
+      "expression": "getComputedStyle(document.querySelector('.ctxmenu')).getPropertyValue('--atrium-space-tint').trim()",
+      "note": "The push reaches the menu's own element, not just the sidebar root"
+    },
+    {
+      "type": "key",
+      "combo": "escape"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "menu-open",
+      "expected": "\"menu open\"",
+      "desc": "the right-click opened the row menu"
+    },
+    {
+      "type": "eval_equals",
+      "id": "menu-tint",
+      "expected": "\"15 43 70\"",
+      "desc": "the row menu carries the startup space's tint (oceanBlue #0F2B46), not a literal color"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

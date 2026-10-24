@@ -1,0 +1,335 @@
+{
+  "name": "second-theme-pick-repaints-the-sidebar",
+  "description": "proves the second-pick signature the diagnosis predicts, then covers three more checks in the same VM pass. AppearanceValuesDiffer used to compare the accent's space flag but never overlay_theme, so DetermineSettingsApplyChanges saw no difference between two named themes and skipped SetWindowAppearance. Fixing that gate exposed a second, deeper gap: ApplyWindowAppearance's accent-handling block assigned the new theme and called nothing, so PushOverlayTheme's nine-surface fan-out only ever ran from each surface's own one-shot ready handshake, never from a live edit - the gate fix alone left the symptom 100 percent present. Both are fixed: AppearanceValuesDiffer is now a defaulted WindowAppearance::operator==, and ApplyWindowAppearance calls PushAiPanelInk() at the end of its accent-handling block.\n\nThe gate: covered by the C++ unit test, AtriumSettingsApplyChangesTest.AThemeOnlyChangeStillFiresAppearance.\nEvery surface (not just the one that repaints): reads the command bar's tokens across the SAME two picks the sidebar is read across, not a fresh pick - opened once before either pick and never reopened, so CommandBarWidget::Show's own re-push on open cannot be mistaken for the live fan-out.\nSurvives a restart: relaunch (Cmd+Q, then Atrium again against the same staged settings.json, no restaging) and re-read the sidebar.\n\nThe settings window hosts the picker but was not one of PushAiPanelInk's nine surfaces, so it kept the brand default through both picks. settings-tokens/accent-after-{first,second}-pick read the settings document the same way the command bar is read, and the eval_changed between them is the deciding assertion for that gap.",
+  "fixture": "two-tabs.spaces.json",
+  "settings": "accent-theme-nord.settings.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000,
+      "note": "gate: the sidebar has rows before anything is read from it"
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "the fixture's own nord theme push runs after the document is up"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "tokens-baseline",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(r); const t = (n) => (s.getPropertyValue(n) || '').trim().toLowerCase(); return 'accent=' + t('--ov-accent') + ' paper=' + t('--ov-paper') + ' ink=' + t('--ov-ink') + ' classes=' + [...r.classList].filter((c) => c.startsWith('atrium-theme-')).join(','); })()",
+      "note": "must read the fixture's own nord values before any pick"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+t",
+      "note": "Setup: open the command bar ONCE, before either pick - CommandBarWidget::Show re-pushes the theme on every open, so opening it again after a pick would test Show()'s own catch-up instead of the live fan-out"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: command bar widget showing",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "commandbar-tokens-baseline",
+      "target": "/commandbar",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(r); const t = (n) => (s.getPropertyValue(n) || '').trim().toLowerCase(); return 'accent=' + t('--ov-accent') + ' paper=' + t('--ov-paper') + ' ink=' + t('--ov-ink') + ' classes=' + [...r.classList].filter((c) => c.startsWith('atrium-theme-')).join(','); })()",
+      "note": "sanity: the command bar's own one-shot open-time push already carries nord"
+    },
+    {
+      "type": "key",
+      "combo": "escape",
+      "note": "hides the card - CommandBarWidget only resets on the whole window's teardown, not on hide, so it stays alive (and reachable by PushAiPanelInk's fan-out) for the rest of the run without ever being reopened"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "open the settings window on General"
+    },
+    {
+      "type": "settle",
+      "ms": 7000,
+      "note": "the window builds, the route loads, and the core's values land a beat after the labels"
+    },
+    {
+      "type": "activate",
+      "note": "re-assert Atrium frontmost before the rail click, a sibling scenario's fix"
+    },
+    {
+      "type": "eval",
+      "id": "appearance-pane",
+      "target": "settings",
+      "expression": "(() => { const b = document.querySelector('.settings-rail-item[data-pane=\"appearance\"]'); if (!b) return 'no-pane'; b.click(); return 'clicked'; })()",
+      "note": "the Appearance rail item, dispatched on the element rather than clicked at a point (a sibling scenario's technique)"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "pick-crimson",
+      "target": "settings",
+      "expression": "(() => { const sel = document.querySelector('.settings-row[data-key=\"overlayAccent\"] select'); if (!sel) return 'no-select'; sel.value = 'crimson'; sel.dispatchEvent(new Event('change', {bubbles: true})); return 'picked:' + sel.value; })()",
+      "note": "FIRST pick - a fresh AtriumSettingsWindow has no previous snapshot, so this always applies, gate bug or no gate bug"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings written",
+      "timeout_ms": 6000,
+      "note": "fail loudly here, not at the final assertion, if the eval above missed the select"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "round-trip margin for the write -> apply -> PushOverlayTheme chain"
+    },
+    {
+      "type": "eval",
+      "id": "tokens-after-first-pick",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(r); const t = (n) => (s.getPropertyValue(n) || '').trim().toLowerCase(); return 'accent=' + t('--ov-accent') + ' paper=' + t('--ov-paper') + ' ink=' + t('--ov-ink') + ' classes=' + [...r.classList].filter((c) => c.startsWith('atrium-theme-')).join(','); })()"
+    },
+    {
+      "type": "eval",
+      "id": "accent-after-first-pick",
+      "target": "/sidebar",
+      "expression": "String((getComputedStyle(document.documentElement).getPropertyValue('--ov-accent') || '').trim().toLowerCase() === '#b03a48')"
+    },
+    {
+      "type": "eval",
+      "id": "commandbar-tokens-after-first-pick",
+      "target": "/commandbar",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(r); const t = (n) => (s.getPropertyValue(n) || '').trim().toLowerCase(); return 'accent=' + t('--ov-accent') + ' paper=' + t('--ov-paper') + ' ink=' + t('--ov-ink') + ' classes=' + [...r.classList].filter((c) => c.startsWith('atrium-theme-')).join(','); })()",
+      "note": "Read #1: the command bar was never reopened - this can only be the live fan-out"
+    },
+    {
+      "type": "eval",
+      "id": "commandbar-accent-after-first-pick",
+      "target": "/commandbar",
+      "expression": "String((getComputedStyle(document.documentElement).getPropertyValue('--ov-accent') || '').trim().toLowerCase() === '#b03a48')"
+    },
+    {
+      "type": "eval",
+      "id": "settings-tokens-after-first-pick",
+      "target": "settings",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(r); const t = (n) => (s.getPropertyValue(n) || '').trim().toLowerCase(); return 'accent=' + t('--ov-accent') + ' paper=' + t('--ov-paper') + ' ink=' + t('--ov-ink') + ' classes=' + [...r.classList].filter((c) => c.startsWith('atrium-theme-')).join(','); })()",
+      "note": "the window hosting the picker reads its own document, not one of the surfaces PushAiPanelInk already fanned out to"
+    },
+    {
+      "type": "eval",
+      "id": "settings-accent-after-first-pick",
+      "target": "settings",
+      "expression": "String((getComputedStyle(document.documentElement).getPropertyValue('--ov-accent') || '').trim().toLowerCase() === '#b03a48')"
+    },
+    {
+      "type": "capture",
+      "id": "sidebar-after-first-pick",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "kept as evidence, not as a measurement (opaque-surround.json's own rationale) - the Settings window at pos(82,37) size 860x652 occludes the only sidebar column a 1024-wide screen leaves exposed, so no pixel assertion over this frame can hold"
+    },
+    {
+      "type": "eval",
+      "id": "pick-dracula",
+      "target": "settings",
+      "expression": "(() => { const sel = document.querySelector('.settings-row[data-key=\"overlayAccent\"] select'); if (!sel) return 'no-select'; sel.value = 'dracula'; sel.dispatchEvent(new Event('change', {bubbles: true})); return 'picked:' + sel.value; })()",
+      "note": "SECOND pick, in the SAME open settings window - the exact case AppearanceValuesDiffer got wrong: only overlay_theme moved between the two picks"
+    },
+    {
+      "type": "settle",
+      "ms": 4500,
+      "note": "same round-trip margin as the first pick; wait_vlog for the same pattern would trivially re-match the first write, so this settle stands in for it and vlog_count below checks the count instead"
+    },
+    {
+      "type": "eval",
+      "id": "tokens-after-second-pick",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(r); const t = (n) => (s.getPropertyValue(n) || '').trim().toLowerCase(); return 'accent=' + t('--ov-accent') + ' paper=' + t('--ov-paper') + ' ink=' + t('--ov-ink') + ' classes=' + [...r.classList].filter((c) => c.startsWith('atrium-theme-')).join(','); })()",
+      "note": "THE DECIDING SIDEBAR READ: under the gate bug alone this stays identical to tokens-after-first-pick; both fixes together, it reads dracula's own values"
+    },
+    {
+      "type": "eval",
+      "id": "accent-after-second-pick",
+      "target": "/sidebar",
+      "expression": "String((getComputedStyle(document.documentElement).getPropertyValue('--ov-accent') || '').trim().toLowerCase() === '#bd93f9')"
+    },
+    {
+      "type": "eval",
+      "id": "commandbar-tokens-after-second-pick",
+      "target": "/commandbar",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(r); const t = (n) => (s.getPropertyValue(n) || '').trim().toLowerCase(); return 'accent=' + t('--ov-accent') + ' paper=' + t('--ov-paper') + ' ink=' + t('--ov-ink') + ' classes=' + [...r.classList].filter((c) => c.startsWith('atrium-theme-')).join(','); })()",
+      "note": "Read #2: THE DECIDING command-bar read, still without ever reopening it"
+    },
+    {
+      "type": "eval",
+      "id": "commandbar-accent-after-second-pick",
+      "target": "/commandbar",
+      "expression": "String((getComputedStyle(document.documentElement).getPropertyValue('--ov-accent') || '').trim().toLowerCase() === '#bd93f9')"
+    },
+    {
+      "type": "eval",
+      "id": "settings-tokens-after-second-pick",
+      "target": "settings",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(r); const t = (n) => (s.getPropertyValue(n) || '').trim().toLowerCase(); return 'accent=' + t('--ov-accent') + ' paper=' + t('--ov-paper') + ' ink=' + t('--ov-ink') + ' classes=' + [...r.classList].filter((c) => c.startsWith('atrium-theme-')).join(','); })()",
+      "note": "THE DECIDING SETTINGS READ: the window hosting the picker did not wear either theme before the fix"
+    },
+    {
+      "type": "eval",
+      "id": "settings-accent-after-second-pick",
+      "target": "settings",
+      "expression": "String((getComputedStyle(document.documentElement).getPropertyValue('--ov-accent') || '').trim().toLowerCase() === '#bd93f9')"
+    },
+    {
+      "type": "capture",
+      "id": "sidebar-after-second-pick",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence only, same reason as sidebar-after-first-pick"
+    },
+    {
+      "type": "relaunch",
+      "note": "Cmd+Q then Atrium again against the SAME staged settings.json (now holding dracula), with nothing clicked - also exercises the startup path, which the diagnosis notes always applies regardless of either bug and so cannot by itself prove the fix"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "tokens-after-relaunch",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.documentElement; const s = getComputedStyle(r); const t = (n) => (s.getPropertyValue(n) || '').trim().toLowerCase(); return 'accent=' + t('--ov-accent') + ' paper=' + t('--ov-paper') + ' ink=' + t('--ov-ink') + ' classes=' + [...r.classList].filter((c) => c.startsWith('atrium-theme-')).join(','); })()"
+    },
+    {
+      "type": "eval",
+      "id": "accent-survived-the-restart",
+      "target": "/sidebar",
+      "expression": "String((getComputedStyle(document.documentElement).getPropertyValue('--ov-accent') || '').trim().toLowerCase() === '#bd93f9')"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "the browser window - the relaunch closed every other one and nothing reopens Settings"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pick-crimson",
+      "expected": "\"picked:crimson\"",
+      "desc": "the eval found the select and the value stuck"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pick-dracula",
+      "expected": "\"picked:dracula\"",
+      "desc": "the second eval found the same select and the value stuck"
+    },
+    {
+      "type": "eval_equals",
+      "id": "accent-after-first-pick",
+      "expected": "\"true\"",
+      "desc": "the first pick's own accent reached the sidebar - the write+apply chain in general is not broken"
+    },
+    {
+      "type": "eval_equals",
+      "id": "accent-after-second-pick",
+      "expected": "\"true\"",
+      "desc": "Gate fix: the second pick's accent reached the sidebar too, not just the first"
+    },
+    {
+      "type": "eval_changed",
+      "before": "tokens-after-first-pick",
+      "after": "tokens-after-second-pick",
+      "desc": "THE SIGNATURE: under the gate bug alone this is the assertion that fails - two different theme picks read back identically because AppearanceValuesDiffer never saw the second one move"
+    },
+    {
+      "type": "eval_equals",
+      "id": "commandbar-accent-after-first-pick",
+      "expected": "\"true\"",
+      "desc": "A SECOND surface, never reopened, carries the first pick's accent too"
+    },
+    {
+      "type": "eval_equals",
+      "id": "commandbar-accent-after-second-pick",
+      "expected": "\"true\"",
+      "desc": "And the second pick's, proving the live fan-out reaches more than the one surface that happened to be read before"
+    },
+    {
+      "type": "eval_equals",
+      "id": "settings-accent-after-first-pick",
+      "expected": "\"true\"",
+      "desc": "the settings window itself wears the theme it just picked, not only the surfaces PushAiPanelInk already served"
+    },
+    {
+      "type": "eval_equals",
+      "id": "settings-accent-after-second-pick",
+      "expected": "\"true\"",
+      "desc": "and the second pick's, in the same open settings window"
+    },
+    {
+      "type": "eval_changed",
+      "before": "settings-tokens-after-first-pick",
+      "after": "settings-tokens-after-second-pick",
+      "desc": "THE SETTINGS SIGNATURE: before the fix the settings document never moved off its startup default across either pick"
+    },
+    {
+      "type": "eval_changed",
+      "before": "commandbar-tokens-after-first-pick",
+      "after": "commandbar-tokens-after-second-pick",
+      "desc": "The command bar moved with the sidebar across the same two picks, independent measurement"
+    },
+    {
+      "type": "eval_equals",
+      "id": "accent-survived-the-restart",
+      "expected": "\"true\"",
+      "desc": "A relaunch against the same staged file resolves the same accent, with nothing clicked in between"
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: settings written",
+      "max": 15,
+      "min": 2,
+      "label": "every-pick-reached-disk",
+      "desc": "rules out candidate 1 (never written) live: crimson and dracula each produced a write"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly at the end of a run with two settings edits and one relaunch"
+    }
+  ]
+}

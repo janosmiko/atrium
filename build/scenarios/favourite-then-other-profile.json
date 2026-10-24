@@ -1,0 +1,113 @@
+{
+  "name": "favourite-then-other-profile",
+  "description": "The user's shape: space 1 (Default) has no rows and shows a Default favourite's page, space 2 (Default) is empty, space 3 (another profile) holds only cold pinned rows, most in collapsed folders. Switching 1 -> 2 -> 3 must never bring the favourite's page back into the pane. The page records its own visibility, so the read says whether the pane re-attached it.",
+  "fixture": "favourite-then-other-profile.spaces.json",
+  "startup_space": "12640001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "sidebar-up",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.fav').length > 0)",
+      "expected": "true",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "open-favourite",
+      "target": "/sidebar",
+      "expression": "(() => { chrome.send('sidebarFavoriteClicked', ['http://127.0.0.1:8000/long-page.html?reddit', '']); return 'sent'; })()"
+    },
+    {
+      "type": "eval_until",
+      "id": "space1-page-up",
+      "target": "long-page.html?reddit",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/long-page.html?reddit",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "watch-visibility",
+      "target": "long-page.html?reddit",
+      "expression": "(() => { window.__vis = [document.visibilityState]; document.addEventListener('visibilitychange', () => window.__vis.push(document.visibilityState)); return window.__vis.join(','); })()"
+    },
+    {
+      "type": "eval",
+      "id": "select-space-2",
+      "target": "/sidebar",
+      "expression": "(() => { chrome.send('sidebarSpaceSelected', [1]); return 'sent'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 0 -> 1",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "on-space-2",
+      "target": "long-page.html?reddit",
+      "expression": "document.visibilityState + ' ' + window.__vis.join(',')"
+    },
+    {
+      "type": "eval",
+      "id": "select-space-3",
+      "target": "/sidebar",
+      "expression": "(() => { chrome.send('sidebarSpaceSelected', [2]); return 'sent'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 1 -> 2",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 3500
+    },
+    {
+      "type": "eval",
+      "id": "on-space-3",
+      "target": "long-page.html?reddit",
+      "expression": "document.visibilityState + ' ' + window.__vis.join(',')"
+    },
+    {
+      "type": "capture",
+      "id": "space-3",
+      "duration_ms": 400,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "on-space-2",
+      "expected": "\"hidden visible,hidden\"",
+      "desc": "CONTROL: leaving for the empty space hides space 1's page"
+    },
+    {
+      "type": "eval_equals",
+      "id": "on-space-3",
+      "expected": "\"hidden visible,hidden\"",
+      "desc": "THE CLAIM: the other profile's space never re-shows space 1's page"
+    },
+    {
+      "type": "vlog",
+      "label": "switched-to-the-other-profile",
+      "pattern": "Atrium: active space 1 -> 2"
+    }
+  ]
+}

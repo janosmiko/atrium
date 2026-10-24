@@ -1,0 +1,20 @@
+<!doctype html>
+<meta charset="utf-8">
+<!-- Tall enough that a wheel really scrolls the page rather than hitting the
+     bottom on the first notch. The stripes give the content something visible
+     to move, so a scroll that did nothing does not read as a scroll that did. -->
+<title>Long Page</title>
+<style>
+  body { margin: 0; font: 16px/1.6 system-ui, sans-serif; color: #1B2228; }
+  .band { padding: 40px 24px; background: #EDF1F4; }
+  .stripes {
+    height: 6000px;
+    background: repeating-linear-gradient(
+      180deg, #DCE4EA 0 60px, #EDF1F4 60px 120px);
+  }
+</style>
+<body>
+<div class="band">Top of the long page</div>
+<div class="stripes"></div>
+<div class="band">Bottom of the long page</div>
+</body>

@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "rules": [
+    {"id": "RULE-1",
+     "sourceComponents": [{"componentType": {"urlMatch": {"_0": {"contains": {}}, "_1": "docs.example.test"}}}],
+     "destination": {"space": {"_0": {"space": {"_0": "SPACE-WORK"}}}}},
+    {"id": "RULE-2",
+     "sourceComponents": [{"componentType": {"urlMatch": {"_0": {"matches": {}}, "_1": "^https://mail\\.example\\.test/"}}}],
+     "destination": {"space": {"_0": {"mostRecent": {}}}}},
+    {"id": "RULE-3",
+     "sourceComponents": [{"componentType": {"urlMatch": {"_0": {"contains": {}}, "_1": "example.test/reports"}}}],
+     "destination": {"space": {"_0": {"space": {"_0": "SPACE-GONE"}}}}},
+    {"id": "RULE-4",
+     "sourceComponents": [{"componentType": {"urlMatch": {"_0": {"matches": {}}, "_1": "(["}}}],
+     "destination": {"space": {"_0": {"space": {"_0": "SPACE-HOME"}}}}}
+  ],
+  "defaultDestination": {"mostRecent": {}}
+}

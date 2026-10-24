@@ -1,0 +1,88 @@
+{
+  "name": "ambilight-reads-both-edges",
+  "description": "B2: the sampler reads the page's own pixels and comes back with edges that DISAGREE. The fixture is one page, half crimson and half blue, so a reader that averaged the whole frame or read a declared tag would resolve one colour and log 'uniform'. Nothing here declares a theme-color or ships a favicon, so before this phase the chrome had nothing at all to move toward.\n\nThis grades the sampler, not the glow. The painted result is Phase B's own scenario once the backoff in B3 settles the rate.",
+  "fixture": "ambilight.spaces.json",
+  "settings": "icon-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the page commit and paint, so there is a surface to copy"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "ambilight-split.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/ambilight-split.html",
+      "timeout_ms": 8000,
+      "note": "the split page committed, read from the page itself"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: ambilight cadence 125ms -> 500ms",
+      "timeout_ms": 20000,
+      "note": "eight still reads at 125ms"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: ambilight cadence 500ms -> 2000ms",
+      "timeout_ms": 20000,
+      "note": "eight more at 500ms. Waited on, not settled for: a line written under two seconds before Cmd+Q was missing from the log the assertions read."
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "startup-page",
+      "expected": "http://127.0.0.1:8000/ambilight-split.html",
+      "label": "the-page-really-loaded",
+      "desc": "THE CONTROL: the split page committed, so the sampler had something to read."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: ambilight edges .* varied",
+      "label": "the-edges-disagree",
+      "desc": "THE MEASUREMENT: the sampler resolved a tint whose edges differ. A reader that averaged the whole frame, or one still reading a declared tag, logs 'uniform' here - and this fixture declares no tag and ships no favicon, so it would have nothing to read at all."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: ambilight cadence 125ms -> 500ms",
+      "label": "a-still-page-backs-off",
+      "desc": "The fixture never moves, so the sampler drops off the top rung rather than reading the same pixels eight times a second forever. This is the only moment the rate is observable - a still page stops logging edges, which is the whole point."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: ambilight cadence 500ms -> 2000ms",
+      "label": "a-still-page-reaches-the-bottom-rung",
+      "desc": "Again, one rung further: the ladder keeps descending rather than resting at the middle. Without this a backoff that stepped exactly once would pass the assertion above."
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: ambilight edges",
+      "max": 4,
+      "min": 1,
+      "label": "a-still-page-repaints-almost-never",
+      "desc": "The chrome is repainted only when the colour moved. Nine seconds on a page that never changes is one resolve, plus whatever the first frames caught while the page was still painting in. A sampler that repainted per read would be in the dozens."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

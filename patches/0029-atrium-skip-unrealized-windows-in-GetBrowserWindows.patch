@@ -1,0 +1,86 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Fri, 7 Aug 2026 23:44:38 +0200
+Subject: [PATCH 029/154] atrium: skip unrealized windows in GetBrowserWindows
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Clicking the Dock icon terminated the app:
+
+  NSInvalidArgumentException, '*** -[__NSSetM addObject:]: object cannot be nil'
+    -[__NSSetM addObject:] <- GetBrowserWindows <- BrowserCollection::ForEach
+    <- applicationShouldHandleReopen:hasVisibleWindows:
+
+GetBrowserWindows inserted
+
+  browser_window_interface->GetWindow()->GetNativeWindow().GetNativeNSWindow()
+
+with nothing checked along the way. A browser whose native window is not
+realized yields nil, and NSMutableSet throws on it.
+
+The invariant is the one patch 0018 already wrote down for the presenter
+table: a collection entry does not imply a showable window. Closing a window
+destroys its NSWindow immediately while the owning teardown runs later, so in
+that interval the collection still names a browser whose window is gone. The
+crash trace has no Atrium frames because the defect is in this upstream
+helper; what Atrium changes is how often a browser exists without a realized
+window.
+
+Skipped rather than surfaced, matching patch 0018: an unrealized window is
+not user-facing, so leaving it out of the focus set is the right answer. The
+log names WHICH entry produced the nil, including whether GetWindow() itself
+was null, because a guard that only reports "one was nil" leaves the next
+occurrence as hard to diagnose as this one.
+
+Verified by build/scenarios/dock-reopen-window-counts.json, 3 passed /
+0 failed: four real Dock-reopen Apple Events across one and two windows,
+with liveness asserted before the quit. Not claimed: the original teardown
+race is not reproduced, and a healthy run has no nil to skip, so the run
+proves no crash rather than proving the guard fired.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/app_controller_mac.mm | 28 +++++++++++++++++++++++++---
+ 1 file changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/chrome/browser/app_controller_mac.mm b/chrome/browser/app_controller_mac.mm
+index 15662c668c8a3..90313ec7137c9 100644
+--- a/chrome/browser/app_controller_mac.mm
++++ b/chrome/browser/app_controller_mac.mm
+@@ -346,9 +346,31 @@ NSSet<NSWindow*>* GetBrowserWindows() {
+             BrowserWindowInterface::TYPE_APP) {
+           return true;
+         }
+-        [result addObject:browser_window_interface->GetWindow()
+-                              ->GetNativeWindow()
+-                              .GetNativeNSWindow()];
++        // Crash guard: a collection entry does not imply a realized
++        // window. Closing a window destroys its NSWindow immediately while
++        // the owning teardown runs later, so in that interval the collection
++        // still names a browser whose native window is already gone. Adding
++        // that nil to an NSMutableSet throws NSInvalidArgumentException and
++        // terminates the app, which is what a Dock click during teardown did.
++        // Same invariant patch 0018 documents for the presenter table.
++        //
++        // Skipped rather than surfaced: an unrealized window is not
++        // user-facing, so leaving it out of the focus set is the correct
++        // answer. The log names WHICH entry produced the nil, because a
++        // guard that only says "one was nil" leaves the next occurrence
++        // exactly as hard to diagnose as this one was.
++        ui::BaseWindow* const window = browser_window_interface->GetWindow();
++        NSWindow* const native_window =
++            window ? window->GetNativeWindow().GetNativeNSWindow() : nil;
++        if (!native_window) {
++          VLOG(1) << "Atrium: skipping browser with no realized window in "
++                     "GetBrowserWindows (type "
++                  << browser_window_interface->GetType()
++                  << ", BaseWindow " << (window ? "present" : "null")
++                  << ") - teardown in flight";
++          return true;
++        }
++        [result addObject:native_window];
+         return true;
+       });
+   return result;

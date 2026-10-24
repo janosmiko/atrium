@@ -1,0 +1,65 @@
+{
+  "name": "little-window-tab",
+  "description": "Regression probe. little-window-hotkey already proves the chord opens a SECOND WINDOW; it never checked what is inside it, and what was inside it was nothing - CreateLittleWindow collapsed an invalid seed GURL to an empty startup_url, which the ctor reads as CreateWindowSlot's deliberate Cmd+N 'zero tabs' convention rather than the about:blank/default-page fallback its own comment promised. This scenario asserts the TAB, not the window: a little window opened via Cmd+Opt+N must add a tab and commit a real page (kLittleWindowDefaultURL, https://example.com) in it. A window-count assertion alone cannot tell a tab-less window from a populated one - that gap is exactly what let that defect ship.",
+  "fixture": "two-tabs.spaces.json",
+  "seed_prefs": "search-default-google.prefs.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "key",
+      "combo": "cmd+opt+n",
+      "note": "The default binding for OpenLittleWindow."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab 2 added",
+      "timeout_ms": 10000,
+      "note": "gate: AddTab logs unconditionally (little_ only changes whether the tab enters the Swift space pipeline afterward) - so a tab-less little window, the exact defect, would time out here instead of producing a false pass downstream. Hardcoded to id 2, not '[0-9]+': the fixture's startup space restores exactly one tab (id 1) before the hotkey fires, so id 2 is deterministically the little window's own tab, never the startup window's."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab 2 url https?://[^ ]+",
+      "timeout_ms": 10000,
+      "note": "asserts a real http(s) scheme rather than a named host. What this scenario needs to prove is that a little window commits a REAL page and not about:blank - naming example.com adds nothing to that and tied the gate to a host the probe VM is not meant to reach. The url it commits is kLittleWindowDefaultURL, a constexpr in atrium_browser_controller.cc, so no fixture edit could have repointed it."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "desc": "one startup window plus the little one, same measurement little-window-hotkey uses"
+    },
+    {
+      "type": "vlog",
+      "label": "little-tab-added",
+      "pattern": "Atrium: tab 2 added",
+      "note": "restates the gate as a post-hoc assertion so a run that reaches quit without ever having added a tab is a reportable FAIL, not just a timed-out action"
+    },
+    {
+      "type": "vlog",
+      "label": "little-tab-committed",
+      "pattern": "Atrium: tab 2 url https?://[^ ]+",
+      "note": "asserts a real http(s) scheme rather than a named host. What this scenario needs to prove is that a little window commits a REAL page and not about:blank - naming example.com adds nothing to that and tied the gate to a host the probe VM is not meant to reach. The url it commits is kLittleWindowDefaultURL, a constexpr in atrium_browser_controller.cc, so no fixture edit could have repointed it."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits with a little window open"
+    }
+  ]
+}

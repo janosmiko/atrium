@@ -1,0 +1,37 @@
+{
+  "name": "a-crashed-chrome-renderer-leaves-the-palette-see-through",
+  "description": "A chrome renderer crash reloads every chrome surface in a new view. The palette card's rounded corners must still show the sidebar under them after the reload, not an opaque white rectangle. The browser test cannot read this: on Mac the view reports transparent as white.",
+  "fixture": "hotkey-rebind.spaces.json",
+  "hotkeys": "sidebar-rebind.hotkeys.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {"type": "wait_vlog", "pattern": "Atrium: tab [0-9]+ title Example Domain", "timeout_ms": 20000},
+    {"type": "settle", "ms": 4000},
+    {"type": "activate"},
+    {"type": "settle", "ms": 1000},
+    {"type": "key", "combo": "cmd+t"},
+    {"type": "wait_vlog", "pattern": "Atrium: command bar widget showing", "timeout_ms": 15000},
+    {"type": "settle", "ms": 2000},
+    {"type": "capture", "id": "palette-before", "duration_ms": 300, "fps": 20},
+    {"type": "key", "combo": "escape"},
+    {"type": "settle", "ms": 1000},
+    {"type": "crash_renderer", "target": "chrome"},
+    {"type": "settle", "ms": 6000},
+    {"type": "activate"},
+    {"type": "settle", "ms": 1000},
+    {"type": "key", "combo": "cmd+t"},
+    {"type": "settle", "ms": 3000},
+    {"type": "capture", "id": "palette-after", "duration_ms": 300, "fps": 20},
+    {"type": "key", "combo": "escape"},
+    {"type": "settle", "ms": 1000}
+  ],
+  "assertions": [
+    {"type": "vlog_after", "label": "the-chrome-renderer-reloaded", "pattern": "atrium: chrome renderer died \\(status=-?[0-9]+\\), reload 1/3", "after_pattern": "Atrium: command bar widget showing", "desc": "gate: the crash happened after the first open, and the observer reloaded"},
+    {"type": "vlog_after", "label": "the-palette-opened-after-the-reload", "pattern": "Atrium: command bar widget showing", "after_pattern": "atrium: chrome renderer died \\(status=-?[0-9]+\\), reload 1/3", "desc": "gate: the second capture shows a palette"},
+    {"type": "region_mean", "capture": "palette-before", "x": 191, "y": 393, "w": 5, "h": 6, "max_mean": 180, "label": "the-card-corner-shows-the-sidebar", "desc": "baseline: outside the card's rounded bottom-left corner the grey sidebar reads about 124"},
+    {"type": "region_mean", "capture": "palette-after", "x": 191, "y": 393, "w": 5, "h": 6, "max_mean": 180, "label": "the-card-corner-still-shows-the-sidebar-after-the-crash", "desc": "an opaque view after the reload fills the corner white, about 250"},
+    {"type": "quit", "desc": "Cmd+Q still quits cleanly"}
+  ]
+}

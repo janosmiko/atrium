@@ -1,0 +1,92 @@
+{
+  "name": "cmd-2-opens-the-second-favourite",
+  "description": "The second-favourite chord must open the SECOND favourite tile of the active space, the same way a click on it does, rather than Chromium's select-tab-N on the shared strip.\n\nTHE CHORD. It is Cmd+Opt+2, because the plain digits belong to the spaces. What this scenario measures is unchanged: a digit chord resolves a tile slot of the ACTIVE space's grid and opens a cold tile.\n\nThe fixture's grid is three tiles in a known order: Blue Favicon Site, Edit Focus, Redirecting Fav. Only the first has a live tab when the window opens, so the second is a cold tile and Cmd+2 has to reopen it - which is the harder half of the click's behaviour and the one a strip-tab binding could never produce. The reading is the sidebar DOM: which tile carries the selected class, by position in the grid. A control read before the key records that neither the second nor the third tile is selected, so the after state cannot be the fixture's own.\n\nThe log lines name the route: the chord reached the Atrium action rather than IDC_SELECT_TAB_1, the window resolved slot 2 to tile index 1, and the favourite path opened that URL.",
+  "fixture": "favourite-not-a-row.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "before",
+      "target": "/sidebar",
+      "expression": "(() => { const f = [...document.querySelectorAll('.fav')]; return 'tiles=' + f.length + ' second=' + f[1].classList.contains('sel') + ' third=' + f[2].classList.contains('sel'); })()",
+      "expected": "tiles=3 second=false third=false",
+      "timeout_ms": 8000,
+      "note": "THE CONTROL: three tiles, and neither the second nor the third is the active one. Both are cold at startup, so a pass here cannot be the fixture's own state showing through later."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+opt+2"
+    },
+    {
+      "type": "eval_until",
+      "id": "after",
+      "target": "/sidebar",
+      "expression": "(() => { const f = [...document.querySelectorAll('.fav')]; return 'tiles=' + f.length + ' second=' + f[1].classList.contains('sel') + ' third=' + f[2].classList.contains('sel'); })()",
+      "expected": "tiles=3 second=true third=false",
+      "timeout_ms": 15000,
+      "note": "The second tile is the selected one now. The grid still has three, so this is a selection moving rather than a redraw."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "before",
+      "expected": "tiles=3 second=false third=false",
+      "desc": "THE CONTROL: the second tile was not the active one before the key."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: hotkey goToSidebarItem2 fired",
+      "label": "the-chord-reached-the-map",
+      "desc": "Cmd+Opt+2 ran the Atrium action. Chromium's select-tab-2 leaves no such line."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: favourite slot 2 is tile 1",
+      "label": "the-window-resolved-the-slot",
+      "desc": "The digit named the second tile of the active space's grid."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: cold sidebar row opening http://127\\.0\\.0\\.1 \\(path len 22\\)",
+      "label": "the-second-favourite-opened",
+      "desc": "The second tile is cold, so the key had to reopen it - the same branch a click takes. The line carries the eTLD (both cold tiles share http://127.0.0.1) and the opened path's length instead of the URL; edit-focus-field.html is 22 characters and redirect-to-lab.html is 21, which is what tells this pair apart post-redaction."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "Atrium: cold sidebar row opening http://127\\.0\\.0\\.1 \\(path len 21\\)",
+      "label": "not-the-third-tile",
+      "desc": "Cmd+2 is the second tile and nothing else. The third is the other cold one (redirect-to-lab.html, path length 21), so it is what an off-by-one would open."
+    },
+    {
+      "type": "eval_equals",
+      "id": "after",
+      "expected": "tiles=3 second=true third=false",
+      "desc": "The sidebar draws the SECOND tile as the active one, and the third is untouched."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

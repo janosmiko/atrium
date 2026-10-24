@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "themes": {
+    "437a0001-0000-4000-8000-000000000001": {
+      "name": "Slate Gradient",
+      "stops": [
+        {
+          "x": 0.15,
+          "y": 0.15,
+          "color": "#6B7280",
+          "alpha": 1.0
+        },
+        {
+          "x": 0.85,
+          "y": 0.9,
+          "color": "#374151",
+          "alpha": 1.0
+        }
+      ],
+      "opacity": 1.0,
+      "effects": {
+        "grain": 0,
+        "vignette": 0,
+        "frost": 0,
+        "warmth": 0
+      },
+      "darkAdaptation": 0,
+      "version": 1,
+      "nightShiftEnabled": false,
+      "ambientEnabled": false
+    }
+  }
+}

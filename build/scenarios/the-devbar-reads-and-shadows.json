@@ -1,0 +1,114 @@
+{
+  "name": "the-devbar-reads-and-shadows",
+  "description": "Over a LIGHT page, where both faults live. A light bubble on a dark page is legible by its own brightness, so a sibling scenario's dark fixture cannot say whether the bar reads at all - here the page is white and the bar is nearly white, and only the plate, the hairline ring and the cast shadow separate them.\n\nWHERE THE PIXELS ARE. The bubble spans x=335..895, y=50..84 (560 wide, centred in the card, 10 below the card's top, same window geometry as a sibling scenario - sidebarWidth 280). The page under it is flat white down to y=160, where panel-legibility-type.html's big type starts.\n\nTHE ROOM MOVED. The bubble used to sit inside a padded widget with the shadow drawn into that same padding, so clientWidth minus the bar's width being 32 was proof the room existed. The widget's WebView is now sized to the bubble exactly - AppKit was hit-testing that padding and swallowing page clicks - so the shadow room is no longer inside this document at all: AtriumOverlayShadowLayer paints it in the PARENT window, over the page, from a rect and spec devbar.js pushes. clientWidth now equal to the bar's own width is the control that proves the room left the page; the two pixel readings below are what proves the shadow still reaches the screen.",
+  "fixture": "devbar-light-page.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d"
+    },
+    {
+      "type": "eval_until",
+      "id": "bubble-width",
+      "target": "/devbar",
+      "expression": "String(Math.round(document.querySelector('.devbar').getBoundingClientRect().width))",
+      "expected": "560",
+      "timeout_ms": 8000,
+      "note": "THE CONTROL: the bubble is up and still 560 wide, so the shadow room did not come out of the bar."
+    },
+    {
+      "type": "eval_until",
+      "id": "shadow-room",
+      "target": "/devbar",
+      "expression": "String(document.documentElement.clientWidth - Math.round(document.querySelector('.devbar').getBoundingClientRect().width))",
+      "expected": "0",
+      "timeout_ms": 5000,
+      "note": "The WebView is sized to the bubble exactly - no room for the shadow is reserved inside this document any more, it is reserved in the parent window instead."
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "capture",
+      "id": "bubble-light",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bubble-width",
+      "expected": "560",
+      "desc": "THE CONTROL: the bubble is up at its full width."
+    },
+    {
+      "type": "eval_equals",
+      "id": "shadow-room",
+      "expected": "0",
+      "desc": "The shadow's room is no longer inside this document - AtriumOverlayShadowLayer reserves it in the parent window instead."
+    },
+    {
+      "type": "region_mean",
+      "capture": "bubble-light",
+      "x": 560,
+      "y": 130,
+      "w": 40,
+      "h": 6,
+      "min_mean": 245,
+      "max_mean": 256,
+      "label": "the-page-is-white",
+      "desc": "THE CONTROL for both readings below: well clear of the bar, the page is its own flat white. Without this a dimmed window or a tinted card would satisfy them for the wrong reason."
+    },
+    {
+      "type": "region_mean",
+      "capture": "bubble-light",
+      "x": 560,
+      "y": 53,
+      "w": 40,
+      "h": 5,
+      "min_mean": 200,
+      "max_mean": 246,
+      "label": "the-bar-reads-against-a-white-page",
+      "desc": "The bar's plate, above its text, is a distinct grey rather than the page's white. The ceiling is the measurement - a bar that fades into a light page reads at the control's 253."
+    },
+    {
+      "type": "region_mean",
+      "capture": "bubble-light",
+      "x": 560,
+      "y": 85,
+      "w": 40,
+      "h": 6,
+      "min_mean": 120,
+      "max_mean": 235,
+      "label": "the-bar-shadows-the-page-below-it",
+      "desc": "The strip of web content just under the bubble is darkened by the bar's shadow, well below the control's white. The floor keeps it a shadow rather than a black band."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

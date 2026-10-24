@@ -1,0 +1,68 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Thu, 6 Aug 2026 17:42:02 +0200
+Subject: [PATCH 026/154] fix: make the guard name the profile it declined
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The guard stops the crash but leaves the cause unknown, and the cause is one
+fact away: which profile, and of what type.
+
+GetForProfile passes create=true, so null means the factory's ProfileSelections
+declined this profile TYPE - not that the service was merely missing. Only two
+types are unserved: a system profile (the factory declares no .WithSystem(),
+which defaults to kNone) and a guest's ORIGINAL profile (.WithGuest is
+kOffTheRecordOnly). Atrium's per-space profiles are neither - they come from
+ProfileManager::GetProfileByPath on user_data_dir subdirectories, which are
+regular - so the identity is exactly the missing piece.
+
+Both guards now log the profile's path and its otr/guest/system/regular flags.
+One reproduction turns "unknown" into "named", instead of a fourth theory.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../render_view_context_menu.cc               | 22 +++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+diff --git a/chrome/browser/renderer_context_menu/render_view_context_menu.cc b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+index d6e2c8870fb88..c65527f7da9b0 100644
+--- a/chrome/browser/renderer_context_menu/render_view_context_menu.cc
++++ b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+@@ -2892,6 +2892,21 @@ void RenderViewContextMenu::AppendSearchProvider() {
+   AutocompleteClassifier* const classifier =
+       AutocompleteClassifierFactory::GetForProfile(GetProfile());
+   if (!classifier) {
++    // GetForProfile passes create=true, so null means the factory's
++    // ProfileSelections declined this profile TYPE, not that the service was
++    // merely absent. Both unserved types are reachable in principle - a system
++    // profile (no .WithSystem(), which defaults to kNone) and a guest's
++    // original profile (.WithGuest(kOffTheRecordOnly)) - and Atrium's own
++    // per-space profiles are none of those, so the identity is the missing
++    // fact. Logged rather than guessed at: one reproduction names it.
++    Profile* const profile = GetProfile();
++    LOG(ERROR) << "Atrium: no AutocompleteClassifier for profile"
++               << " path=" << (profile ? profile->GetPath().BaseName().value()
++                                       : "<null profile>")
++               << " otr=" << (profile && profile->IsOffTheRecord())
++               << " guest=" << (profile && profile->IsGuestSession())
++               << " system=" << (profile && profile->IsSystemProfile())
++               << " regular=" << (profile && profile->IsRegularProfile());
+     return;
+   }
+ 
+@@ -2913,6 +2928,13 @@ void RenderViewContextMenu::AppendSearchProvider() {
+     TemplateURLService* const template_urls =
+         TemplateURLServiceFactory::GetForProfile(GetProfile());
+     if (!template_urls) {
++      Profile* const profile = GetProfile();
++      LOG(ERROR) << "Atrium: no TemplateURLService for profile"
++                 << " path=" << (profile ? profile->GetPath().BaseName().value()
++                                         : "<null profile>")
++                 << " otr=" << (profile && profile->IsOffTheRecord())
++                 << " guest=" << (profile && profile->IsGuestSession())
++                 << " system=" << (profile && profile->IsSystemProfile());
+       return;
+     }
+     const TemplateURL* const default_provider =

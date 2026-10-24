@@ -1,0 +1,70 @@
+{
+  "name": "floating-sidebar-survives-accessibility",
+  "description": "The floating sidebar keeps its renderer while accessibility is on.\n\nThe floating mode adds the .ovresize handle, a plain div with a title. The hint layer once copied that title into an aria-label, and Blink DCHECKs on a name over a role-less element in WebUI. The DCHECK fires only when accessibility is active, so the scenario forces it with a flag.",
+  "fixture": "canvas.spaces.json",
+  "serve_fixtures": true,
+  "app_process": "Atrium",
+  "chromium_flags": "--force-renderer-accessibility",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d",
+      "note": "docked -> floating, which adds the .ovresize handle"
+    },
+    {
+      "type": "eval_until",
+      "id": "handle-is-parked-and-unnamed",
+      "target": "/sidebar",
+      "expression": "(() => { const h = document.querySelector('.ovresize'); if (!h) { return 'no handle'; } return (h.dataset.hintTitle || 'unparked') + ' / ' + (h.getAttribute('aria-label') || 'no label'); })()",
+      "expected": "Drag to resize / no label",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the DCHECK fired on the next accessibility tree update"
+    },
+    {
+      "type": "eval_until",
+      "id": "rows-still-drawn",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.row').length > 0)",
+      "expected": "true",
+      "timeout_ms": 4000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "handle-is-parked-and-unnamed",
+      "expected": "Drag to resize / no label"
+    },
+    {
+      "type": "eval_equals",
+      "id": "rows-still-drawn",
+      "expected": "true"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "renderer-lives",
+      "pattern": "chrome renderer died"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-prohibited-name",
+      "pattern": "prohibited accessible name"
+    }
+  ]
+}

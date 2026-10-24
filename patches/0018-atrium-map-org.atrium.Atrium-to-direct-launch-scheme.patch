@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sat, 25 Jul 2026 20:17:13 +0200
+Subject: [PATCH 018/154] atrium: map org.atrium.Atrium to direct-launch scheme
+ 'atrium'
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ build/apple/tweak_info_plist.py | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/build/apple/tweak_info_plist.py b/build/apple/tweak_info_plist.py
+index e0bf689eeb8f7..51b7ea1768c92 100755
+--- a/build/apple/tweak_info_plist.py
++++ b/build/apple/tweak_info_plist.py
+@@ -276,6 +276,8 @@ def _SetDirectLaunchUrlScheme(plist, bundle_identifier):
+     # this scheme for non-stable channels during signing.
+   elif bundle_identifier == 'org.chromium.Chromium':
+     scheme = 'chromium'
++  elif bundle_identifier == 'org.atrium.Atrium':
++    scheme = 'atrium'
+ 
+   url_types = plist.get('CFBundleURLTypes')
+   if not url_types:

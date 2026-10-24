@@ -1,0 +1,96 @@
+{
+  "name": "spaces-do-not-leak-rows",
+  "description": "The user reported that scrolling through the spaces shows pages from one space inside another. Two static investigations found no code-level cause: each space gets its own railpane clipped by overflow hidden, the Rust snapshot builds every space's contents from that space's own vec, and the swipe machine holds no row data and only translates the whole rail. A pane-index against space-index hypothesis from the new Overview pane was tested and refuted. So this scenario exists to characterise what is actually on screen rather than to pin a known fix.\n\nThe fixture is the detector. Reading holds four rows with distinct titles and Writing holds exactly one, Second Space Row. Any Reading title appearing in Writing's pane is the leak, and the settled frames show it directly. Frames are captured at rest on each space and during the swipe between them, because a leak that only shows mid-animation and a leak that persists after the rail settles have different causes.",
+  "fixture": "lab-compare.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the window finish first paint and the sidebar announce itself"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "capture",
+      "id": "reading-at-rest",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "Reading before any gesture. Its four rows are the reference for what must NOT appear in Writing."
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 140,
+      "y": 300,
+      "dx": -90,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "swipe-to-writing",
+      "duration_ms": 400,
+      "fps": 25,
+      "note": "Forward to the next space. dx is negative because the wheel listener negates deltaX, so a rightward gesture goes back the way Safari and Arc do - the sign was measured in the earlier scenarios, not assumed."
+    },
+    {
+      "type": "settle",
+      "ms": 1800,
+      "note": "the swipe machine settles the pane before anything is read"
+    },
+    {
+      "type": "capture",
+      "id": "writing-at-rest",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "Writing settled. It must show Second Space Row and nothing from Reading."
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 140,
+      "y": 300,
+      "dx": 90,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "swipe-back-to-reading",
+      "duration_ms": 400,
+      "fps": 25,
+      "note": "Back the way it came. A leak that only appears on the return swipe would point at the outgoing pane rather than the incoming one."
+    },
+    {
+      "type": "settle",
+      "ms": 1800
+    },
+    {
+      "type": "capture",
+      "id": "reading-again",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "Reading after a round trip. Its own four rows must still be here, and Writing's row must not."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "Liveness only. It passes whether or not rows leak, so it is not evidence about this defect - the captured frames are. Recorded so a run that crashed mid-swipe is not mistaken for a clean one.",
+      "label": "the-window-survived-the-round-trip"
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "Atrium: sidebar render dropped",
+      "label": "no-render-was-dropped-mid-gesture",
+      "desc": "A rebuild deferred while a gesture is live is drained on settle. If a push were dropped outright instead, a pane would keep showing whatever it last rendered, which is one way stale rows from another space could persist. Absence here rules that mechanism out for this run."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly after the round trip"
+    }
+  ]
+}

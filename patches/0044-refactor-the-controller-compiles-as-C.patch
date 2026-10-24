@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 17:07:36 +0200
+Subject: [PATCH 044/154] refactor: the controller compiles as C++
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+ControllerForNSWindow was the last AppKit name in the header, and the only
+call the 3883-line controller made into an Objective-C returning method. It
+now takes gfx::NativeWindow - a plain C++ class on macOS wrapping the NSWindow
+- and compares against window()->GetNativeWindow() rather than
+GetNSWindowForAnimation(). The header names no AppKit type at all, so its
+__OBJC__ fork and the two NSWindow forward declarations are gone.
+
+Five call sites in the dispatcher delegate wrap the NSWindow the key event
+landed on. The peek widget stops unwrapping a gfx::NativeWindow it already
+held, which is one call shorter than before.
+
+The file is now .cc. Verified by the object file rebuilding and by the built
+libchrome_dll.dylib carrying the new log string and none of the old one.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 636e4df200e93..f4cfb99ca6b2d 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3503,7 +3503,7 @@ static_library("ui") {
+   if (is_mac) {
+     sources += [
+       "atrium/atrium_browser_controller.h",
+-      "atrium/atrium_browser_controller.mm",
++      "atrium/atrium_browser_controller.cc",
+       "atrium/atrium_browser_window.h",
+       "atrium/atrium_browser_window.mm",
+       "atrium/atrium_capture.h",

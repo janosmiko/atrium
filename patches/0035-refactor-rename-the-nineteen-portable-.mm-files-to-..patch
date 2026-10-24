@@ -1,0 +1,119 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 9 Aug 2026 06:19:43 +0200
+Subject: [PATCH 035/154] refactor: rename the nineteen portable .mm files to
+ .cc
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+None of these contains a single line of Objective-C - no #import, no @
+directive, no NS type. They were portable C++ wearing the wrong extension,
+which is what kept the atrium sources inside the is_mac block.
+
+Ten could have moved before H2; the other nine were waiting on the controller
+header, which an earlier change cleaned. The list was re-derived from the tree rather
+than taken from the task note, and it came back the same nineteen.
+
+Both BUILD.gn source lists move in this commit. 28 comment references to the
+old .mm paths are rewritten too, including each file's own first line - a
+comment naming a file that does not exist is a small lie that survives a long
+time.
+
+chrome and unit_tests build with zero errors and zero warnings.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../keep_alive/profile_keep_alive_types.h     |  2 +-
+ chrome/browser/ui/BUILD.gn                    | 26 +++++++++----------
+ 2 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/chrome/browser/profiles/keep_alive/profile_keep_alive_types.h b/chrome/browser/profiles/keep_alive/profile_keep_alive_types.h
+index 6d248ab845785..106999ef5f9ea 100644
+--- a/chrome/browser/profiles/keep_alive/profile_keep_alive_types.h
++++ b/chrome/browser/profiles/keep_alive/profile_keep_alive_types.h
+@@ -187,7 +187,7 @@ enum class ProfileKeepAliveOrigin {
+   // profile alive independent of whether it has a visible window, since
+   // macOS's kDestroyProfileOnBrowserClose only guarantees a profile stays
+   // alive while it has an open Browser (see
+-  // chrome/browser/ui/atrium/atrium_profile_bootstrap.mm and
++  // chrome/browser/ui/atrium/atrium_profile_bootstrap.cc and
+   // m2b-research.md Q4).
+   kAtriumSpace = 45,
+ 
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index a3e61152e8e3c..5528310e0cb87 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3469,9 +3469,9 @@ static_library("ui") {
+   if (is_mac) {
+     sources += [
+       "atrium/atrium_autocomplete_bridge.h",
+-      "atrium/atrium_autocomplete_bridge.mm",
++      "atrium/atrium_autocomplete_bridge.cc",
+       "atrium/atrium_autofill_bubble_handler.h",
+-      "atrium/atrium_autofill_bubble_handler.mm",
++      "atrium/atrium_autofill_bubble_handler.cc",
+       "atrium/atrium_bridge.h",
+       "atrium/atrium_browser_controller.h",
+       "atrium/atrium_browser_controller.mm",
+@@ -3480,37 +3480,37 @@ static_library("ui") {
+       "atrium/atrium_capture.cc",
+       "atrium/atrium_capture.h",
+       "atrium/atrium_capture_overlay_widget.h",
+-      "atrium/atrium_capture_overlay_widget.mm",
++      "atrium/atrium_capture_overlay_widget.cc",
+       "atrium/atrium_command_bar_open_reason.h",
+       "atrium/atrium_command_bar_widget.h",
+       "atrium/atrium_command_bar_widget.mm",
+       "atrium/atrium_chrome_contents_observer.h",
+-      "atrium/atrium_chrome_contents_observer.mm",
++      "atrium/atrium_chrome_contents_observer.cc",
+       "atrium/atrium_command_dispatcher_delegate.h",
+       "atrium/atrium_command_dispatcher_delegate.mm",
+       "atrium/atrium_dock_reopen_hook.h",
+-      "atrium/atrium_dock_reopen_hook.mm",
++      "atrium/atrium_dock_reopen_hook.cc",
+       "atrium/atrium_extension_bridge.h",
+-      "atrium/atrium_extension_bridge.mm",
++      "atrium/atrium_extension_bridge.cc",
+       "atrium/atrium_extension_pill_widget.h",
+       "atrium/atrium_extension_pill_widget.mm",
+       "atrium/atrium_extension_popup_host.h",
+-      "atrium/atrium_extension_popup_host.mm",
++      "atrium/atrium_extension_popup_host.cc",
+       "atrium/atrium_fedcm_anchor_hook.h",
+-      "atrium/atrium_fedcm_anchor_hook.mm",
++      "atrium/atrium_fedcm_anchor_hook.cc",
+       "atrium/atrium_link_copy_format.h",
+       "atrium/atrium_main_extra_parts.h",
+-      "atrium/atrium_main_extra_parts.mm",
++      "atrium/atrium_main_extra_parts.cc",
+       "atrium/atrium_native_hotkey_map.h",
+       "atrium/atrium_native_hotkey_map.mm",
+       "atrium/atrium_peek_intercept.h",
+-      "atrium/atrium_peek_intercept.mm",
++      "atrium/atrium_peek_intercept.cc",
+       "atrium/atrium_peek_navigation_throttle.cc",
+       "atrium/atrium_peek_navigation_throttle.h",
+       "atrium/atrium_peek_widget.h",
+       "atrium/atrium_peek_widget.mm",
+       "atrium/atrium_profile_bootstrap.h",
+-      "atrium/atrium_profile_bootstrap.mm",
++      "atrium/atrium_profile_bootstrap.cc",
+       "atrium/atrium_routing_navigation_throttle.cc",
+       "atrium/atrium_routing_navigation_throttle.h",
+       "atrium/atrium_settings_menu_hook.h",
+@@ -3518,9 +3518,9 @@ static_library("ui") {
+       "atrium/atrium_sidebar_overlay_widget.h",
+       "atrium/atrium_sidebar_overlay_widget.mm",
+       "atrium/atrium_status_bubble_hook.h",
+-      "atrium/atrium_status_bubble_hook.mm",
++      "atrium/atrium_status_bubble_hook.cc",
+       "atrium/atrium_traffic_routing.h",
+-      "atrium/atrium_traffic_routing.mm",
++      "atrium/atrium_traffic_routing.cc",
+       "atrium/atrium_ui_bridge.h",
+       "atrium/atrium_ui_bridge.mm",
+       "atrium/atrium_window_corner_radius.h",

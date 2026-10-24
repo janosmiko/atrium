@@ -1,0 +1,197 @@
+{
+  "name": "page-hover-works-before-the-first-click-after-an-open-url",
+  "description": "The control for page-hover-works-before-the-first-click: the same new tab and the same late commit, opened by another app's openURLs handover instead of the command bar. With external links off the link lands as a foreground tab in the open window. Moves that reach the page here and not there put the cause in the command bar, not in a new tab's commit.",
+  "fixture": "hover-probe.spaces.json",
+  "settings": "external-links-off.settings.json",
+  "startup_space": "48b00000-0000-4000-8000-000000000481",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup",
+      "target": "hover-probe.html?a",
+      "expression": "location.search",
+      "expected": "?a",
+      "timeout_ms": 20000,
+      "note": "gate: the app is up on the fixture tab"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "move",
+      "x": 640,
+      "y": 380,
+      "note": "the pointer already rests over the page when the new tab appears, as in the user's report"
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "open_url",
+      "url": "http://127.0.0.1:8000/hover-probe.html?url"
+    },
+    {
+      "type": "eval_until",
+      "id": "url-open",
+      "target": "hover-probe.html?url",
+      "expression": "location.search",
+      "expected": "?url",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "frontmost",
+      "id": "front-url",
+      "note": "which app and window macOS has as key, before any click on the page"
+    },
+    {
+      "type": "eval",
+      "id": "focus-url",
+      "target": "hover-probe.html?url",
+      "expression": "String(window.samples.load100) + '/' + String(window.samples.load600)",
+      "note": "document.hasFocus() 100ms and 600ms after the page loaded, sampled by the page itself"
+    },
+    {
+      "type": "eval",
+      "id": "base-url",
+      "target": "hover-probe.html?url",
+      "expression": "(window.m0 = window.moves, window.k0 = window.log.length, 'base ' + window.m0)"
+    },
+    {
+      "type": "move",
+      "x": 640,
+      "y": 380
+    },
+    {
+      "type": "move",
+      "x": 660,
+      "y": 395
+    },
+    {
+      "type": "move",
+      "x": 680,
+      "y": 408
+    },
+    {
+      "type": "move",
+      "x": 700,
+      "y": 420
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "moves-url",
+      "target": "hover-probe.html?url",
+      "expression": "window.moves - window.m0 > 0 ? 'moved' : 'no moves'"
+    },
+    {
+      "type": "eval",
+      "id": "hover-url",
+      "target": "hover-probe.html?url",
+      "expression": "String(!!document.querySelector('button:hover'))"
+    },
+    {
+      "type": "key",
+      "combo": "k"
+    },
+    {
+      "type": "settle",
+      "ms": 500
+    },
+    {
+      "type": "eval",
+      "id": "key-url",
+      "target": "hover-probe.html?url",
+      "expression": "window.log.slice(window.k0).some((x) => x.startsWith('keydown:k')) ? 'keydown' : 'no keydown'"
+    },
+    {
+      "type": "eval",
+      "id": "diag-url",
+      "target": "hover-probe.html?url",
+      "expression": "'moves=' + window.moves + ' m0=' + window.m0 + ' last=' + window.lastMove + ' samples=' + JSON.stringify(window.samples) + ' focus=' + document.hasFocus() + ' log=' + window.log.join(',')",
+      "note": "raw numbers for the report, no assertion"
+    },
+    {
+      "type": "eval",
+      "id": "base-cdp-url",
+      "target": "hover-probe.html?url",
+      "expression": "(window.m1 = window.moves, 'base ' + window.m1)"
+    },
+    {
+      "type": "cdp_move",
+      "target": "hover-probe.html?url",
+      "x": 300,
+      "y": 200
+    },
+    {
+      "type": "settle",
+      "ms": 300
+    },
+    {
+      "type": "eval",
+      "id": "cdp-moves-url",
+      "target": "hover-probe.html?url",
+      "expression": "window.moves - window.m1 > 0 ? 'moved' : 'no moves'"
+    },
+    {
+      "type": "capture",
+      "id": "shot-url",
+      "duration_ms": 400
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: the link landed in the open window, not a little one"
+    },
+    {
+      "type": "eval_equals",
+      "id": "focus-url",
+      "expected": "\"true/true\"",
+      "desc": "url: the page has focus 100ms and 600ms after it loaded"
+    },
+    {
+      "type": "eval_equals",
+      "id": "moves-url",
+      "expected": "\"moved\"",
+      "desc": "url: pointer moves reach the page before any click"
+    },
+    {
+      "type": "eval_equals",
+      "id": "hover-url",
+      "expected": "\"true\"",
+      "desc": "url: the button matches :hover under the pointer"
+    },
+    {
+      "type": "eval_equals",
+      "id": "key-url",
+      "expected": "\"keydown\"",
+      "desc": "url: a letter key reaches the page"
+    },
+    {
+      "type": "eval_equals",
+      "id": "cdp-moves-url",
+      "expected": "\"moved\"",
+      "desc": "url: a CDP mouseMoved reaches the page"
+    }
+  ]
+}

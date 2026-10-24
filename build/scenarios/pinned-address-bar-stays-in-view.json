@@ -1,0 +1,195 @@
+{
+  "name": "pinned-address-bar-stays-in-view",
+  "description": "the floating address bar carries a pin. The settings fixture stages addressBarPinned true, so the bar comes up pinned - that alone is the saved state being restored. Two downward wheels over CDP then leave its bounding box exactly where it was, where an unpinned bar slides away. Clicking the pin off puts the old behaviour back and writes false to settings.json. The wheel goes over CDP because a VM cgevent scroll never reaches the app as an NSEvent.",
+  "fixture": "long-page.spaces.json",
+  "settings": "address-bar-pinned.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d"
+    },
+    {
+      "type": "eval_until",
+      "id": "bar-up-and-pinned",
+      "target": "/devbar",
+      "expression": "(() => { const bar = document.querySelector('.devbar'); if (!bar) { return 'no bar'; } const pin = bar.querySelector('.dvpin'); if (!pin) { return 'no pin control'; } const away = bar.classList.contains('away'); const pressed = pin.getAttribute('aria-pressed'); return !away && pressed === 'true' ? 'up and pinned' : 'away ' + away + ' pressed ' + pressed; })()",
+      "expected": "up and pinned",
+      "timeout_ms": 10000,
+      "note": "The bar draws a pin, and it came up pressed because the staged settings file said so. Nothing has clicked it."
+    },
+    {
+      "type": "eval",
+      "id": "recorded-the-resting-place",
+      "target": "/devbar",
+      "expression": "(() => { const top = document.querySelector('.devbar').getBoundingClientRect().top; window.__t729Top = top; return Number.isFinite(top) ? 'recorded' : 'no box: ' + top; })()",
+      "note": "THE BASELINE every later reading is compared against, kept on the devbar page itself so no assertion has to hardcode the bubble's offset."
+    },
+    {
+      "type": "cdp_wheel",
+      "target": "long-page.html",
+      "x": 600,
+      "y": 400,
+      "dy": 240,
+      "steps": 6,
+      "note": "a downward wheel into the page over CDP, DOM sign: positive scrolls down. Far past the 12px dead zone that moves an unpinned bar."
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "eval_until",
+      "id": "pinned-holds-its-place",
+      "target": "/devbar",
+      "expression": "(() => { const bar = document.querySelector('.devbar'); const top = bar.getBoundingClientRect().top; if (bar.classList.contains('away')) { return 'the bar slid away'; } return top === window.__t729Top ? 'same place' : 'moved ' + (top - window.__t729Top) + 'px'; })()",
+      "expected": "same place",
+      "timeout_ms": 6000,
+      "note": "The away state latches until an upward scroll, so a bar that had slid could not come back here on its own - this cannot pass by polling."
+    },
+    {
+      "type": "cdp_wheel",
+      "target": "long-page.html",
+      "x": 600,
+      "y": 400,
+      "dy": 240,
+      "steps": 6,
+      "note": "a second helping down the page: one wheel that happened to land short of the dead zone would say nothing."
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "eval_until",
+      "id": "pinned-still-holds-its-place",
+      "target": "/devbar",
+      "expression": "(() => { const bar = document.querySelector('.devbar'); const top = bar.getBoundingClientRect().top; if (bar.classList.contains('away')) { return 'the bar slid away'; } return top === window.__t729Top ? 'same place' : 'moved ' + (top - window.__t729Top) + 'px'; })()",
+      "expected": "same place",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "eval",
+      "id": "the-pin-came-off",
+      "target": "/devbar",
+      "expression": "(() => { const pin = document.querySelector('.dvpin'); pin.click(); return pin.getAttribute('aria-pressed') === 'false' ? 'off' : 'still ' + pin.getAttribute('aria-pressed'); })()",
+      "note": "the same control the user clicks, on the bar itself."
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "cdp_wheel",
+      "target": "long-page.html",
+      "x": 600,
+      "y": 400,
+      "dy": 240,
+      "steps": 6,
+      "note": "the identical wheel, now with the pin off."
+    },
+    {
+      "type": "eval_until",
+      "id": "unpinned-slides-away-again",
+      "target": "/devbar",
+      "expression": "(() => { const bar = document.querySelector('.devbar'); const top = bar.getBoundingClientRect().top; if (!bar.classList.contains('away')) { return 'the bar stayed'; } return top !== window.__t729Top ? 'moved off its place' : 'away but still at ' + top; })()",
+      "expected": "moved off its place",
+      "timeout_ms": 8000,
+      "note": "And THE CONTROL for every reading above it: the same probe, the same wheel, on the same page - it moves when nothing pins the bar, so a 'same place' result is the pin and not a blind measurement."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "bar-up-and-pinned",
+      "expected": "up and pinned",
+      "desc": "The bar shows a pin control and restored it pressed from settings.json."
+    },
+    {
+      "type": "eval_equals",
+      "id": "recorded-the-resting-place",
+      "expected": "\"recorded\"",
+      "desc": "the baseline box was readable, so the comparisons below mean something."
+    },
+    {
+      "type": "eval_equals",
+      "id": "pinned-holds-its-place",
+      "expected": "same place",
+      "desc": "A downward scroll left the pinned bar's bounding box untouched."
+    },
+    {
+      "type": "eval_equals",
+      "id": "pinned-still-holds-its-place",
+      "expected": "same place",
+      "desc": "And a second one."
+    },
+    {
+      "type": "eval_equals",
+      "id": "the-pin-came-off",
+      "expected": "\"off\"",
+      "desc": "the pin control toggles from the bar."
+    },
+    {
+      "type": "eval_equals",
+      "id": "unpinned-slides-away-again",
+      "expected": "moved off its place",
+      "desc": "With the pin off the bar behaves as an unpinned bar does."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: devbar pinned",
+      "label": "the-window-pushed-the-saved-pin",
+      "desc": "The browser read the pin out of settings.json and handed it to the bar."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: devbar unpinned",
+      "label": "the-window-took-the-pin-off",
+      "desc": "the click reached the window, not only the page."
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: devbar away",
+      "max": 1,
+      "label": "only-the-unpinned-wheel-moved-the-bar",
+      "desc": "The strict way: three identical wheels ran, and only the one after the pin came off slid the bar. Two pinned wheels produced no move at all."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: devbar pin written",
+      "label": "the-flip-reached-the-settings-file",
+      "desc": "The toggle is a settings write, not session state."
+    },
+    {
+      "type": "file_contains",
+      "file": "settings",
+      "path": "addressBarPinned",
+      "value": false,
+      "label": "the-pin-changed-the-bytes-on-disk",
+      "desc": "THE ASSERTION THAT SEPARATES PERSISTENCE FROM REPAINT. The fixture stages true, so a false here can only be the click this scenario made travelling through the core's writer."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

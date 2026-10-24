@@ -1,0 +1,140 @@
+{
+  "name": "favourites-grid-caps-at-four",
+  "description": "Rework, cap raised from 3 to 4. The favourites grid used to size its columns off a fixed repeat(3, ...), so it also showed 3 columns at the narrow default width where a tile has no room to be readable. It is now repeat(auto-fill, minmax(max(45px, calc((100% - 24px) / 4)), 1fr)): the /4 term caps the row at 4 columns however wide the sidebar gets, and the 45px floor puts the step from 3 to 4 columns under the 220 default, so the default shows four and only the 160px minimum shows two. The fixture stages 5 favourites and appState.sidebarWidth 520 - above kMaxSidebarWidth (500), so the first read also proves the out-of-range value clamps rather than reaching the page unclamped.\n\nTHE READS ARE LAYOUT, NOT A CAPTURE, for the same reason overview-widens-the-sidebar reads clientWidth instead of a frame: offsetTop/offsetLeft name the column count itself rather than a picture that a reviewer would still have to count tiles in. Grouping tiles by their offsetTop rather than assuming a fixed row height keeps the read honest if the tile height ever changes.\n\nfirst-row-cols is the number of distinct offsetLeft values among tiles that share the smallest offsetTop - the columns actually occupied in the top row. row-count is the number of distinct offsetTop values across all 5 tiles. The scenario reads both at the fixture's clamped-wide width (500) and again after dragging the docked grip down to the 220 default, so the same 5 favourites prove the clamp and the /4 cap: 4 columns at both the clamped-wide width and the 220 default.",
+  "fixture": "favourites-grid-caps-at-three.spaces.json",
+  "startup_space": "77200001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "fav-count",
+      "target": "/sidebar",
+      "expression": "document.querySelectorAll('.favgrid .fav').length",
+      "expected": 5,
+      "timeout_ms": 8000,
+      "note": "VACUITY GUARD: all 5 fixture favourites actually rendered as tiles, so the column reads below are counting something real"
+    },
+    {
+      "type": "eval_until",
+      "id": "sidebar-width-wide",
+      "target": "/sidebar",
+      "expression": "document.querySelector('.sidebar').clientWidth",
+      "expected": 500,
+      "timeout_ms": 8000,
+      "note": "the fixture asks for 520, above kMaxSidebarWidth - this proves SetSidebarWidth's clamp landed before the column reads below run"
+    },
+    {
+      "type": "eval_until",
+      "id": "first-row-cols-wide",
+      "target": "/sidebar",
+      "expression": "(() => { const els = [...document.querySelectorAll('.favgrid .fav')]; const minTop = Math.min(...els.map(e => e.offsetTop)); const lefts = new Set(els.filter(e => e.offsetTop === minTop).map(e => e.offsetLeft)); return lefts.size; })()",
+      "expected": 4,
+      "timeout_ms": 8000,
+      "note": "Distinct left offsets among the tiles sharing the top row's offsetTop, at the clamped 500px width"
+    },
+    {
+      "type": "eval_until",
+      "id": "row-count-wide",
+      "target": "/sidebar",
+      "expression": "new Set([...document.querySelectorAll('.favgrid .fav')].map(e => e.offsetTop)).size",
+      "expected": 2,
+      "timeout_ms": 8000,
+      "note": "5 favourites over a 4-column grid wrap into 2 rows (4, then 1)"
+    },
+    {
+      "type": "drag",
+      "x1": 503,
+      "y1": 400,
+      "x2": 223,
+      "y2": 400,
+      "expect_width": 220,
+      "tolerance": 12,
+      "note": "the docked grip's band. Clamped to 500 above, so the grip spans 500-506 and its centre is 503. Dragging left to 223 asks for the 220 kDefaultSidebarWidth."
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "the commit lands and the page re-lays-out at the width it was pushed"
+    },
+    {
+      "type": "eval_until",
+      "id": "first-row-cols-narrow",
+      "target": "/sidebar",
+      "expression": "(() => { const els = [...document.querySelectorAll('.favgrid .fav')]; const minTop = Math.min(...els.map(e => e.offsetTop)); const lefts = new Set(els.filter(e => e.offsetTop === minTop).map(e => e.offsetLeft)); return lefts.size; })()",
+      "expected": 4,
+      "timeout_ms": 8000,
+      "note": "At the 220 default the row shows 4 columns, the 45px floor puts the 4th column under 220px"
+    },
+    {
+      "type": "eval_until",
+      "id": "row-count-narrow",
+      "target": "/sidebar",
+      "expression": "new Set([...document.querySelectorAll('.favgrid .fav')].map(e => e.offsetTop)).size",
+      "expected": 2,
+      "timeout_ms": 8000,
+      "note": "5 favourites over a 4-column grid wrap into 2 rows (4, then 1), same as the wide read"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "fav-count",
+      "expected": 5,
+      "desc": "VACUITY GUARD: the fixture's 5 favourites all reached the grid"
+    },
+    {
+      "type": "eval_equals",
+      "id": "sidebar-width-wide",
+      "expected": 500,
+      "desc": "the fixture's out-of-range 520 clamps to kMaxSidebarWidth (500)"
+    },
+    {
+      "type": "eval_equals",
+      "id": "first-row-cols-wide",
+      "expected": 4,
+      "desc": "4 columns at the clamped-wide 500px width, never more"
+    },
+    {
+      "type": "eval_equals",
+      "id": "row-count-wide",
+      "expected": 2,
+      "desc": "The 5th favourite wrapped onto a second row rather than growing the first"
+    },
+    {
+      "type": "eval_equals",
+      "id": "first-row-cols-narrow",
+      "expected": 4,
+      "desc": "4 columns at the 220 default width, the 45px floor puts the step under 220px"
+    },
+    {
+      "type": "eval_equals",
+      "id": "row-count-narrow",
+      "expected": 2,
+      "desc": "The same 5 favourites wrap into 2 rows, same as the wide read"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "checksum": "00000000000000000000000000000000",
+  "roots": {
+    "bookmark_bar": {
+      "children": [
+        {"date_added": "13411699200000000", "date_last_used": "0", "id": "5", "name": "Wiki", "type": "url", "url": "https://wiki.example.test/"}
+      ],
+      "date_added": "13411699200000000", "id": "1", "name": "Bookmarks bar", "type": "folder"
+    },
+    "other": {"children": [], "date_added": "13411699200000000", "id": "2", "name": "Other bookmarks", "type": "folder"},
+    "synced": {"children": [], "date_added": "13411699200000000", "id": "3", "name": "Mobile bookmarks", "type": "folder"}
+  },
+  "version": 1
+}

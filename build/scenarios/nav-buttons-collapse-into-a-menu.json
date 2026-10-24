@@ -1,0 +1,225 @@
+{
+  "name": "nav-buttons-collapse-into-a-menu",
+  "description": "the nav group sheds buttons from the left instead of being clipped once the sidebar cannot hold it, and an overflow button offers what it hid. The row is fixed to the sidebar's own edges, so .sbnav's clientWidth IS the budget - a ResizeObserver on it re-runs sidebar-nav-row.js visibleNavButtons() with no message round trip, which is why a drag here shows up in the DOM within the same layout. The widths: the toggle plus three 22px buttons and their 2px gaps need 94, and the 16px overflow button is deliberately narrower than the button it stands in for, so each rung of the ladder frees real room (94 for three, 88 for two, 64 for one). The fixture stages 260, which is 164 of budget - three buttons. Dragging to 170 leaves 74, which is one button plus the menu. The overflow click below is a REAL OS click (cgevent) at the button's on-screen position, so it crosses AtriumClientView::NonClientHitTest before the page sees it - atrium_nav_carve_decision.cc runs the same ladder off the same constants, and sidebar-nav-row-test.mjs reads them back out of the .cc to catch a drift.",
+  "fixture": "two-tabs.spaces.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the nav row announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "nav-wide",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.sbnav'); if (!row) { return 'no row'; } return ['sbback', 'sbfwd', 'sbreload', 'sbmore'].filter((n) => { const b = row.querySelector('.' + n); return b && !b.classList.contains('navgone'); }).join('|'); })()",
+      "note": "the control, at the fixture's own 260pt width: 164 of budget holds all three and needs no menu"
+    },
+    {
+      "type": "eval",
+      "id": "budget-wide",
+      "target": "/sidebar",
+      "expression": "String(document.querySelector('.sbnav').clientWidth)",
+      "note": "the row's own width, so a drag that did nothing is not read as a second width"
+    },
+    {
+      "type": "capture",
+      "id": "wide",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the row at the fixture's own width"
+    },
+    {
+      "type": "drag",
+      "x1": 263,
+      "y1": 400,
+      "x2": 173,
+      "y2": 400,
+      "note": "the docked grip's band. The fixture stages 260, so the grip spans 260-266 and its centre is 263. Dragging 90 points left asks for 170, which is the middle of the one-button rung (160 to 183) rather than its edge, so a drag that lands a few points off still reads the same."
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "the commit lands and the ResizeObserver re-runs the ladder"
+    },
+    {
+      "type": "eval",
+      "id": "budget-narrow",
+      "target": "/sidebar",
+      "expression": "String(document.querySelector('.sbnav').clientWidth)",
+      "note": "the same reading after the drag"
+    },
+    {
+      "type": "eval",
+      "id": "nav-narrow",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.sbnav'); if (!row) { return 'no row'; } return ['sbback', 'sbfwd', 'sbreload', 'sbmore'].filter((n) => { const b = row.querySelector('.' + n); return b && !b.classList.contains('navgone'); }).join('|'); })()",
+      "note": "THE MEASUREMENT: back and forward are gone, reload survives, and the overflow button has appeared"
+    },
+    {
+      "type": "eval",
+      "id": "flush-narrow",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.sbnav'); const more = row && row.querySelector('.sbmore'); if (!more) { return 'no menu button'; } return Math.round(row.getBoundingClientRect().right - more.getBoundingClientRect().right); })()",
+      "note": "the collapsed group still hugs the row's right edge, so nothing was clipped - the anchor moved with it"
+    },
+    {
+      "type": "capture",
+      "id": "narrow",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the collapsed row"
+    },
+    {
+      "type": "click",
+      "x": 152,
+      "y": 50,
+      "note": "THE MEASUREMENT: the overflow button's centre at the dragged-to width 170. x = 170 - kNavGroupRightInset(10) - half a 16px button(8) = 152. y = window top on screen(30) + .sbnav's top inset(9) + half the button height(11) = 50, click coordinates are screen-absolute. A real OS click, so it must clear NonClientHitTest's carve before the page ever sees it."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "menu-items",
+      "target": "/sidebar",
+      "expression": "(() => { const menu = document.querySelector('.sbnav .navmenu'); if (!menu) { return 'no menu'; } return menu.querySelectorAll('.ctxitem').length ? [...menu.querySelectorAll('.ctxitem')].map((b) => b.textContent).join('|') : 'empty'; })()",
+      "note": "the hidden actions under their plain labels, in the order they were shed"
+    },
+    {
+      "type": "click",
+      "x": 152,
+      "y": 50,
+      "note": "the same button again closes the menu. A second real click rather than Escape: the close path is under test in sidebar-nav-row-test.mjs, and this one keeps the keyboard focus question out of it."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "menu-closed",
+      "target": "/sidebar",
+      "expression": "document.querySelector('.sbnav .navmenu') ? 'open' : 'closed'"
+    },
+    {
+      "type": "move",
+      "x": 600,
+      "y": 400,
+      "note": "off the row, so the hover tint is not in the capture below"
+    },
+    {
+      "type": "drag",
+      "x1": 173,
+      "y1": 400,
+      "x2": 303,
+      "y2": 400,
+      "note": "the grip followed the pane to 170, so it now spans 170-176 and its centre is 173. Dragging 130 points right asks for 300."
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "budget-restored",
+      "target": "/sidebar",
+      "expression": "String(document.querySelector('.sbnav').clientWidth)"
+    },
+    {
+      "type": "eval",
+      "id": "nav-restored",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.sbnav'); if (!row) { return 'no row'; } return ['sbback', 'sbfwd', 'sbreload', 'sbmore'].filter((n) => { const b = row.querySelector('.' + n); return b && !b.classList.contains('navgone'); }).join('|'); })()",
+      "note": "THE MEASUREMENT: widening brings back forward then back, in that order, and takes the overflow button away with them"
+    },
+    {
+      "type": "eval",
+      "id": "anchor-restored",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.sbnav'); const first = row && row.querySelector('.nb.first'); if (!first) { return 'no anchor'; } return first.className.includes('sbback') ? 'sbback' : first.className; })()",
+      "note": "margin-left: auto is back on back, so the full group anchors the way it did before"
+    },
+    {
+      "type": "capture",
+      "id": "restored",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "nav-wide",
+      "expected": "\"sbback|sbfwd|sbreload\"",
+      "label": "the-full-group-needs-no-menu"
+    },
+    {
+      "type": "eval_changed",
+      "before": "budget-wide",
+      "after": "budget-narrow",
+      "label": "the-drag-actually-narrowed-the-row",
+      "note": "separates a drag that did nothing from one that moved the pane - the collapse below would otherwise be read off a width that never changed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "nav-narrow",
+      "expected": "\"sbreload|sbmore\"",
+      "label": "narrowing-sheds-back-then-forward-and-offers-a-menu",
+      "desc": "170 leaves 74 of budget: one 22px button plus the 16px overflow button and their gap is 64, two buttons plus it would need 88"
+    },
+    {
+      "type": "eval_equals",
+      "id": "flush-narrow",
+      "expected": "0",
+      "label": "the-collapsed-group-is-still-flush-with-the-row"
+    },
+    {
+      "type": "eval_equals",
+      "id": "menu-items",
+      "expected": "\"Back|Forward\"",
+      "label": "the-menu-lists-the-hidden-actions"
+    },
+    {
+      "type": "eval_equals",
+      "id": "menu-closed",
+      "expected": "\"closed\""
+    },
+    {
+      "type": "eval_changed",
+      "before": "budget-narrow",
+      "after": "budget-restored",
+      "label": "the-second-drag-actually-widened-the-row"
+    },
+    {
+      "type": "eval_equals",
+      "id": "nav-restored",
+      "expected": "\"sbback|sbfwd|sbreload\"",
+      "label": "widening-restores-the-buttons-and-removes-the-menu"
+    },
+    {
+      "type": "eval_equals",
+      "id": "anchor-restored",
+      "expected": "\"sbback\"",
+      "label": "the-group-anchor-comes-back-to-back"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

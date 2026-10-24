@@ -1,0 +1,79 @@
+{
+  "name": "glass-alpha-diagnostic",
+  "description": "settles whether --atrium-glass-alpha is genuinely pushed from C++ (atrium_browser_window.cc backdrop_glass_alpha_) and, if so, whether an inline-style override on documentElement actually sticks against it. Reads the custom property's own resolved value AND the resolved backgroundColor before and after an override, rather than inferring either from pixel means.",
+  "fixture": "panel-legibility.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {"type": "settle", "ms": 5000, "note": "first paint"},
+    {"type": "activate"},
+    {"type": "settle", "ms": 1500},
+    {
+      "type": "eval",
+      "id": "tab-opened",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.row'); if (!r) return 'no-row'; r.click(); return 'clicked'; })()"
+    },
+    {"type": "settle", "ms": 5000},
+    {
+      "type": "eval",
+      "id": "collapse-pressed",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbtoggle'); if (!b) return 'no-button'; b.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar toggle requested from the chrome row",
+      "timeout_ms": 8000
+    },
+    {"type": "settle", "ms": 3000, "note": "the collapse animation finishes"},
+    {"type": "move", "x": 300, "y": 400, "note": "park inside the page first"},
+    {"type": "settle", "ms": 600},
+    {"type": "move", "x": 20, "y": 400, "note": "cross into the 32pt arming strip from outside it"},
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "timeout_ms": 20000
+    },
+    {"type": "settle", "ms": 2000, "note": "the slide finishes"},
+    {
+      "type": "eval",
+      "id": "before-override",
+      "target": "/sidebar",
+      "expression": "(() => { const cs = getComputedStyle(document.documentElement); return JSON.stringify({glassAlphaProp: cs.getPropertyValue('--atrium-glass-alpha').trim(), floorProp: cs.getPropertyValue('--atrium-float-wash-floor').trim(), bg: cs.backgroundColor, inlineGlassAlpha: document.documentElement.style.getPropertyValue('--atrium-glass-alpha')}); })()"
+    },
+    {"type": "settle", "ms": 300},
+    {
+      "type": "eval",
+      "id": "apply-override",
+      "target": "/sidebar",
+      "expression": "(() => { document.documentElement.style.setProperty('--atrium-glass-alpha', '0'); document.documentElement.style.setProperty('--atrium-float-wash-floor', '0.05'); return 'set'; })()"
+    },
+    {"type": "settle", "ms": 300},
+    {
+      "type": "eval",
+      "id": "after-override-immediate",
+      "target": "/sidebar",
+      "expression": "(() => { const cs = getComputedStyle(document.documentElement); return JSON.stringify({glassAlphaProp: cs.getPropertyValue('--atrium-glass-alpha').trim(), floorProp: cs.getPropertyValue('--atrium-float-wash-floor').trim(), bg: cs.backgroundColor, inlineGlassAlpha: document.documentElement.style.getPropertyValue('--atrium-glass-alpha')}); })()"
+    },
+    {"type": "settle", "ms": 1500, "note": "in case a periodic C++ push re-applies the real value on a delay"},
+    {
+      "type": "eval",
+      "id": "after-override-delayed",
+      "target": "/sidebar",
+      "expression": "(() => { const cs = getComputedStyle(document.documentElement); return JSON.stringify({glassAlphaProp: cs.getPropertyValue('--atrium-glass-alpha').trim(), floorProp: cs.getPropertyValue('--atrium-float-wash-floor').trim(), bg: cs.backgroundColor, inlineGlassAlpha: document.documentElement.style.getPropertyValue('--atrium-glass-alpha')}); })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

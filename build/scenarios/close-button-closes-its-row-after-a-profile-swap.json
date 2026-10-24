@@ -1,0 +1,190 @@
+{
+  "name": "close-button-closes-its-row-after-a-profile-swap",
+  "description": "The window opens on Eventim (Second profile), so its own browser is Second's. Three Default spaces carry a row on the same URL: Personal's Claude row, and one row each in New Space and Other Space. Each of the two other spaces opens its row, then Personal is shown with its own Claude row still cold. The recording needed three clicks on the x: the first selected the row, the second deselected it, the third removed it. One click must remove the row and close no other space's tab. Rows are found by data-url, and the x click is a DOM event.",
+  "fixture": "close-button-after-a-profile-swap.spaces.json",
+  "startup_space": "22222222-2222-2222-2222-222222222222",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-committed",
+      "target": "example-domain.html",
+      "expression": "location.search",
+      "expected": "?eventim",
+      "timeout_ms": 20000,
+      "note": "gate: the window's own browser belongs to the Second profile"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 3 -> 2",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "wake-2",
+      "target": "/sidebar",
+      "expression": "(() => { const row = [...document.querySelectorAll('[data-dropzone=\"tabs\"] .tabrow')].find(r => { const p = r.closest('.railpane'); return (p ? p.dataset.spaceIndex === '2' : true) && (r.dataset.url || '').endsWith('?claude'); }); if (!row) { return 'no row'; } row.querySelector('.tl').dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window})); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "stash-2",
+      "target": "/sidebar",
+      "expression": "(() => { const row = [...document.querySelectorAll('[data-dropzone=\"tabs\"] .tabrow')].find(r => { const p = r.closest('.railpane'); return p && p.dataset.spaceIndex === '2' && (r.dataset.url || '').endsWith('?claude'); }); window.__closeTest = window.__closeTest || {}; window.__closeTest['2'] = row ? (row.dataset.tabId || 'none') : 'norow'; return window.__closeTest['2']; })()"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 2 -> 1",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "wake-1",
+      "target": "/sidebar",
+      "expression": "(() => { const row = [...document.querySelectorAll('[data-dropzone=\"tabs\"] .tabrow')].find(r => { const p = r.closest('.railpane'); return (p ? p.dataset.spaceIndex === '1' : true) && (r.dataset.url || '').endsWith('?claude'); }); if (!row) { return 'no row'; } row.querySelector('.tl').dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window})); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "stash-1",
+      "target": "/sidebar",
+      "expression": "(() => { const row = [...document.querySelectorAll('[data-dropzone=\"tabs\"] .tabrow')].find(r => { const p = r.closest('.railpane'); return p && p.dataset.spaceIndex === '1' && (r.dataset.url || '').endsWith('?claude'); }); window.__closeTest = window.__closeTest || {}; window.__closeTest['1'] = row ? (row.dataset.tabId || 'none') : 'norow'; return window.__closeTest['1']; })()"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 1 -> 0",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "personal-claude-before-x1",
+      "target": "/sidebar",
+      "expression": "(() => { const row = [...document.querySelectorAll('[data-dropzone=\"tabs\"] .tabrow')].find(r => { const p = r.closest('.railpane'); return (p ? p.dataset.spaceIndex === '0' : true) && (r.dataset.url || '').endsWith('?claude'); }); return row ? (row.dataset.tabId ? 'live' : (row.dataset.elsewhereTabId ? 'else' : 'cold')) : 'absent'; })()"
+    },
+    {
+      "type": "eval",
+      "id": "x-click-1",
+      "target": "/sidebar",
+      "expression": "(() => { const row = [...document.querySelectorAll('[data-dropzone=\"tabs\"] .tabrow')].find(r => { const p = r.closest('.railpane'); return (p ? p.dataset.spaceIndex === '0' : true) && (r.dataset.url || '').endsWith('?claude'); }); if (!row) { return 'no row'; } const x = row.querySelector('.x'); const ids = 'id=' + (row.dataset.tabId || '-') + ' else=' + (row.dataset.elsewhereTabId || '-'); x.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window})); return 'clicked ' + ids; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "claude-after-x1",
+      "target": "/sidebar",
+      "expression": "(() => { const row = [...document.querySelectorAll('[data-dropzone=\"tabs\"] .tabrow')].find(r => { const p = r.closest('.railpane'); return (p ? p.dataset.spaceIndex === '0' : true) && (r.dataset.url || '').endsWith('?claude'); }); return row ? 'present' : 'absent'; })()"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 0 -> 1",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "new-space-claude-after-x1",
+      "target": "/sidebar",
+      "expression": "(() => { const row = [...document.querySelectorAll('[data-dropzone=\"tabs\"] .tabrow')].find(r => { const p = r.closest('.railpane'); return p && p.dataset.spaceIndex === '1' && (r.dataset.url || '').endsWith('?claude'); }); const old = (window.__closeTest || {})['1']; const now = row ? (row.dataset.tabId || 'none') : 'norow'; return old === undefined ? 'nostash' : (old === now && now !== 'none' && now !== 'norow' ? 'same' : 'changed:' + old + '->' + now); })()"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: active space 1 -> 2",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "eval",
+      "id": "other-space-claude-after-x1",
+      "target": "/sidebar",
+      "expression": "(() => { const row = [...document.querySelectorAll('[data-dropzone=\"tabs\"] .tabrow')].find(r => { const p = r.closest('.railpane'); return p && p.dataset.spaceIndex === '2' && (r.dataset.url || '').endsWith('?claude'); }); const old = (window.__closeTest || {})['2']; const now = row ? (row.dataset.tabId || 'none') : 'norow'; return old === undefined ? 'nostash' : (old === now && now !== 'none' && now !== 'norow' ? 'same' : 'changed:' + old + '->' + now); })()"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "personal-claude-before-x1",
+      "expected": "\"cold\"",
+      "desc": "gate: Personal's Claude row is cold before the click"
+    },
+    {
+      "type": "eval_equals",
+      "id": "claude-after-x1",
+      "expected": "\"absent\"",
+      "desc": "THE MEASUREMENT: one click on the x removes Personal's Claude row"
+    },
+    {
+      "type": "eval_equals",
+      "id": "new-space-claude-after-x1",
+      "expected": "\"same\"",
+      "desc": "New Space's Claude row still carries the tab id it had before the click"
+    },
+    {
+      "type": "eval_equals",
+      "id": "other-space-claude-after-x1",
+      "expected": "\"same\"",
+      "desc": "Other Space's Claude row still carries the tab id it had before the click"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

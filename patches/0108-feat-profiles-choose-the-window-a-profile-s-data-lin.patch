@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 1 Sep 2026 12:01:05 +0200
+Subject: [PATCH 108/154] feat(profiles): choose the window a profile's data
+ link opens in
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The choice is a pure function over candidates in activation order, so it is a
+unit test with fakes rather than a browser: the first window on that profile
+that is realised and not little wins, and no match asks for a new one.
+
+Two of those conditions come from real failures. A tab added to a Browser with
+no native window aborts the process, and a little window is chromeless and
+single-tab, so a settings page has nowhere to go.
+
+The live scan and the new-window fallback are a thin adapter over it, left for
+the browsertest that lands with the routes.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index c3d3121b25cec..5803d5005a170 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3572,6 +3572,8 @@ static_library("ui") {
+     sources += [
+       "atrium/atrium_browser_controller.h",
+       "atrium/atrium_browser_controller.cc",
++      "atrium/atrium_browser_for_profile.h",
++      "atrium/atrium_browser_for_profile.cc",
+       "atrium/atrium_window_platform.h",
+       "atrium/atrium_window_platform_mac.mm",
+       "atrium/atrium_native_widget_mac.h",
+@@ -3678,6 +3680,7 @@ static_library("ui") {
+       "//chrome/browser/mac",
+       "//chrome/browser/renderer_host:delegate",
+       "//chrome/browser/ui/atrium:ai_backend_mac",
++      "//chrome/browser/ui/atrium:profile_window_decision",
+       "//chrome/browser/ui/cocoa",
+       "//chrome/browser/updater",
+       "//chrome/browser/web_applications/extensions",

@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Atrium chrome-layer resources.
+
+     Hand-written rather than build_webui: that template asserts
+     static_js_files == [] (ui/webui/resources/tools/build_webui.gni), so plain
+     JS cannot pass through it, and docs/lab/swipe-lab.html is plain JS.
+
+     resource_file_map_source (not resource_map_source) is what emits the third
+     ResourcePath field carrying the on-disk path, which is what
+     load_webui_from_disk reads at runtime. -->
+<grit latest_public_release="0" current_release="1">
+  <outputs>
+    <output filename="grit/atrium_resources.h" type="rc_header">
+      <emit emit_type='prepend'></emit>
+    </output>
+    <output filename="grit/atrium_resources_map.cc"
+      type="resource_file_map_source" />
+    <output filename="grit/atrium_resources_map.h" type="resource_map_header" />
+    <output filename="atrium_resources.pak" type="data_package" />
+  </outputs>
+  <release seq="1">
+    <includes>
+      <include name="IDR_ATRIUM_ATRIUM_HTML" file="atrium.html" type="BINDATA" />
+      <include name="IDR_ATRIUM_TOKENS_CSS" file="tokens.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_OVERLAY_CSS" file="overlay.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_ARCHIVO_WOFF2" file="fonts/Archivo-Variable.woff2" type="BINDATA" />
+      <include name="IDR_ATRIUM_EDGE_GLOW_JS" file="edge-glow.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_EDGE_GLOW_CSS" file="edge-glow.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_TOAST_STACK_JS" file="toast-stack.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_OVERLAY_SHADOW_SPEC_JS" file="overlay-shadow-spec.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_KEYCAPS_JS" file="keycaps.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_ICONS_JS" file="icons.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_MARK_FLOCK_JS" file="mark-flock.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_TOAST_STACK_CSS" file="toast-stack.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_SKYLIGHT_AMBIENT_JS" file="skylight-ambient.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SKYLIGHT_AMBIENT_CSS" file="skylight-ambient.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_SKYLIGHT_DAY_CYCLE_JS" file="skylight-day-cycle.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SKYLIGHT_WEATHER_JS" file="skylight-weather.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SKYLIGHT_JS" file="skylight.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_ATRIUM_JS" file="atrium.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_INSECURE_ORIGIN_JS" file="insecure-origin.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SIDEBAR_JS" file="sidebar.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SIDEBAR_CSS" file="sidebar.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_MIRROR_JS" file="mirror.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_ARCHIVE_FLY_JS" file="archive-fly.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_CLOCK_JS" file="clock.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_HOLD_GESTURE_JS" file="hold-gesture.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_HISTORY_SCRUBBER_JS" file="history-scrubber.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_ARCHIVE_FLY_CSS" file="archive-fly.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_CLAMP_JS" file="clamp.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_VIM_GRAMMAR_JS" file="vim-grammar.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_VIM_PAGE_JS" file="vim-page.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_VIM_POPUP_JS" file="vim-popup.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_VIM_SURFACE_JS" file="vim-surface.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SWIPE_JS" file="swipe.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_OVERSCROLL_JS" file="overscroll.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_OVERSCROLL_INSTALL_JS" file="overscroll-install.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SIDEBAR_FLIP_JS" file="sidebar-flip.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SIDEBAR_DRAG_JS" file="sidebar-drag.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SIDEBAR_PAGING_JS" file="sidebar-paging.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SIDEBAR_GRID_DROP_JS" file="sidebar-grid-drop.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SIDEBAR_FAV_DRAG_JS" file="sidebar-fav-drag.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SIDEBAR_DRAG_FOLLOW_JS" file="sidebar-drag-follow.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SIDEBAR_DOT_MAGNIFY_JS" file="sidebar-dot-magnify.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SIDEBAR_MENU_JS" file="sidebar-menu.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_PHOSPHOR_FILL_JS" file="phosphor/fill.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SPACE_GLYPH_JS" file="space-glyph.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SPACE_ICON_PICKER_JS" file="space-icon-picker.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SPACE_ICON_PICKER_CSS" file="space-icon-picker.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_MENU_DISMISS_JS" file="menu-dismiss.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SHELF_DROPZONE_JS" file="shelf-dropzone.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SIDEBAR_EXT_INSTALL_JS" file="sidebar-ext-install.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SIDEBAR_NAV_ROW_JS" file="sidebar-nav-row.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SIDEBAR_NAV_ROW_CSS" file="sidebar-nav-row.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_SIDEBAR_OVERLAY_RESIZE_JS" file="sidebar-overlay-resize.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SIDEBAR_OVERLAY_RESIZE_CSS" file="sidebar-overlay-resize.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_SIDEBAR_EXT_SHARED_JS" file="sidebar-ext-shared.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SIDEBAR_EXT_STRIP_JS" file="sidebar-ext-strip.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SIDEBAR_EXT_STRIP_CSS" file="sidebar-ext-strip.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_SIDEBAR_MEDIA_JS" file="sidebar-media.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SIDEBAR_MEDIA_CSS" file="sidebar-media.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_QUICKMENU_JS" file="quickmenu.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_QUICKMENU_CSS" file="quickmenu.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_REWIND_JS" file="rewind.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_REWIND_BAR_JS" file="rewind-bar.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SETTINGS_JS" file="settings.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SETTINGS_ENGINES_JS" file="settings-engines.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SETTINGS_ROUTING_JS" file="settings-routing.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SETTINGS_IMPORT_JS" file="settings-import.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_THEME_STUDIO_JS" file="theme-studio.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_THEME_PICKER_JS" file="theme-picker.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SETTINGS_CSS" file="settings.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_THEME_STUDIO_CSS" file="theme-studio.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_THEME_WINDOW_JS" file="theme-window.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_THEME_WINDOW_CSS" file="theme-window.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_NOTIFICATION_TIMEOUT_JS" file="notification-timeout.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SNOOZED_TAB_RETURN_JS" file="snoozed-tab-return.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_FOYER_JS" file="foyer.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_FOYER_CSS" file="foyer.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_COMMANDBAR_JS" file="commandbar.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_COMMANDBAR_CSS" file="commandbar.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_OVERVIEW_JS" file="overview.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_OVERVIEW_CSS" file="overview.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_COURTYARD_JS" file="courtyard.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_COURTYARD_VIEW_JS" file="courtyard-view.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_CANVAS_MODEL_JS" file="canvas-model.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_COURTYARD_CSS" file="courtyard.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_DOWNLOADS_SECTION_JS" file="downloads-section.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SHELF_SECTION_JS" file="shelf-section.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_ARCHIVED_SNOOZED_SECTION_JS" file="archived-snoozed-section.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_NOTES_SECTION_JS" file="notes-section.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_NOTES_PAD_JS" file="notes-pad.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_NOTES_CARDS_JS" file="notes-cards.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_NOTES_JS" file="notes.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_NOTES_CSS" file="notes.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_AI_PANEL_JS" file="ai-panel.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_MARKDOWN_RENDER_JS" file="markdown-render.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_TRANSLATE_LANGUAGES_JS" file="translate-languages.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_AI_PANEL_CSS" file="ai-panel.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_DEVBAR_JS" file="devbar.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_DEVBAR_CSS" file="devbar.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_COMMAND_VERBS_JS" file="command-verbs.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_COMMAND_MATCH_JS" file="command-match.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_ROW_RENAME_JS" file="row-rename.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_SPACES_SECTION_JS" file="spaces-section.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_LOADING_MARK_JS" file="loading-mark.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_LOAD_FILL_JS" file="load-fill.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_ICON_COLOR_JS" file="icon-color.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_ICON_SCOPE_JS" file="icon-scope.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_PERMSHEET_JS" file="permsheet.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_PERMSHEET_CSS" file="permsheet.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_PEEK_CONTROLS_JS" file="peek-controls.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_PEEK_CONTROLS_CSS" file="peek-controls.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_HINT_JS" file="hint.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_TOAST_SURFACE_JS" file="toast-surface.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_HINT_CSS" file="hint.css" type="BINDATA" />
+      <include name="IDR_ATRIUM_HINT_TRIGGERS_JS" file="hint-triggers.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_FIND_JS" file="find.js" type="BINDATA" />
+      <include name="IDR_ATRIUM_FIND_CSS" file="find.css" type="BINDATA" />
+    </includes>
+  </release>
+</grit>

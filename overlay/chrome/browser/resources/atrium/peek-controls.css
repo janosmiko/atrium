@@ -1,0 +1,21 @@
+/* Copyright 2026 The Atrium Authors
+   Use of this source code is governed by the Apache License, Version 2.0
+   found in the LICENSE file. */
+
+html, body {
+  background: transparent;
+  margin: 0;
+}
+
+.pkc {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+}
+
+/* overlay.css's .ov-btn is content-box, so its border grows past the C++
+   window's fixed 70x38 - scoped here rather than in overlay.css. */
+.pkc, .pkc .ov-btn {
+  box-sizing: border-box;
+}

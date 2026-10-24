@@ -1,0 +1,104 @@
+{
+  "name": "space-dots-stay-pinned",
+  "description": "the space dots bar must stay put while a swipe moves the panes. It used to be built inside every rail pane, so translating the rail translated every copy of it and the bar slid off with the workspace. The bar is now one element beside the rail, pinned to the bottom of the surface root. The measurement is the bar's own strip: capture it at rest, then again mid-swipe, and require the leftmost part - the Overview dot, which never moves and never changes - to look the same in both. Under the old build that region carries a bar that is halfway off screen. The sidebar rows above it must NOT be stable in the same pair, or the swipe never happened and the first assertion is measuring a still image.",
+  "fixture": "space-cycle.spaces.json",
+  "startup_space": "a276b002-0000-0000-0000-000000000002",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "let the sidebar render and the startup space's tab commit"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "rest",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the bar at rest, before anything moves"
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 100,
+      "y": 200,
+      "dx": -45,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "mid-swipe",
+      "duration_ms": 500,
+      "fps": 25,
+      "note": "A fast flick, not a slow scrub. The harness grades a capture's LAST frame, so the frame this assertion sees has to be one where the rail is far from home. At 260ms the capture ended at t=281ms and the sidebar rows had moved only about 4px, too little to grade. 500ms catches the rows well into the slide."
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "switched-page",
+      "target": "peek-target.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-target.html",
+      "timeout_ms": 8000,
+      "note": "the space this scenario switched to, read from its own page"
+    },
+    {
+      "type": "capture",
+      "id": "settled",
+      "duration_ms": 400,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "switched-page",
+      "expected": "http://127.0.0.1:8000/peek-target.html",
+      "label": "the-swipe-really-switched-space",
+      "desc": "THE CONTROL: the flick reached a different space, so the stability check below is not grading a still image. peek-target.html belongs to the fixture's Third space (the flick dx=-45 goes to the NEXT space, so Elsewhere lands on Third) and is cold at launch, so this line can only appear once a swipe committed - the same proof every other swipe scenario in this suite uses.",
+      "note": "Replaces a pixels_changed control on the tab row strip, which could not tell the two spaces apart: both render similarly enough at that region for the delta to be zero, and it read 43.78 percent once and 0.00 percent later on runs that BOTH switched space successfully."
+    },
+    {
+      "type": "pixels_changed",
+      "before": "rest",
+      "after": "mid-swipe",
+      "region": [20, 220, 170, 380],
+      "min_changed_pct": 3.0,
+      "label": "the-rows-moved-mid-swipe",
+      "desc": "the sidebar rows are NOT stable between rest and mid-swipe, so a still mid-swipe frame cannot pass the stability check below. The web card does not slide during a swipe, it swaps only at commit, so it cannot prove motion. Measured 6.4-7.5% mid-slide and 0.00% without the flick"
+    },
+    {
+      "type": "region_stable",
+      "before": "rest",
+      "after": "mid-swipe",
+      "region": [
+        48,
+        679,
+        20,
+        18
+      ],
+      "max_delta": 3.0,
+      "desc": "THE MEASUREMENT: the left end of the space dots bar does not move while the panes do - it is one element beside the rail now, not a copy inside each pane",
+      "note": "The Overview :: mark, measured at x 48..68, y 679..697 in the same run. The bar is centred, so a change to the dot widths moves this mark: re-measure it from a rest frame, and check that its variance is well above zero. Deliberately the LEFT end: the active chip moves during a swipe by design, so a region covering it would fail for the right reason and hide the wrong one. Under the old build every pane carried its own bar and this strip showed a bar translated by most of a pane width."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

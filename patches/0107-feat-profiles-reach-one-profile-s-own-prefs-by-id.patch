@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 1 Sep 2026 10:40:42 +0200
+Subject: [PATCH 107/154] feat(profiles): reach one profile's own prefs by id
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Three settings live in a Chromium profile rather than in spaces.json: search
+suggestions, the download directory, and the default engine. This reads and
+writes them for a profile named by id, refusing an id the bootstrap's own
+allowlist rejects, since an id is a path component.
+
+The page lookup is a separate target so it stays a fast unit rather than
+needing a browser. A name this build does not know answers with an empty
+string, so a caller drops the message instead of navigating somewhere it was
+never asked to go.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 9eace827a2d41..c3d3121b25cec 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3560,6 +3560,8 @@ static_library("ui") {
+       "atrium/atrium_traffic_routing.h",
+       "atrium/atrium_profile_bootstrap.h",
+       "atrium/atrium_profile_bootstrap.cc",
++      "atrium/atrium_profile_prefs.h",
++      "atrium/atrium_profile_prefs.cc",
+       "atrium/atrium_status_bubble_hook.h",
+       "atrium/atrium_status_bubble_hook.cc",
+       "atrium/atrium_sad_tab_hook.h",

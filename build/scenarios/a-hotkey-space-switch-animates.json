@@ -1,0 +1,86 @@
+{
+  "name": "a-hotkey-space-switch-animates",
+  "description": "switching space by chord GLIDES the rail rather than appearing at the destination.\n\nWHY THE TWO ROUTES DISAGREED. A swipe animates because the gesture itself moves the rail and only then reports where it landed. The keyboard route commits through SelectSpace, which recorded the choice and pushed a rebuilt model - so the page received a new state and drew it, with nothing ever asking it to travel. The hook it needed was already there and had never been called from native code: window.atriumSwipeTo drives swipe.jumpTo, which sets the settle target and starts the frame loop, exactly as a released swipe does.\n\nTHE ORDER IS THE FIX. GlideSidebarToSpace runs BEFORE the model rebuild. A rebuild draws the destination, and a glide told to travel somewhere it is already showing has nowhere to travel from - so getting this backwards would look like the change doing nothing at all.\n\nWHY key_during_capture AND NOT key-then-capture. The slide is a few hundred milliseconds and each ordinary action is its own ssh round trip, so a sequential pair can miss the whole transition - a plain capture's FIRST frame can already show the settled state. This fires the chord and the capture from one ssh session, and registers two ids: the settled end state and the frame nearest mid-transition.\n\nWHAT SEPARATES MOTION FROM OUTCOME. The space DOES change without this fix, which is why the defect read as cosmetic - so an assertion on the end state proves nothing. The mid-transition frame has to differ from BOTH ends: from the start because the rail has begun to move, and from the settled state because it has not arrived. A build that jumps would make the mid frame identical to the settled one.",
+  "fixture": "space-cycle.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "a276b001-0000-0000-0000-000000000001",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "edit-focus-field.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/edit-focus-field.html",
+      "timeout_ms": 20000,
+      "note": "gate: the startup space's own tab committed, so the rail is built and settled before anything asks it to move"
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "at-rest",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "the rail before the chord, on the first space"
+    },
+    {
+      "type": "key_during_capture",
+      "combo": "cmd+shift+right",
+      "capture_id": "switch",
+      "duration_ms": 1400,
+      "fps": 25,
+      "key_delay_ms": 400,
+      "mid_after_chord_ms": 510,
+      "note": "the chord fires 400ms into the burst, and the burst then delivers no frames for 250-400ms while the chord is driven, so a probe measured from the burst START lands on the last frame BEFORE the chord - which is how this read delta 0.00 against the resting state while the frames showed the rail travelling. mid_after_chord_ms measures from the first frame after that hole instead, so the placement follows the hole rather than assuming its length. 510ms is where the rail is measurably in transit in both stored runs of this scenario, differing from the resting state and from the settled one by more than the 6 the assertions below ask for, with about 55ms of margin either side. Registers 'switch' for the settled end state and 'switch_mid' for the mid-transition frame"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "let the glide finish before the settled comparison below"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-chord-changed-the-space",
+      "pattern": "Atrium: active space [0-9]+ -> [0-9]+",
+      "note": "the commit half, which already worked - SelectSpace logs both ends. Necessary and NOT sufficient: this line appears whether or not anything animated, which is the whole reason the defect read as cosmetic"
+    },
+    {
+      "type": "theme_changed",
+      "label": "the-rail-moved-mid-transition",
+      "before": "at-rest",
+      "after": "switch_mid",
+      "region": [16, 250, 180, 120],
+      "min_delta": 6,
+      "note": "THE MOTION, not the outcome. The rail has begun to travel by the mid frame, so the rows in this band have shifted. A build that jumped would still satisfy the vlog above and fail here"
+    },
+    {
+      "type": "theme_changed",
+      "label": "the-mid-frame-is-not-the-settled-one",
+      "before": "switch_mid",
+      "after": "switch",
+      "region": [16, 250, 180, 120],
+      "min_delta": 6,
+      "note": "THE HALF THAT MAKES IT A MEASUREMENT. Mid differing from rest could just be the destination already drawn. Mid must ALSO differ from the settled state - caught in transit rather than arrived. A jump makes these two identical and this is what notices"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

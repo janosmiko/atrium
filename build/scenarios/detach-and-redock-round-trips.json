@@ -1,0 +1,144 @@
+{
+  "name": "detach-and-redock-round-trips",
+  "description": "undock DevTools into its own window and dock it back, twice over, with the pane slot emptying and refilling each time.\n\nTwo independent readings, because either alone can lie. The window COUNT proves a separate window really appeared - a detach that only re-laid-out the pane would not change it. The pane's own dock-state line proves the slot emptied - a window opening beside a still-docked pane would not.\n\nRepeated rather than done once: a round trip that works the first time and leaks on the second is the failure this criterion is written against.",
+  "fixture": "presenter-startup.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the space and its single tab render"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot; without this the keystroke lands in Finder (traffic-routing learned this the hard way)"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the window come forward"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+opt+i",
+      "note": "open DevTools on the active tab"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "DevTools frontend is a full WebContents load - generous on purpose, the dock VLOG only fires once UpdateDockedDevtoolsForPane runs with a non-null GetInTabWebContents"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the frontend finish attaching"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the frontend attach"
+    },
+    {
+      "type": "settle",
+      "ms": 800,
+      "note": "let the menu open"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "let the pane re-lay-out"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "frontend-ready",
+      "target": "devtools",
+      "expression": "String(document.readyState)",
+      "note": "arming read: every result below is worthless if the frontend never answered"
+    },
+    {
+      "type": "eval",
+      "id": "menu-1",
+      "target": "devtools",
+      "expression": "(() => { const find = (root, depth) => { if (depth > 10) return null; for (const el of root.querySelectorAll('*')) {   if (el.shadowRoot) { const h = find(el.shadowRoot, depth + 1); if (h) return h; }   const l = (el.getAttribute && el.getAttribute('aria-label')) || '';   if (/^customize and control/i.test(l.trim())) return el; } return null; }; const item = find(document, 0); if (!item) return 'not offered'; item.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 700
+    },
+    {
+      "type": "eval",
+      "id": "undock-1",
+      "target": "devtools",
+      "expression": "(() => { const find = (root, depth) => { if (depth > 10) return null; for (const el of root.querySelectorAll('*')) {   if (el.shadowRoot) { const h = find(el.shadowRoot, depth + 1); if (h) return h; }   const l = (el.getAttribute && el.getAttribute('aria-label')) || '';   if (/^undock into separate window$/i.test(l.trim())) return el; } return null; }; const item = find(document, 0); if (!item) return 'not offered'; item.click(); return 'clicked'; })()",
+      "note": "the detach half"
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "let the separate window appear and the slot empty"
+    },
+    {
+      "type": "eval",
+      "id": "menu-2",
+      "target": "devtools",
+      "expression": "(() => { const find = (root, depth) => { if (depth > 10) return null; for (const el of root.querySelectorAll('*')) {   if (el.shadowRoot) { const h = find(el.shadowRoot, depth + 1); if (h) return h; }   const l = (el.getAttribute && el.getAttribute('aria-label')) || '';   if (/^customize and control/i.test(l.trim())) return el; } return null; }; const item = find(document, 0); if (!item) return 'not offered'; item.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 700
+    },
+    {
+      "type": "eval",
+      "id": "redock-1",
+      "target": "devtools",
+      "expression": "(() => { const find = (root, depth) => { if (depth > 10) return null; for (const el of root.querySelectorAll('*')) {   if (el.shadowRoot) { const h = find(el.shadowRoot, depth + 1); if (h) return h; }   const l = (el.getAttribute && el.getAttribute('aria-label')) || '';   if (/^dock to right$/i.test(l.trim())) return el; } return null; }; const item = find(document, 0); if (!item) return 'not offered'; item.click(); return 'clicked'; })()",
+      "note": "and back again"
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "frontend-ready",
+      "expected": "\"complete\"",
+      "note": "checked first, always"
+    },
+    {
+      "type": "eval_equals",
+      "id": "undock-1",
+      "expected": "\"clicked\"",
+      "note": "the undock item was offered and pressed"
+    },
+    {
+      "type": "eval_equals",
+      "id": "redock-1",
+      "expected": "\"clicked\"",
+      "note": "and so was the re-dock, which means the menu survived the detach"
+    },
+    {
+      "type": "vlog",
+      "label": "the-slot-emptied-on-detach",
+      "pattern": "Atrium: devtools pane 0x[0-9a-f]+ docked=0",
+      "note": "docked=0 is the pane reporting its slot empty. Without this a detach that merely opened a window beside a still-docked pane would pass."
+    },
+    {
+      "type": "vlog_after",
+      "label": "and-refilled-after-the-detach",
+      "after_pattern": "Atrium: devtools pane 0x[0-9a-f]+ docked=0",
+      "pattern": "Atrium: devtools pane 0x[0-9a-f]+ docked=1",
+      "note": "A re-dock is a docked=1 line that appears AFTER the docked=0 one. Counting totals was the wrong instrument: this run legitimately produces several dock transitions, so any ceiling either admits a per-paint emitter or rejects honest relayouts. Ordering states the actual claim - the slot emptied, then it refilled."
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

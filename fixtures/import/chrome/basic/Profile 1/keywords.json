@@ -1,0 +1,5 @@
+[
+  {"created_by_policy": 0, "is_active": 1, "keyword": "docs", "prepopulate_id": 0, "safe_for_autoreplace": 0, "short_name": "Docs", "starter_pack_id": 0, "sync_guid": "G-DOCS-2", "url": "https://docs.example.test/search?q={searchTerms}"},
+  {"created_by_policy": 0, "is_active": 1, "keyword": "wiki", "prepopulate_id": 0, "safe_for_autoreplace": 0, "short_name": "Wiki", "starter_pack_id": 0, "sync_guid": "G-WIKI", "url": "https://wiki.example.test/w?search={searchTerms}"},
+  {"created_by_policy": 0, "is_active": 0, "keyword": "legacy", "prepopulate_id": 0, "safe_for_autoreplace": 0, "short_name": "Legacy", "starter_pack_id": 0, "sync_guid": "G-LEGACY", "url": "https://legacy.example.test/?q={searchTerms}"}
+]

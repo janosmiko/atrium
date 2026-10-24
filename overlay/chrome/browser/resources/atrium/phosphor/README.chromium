@@ -1,0 +1,17 @@
+Name: Phosphor Icons
+Short Name: phosphor-icons-core
+URL: https://github.com/phosphor-icons/core
+Version: 2.1.1
+Revision: N/A
+License: MIT
+License File: LICENSE
+Security Critical: no
+Shipped: yes
+
+Description:
+Fill-weight glyph paths used by the space icon picker. fill.js is generated
+from @phosphor-icons/core by build/scripts/vendor-phosphor.mjs - do not
+hand-edit.
+
+Local Modifications:
+None. Only a subset of the upstream glyph set is vendored.

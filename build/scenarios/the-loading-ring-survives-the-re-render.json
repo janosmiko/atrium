@@ -1,0 +1,80 @@
+{
+  "name": "the-loading-ring-survives-the-re-render",
+  "description": "A click on a tab row marks it loading, the snapshot push that follows rebuilds the rows, and the rebuilt row still carries the mark until the window closes. The first eval clicks and reads in one go, the second reads again after the push has landed, and the third waits for the mark to clear.",
+  "fixture": "lab-compare.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval_until",
+      "id": "clicked",
+      "target": "/sidebar",
+      "expression": "(() => { const r = [...document.querySelectorAll('.row.tabrow[data-tab-id]')].find(x => !x.classList.contains('sel')); r.click(); return String(document.querySelectorAll('.loading').length > 0); })()",
+      "expected": "true",
+      "timeout_ms": 5000,
+      "note": "The mark lands with the click, on every pane that draws the tab."
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "eval_until",
+      "id": "after-push",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.row.loading').length)",
+      "expected": "1",
+      "timeout_ms": 600,
+      "note": "The push rebuilt the rows and the mark came back."
+    },
+    {
+      "type": "eval_until",
+      "id": "cleared",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.loading').length)",
+      "expected": "0",
+      "timeout_ms": 4000,
+      "note": "The mark clears."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "clicked",
+      "expected": "true",
+      "desc": "The click marked the row."
+    },
+    {
+      "type": "eval_equals",
+      "id": "after-push",
+      "expected": "1",
+      "desc": "The mark survived the re-render."
+    },
+    {
+      "type": "eval_equals",
+      "id": "cleared",
+      "expected": "0",
+      "desc": "The mark cleared."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

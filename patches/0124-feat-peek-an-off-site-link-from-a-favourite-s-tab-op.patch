@@ -1,0 +1,67 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Wed, 9 Sep 2026 07:38:01 +0200
+Subject: [PATCH 124/154] feat(peek): an off-site link from a favourite's tab
+ opens the card
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+ShouldAutoPeek matched the source tab's committed URL against the stored
+favourite exactly. A favourite's tab has no row, so its URL stops matching
+after the first move within its site, and a plain link then navigated the
+tab away. A target=_blank link never reached the peek code: it became a
+new tab in Browser::AddNewContents.
+
+A tab that carries a favourite claim now counts as a peek source, and a
+NEW_FOREGROUND_TAB with a gesture off a peek source's site is adopted
+into the card, in AddNewContents and in OpenURLFromTab. Same-site links
+keep opening tabs.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/browser.cc | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/chrome/browser/ui/browser.cc b/chrome/browser/ui/browser.cc
+index f78f6549402dd..4c47c74c49f96 100644
+--- a/chrome/browser/ui/browser.cc
++++ b/chrome/browser/ui/browser.cc
+@@ -1549,11 +1549,16 @@ WebContents* Browser::OpenURLFromTab(
+       atrium::MaybeOpenPeek(this, source, params.url, params.referrer)) {
+     return source;  // No new WebContents/window created on this path.
+   }
+-  // Auto-peek - a plain cross-site link click from a pinned or favourited tab
+-  // - is not hooked here and never was: a plain click emits no OpenURL IPC.
+-  // It lived in a navigation throttle, which the Swift cut deleted because only
+-  // Swift could say whether the source tab was pinned. A follow-up rebuilds it
+-  // against the Rust core.
++  // Auto-peek for a plain click lives in AtriumPeekNavigationThrottle, since
++  // a plain click emits no OpenURL IPC. A window.open with noopener does,
++  // as NEW_FOREGROUND_TAB, so the same off-site rule applies here.
++  if (params.disposition == WindowOpenDisposition::NEW_FOREGROUND_TAB &&
++      params.is_renderer_initiated && params.user_gesture &&
++      !params.started_from_context_menu &&
++      atrium::ShouldAutoPeek(this, source, params.url) &&
++      atrium::MaybeOpenPeek(this, source, params.url, params.referrer)) {
++    return source;
++  }
+ #endif  // BUILDFLAG(IS_MAC)
+ 
+   NavigateParams nav_params(this, params.url, params.transition);
+@@ -1734,7 +1739,13 @@ content::WebContents* Browser::AddNewContents(
+ 
+   // Placed past the fullscreen branches above on purpose: a deferred or
+   // inactive open must not take focus, and the card always does.
+-  if (disposition == WindowOpenDisposition::NEW_POPUP &&
++  // A target=_blank link off a favourite's or pinned tab's site arrives here
++  // as NEW_FOREGROUND_TAB and takes the card too.
++  const bool off_site_link_from_peek_source =
++      disposition == WindowOpenDisposition::NEW_FOREGROUND_TAB && user_gesture &&
++      atrium::ShouldAutoPeek(this, source, target_url);
++  if ((off_site_link_from_peek_source ||
++       disposition == WindowOpenDisposition::NEW_POPUP) &&
+       window_action == NavigateParams::WindowAction::kShowWindow &&
+       atrium::ShouldPeekPopup(
+           this, source, target_url,

@@ -1,0 +1,123 @@
+/* Copyright 2026 The Atrium Authors */
+
+/* Under the address row, not over the traffic lights: the row is absolute at
+   top 46 and 34 tall, so its bottom edge is 80. The tiles below start at
+   90 + --exs-lane = 124, so 88 centres the 28px strip in that band and leaves
+   8px on each side. Left and right read the same insets the row and the
+   favourites grid use. A pane draws its own copy at the same four numbers,
+   which is what keeps the two aligned to the pixel through a cross-profile
+   swipe. */
+.exs-row {
+  position: absolute;
+  top: 88px;
+  left: var(--sb-pad-lead);
+  right: var(--sb-pad-trail);
+  display: grid;
+  /* The count, capped at four, not a flat four: three pins in a four-column
+     grid leave a quarter of the row empty beside them. */
+  grid-template-columns: repeat(var(--exs-cols, 4), 1fr);
+  align-items: center;
+  gap: 6px;
+  /* One --exs-rows tall, counting the 6px between each pair. --exs-lane is
+     the same arithmetic, so the tiles give up exactly this. */
+  height: calc(var(--exs-rows, 1) * (var(--exs-h) + 6px) - 6px);
+  z-index: 5;
+  opacity: 1;
+  /* The offsets the strip pushes down ease over .2s (sidebar.css:1272,1294),
+     so a display toggle here lands the chips a fifth of a second before the
+     rows have finished making room for them. */
+  transition: opacity .2s ease, translate .2s ease, top .2s ease;
+}
+
+/* The translate property, not transform: the swipe writes this row's slide as
+   an inline transform every frame, and a transform transitioned over .2s would
+   trail the finger by that much. The two compose, the way .ovcross composes
+   its scale with the same inline value. */
+.exs-row.exs-hidden {
+  opacity: 0;
+  translate: 0 -6px;
+  pointer-events: none;
+}
+
+/* The floating address bar hosts its own copy, and the two are never both up.
+   On the bar's own .16s, which is what the tiles already wait out. Scoped to
+   html, not #atrium-root: the real strip is the root's SIBLING
+   (sidebar-ext-install.js:52), so a root-scoped rule reaches only the pane
+   copies and leaves the row the user looks at on screen. */
+html.devbar-shown .exs-row {
+  top: 38px;
+  opacity: 0;
+  translate: 0 -6px;
+  pointer-events: none;
+  transition: opacity .16s ease, translate .16s ease, top .16s ease;
+}
+
+/* A glide lands on each space it passes, so exs-hidden and the devbar offset
+   can flip mid-slide. The strip is never rebuilt, and without this those
+   flips play as a drop from above. It ties the devbar rule on specificity, so
+   it has to stay below it. */
+html .exs-row.swipelock {
+  transition: none;
+}
+
+.exs-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 22px;
+  height: 22px;
+  /* A long row must not squash a chip below its hit target. */
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  padding: 0;
+  cursor: default;
+}
+
+.exs-chip:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* In the strip a pin is a favourite tile, shorter: same fill, same radius,
+   sharing the row the way the grid shares its own. Scoped to .exs-row, or the
+   floating bar's copy of the strip would stretch its chips too. */
+.exs-row .exs-chip {
+  width: auto;
+  height: var(--exs-h);
+  border-radius: 12px;
+  background: var(--fill, rgba(255, 255, 255, .10));
+  transition: background .12s;
+}
+
+.exs-row .exs-chip:hover {
+  background: var(--fillhover, rgba(255, 255, 255, .16));
+}
+
+/* The cached PNG is the extension's largest rep, 32px or more, so it needs a
+   size here or it overflows the chip. */
+.exs-chip .crx-icon {
+  width: 15px;
+  height: 15px;
+}
+
+/* The tiles and the panes give the strip its own lane instead of sitting
+   under it. Cancelled while the floating bar is up, which hides the strip.
+   Both offsets are one base plus --exs-lane: the pane reserves the pinned
+   grid's room with its padding, so a smaller padding puts the space header
+   under the tiles. */
+#atrium-root.exs-reflow.sbroot:not(.devbar-shown) > .favgrid {
+  top: calc(90px + var(--exs-lane));
+}
+
+/* The railless render, the one case with no pane to carry the lane class. */
+#atrium-root.exs-reflow.sbroot:not(.devbar-shown) > .sidebar {
+  padding-top: calc(79px + var(--exs-lane));
+}
+
+/* Per pane, not per root: a profile with nothing pinned draws no strip, and
+   holding the lane open for it would leave a blank band over its tiles. */
+#atrium-root.sbroot:not(.devbar-shown) .railpane .sidebar.exs-lane {
+  padding-top: calc(90px + var(--exs-lane));
+}

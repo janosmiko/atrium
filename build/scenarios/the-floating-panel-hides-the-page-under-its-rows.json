@@ -1,0 +1,145 @@
+{
+  "name": "the-floating-panel-hides-the-page-under-its-rows",
+  "description": "text on the floating panel stays legible over a page with large dark type at the panel's position. The panel's wash used to take its alpha from the glass opacity setting, which at the shipped .2 let the page's headings read straight through the rows. The wash is floored now.\n\nSame reveal as is-the-panels-glass-real, over a page that is white with 64px black type down its left edge instead of a checkerboard. The control reads the page alone and proves the type really is under the measured region. The measurement reads the same region with the panel over it and demands the type be gone from it.\n\nRETUNED 2026-09-07: the floating wash was a fixed grey literal and the band here was 190..250, a reading of that grey rather than of the panel hiding anything. The wash follows the space tint now, so over this fixture's oceanBlue the same region measures 96.5/113.8/129.4 - still hiding the type, at a colour the old band called a failure. The band moved to the tint and a variance_collapsed assertion now carries the legibility claim, which no palette change can invalidate.",
+  "fixture": "panel-legibility.spaces.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "eval",
+      "id": "tab-opened",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.row'); if (!r) return 'no-row'; r.click(); return 'clicked'; })()",
+      "note": "The space's own tab is cold at launch, so the row has to be pressed for the pattern to paint in the MAIN window."
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "collapse-pressed",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbtoggle'); if (!b) return 'no-button'; b.click(); return 'clicked'; })()",
+      "note": "The row's own Hide button, not Cmd+S. The chord dies whenever an HTML surface holds first responder - the log names the responder as the sidebar's own render widget on both earlier runs, and the pane stayed docked at 244 through each of them. That is a real defect and it has its own task; this reading must not wait on it."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar toggle requested from the chrome row",
+      "timeout_ms": 8000,
+      "note": "A collapse that never ran leaves the pane docked, and a panel read over a docked pane says nothing about glass."
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the collapse animation finishes before anything is read"
+    },
+    {
+      "type": "eval",
+      "id": "type-painted",
+      "target": "panel-legibility-type",
+      "expression": "document.readyState"
+    },
+    {
+      "type": "capture",
+      "id": "page-alone",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the checkerboard with no panel over it - the control for what its edges look like unfrosted"
+    },
+    {
+      "type": "move",
+      "x": 300,
+      "y": 400,
+      "note": "Park well inside the page first. The arming strip is 32pt wide measured from the window's CONTENT edge, and the window sits about 8pt from the screen edge, so x=3 was on the desktop and no reveal ever fired - the log's only edge-reveal line came at teardown."
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "move",
+      "x": 20,
+      "y": 400,
+      "note": "Cross INTO the strip from outside it. A tracking area fires mouseEntered on the crossing, so two points that are both already inside it fire nothing."
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "timeout_ms": 20000,
+      "note": "the gate: the panel is genuinely up before anything is read off it"
+    },
+    {
+      "type": "settle",
+      "ms": 2000,
+      "note": "the slide finishes, so the capture is of a settled panel rather than a moving one"
+    },
+    {
+      "type": "capture",
+      "id": "panel-over-page",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the panel over the same checkerboard. This frame is the answer and it is read by eye."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "region_mean",
+      "capture": "page-alone",
+      "x": 40,
+      "y": 300,
+      "w": 200,
+      "h": 200,
+      "max_mean": 200,
+      "label": "the-type-is-under-the-panel",
+      "desc": "THE CONTROL: with the panel away, this region carries the type. The letters cover about a quarter of it, so the mean lands near 188 against 255 for a blank page - and the variance, which the harness reports but cannot assert, is above 10000 here against under 200 with the panel over it. A page that failed to load, or type that sits elsewhere, reads near 255 and would let the measurement below pass for nothing."
+    },
+    {
+      "type": "region_mean",
+      "capture": "panel-over-page",
+      "x": 40,
+      "y": 300,
+      "w": 200,
+      "h": 200,
+      "min_mean": 80,
+      "max_mean": 155,
+      "max_r": 130,
+      "label": "the-panel-hides-the-type",
+      "desc": "THE MEASUREMENT: the same region with the panel over it no longer carries the type. The band was 190..250 while the wash was a fixed light grey (a sibling scenario measured that slab at 219,222,229). The wash follows the space tint now, and this fixture's space is oceanBlue (#0F2B46, triplet 15 43 70), so the same region measured 96.5/113.8/129.4 on 2026-09-07 - R lowest, which is the tint and not a grey. max_r is what says so: a grey of this brightness would put R at the mean. The floor keeps the panel short of the raw tint, which would read 15/43/70 with no page in it at all."
+    },
+    {
+      "type": "variance_collapsed",
+      "before": "page-alone",
+      "after": "panel-over-page",
+      "x": 40,
+      "y": 300,
+      "w": 200,
+      "h": 200,
+      "max_ratio": 0.05,
+      "label": "the-type-stopped-showing-through",
+      "desc": "The legibility claim in this scenario's name, stated so a palette change cannot break it again. The mean above moves with whatever colour the space carries; what must not move is that the 64px type stops varying the region. Measured 2026-09-07: 10709.4 with the panel away, 57.8 with it over, a ratio of 0.005."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

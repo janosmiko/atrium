@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 11 Aug 2026 10:55:09 +0200
+Subject: [PATCH 059/154] fix: stop an exclusive-access permission prompt
+ aborting the browser
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Atrium's StubLocationBar has no views::LocationBarView, so GetChipController()
+can only ever return null. IsDrawn() reported true anyway, and the prompt reads
+IsDrawn() as "the chip UI is available" - so it dereferenced the null
+controller and took the process with it.
+
+Both halves: the stub tells the truth, and the prompt null-checks the
+controller it was already treating as optional elsewhere.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../permissions/exclusive_access_permission_prompt.cc      | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/chrome/browser/ui/views/permissions/exclusive_access_permission_prompt.cc b/chrome/browser/ui/views/permissions/exclusive_access_permission_prompt.cc
+index c7b8006adf7ad..c8c0a6d35bbbc 100644
+--- a/chrome/browser/ui/views/permissions/exclusive_access_permission_prompt.cc
++++ b/chrome/browser/ui/views/permissions/exclusive_access_permission_prompt.cc
+@@ -6,6 +6,7 @@
+ 
+ #include "base/memory/raw_ptr.h"
+ #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
++#include "chrome/browser/ui/views/permissions/chip/chip_controller.h"
+ #include "chrome/browser/ui/views/permissions/embedded_permission_prompt_content_scrim_view.h"
+ #include "chrome/browser/ui/views/permissions/exclusive_access_permission_prompt_view.h"
+ #include "content/public/browser/web_contents.h"
+@@ -22,7 +23,11 @@ ExclusiveAccessPermissionPrompt::ExclusiveAccessPermissionPrompt(
+     // may be null for non-BrowserView windows (e.g., WebUIBrowserWindow).
+     if (lb) {
+       lb->InvalidateLayout();
+-      lb->GetChipController()->ShowPermissionChip(delegate->GetWeakPtr());
++      // GetChipController() is null when the embedder has no real chip UI
++      // (e.g. Atrium's StubLocationBar).
++      if (ChipController* chip_controller = lb->GetChipController()) {
++        chip_controller->ShowPermissionChip(delegate->GetWeakPtr());
++      }
+     }
+   }
+ }

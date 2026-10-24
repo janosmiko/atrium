@@ -1,0 +1,75 @@
+{
+  "name": "ambilight-follows-a-changing-page",
+  "description": "the glow follows the page while its content changes, with no navigation and no tab switch. The fixture's left half sweeps from crimson to green over six seconds under a CSS animation, so the only thing that moves between the two captures is the page's own pixels.\n\nEvery other scenario in this family changes the page by loading a different one. This is the one that proves the sampler is a LOOP rather than an event handler with extra steps - nothing commits, nothing is clicked, and the chrome still moves.",
+  "fixture": "ambilight-animated.spaces.json",
+  "settings": "icon-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "the page commits and the animation starts"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "capture",
+      "id": "early",
+      "duration_ms": 400,
+      "fps": 10,
+      "note": "the glow near the crimson end of the sweep"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the sweep runs on. No navigation, no click, no tab switch."
+    },
+    {
+      "type": "capture",
+      "id": "late",
+      "duration_ms": 400,
+      "fps": 10,
+      "note": "the glow near the green end of the sweep"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "vlog_count",
+      "pattern": "Atrium: tab [0-9]+ url http://127\\.0\\.0\\.1",
+      "max": 1,
+      "min": 1,
+      "label": "nothing-navigated-in-between",
+      "desc": "THE CONTROL: exactly one commit in the whole run, so the change measured below cannot be a page load. A ceiling alone would pass on a run where nothing loaded at all, which is why the floor is 1."
+    },
+    {
+      "type": "theme_changed",
+      "before": "early",
+      "after": "late",
+      "region": [
+        206,
+        460,
+        16,
+        100
+      ],
+      "min_delta": 5,
+      "desc": "THE MEASUREMENT: the sidebar followed the page's left half from crimson toward green while nothing but the page's own animation ran. An event-driven sampler measures zero here.",
+      "note": "The band the glow paints: 32 DIP out from the card's left edge at about x=225 in the VM frame, at 55 percent of the glass alpha. Re-measured 2026-08-27 when the glow was narrowed and dimmed."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

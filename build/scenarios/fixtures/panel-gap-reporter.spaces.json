@@ -1,0 +1,27 @@
+{
+  "spaces": [
+    {
+      "id": "11650001-0000-4000-8000-000000000001",
+      "name": "Personal",
+      "emoji": "P",
+      "tint": "#716A6B",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135200.0,
+          "url": "http://127.0.0.1:8000/white-page-warm-brand.html",
+          "title": "Brand"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "favorites": [],
+  "appState": {
+    "sidebarWidth": 160,
+    "schemaVersion": 1,
+    "activeSpaceID": "11650001-0000-4000-8000-000000000001"
+  }
+}

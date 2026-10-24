@@ -1,0 +1,184 @@
+{
+  "name": "four-spaces-do-not-leak-rows",
+  "description": "The two-space run settled correctly on both panes, so this widens the rail to four spaces, where an indexing fault has room to show. Each space holds exactly one row named after it, so any 'X Only Row' appearing in a pane that is not X is the leak, readable straight off the settled frame. The rail is walked all the way out and all the way back, capturing every space at rest, because a fault that only bites past the second step would pass a single-hop test.",
+  "fixture": "four-spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the window finish first paint and the sidebar announce itself"
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "capture",
+      "id": "alpha-at-rest",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "Alpha before any gesture."
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 140,
+      "y": 300,
+      "dx": -90,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "swipe-to-bravo",
+      "duration_ms": 400,
+      "fps": 25,
+      "note": "Forward one space. dx is negative because the wheel listener negates deltaX."
+    },
+    {
+      "type": "settle",
+      "ms": 1800
+    },
+    {
+      "type": "capture",
+      "id": "bravo-at-rest",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "Bravo settled. Only its own row may be here."
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 140,
+      "y": 300,
+      "dx": -90,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "swipe-to-charlie",
+      "duration_ms": 400,
+      "fps": 25,
+      "note": "Forward one space. dx is negative because the wheel listener negates deltaX."
+    },
+    {
+      "type": "settle",
+      "ms": 1800
+    },
+    {
+      "type": "capture",
+      "id": "charlie-at-rest",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "Charlie settled. Only its own row may be here."
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 140,
+      "y": 300,
+      "dx": -90,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "swipe-to-delta",
+      "duration_ms": 400,
+      "fps": 25,
+      "note": "Forward one space. dx is negative because the wheel listener negates deltaX."
+    },
+    {
+      "type": "settle",
+      "ms": 1800
+    },
+    {
+      "type": "capture",
+      "id": "delta-at-rest",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "Delta settled. Only its own row may be here."
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 140,
+      "y": 300,
+      "dx": 90,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "swipe-to-charlie-back",
+      "duration_ms": 400,
+      "fps": 25,
+      "note": "Back one space, to catch a fault that only shows on the return walk."
+    },
+    {
+      "type": "settle",
+      "ms": 1800
+    },
+    {
+      "type": "capture",
+      "id": "charlie-back-at-rest",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 140,
+      "y": 300,
+      "dx": 90,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "swipe-to-bravo-back",
+      "duration_ms": 400,
+      "fps": 25,
+      "note": "Back one space, to catch a fault that only shows on the return walk."
+    },
+    {
+      "type": "settle",
+      "ms": 1800
+    },
+    {
+      "type": "capture",
+      "id": "bravo-back-at-rest",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "scroll_during_capture",
+      "x": 140,
+      "y": 300,
+      "dx": 90,
+      "phase_ms": 120,
+      "momentum_ms": 300,
+      "capture_id": "swipe-to-alpha-back",
+      "duration_ms": 400,
+      "fps": 25,
+      "note": "Back one space, to catch a fault that only shows on the return walk."
+    },
+    {
+      "type": "settle",
+      "ms": 1800
+    },
+    {
+      "type": "capture",
+      "id": "alpha-back-at-rest",
+      "duration_ms": 400,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "Liveness only. It passes whether or not rows leak, so it is not evidence about this defect - the captured frames are. Recorded so a run that crashed mid-swipe is not mistaken for a clean one.",
+      "label": "the-window-survived-the-round-trip"
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "Atrium: sidebar render dropped",
+      "label": "no-render-was-dropped-mid-gesture",
+      "desc": "A rebuild deferred while a gesture is live is drained on settle. If a push were dropped outright instead, a pane would keep showing whatever it last rendered, which is one way stale rows from another space could persist. Absence here rules that mechanism out for this run."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly after the round trip"
+    }
+  ]
+}

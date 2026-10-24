@@ -1,0 +1,55 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Fri, 28 Aug 2026 09:43:39 +0200
+Subject: [PATCH 080/154] feat(devbar): the bubble reads, hides on a scroll
+ down, and returns on a scroll up
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+THE BUBBLE is 0.94 alpha now, up from 0.82, which read as fog over a
+busy page.
+
+IT SLIDES AWAY on a downward scroll and comes back on an upward one,
+the way Safari's compact field does. The pinch monitor, a local NSEvent
+monitor the window already runs, hands plain wheel deltas to the
+window: the widget host's input observer saw the keys and never a
+wheel. DevBarScrollAway turns the deltas into a state with a 12px dead
+zone and a count that starts over on every turn. A navigation or a
+toggle brings the bar back.
+
+THE CORNERS: the widget's own background is cleared when the devbar
+page reports ready. At creation the render view did not exist yet, so
+the clear at that point did nothing, and a square of widget background
+showed at the corners on a white page.
+
+THE PAGE TINT SETTING, turned off, clears the band. Since a tint no
+longer floods the backdrop, restoring the space tint alone left the
+glow up.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index f97a32427871f..5091ff156e2c7 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3529,6 +3529,7 @@ static_library("ui") {
+       "atrium/atrium_hex_color.cc",
+       "atrium/atrium_ambilight_cadence.cc",
+       "atrium/atrium_startup_hold.cc",
++      "atrium/atrium_devbar_scroll.cc",
+       "atrium/atrium_browser_window_surface_routes.cc",
+       "atrium/atrium_surface_message_router.cc",
+       "atrium/atrium_edge_tint.cc",
+@@ -3588,6 +3589,7 @@ static_library("ui") {
+       "atrium/atrium_hex_color.h",
+       "atrium/atrium_ambilight_cadence.h",
+       "atrium/atrium_startup_hold.h",
++      "atrium/atrium_devbar_scroll.h",
+       "atrium/atrium_surface_message_router.h",
+       "atrium/atrium_edge_tint.h",
+       "atrium/atrium_page_color.h",

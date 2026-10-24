@@ -1,0 +1,92 @@
+{
+  "name": "page-tint-off",
+  "description": "the off switch. Same fixture and same tab switch as page-tint-follows-the-page, with chromePageTint false. The chrome must stay on the space's own tint, so the backdrop does not move. This is the control for its partner: a repaint that happens with the setting OFF would mean the partner's assertion was measuring something else.",
+  "fixture": "page-tint.spaces.json",
+  "settings": "page-tint-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "let the first tab commit and declare its theme-color"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "capture",
+      "id": "crimson",
+      "duration_ms": 500,
+      "fps": 10,
+      "note": "the chrome while the crimson page is in front"
+    },
+    {
+      "type": "eval_until",
+      "id": "row-click-teal",
+      "target": "/sidebar",
+      "expression": "(() => { const r = [...document.querySelectorAll('.row.tabrow')].find(x => x.textContent.includes(\"Teal\")); if (!r) return 'no-row'; r.click(); return 'clicked'; })()",
+      "expected": "clicked",
+      "timeout_ms": 5000,
+      "note": "Found by title, as the sibling on scenario does: the pixel click at 100,368 landed under the rows once the list gained the favourites placeholder."
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "the drift is an animation, so it needs longer than a paint"
+    },
+    {
+      "type": "capture",
+      "id": "teal",
+      "duration_ms": 500,
+      "fps": 10,
+      "note": "the chrome while the teal page is in front"
+    },
+    {
+      "type": "eval_until",
+      "id": "teal-page",
+      "target": "theme-color-teal.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/theme-color-teal.html",
+      "timeout_ms": 8000,
+      "note": "the teal page committed, read from the page itself"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "teal-page",
+      "expected": "http://127.0.0.1:8000/theme-color-teal.html",
+      "label": "the-switch-really-happened",
+      "desc": "THE CONTROL: the teal page committed, so the measurement below is not grading two captures of the same page. Without it a region that never moved would pass for the wrong reason - the switch never having happened."
+    },
+    {
+      "type": "region_stable",
+      "before": "crimson",
+      "after": "teal",
+      "region": [
+        10,
+        460,
+        60,
+        100
+      ],
+      "max_delta": 3.0,
+      "desc": "THE MEASUREMENT: with the drift off, the same switch leaves the backdrop where the space put it",
+      "note": "Clean sidebar backdrop below the last row and above the dots bar, so no row content moves through the sample."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

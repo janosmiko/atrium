@@ -1,0 +1,156 @@
+{
+  "name": "settings-swipe-haptics-row",
+  "description": "The Swipe haptics row on Settings > Inputs reaches the running sidebar at once. The row opens on the Rust core's default (crisp). Off must silence a swipe, and Smooth must tap soft detents, a plain commit, and soft settle taps. The sidebar swipes are synthetic wheel events dispatched on the rail, and a wrapped chrome.send records each sidebarSwipeHaptic, because the VM has no trackpad to feel. Off swipes to the next space and Smooth swipes back, so the fixture needs only two spaces.",
+  "fixture": "space-cycle.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "a276b001-0000-0000-0000-000000000001",
+  "settings": "media-settings-absent.settings.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the browser window finish first paint"
+    },
+    {
+      "type": "activate",
+      "note": "Atrium MUST be frontmost or cmd+comma opens the frontmost app's own settings"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma"
+    },
+    {
+      "type": "settle",
+      "ms": 7000,
+      "note": "the window builds, the route loads, and the core's values land a beat after the labels"
+    },
+    {
+      "type": "eval",
+      "id": "open-inputs",
+      "target": "/settings",
+      "expression": "(() => { const item = document.querySelector('.settings-rail-item[data-pane=\"inputs\"]'); if (!item) return 'no-rail-item'; item.click(); return 'opened'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval",
+      "id": "initial-value",
+      "target": "/settings",
+      "expression": "(() => { const on = document.querySelector('.settings-row[data-key=\"swipeHaptics\"] .settings-seg-option.on'); return on ? on.dataset.choice : 'no-row'; })()"
+    },
+    {
+      "type": "eval",
+      "id": "pick-off",
+      "target": "/settings",
+      "expression": "(() => { const o = document.querySelector('.settings-row[data-key=\"swipeHaptics\"] .settings-seg-option[data-choice=\"off\"]'); if (!o) return 'no-option'; o.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings written",
+      "timeout_ms": 6000,
+      "note": "FAIL LOUDLY HERE: if the click missed the row, no save happens"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "swipe-under-off",
+      "target": "/sidebar",
+      "expression": "(() => { window.__taps = []; if (!window.__tapSpy) { window.__tapSpy = true; const send = chrome.send; chrome.send = (name, args) => { if (name === 'sidebarSwipeHaptic') window.__taps.push(args && args[0]); return send.call(chrome, name, args); }; } const rail = document.querySelector('.rail'); if (!rail) return 'no-rail'; let i = 0; const t = setInterval(() => { rail.dispatchEvent(new WheelEvent('wheel', {deltaX: 14, bubbles: true, cancelable: true})); if (++i >= 10) clearInterval(t); }, 16); return 'driving'; })()",
+      "note": "10 events of 14px, the unit tests' committing drag"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "taps-under-off",
+      "target": "/sidebar",
+      "expression": "(window.__taps || []).join(',') || 'none'"
+    },
+    {
+      "type": "eval",
+      "id": "pick-smooth",
+      "target": "/settings",
+      "expression": "(() => { const o = document.querySelector('.settings-row[data-key=\"swipeHaptics\"] .settings-seg-option[data-choice=\"smooth\"]'); if (!o) return 'no-option'; o.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: settings written",
+      "timeout_ms": 6000
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval",
+      "id": "swipe-under-smooth",
+      "target": "/sidebar",
+      "expression": "(() => { window.__taps = []; const rail = document.querySelector('.rail'); if (!rail) return 'no-rail'; let i = 0; const t = setInterval(() => { rail.dispatchEvent(new WheelEvent('wheel', {deltaX: -14, bubbles: true, cancelable: true})); if (++i >= 10) clearInterval(t); }, 16); return 'driving'; })()",
+      "note": "back to the first space, so the fixture needs only two spaces"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "eval",
+      "id": "taps-under-smooth",
+      "target": "/sidebar",
+      "expression": "(() => { const t = window.__taps || []; return `${t.slice(0, 3).join(',')}|${t.length > 3 && t.slice(3).every((s) => s === 'soft')}`; })()",
+      "note": "two soft detents, the plain commit, then only soft settle taps and the soft landing"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-route-answered",
+      "pattern": "Atrium: settings surface ready"
+    },
+    {
+      "type": "vlog_absent",
+      "label": "no-unusable-argument-refusal",
+      "pattern": "Atrium: the settings surface sent an object the core"
+    },
+    {
+      "type": "eval_equals",
+      "id": "initial-value",
+      "expected": "\"crisp\"",
+      "desc": "the Rust core's default"
+    },
+    {
+      "type": "eval_equals",
+      "id": "taps-under-off",
+      "expected": "\"none\"",
+      "desc": "Off reached the running sidebar and silenced a committed swipe"
+    },
+    {
+      "type": "eval_equals",
+      "id": "taps-under-smooth",
+      "expected": "\"soft,soft,plain|true\"",
+      "desc": "Smooth reached the running sidebar: soft detents, a plain commit, soft settle taps"
+    },
+    {
+      "type": "file_contains",
+      "label": "smooth-is-on-disk",
+      "file": "settings",
+      "path": "swipeHaptics",
+      "value": "smooth"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits with the settings window open"
+    }
+  ]
+}

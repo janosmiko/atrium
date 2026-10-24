@@ -1,0 +1,118 @@
+{
+  "name": "the-floating-capsule-fills-as-a-page-loads",
+  "description": "The sidebar hides its address row while the floating capsule is up, so the capsule carries the load instead. Cmd+Shift+D floats it, then a Cmd+R reload is read on the /devbar document. Reading the sidebar here would say nothing: the two address bars are separate documents and never both visible, so only the capsule's own fill layer proves the push reached both surfaces.",
+  "fixture": "staged-load.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d",
+      "note": "docked -> floating"
+    },
+    {
+      "type": "eval_until",
+      "id": "went-floating",
+      "target": "/sidebar",
+      "expression": "String(document.querySelector('#atrium-root').classList.contains('devbar-shown'))",
+      "expected": "true",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "eval",
+      "id": "idle-capsule-is-clear",
+      "target": "/devbar",
+      "expression": "(() => { const el = document.querySelector('.devbar .loadfill'); if (!el) { return 'no fill'; } return el.classList.contains('waiting') || el.classList.contains('receiving') ? 'still filling ' + el.className : 'clear'; })()",
+      "note": "THE CONTROL: nothing is loading, so nothing fills."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+r"
+    },
+    {
+      "type": "settle",
+      "ms": 900
+    },
+    {
+      "type": "eval",
+      "id": "mid-load-capsule-fills",
+      "target": "/devbar",
+      "expression": "(() => { const el = document.querySelector('.devbar .loadfill'); if (!el) { return 'no fill'; } const bar = el.parentElement; const w = parseFloat(getComputedStyle(el).width); const full = parseFloat(getComputedStyle(bar).width); if (!full) { return 'no capsule'; } const live = el.classList.contains('waiting') || el.classList.contains('receiving'); if (!live) { return 'idle ' + el.className; } const pct = w / full; return pct > 0.02 && pct <= 1.001 ? 'filling' : 'off ' + pct.toFixed(2); })()"
+    },
+    {
+      "type": "capture",
+      "id": "capsule-mid-load"
+    },
+    {
+      "type": "settle",
+      "ms": 5000
+    },
+    {
+      "type": "eval",
+      "id": "after-load-capsule-fades",
+      "target": "/devbar",
+      "expression": "(() => { const el = document.querySelector('.devbar .loadfill'); if (!el) { return 'no fill'; } const o = parseFloat(getComputedStyle(el).opacity); return el.classList.contains('done') && o < 0.02 ? 'faded' : 'still showing ' + el.className + ' ' + o.toFixed(2); })()"
+    },
+    {
+      "type": "capture",
+      "id": "capsule-after-load"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "went-floating",
+      "expected": "true",
+      "desc": "the chord floated the bar, so the state under test was reached"
+    },
+    {
+      "type": "eval_equals",
+      "id": "idle-capsule-is-clear",
+      "expected": "\"clear\"",
+      "desc": "THE CONTROL: an idle capsule carries no live phase."
+    },
+    {
+      "type": "eval_equals",
+      "id": "mid-load-capsule-fills",
+      "expected": "\"filling\"",
+      "desc": "THE MEASUREMENT: the same push that fills the docked field fills the capsule, in the other document."
+    },
+    {
+      "type": "eval_equals",
+      "id": "after-load-capsule-fades",
+      "expected": "\"faded\"",
+      "desc": "the capsule hands back to its plain plate once the page arrives."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

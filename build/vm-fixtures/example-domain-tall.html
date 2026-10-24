@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<!-- Same <title> as example-domain.html, because the gates match on the title.
+     This one fills the page: scenarios that assert a region stays STABLE need
+     something in it to be stable, and a blank page reads as pure white with
+     zero variance, which is indistinguishable from the content vanishing. -->
+<title>Example Domain</title>
+<style>
+  body { margin: 0; font: 16px/1.6 system-ui, sans-serif; }
+  .band { padding: 12px 20px; }
+  .band:nth-child(odd) { background: #dfe6ee; }
+  .band:nth-child(even) { background: #eef3f8; }
+</style>
+<h1 class="band">Example Domain</h1>
+<div class="band">This page stands in for a remote one the probe VM cannot reach.</div>
+<div class="band">It is deliberately banded so a captured region has variance.</div>
+<div class="band">A flat white page makes "stable" and "gone" look identical.</div>
+<div class="band">Row five.</div>
+<div class="band">Row six.</div>
+<div class="band">Row seven.</div>
+<div class="band">Row eight.</div>
+<div class="band">Row nine.</div>
+<div class="band">Row ten.</div>

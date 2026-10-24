@@ -1,0 +1,226 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Mon, 7 Sep 2026 09:48:02 +0200
+Subject: [PATCH 120/154] feat(links): Option+click peeks a link and
+ Cmd+Option+click opens a little window
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Blink turned an Option click into a download policy, and the browser
+never saw the modifier, so Option could not join Shift in the peek
+intercept. On mac an Option click without Shift or Ctrl now yields the
+NewWindow policy after the synthesized-event guards, unless the anchor
+carries a download attribute the renderer cannot honour itself, which
+keeps a cross-origin download link downloading. A Cmd+Option click
+routes through OpenLinkInAtriumLittleWindow into CreateLittleWindow
+with the link's OpenURLParams, so referrer and initiator survive, in
+place of the split pane. The hover card names Peek and Little window.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/browser.cc                  | 22 +++++------
+ .../renderer/core/html/html_anchor_element.cc |  9 ++++-
+ .../renderer/core/loader/navigation_policy.cc | 39 +++++++++++++++----
+ .../renderer/core/loader/navigation_policy.h  |  7 +++-
+ .../core/loader/navigation_policy_test.cc     | 18 +++++++++
+ 5 files changed, 73 insertions(+), 22 deletions(-)
+
+diff --git a/chrome/browser/ui/browser.cc b/chrome/browser/ui/browser.cc
+index 4982efcff8008..f78f6549402dd 100644
+--- a/chrome/browser/ui/browser.cc
++++ b/chrome/browser/ui/browser.cc
+@@ -1517,21 +1517,19 @@ WebContents* Browser::OpenURLFromTab(
+   }
+ 
+ #if BUILDFLAG(IS_MAC)
+-  // Cmd+Option on a link is NEW_SPLIT_VIEW, whose stock handling pairs the new
+-  // tab through TabStripModel::AddToNewSplit - a path Atrium's TabStripModel
+-  // never populates, so the pane silently never appears. NEW_BACKGROUND_TAB
+-  // because OpenLinkInAtriumSplit opens the link itself and would recurse.
++  // Cmd+Option on a link is NEW_SPLIT_VIEW, whose stock handling pairs the
++  // new tab through TabStripModel::AddToNewSplit - a path Atrium's
++  // TabStripModel never populates, so it NOTREACHEDs here.
+   if (params.disposition == WindowOpenDisposition::NEW_SPLIT_VIEW && source &&
+       atrium::IsAtriumBrowserWindowEnabled()) {
+-    OpenURLParams split_params(params);
+-    split_params.disposition = WindowOpenDisposition::NEW_BACKGROUND_TAB;
+-    if (atrium::OpenLinkInAtriumSplit(this, source, split_params,
+-                                      /*stacked=*/false)) {
+-      return source;  // No new WebContents created on this path.
++    if (atrium::OpenLinkInAtriumLittleWindow(this, params)) {
++      return source;  // No new WebContents created in THIS browser.
+     }
+-    // Nothing Atrium can split - a devtools or popup window, say - so open a
+-    // plain tab rather than fall into a split this window cannot build.
+-    return OpenURLFromTab(source, split_params,
++    // Not an Atrium-managed window - a devtools or popup one, say - so open a
++    // plain tab rather than fall into stock split.
++    OpenURLParams tab_params(params);
++    tab_params.disposition = WindowOpenDisposition::NEW_BACKGROUND_TAB;
++    return OpenURLFromTab(source, tab_params,
+                           std::move(navigation_handle_callback));
+   }
+ 
+diff --git a/third_party/blink/renderer/core/html/html_anchor_element.cc b/third_party/blink/renderer/core/html/html_anchor_element.cc
+index 16044e83bdac0..6e75706377176 100644
+--- a/third_party/blink/renderer/core/html/html_anchor_element.cc
++++ b/third_party/blink/renderer/core/html/html_anchor_element.cc
+@@ -544,7 +544,14 @@ void HTMLAnchorElementBase::HandleClick(MouseEvent& event) {
+   LocalFrame* frame = window->GetFrame();
+   request.SetHasUserGesture(LocalFrame::HasTransientUserActivation(frame));
+ 
+-  NavigationPolicy navigation_policy = NavigationPolicyFromEvent(&event);
++  // A download attribute the block below cannot honour reaches the browser
++  // only as kNavigationPolicyDownload, so Atrium's option-click peek must
++  // leave this one alone.
++  const bool anchor_download_needs_browser =
++      FastHasAttribute(html_names::kDownloadAttr) &&
++      !window->GetSecurityOrigin()->CanReadContent(completed_url);
++  NavigationPolicy navigation_policy =
++      NavigationPolicyFromEvent(&event, anchor_download_needs_browser);
+ 
+   // Respect the download attribute only if we can read the content, and the
+   // event is not an alt-click or similar.
+diff --git a/third_party/blink/renderer/core/loader/navigation_policy.cc b/third_party/blink/renderer/core/loader/navigation_policy.cc
+index ebaf032a61718..0f16dcf077d71 100644
+--- a/third_party/blink/renderer/core/loader/navigation_policy.cc
++++ b/third_party/blink/renderer/core/loader/navigation_policy.cc
+@@ -52,7 +52,8 @@ NavigationPolicy NavigationPolicyFromEventModifiers(int16_t button,
+                                                     bool ctrl,
+                                                     bool shift,
+                                                     bool alt,
+-                                                    bool meta) {
++                                                    bool meta,
++                                                    bool divert_alt_to_peek) {
+ #if BUILDFLAG(IS_MAC)
+   const bool new_tab_modifier = (button == 1) || meta;
+ #else
+@@ -68,27 +69,36 @@ NavigationPolicy NavigationPolicyFromEventModifiers(int16_t button,
+     return shift ? kNavigationPolicyNewForegroundTab
+                  : kNavigationPolicyNewBackgroundTab;
+   }
++#if BUILDFLAG(IS_MAC)
++  // Atrium's peek chord. html_anchor_element.cc holds Download back by the
++  // double-click timer, so the peek rides NEW_WINDOW instead.
++  if (divert_alt_to_peek && alt && !shift && !ctrl) {
++    return kNavigationPolicyNewWindow;
++  }
++#endif
+   return shift ? kNavigationPolicyNewWindow : kNavigationPolicyDownload;
+ }
+ 
+-NavigationPolicy NavigationPolicyFromEventInternal(const Event* event) {
++NavigationPolicy NavigationPolicyFromEventInternal(const Event* event,
++                                                   bool divert_alt_to_peek) {
+   if (!event)
+     return kNavigationPolicyCurrentTab;
+ 
+   if (const auto* mouse_event = DynamicTo<MouseEvent>(event)) {
+     return NavigationPolicyFromEventModifiers(
+         mouse_event->button(), mouse_event->ctrlKey(), mouse_event->shiftKey(),
+-        mouse_event->altKey(), mouse_event->metaKey());
++        mouse_event->altKey(), mouse_event->metaKey(), divert_alt_to_peek);
+   } else if (const KeyboardEvent* key_event = DynamicTo<KeyboardEvent>(event)) {
+     // The click is simulated when triggering the keypress event.
+     return NavigationPolicyFromEventModifiers(
+         0, key_event->ctrlKey(), key_event->shiftKey(), key_event->altKey(),
+-        key_event->metaKey());
++        key_event->metaKey(), divert_alt_to_peek);
+   } else if (const auto* gesture_event = DynamicTo<GestureEvent>(event)) {
+     // The click is simulated when triggering the gesture-tap event
+     return NavigationPolicyFromEventModifiers(
+         0, gesture_event->ctrlKey(), gesture_event->shiftKey(),
+-        gesture_event->altKey(), gesture_event->metaKey());
++        gesture_event->altKey(), gesture_event->metaKey(),
++        divert_alt_to_peek);
+   }
+   return kNavigationPolicyCurrentTab;
+ }
+@@ -129,13 +139,16 @@ NavigationPolicy NavigationPolicyFromCurrentEvent() {
+       button, event->GetModifiers() & WebInputEvent::kControlKey,
+       event->GetModifiers() & WebInputEvent::kShiftKey,
+       event->GetModifiers() & WebInputEvent::kAltKey,
+-      event->GetModifiers() & WebInputEvent::kMetaKey);
++      event->GetModifiers() & WebInputEvent::kMetaKey,
++      /*divert_alt_to_peek=*/false);
+ }
+ 
+ }  // namespace
+ 
+-NavigationPolicy NavigationPolicyFromEvent(const Event* event) {
+-  NavigationPolicy event_policy = NavigationPolicyFromEventInternal(event);
++NavigationPolicy NavigationPolicyFromEvent(const Event* event,
++                                           bool anchor_download_needs_browser) {
++  NavigationPolicy event_policy =
++      NavigationPolicyFromEventInternal(event, /*divert_alt_to_peek=*/false);
+   NavigationPolicy input_policy = NavigationPolicyFromCurrentEvent();
+ 
+   if (event_policy == kNavigationPolicyDownload &&
+@@ -158,6 +171,16 @@ NavigationPolicy NavigationPolicyFromEvent(const Event* event) {
+     return kNavigationPolicyCurrentTab;
+   }
+ 
++#if BUILDFLAG(IS_MAC)
++  // Atrium's option-click peek, applied only here: the guards above are what
++  // stop a synthesized alt-click, and they only recognise Download.
++  if (event_policy == kNavigationPolicyDownload &&
++      !anchor_download_needs_browser) {
++    return NavigationPolicyFromEventInternal(event,
++                                             /*divert_alt_to_peek=*/true);
++  }
++#endif
++
+   return event_policy;
+ }
+ 
+diff --git a/third_party/blink/renderer/core/loader/navigation_policy.h b/third_party/blink/renderer/core/loader/navigation_policy.h
+index a4ed93695a4ea..2852eaa1c27f2 100644
+--- a/third_party/blink/renderer/core/loader/navigation_policy.h
++++ b/third_party/blink/renderer/core/loader/navigation_policy.h
+@@ -53,7 +53,12 @@ enum NavigationPolicy {
+ // based on the Event. This function takes care of some security checks,
+ // ensuring that synthesized events cannot trigger arbitrary downloads
+ // or new tabs without user intention coming from a real input event.
+-CORE_EXPORT NavigationPolicy NavigationPolicyFromEvent(const Event*);
++// `anchor_download_needs_browser` suppresses Atrium's mac option-click
++// diversion for an anchor whose download attribute the renderer cannot honour
++// itself, which only kNavigationPolicyDownload reaches.
++CORE_EXPORT NavigationPolicy
++NavigationPolicyFromEvent(const Event*,
++                          bool anchor_download_needs_browser = false);
+ 
+ // Returns a NavigationPolicy to use for navigating a new window.
+ // This function respects user intention coming from a real input event,
+diff --git a/third_party/blink/renderer/core/loader/navigation_policy_test.cc b/third_party/blink/renderer/core/loader/navigation_policy_test.cc
+index 4f3568b838c6d..ab251393d3f10 100644
+--- a/third_party/blink/renderer/core/loader/navigation_policy_test.cc
++++ b/third_party/blink/renderer/core/loader/navigation_policy_test.cc
+@@ -425,8 +425,26 @@ TEST_F(NavigationPolicyTest, EventAltClick) {
+ TEST_F(NavigationPolicyTest, EventAltClickWithUserEvent) {
+   int modifiers = WebInputEvent::kAltKey;
+   WebMouseEvent::Button button = WebMouseEvent::Button::kLeft;
++#if BUILDFLAG(IS_MAC)
++  // Atrium spends option-click on a peek, which travels as NEW_WINDOW.
++  EXPECT_EQ(kNavigationPolicyNewWindow,
++            GetPolicyFromEvent(modifiers, button, modifiers, button));
++#else
++  EXPECT_EQ(kNavigationPolicyDownload,
++            GetPolicyFromEvent(modifiers, button, modifiers, button));
++#endif
++}
++
++TEST_F(NavigationPolicyTest, EventCtrlAltClickWithUserEvent) {
++  int modifiers = WebInputEvent::kControlKey | WebInputEvent::kAltKey;
++  WebMouseEvent::Button button = WebMouseEvent::Button::kLeft;
++#if BUILDFLAG(IS_MAC)
+   EXPECT_EQ(kNavigationPolicyDownload,
+             GetPolicyFromEvent(modifiers, button, modifiers, button));
++#else
++  EXPECT_EQ(kNavigationPolicyNewBackgroundTab,
++            GetPolicyFromEvent(modifiers, button, modifiers, button));
++#endif
+ }
+ 
+ TEST_F(NavigationPolicyTest, EventAltClickWithDifferentUserEvent) {

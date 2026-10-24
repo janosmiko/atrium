@@ -1,0 +1,43 @@
+{
+  "name": "ai-panel-gap-matches-window-gutter",
+  "description": "Rework: the open AI panel's card sits the same distance from the web card as the web card sits from the window edge (the borderWidth setting, 10px by default), not a doubled 36px. Reads the card's own offset from the panel's left edge off the /ai-panel document and captures the open panel for a visual check.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "wait_vlog", "pattern": "Atrium: sidebar rows drawn [1-9]", "timeout_ms": 20000 },
+    {
+      "type": "eval_until",
+      "id": "panel-built",
+      "target": "/ai-panel",
+      "expression": "String(!!document.querySelector('.aichatinput'))",
+      "expected": "true",
+      "timeout_ms": 10000
+    },
+    { "type": "activate" },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "open",
+      "target": "/ai-panel",
+      "expression": "(() => { document.dispatchEvent(new KeyboardEvent('keydown', {key: '`'})); return String(document.getElementById('atrium-root').classList.contains('aipopen')); })()"
+    },
+    { "type": "settle", "ms": 2500, "note": "the container widens before the card's own layout settles" },
+    {
+      "type": "eval",
+      "id": "gap",
+      "target": "/ai-panel",
+      "expression": "(() => { const card = document.querySelector('.aipcard'); return String(Math.round(card.getBoundingClientRect().left)); })()",
+      "note": "the panel's own left edge IS the web card's edge: ApplyContentInsets drops the pane container's inset on this side while the panel is open, so the grip's mark can reach the seam. That makes the card's offset the whole gap, where it used to be the CSS half of a sum with the pane's own 10. The browsertest TheAiPanelGripMarkCopiesTheNativeSeamPill holds the native half of it"
+    },
+    { "type": "capture", "id": "warm-up", "duration_ms": 300, "fps": 10, "note": "the first stream in a run can deliver no frames" },
+    { "type": "capture", "id": "ai-panel-gap", "duration_ms": 300, "fps": 10 }
+  ],
+  "assertions": [
+    { "type": "ax_window_count", "expected": 1, "min_area": 200000, "desc": "the browser window alone" },
+    { "type": "eval_equals", "id": "open", "expected": "\"true\"", "desc": "setup: the hotkey opened the panel" },
+    { "type": "eval_equals", "id": "gap", "expected": "\"10\"", "desc": "the card-to-card gap must equal kContentCardInset, the same gap the web card keeps from the window edge" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "spaces": [
+    {
+      "id": "45645645-4564-4456-8456-456456456456",
+      "name": "Icons",
+      "emoji": "🔵",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135200.0,
+          "url": "http://127.0.0.1:8000/favicon-page.html",
+          "title": "Blue Favicon Site"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "favorites": [
+    {
+      "url": "http://127.0.0.1:8000/favicon-page.html",
+      "title": "Blue Favicon Site",
+      "profileID": "Default"
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "45645645-4564-4456-8456-456456456456"
+  }
+}

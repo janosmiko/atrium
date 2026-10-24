@@ -1,0 +1,79 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 11 Aug 2026 10:55:42 +0200
+Subject: [PATCH 060/154] fix: give every chrome surface a delegate so its
+ unhandled keys come back
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+WebContentsImpl::HandleKeyboardEvent short-circuits on `delegate_ && ...`, so a
+WebContents with no delegate drops every key the renderer declined - the
+renderer's unhandled ack never becomes a redispatch and the chord dies in
+silence. Every surface built through CreateChromeContents was delegate-less;
+Cmd+S dying on the foyer is what surfaced it.
+
+ChromeSurfaceKeyForwarder is the forwarding PeekWidget already did by hand,
+now the default for every such surface. A surface that wants its own delegate
+still calls SetDelegate after CreateChromeContents.
+
+The rest is the instrument that found it, kept because it answers "where did
+the chord die" in one line: a Cmd+S dead-chord probe naming the responder's
+actual page rather than its responder class (every WebContents-backed surface
+answers to the same class), and one VLOG on each of the three places a key can
+stop - the widget's ack, the WebContents' delegate hop, and the window's
+redispatch.
+
+CreateForTesting/ResetForTesting bind the leaked singleton to a profile
+synchronously so the delegate wiring is unit-testable at all.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ .../renderer_host/render_widget_host_impl.cc        | 13 +++++++++++++
+ content/browser/web_contents/web_contents_impl.cc   |  8 ++++++++
+ 2 files changed, 21 insertions(+)
+
+diff --git a/content/browser/renderer_host/render_widget_host_impl.cc b/content/browser/renderer_host/render_widget_host_impl.cc
+index 01d72aba68bff..82924fdcb38d0 100644
+--- a/content/browser/renderer_host/render_widget_host_impl.cc
++++ b/content/browser/renderer_host/render_widget_host_impl.cc
+@@ -2665,6 +2665,19 @@ void RenderWidgetHostImpl::OnKeyboardEventAck(
+   bool processed =
+       (blink::mojom::InputEventResultState::kConsumed == ack_result);
+ 
++  // A command chord the renderer declines has to come back up here
++  // to be redispatched. Say whether it did, and if not what stopped it.
++  if (event.event.GetType() == blink::WebInputEvent::Type::kRawKeyDown &&
++      (event.event.GetModifiers() & blink::WebInputEvent::kMetaKey)) {
++    const char* stop = !delegate_          ? "no-delegate"
++                       : processed         ? "renderer-consumed"
++                       : IsHidden()        ? "hidden"
++                       : event.event.skip_if_unhandled ? "skip-if-unhandled"
++                                                       : "forwarded";
++    VLOG(1) << "Atrium: keyack rwh=" << GetRoutingID()
++            << " key=" << event.event.windows_key_code << " stop=" << stop;
++  }
++
+   // We only send unprocessed key event upwards if we are not hidden,
+   // because the user has moved away from us and no longer expect any effect
+   // of this key event.
+diff --git a/content/browser/web_contents/web_contents_impl.cc b/content/browser/web_contents/web_contents_impl.cc
+index 7edad76e875c0..e7653cbcd5081 100644
+--- a/content/browser/web_contents/web_contents_impl.cc
++++ b/content/browser/web_contents/web_contents_impl.cc
+@@ -4680,6 +4680,14 @@ bool WebContentsImpl::HandleKeyboardEvent(
+       browser_plugin_embedder_->HandleKeyboardEvent(event)) {
+     return true;
+   }
++  // A surface with no delegate ends the unhandled-key trip here,
++  // and does it silently. Name the surface and say which way it went.
++  if (event.GetType() == blink::WebInputEvent::Type::kRawKeyDown &&
++      (event.GetModifiers() & blink::WebInputEvent::kMetaKey)) {
++    VLOG(1) << "Atrium: wc handlekey url=" << GetLastCommittedURL().spec()
++            << " key=" << event.windows_key_code
++            << " stop=" << (delegate_ ? "to-delegate" : "no-delegate");
++  }
+   return delegate_ && delegate_->HandleKeyboardEvent(this, event);
+ }
+ 

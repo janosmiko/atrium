@@ -1,0 +1,92 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sat, 29 Aug 2026 19:44:52 +0200
+Subject: [PATCH 084/154] feat(peek): open a window.open popup as a peek over
+ its opener
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Only a normal-type browser was wrapped in an Atrium window, so a popup a
+page opened landed in a plain top-level window. The peek route fired on
+a link navigation, which window.open never takes. The window now adopts
+the contents the browser already built, which is what keeps the opener,
+the profile and the storage partition, so a sign-in library still
+reaches back by message and still sees the handle close.
+
+An adopted popup shows an origin chip, because the page it lands on is
+not the page the user clicked to. The chip follows a redirect, which
+every sign-in flow performs. A link-click peek shows no chip.
+
+The caller gives up ownership before the window answers, so opening
+returns whether a card took it and hands the contents back when none
+did. This also carries three code moves in the window and the controller
+that belong to no task in this branch.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/browser.cc    | 22 ++++++++++++++++++++++
+ chrome/browser/ui/tab_helpers.h |  9 +++++++++
+ 2 files changed, 31 insertions(+)
+
+diff --git a/chrome/browser/ui/browser.cc b/chrome/browser/ui/browser.cc
+index fc68f5c8d0b83..b7b01080ce2ef 100644
+--- a/chrome/browser/ui/browser.cc
++++ b/chrome/browser/ui/browser.cc
+@@ -1710,6 +1710,28 @@ content::WebContents* Browser::AddNewContents(
+     }
+   }
+ 
++#if BUILDFLAG(IS_MAC)
++  // A page-opened popup shows as a peek over its opener instead of a window of
++  // its own. `new_contents` is handed over rather than rebuilt, which is what
++  // keeps window.opener and the storage partition.
++
++  // Placed past the fullscreen branches above on purpose: a deferred or
++  // inactive open must not take focus, and the card always does.
++  if (disposition == WindowOpenDisposition::NEW_POPUP &&
++      window_action == NavigateParams::WindowAction::kShowWindow &&
++      atrium::ShouldPeekPopup(
++          this, source, target_url,
++          !window_features.bounds.IsEmpty() && targeting_different_display)) {
++    content::WebContents* peeked = new_contents.get();
++    // A refused adopt hands the popup back, and it falls through to the stock
++    // path below still owned - never destroyed under the caller.
++    new_contents = atrium::AdoptPopupAsPeek(this, std::move(new_contents));
++    if (!new_contents) {
++      return peeked;
++    }
++  }
++#endif  // BUILDFLAG(IS_MAC)
++
+   return chrome::AddWebContents(this, source, std::move(new_contents),
+                                 target_url, disposition, window_features,
+                                 window_action, user_gesture);
+diff --git a/chrome/browser/ui/tab_helpers.h b/chrome/browser/ui/tab_helpers.h
+index ec26ac19c0780..89dee76639c96 100644
+--- a/chrome/browser/ui/tab_helpers.h
++++ b/chrome/browser/ui/tab_helpers.h
+@@ -29,6 +29,10 @@ class PreviewTab;
+ 
+ #endif  // BUILDFLAG(IS_ANDROID)
+ 
++namespace atrium {
++class BrowserController;
++}
++
+ namespace content {
+ class WebContents;
+ }
+@@ -80,6 +84,11 @@ class TabHelpers {
+   // Link Preview shows a preview of a page, then promote it as a new tab.
+   friend class PreviewTab;
+ 
++  // The Atrium peek card hosts a page a site opened with window.open, off the
++  // tab strip, and can promote it to a real tab - the same arbitrary external
++  // content the prefetch and preview entries above are friends for.
++  friend class atrium::BrowserController;
++
+   // FYI: Do NOT add any more friends here. The functions above are the ONLY
+   // ones that need to call AttachTabHelpers; if you think you do, re-read the
+   // design document linked above, especially the section "Reusing tab helpers".

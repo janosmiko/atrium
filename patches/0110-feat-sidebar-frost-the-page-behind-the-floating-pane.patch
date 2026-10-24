@@ -1,0 +1,64 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 1 Sep 2026 23:44:29 +0200
+Subject: [PATCH 110/154] feat(sidebar): frost the page behind the floating
+ panel
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The panel was translucent with nothing behind it, and this task had been
+closed once on the finding that a real blur was unreachable. That finding
+was wrong. It rested on the note that the web content's NSView composites
+above its views siblings, which governs Views compositor paint, not
+NSViews - a manually added NSView does paint over the page, as the overlay
+shadow layer now demonstrates.
+
+AtriumSidebarFrostLayer wraps an NSVisualEffectView in a plain NSView and
+tracks the panel's frame. The wrapper is load-bearing: any bare
+NSVisualEffectView is sorted to the rearmost band on the next resort,
+which a tab switch triggers, and the comparator only inspects direct
+subviews.
+
+Proven by a differential rather than a threshold. Saturation alone cannot
+separate a blurred page from the material's own tint, so the test is
+whether the sampled colour MOVES with the page behind it. It does, by 179
+where two pages differ by 212.
+
+The wash floor drops from .96 to .40 because its job changed. It existed
+to hide page text, and the frost now does that at any floor. The wash is
+the greater of the user's Glass opacity and this floor, so .96 was
+overriding a live .55 setting and hiding the frost behind it. The comments
+that called the floor the legibility guarantee are rewritten rather than
+left to mislead the next reader.
+
+The frost installs below the shadow layer by name rather than relying on
+where an undocumented sort leaves two unassociated views. A shadow cast by
+a floating surface should sit on the frost, not be smeared by it.
+
+--atrium-disable-sidebar-frost is a kill switch, not a test hook: the
+frost has no user-facing setting of its own to fall back on.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 395b6ec430a44..e68bb4ef13e6f 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3634,6 +3634,12 @@ static_library("ui") {
+       "atrium/atrium_peek_widget.mm",
+       "atrium/atrium_sidebar_edge_reveal.h",
+       "atrium/atrium_sidebar_edge_reveal.mm",
++      "atrium/atrium_overlay_shadow_layer.h",
++      "atrium/atrium_overlay_shadow_layer.mm",
++      "atrium/atrium_frost_probe.h",
++      "atrium/atrium_frost_probe.mm",
++      "atrium/atrium_sidebar_frost_layer.h",
++      "atrium/atrium_sidebar_frost_layer.mm",
+       "atrium/atrium_sidebar_overlay_widget.h",
+       "atrium/atrium_sidebar_overlay_widget.mm",
+       "atrium/atrium_window_corner_radius.h",

@@ -1,0 +1,19 @@
+{
+  "spaces": [
+    {
+      "id": "33333333-3333-3333-3333-333333333333",
+      "name": "Empty",
+      "emoji": "🫙",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": []
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "33333333-3333-3333-3333-333333333333"
+  }
+}

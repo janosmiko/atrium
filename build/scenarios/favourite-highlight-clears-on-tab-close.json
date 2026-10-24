@@ -1,0 +1,195 @@
+{
+  "name": "favourite-highlight-clears-on-tab-close",
+  "description": "A favourite tile kept its selected highlight after the tab it opened was closed. The producer was cleared of it: the Rust core answers `selected:false` for every tile in both states a close can leave (empty strip, and another tab active), and the C++ overlay marks them false whenever it runs. So the open question is not what the model says but whether the surface ever redraws from it, and this scenario is built to tell those two apart rather than to watch a pixel.\n\nThree readings, in order. The run log must carry a close; a fresh model must be BUILT after that close (vlog_after, not mere presence - the same line is logged on every push since launch); and the page must have APPLIED a push, which no log line can show, so apply() bumps window.__atriumApplyCount and the counter is zeroed just before the chord.\n\nThe second phase is the discriminating one. installSidebar parks a push in `pending` while a drag is in flight, and the latch clears only on a dragend or drop that still reaches the root. A dragstart with no drop leaves it armed, and from then on every push parks - a sidebar frozen on its last frame, which looks exactly like a tile that will not let go. Phase one uses a synthetic click, which arms nothing; phase two arms the latch by hand first. If phase one is green and phase two hangs on applied-after-drag, the latch is the fault and the model never was.",
+  "fixture": "favourite-not-a-row.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate",
+      "note": "ssh-launched Atrium is not frontmost on a clean snapshot"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "click",
+      "x": 40,
+      "y": 121,
+      "note": "The first favourite tile. Same measurement a-favourite-click-reuses-its-tab uses on the same grid: the address bar sits above the grid, which puts the first cell at about x=40,y=121."
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "long enough for the tab to be activated and the snapshot that follows it to reach the surface"
+    },
+    {
+      "type": "eval_until",
+      "id": "lit",
+      "target": "/sidebar",
+      "expression": "(() => { const f = [...document.querySelectorAll('.fav')]; return 'tiles=' + f.length + ' first=' + f[0].classList.contains('sel'); })()",
+      "expected": "tiles=3 first=true",
+      "timeout_ms": 15000,
+      "note": "THE CONTROL: the click landed and the tile is the active one. A run where it missed reads false here and cannot go on to claim the close cleared anything."
+    },
+    {
+      "type": "eval",
+      "id": "reset-count-plain",
+      "target": "/sidebar",
+      "expression": "(() => { window.__atriumApplyCount = 0; return 'reset'; })()",
+      "note": "Zeroed HERE, not at launch: startup pushes several times, so a running total would already be non-zero and the read after the chord would pass without a single new render."
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w",
+      "note": "the user's gesture - close the tab the tile is bound to"
+    },
+    {
+      "type": "eval_until",
+      "id": "applied-plain",
+      "target": "/sidebar",
+      "expression": "(() => 'applied=' + ((window.__atriumApplyCount || 0) > 0))()",
+      "expected": "applied=true",
+      "timeout_ms": 15000,
+      "note": "The push reached the DOM rather than parking in `pending`. This is the reading no vlog can give."
+    },
+    {
+      "type": "eval_until",
+      "id": "cleared-plain",
+      "target": "/sidebar",
+      "expression": "(() => { const f = [...document.querySelectorAll('.fav')]; return 'tiles=' + f.length + ' first=' + f[0].classList.contains('sel'); })()",
+      "expected": "tiles=3 first=false",
+      "timeout_ms": 15000,
+      "note": "The tile is still drawn - closing a tab never removes a favourite - and it is no longer the selected one."
+    },
+    {
+      "type": "click",
+      "x": 40,
+      "y": 121,
+      "note": "Phase two. Reopen the favourite so there is a lit tile to close again."
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "eval_until",
+      "id": "relit",
+      "target": "/sidebar",
+      "expression": "(() => { const f = [...document.querySelectorAll('.fav')]; return 'tiles=' + f.length + ' first=' + f[0].classList.contains('sel'); })()",
+      "expected": "tiles=3 first=true",
+      "timeout_ms": 15000,
+      "note": "the second control: the tile is lit again, so phase two starts from the same place phase one did"
+    },
+    {
+      "type": "eval",
+      "id": "arm-drag",
+      "target": "/sidebar",
+      "expression": "(() => { const row = document.querySelector('.tabrow') || document.querySelector('.fav'); if (!row) { return 'no-source'; } row.dispatchEvent(new Event('dragstart', {bubbles: true})); return 'armed'; })()",
+      "note": "A dragstart with no dragend and no drop, which is the state a drag whose source node left the DOM leaves behind. The latch listens in the capture phase on the root, so it arms before any handler that might throw on the missing dataTransfer."
+    },
+    {
+      "type": "eval",
+      "id": "reset-count-dragged",
+      "target": "/sidebar",
+      "expression": "(() => { window.__atriumApplyCount = 0; return 'reset'; })()"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+w",
+      "note": "the same gesture, with the latch armed"
+    },
+    {
+      "type": "eval_until",
+      "id": "applied-dragged",
+      "target": "/sidebar",
+      "expression": "(() => 'applied=' + ((window.__atriumApplyCount || 0) > 0))()",
+      "expected": "applied=true",
+      "timeout_ms": 15000,
+      "note": "THE DISCRIMINATOR. If an armed latch is what freezes the sidebar, this is where the run stops - the model is fine, the push is built, and nothing draws it."
+    },
+    {
+      "type": "eval_until",
+      "id": "cleared-dragged",
+      "target": "/sidebar",
+      "expression": "(() => { const f = [...document.querySelectorAll('.fav')]; return 'tiles=' + f.length + ' first=' + f[0].classList.contains('sel'); })()",
+      "expected": "tiles=3 first=false",
+      "timeout_ms": 15000
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered",
+      "label": "still-one-window"
+    },
+    {
+      "type": "eval_equals",
+      "id": "lit",
+      "expected": "tiles=3 first=true",
+      "desc": "THE CONTROL: the tile was the selected one before the close."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: tab [0-9]+ closed",
+      "label": "the-tab-really-closed",
+      "desc": "Cmd+W took. BrowserController::RemoveTab logs this for a genuine delete only, so a move-out or a teardown cannot stand in for it. Without it a chord that never reached the window leaves the tile lit for an honest reason."
+    },
+    {
+      "type": "vlog_after",
+      "pattern": "Atrium: sidebar model from the RUST CORE",
+      "after_pattern": "Atrium: tab [0-9]+ closed",
+      "label": "a-model-was-built-after-the-close",
+      "desc": "Ordering, not presence: this line is logged on every push since launch, so its mere existence says nothing about the close. What matters is that the producer ran AGAIN afterwards - which is what makes a stale tile the surface's fault rather than the model's."
+    },
+    {
+      "type": "eval_equals",
+      "id": "applied-plain",
+      "expected": "applied=true",
+      "desc": "and the surface applied that push instead of parking it in `pending`"
+    },
+    {
+      "type": "eval_equals",
+      "id": "cleared-plain",
+      "expected": "tiles=3 first=false",
+      "desc": "THE assertion: the closed tab's tile is no longer highlighted, and the grid still has all three."
+    },
+    {
+      "type": "eval_equals",
+      "id": "relit",
+      "expected": "tiles=3 first=true",
+      "desc": "the second control: phase two starts from a lit tile too"
+    },
+    {
+      "type": "eval_equals",
+      "id": "arm-drag",
+      "expected": "\"armed\"",
+      "desc": "the drag latch had a source to arm from. 'no-source' means the sidebar drew no row and the phase proved nothing. Quoted because this one is a plain eval, which stores the JSON as it comes back - the eval_until reads below store theirs already unwrapped."
+    },
+    {
+      "type": "eval_equals",
+      "id": "applied-dragged",
+      "expected": "applied=true",
+      "desc": "THE DISCRIMINATOR: a push still redraws with a drag left armed. A failure here names the latch, and clears the snapshot producer entirely."
+    },
+    {
+      "type": "eval_equals",
+      "id": "cleared-dragged",
+      "expected": "tiles=3 first=false",
+      "desc": "and the highlight goes on that path too"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

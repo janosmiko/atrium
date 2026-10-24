@@ -1,0 +1,39 @@
+{
+ "spaces": [
+  {
+   "id": "9ab00902-0000-4000-8000-000000000902",
+   "name": "FavCycle",
+   "emoji": "F",
+   "tint": "oceanBlue",
+   "profileID": "Default",
+   "order": 0,
+   "pinnedTabs": [],
+   "tabs": [
+    {
+     "lastActiveAt": 805135200.0,
+     "url": "http://127.0.0.1:8000/favicon-page.html",
+     "title": "The Only Plain Row"
+    }
+   ],
+   "groups": []
+  }
+ ],
+ "favorites": [
+  {
+   "url": "http://127.0.0.1:8000/solid-orange.html",
+   "title": "Orange Fav",
+   "profileID": "Default"
+  },
+  {
+   "url": "http://127.0.0.1:8000/solid-white.html",
+   "title": "White Fav",
+   "profileID": "Default"
+  }
+ ],
+ "archived": [],
+ "appState": {
+  "sidebarWidth": 280,
+  "schemaVersion": 1,
+  "activeSpaceID": "9ab00902-0000-4000-8000-000000000902"
+ }
+}

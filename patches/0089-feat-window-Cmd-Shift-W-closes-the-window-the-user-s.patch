@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Sun, 30 Aug 2026 09:17:13 +0200
+Subject: [PATCH 089/154] feat(window): Cmd+Shift+W closes the window the user
+ selected
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Cmd+Shift+W is matched on the raw NSEvent, because the File menu item behind
+it is an AppKit performClose: item that AppKit alone validates. It resolves
+the window off the event rather than off the visible tab's Browser, which
+under a presenter swap belongs to a different, off-screen window.
+
+The red traffic light and File > Close Window arrive at windowShouldClose:
+rather than through Widget::CloseWithReason, so the client view now routes
+them back to the window and they count as user-initiated too. That override
+beats the last-tab-out keep-open, survives a beforeunload prompt the user
+cancels, and is re-armed per close since CloseWithReason spends it.
+
+The keep-open gate and the AppKit close choice move to
+atrium_window_close_decision, so both can be asserted without a Browser, a
+widget or an NSWindow. ParseCombo now refuses the chords the dispatcher
+claims, so no action can be bound to one and silently shadowed.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index d11cda29d2011..ea3030e59ec00 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -662,6 +662,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:status_bubble_color_math",
+     "//chrome/browser/ui/atrium:surface_key_route",
+     "//chrome/browser/ui/atrium:window_appearance",
++    "//chrome/browser/ui/atrium:window_close_decision",
+     "//chrome/browser/ui/autofill",
+     "//chrome/browser/ui/autofill:impl",
+     "//chrome/browser/ui/autofill/payments",

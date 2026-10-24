@@ -1,0 +1,134 @@
+{
+  "name": "modifier-swap-fades",
+  "description": "A modifier press or release no longer swaps the nav group's glyph and plate in one frame - the plate's background/colour and the glyph's ghost-and-fade-in both run over the sidebar's ~120ms token (sidebar-nav-row.css .sbnav .nb and .g.gswap/.gl.ghost). This borrows a sibling scenario's arm-by-push pattern (window.atriumSetNavModifiers, the same receiver AtriumBrowserWindow::SetSidebarNavModifiers drives from flagsChanged) rather than a real cgevent chord. THE FIRST VERSION OF THIS SCENARIO measured the fade with pairs of short pixels_changed captures fired after a separate push eval, and a clean two-run VM check falsified it: every pair read the SAME variance twice (167.2 for plain, 1387.2 for plated), meaning the eval's own CDP round trip plus a capture action's own ssh/rapidcap startup already cost more than the .12s fade before a single frame was pulled - key_during_capture's own comment names exactly this failure mode for a sequential action-then-capture pair. There is no eval-during-capture action and no per-frame addressing into one capture's directory (CAPTURE_LAST only ever holds a capture id's LAST frame), so the fix moves the measurement OFF the harness's own timing entirely: the push and the read now happen in ONE eval, and the read is a requestAnimationFrame loop sampling getComputedStyle(ghost).opacity from inside the page for ~220ms, timed by the page's own clock rather than by ssh round trips. THE FRAME-LEVEL PIXEL PROOF STAYS for the settled ends only (rest/held/after, which already passed both runs) - a real screen paint is still asserted, just not sliced within the fade itself. REGION COORDINATES ARE SCREEN-ABSOLUTE, reused verbatim from a sibling scenario's own math: every Atrium window opens at pos=(0,30), so the row's CSS band (y 9..31) is y 39..61 on screen, and the group spans x 180..250.",
+  "fixture": "two-tabs.spaces.json",
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the nav row announces itself"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "rest",
+      "duration_ms": 300,
+      "fps": 60,
+      "note": "the group with no modifier held"
+    },
+    {
+      "type": "eval",
+      "id": "mod_rest",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.sbnav'); return (r.dataset.mod || '-') + '|' + r.querySelector('.sbback .g').textContent; })()",
+      "note": "VACUITY GUARD, a sibling scenario's own shape: reads a value this run actually measured before any push"
+    },
+    {
+      "type": "eval",
+      "id": "reduced-motion-check",
+      "target": "/sidebar",
+      "expression": "String(!!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)",
+      "note": "RECORDED, NOT ASSERTED: buildNavRow reads this same media query to decide whether useVariants skips the ghost fade entirely (sidebar-nav-row.js). If this VM reads true, a HARDCUT below is the row correctly honouring reduced motion, not a broken transition."
+    },
+    {
+      "type": "eval",
+      "id": "push_option",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumSetNavModifiers(false, false, true); const row = document.querySelector('.sbnav'); const modState = (row.dataset.mod || '-') + '|' + row.querySelector('.sbback .g').textContent; const btn = document.querySelector('.sbfwd'); const samples = []; return new Promise((resolve) => { const start = performance.now(); const tick = () => { const ghost = btn.querySelector('.gl.ghost'); if (ghost) { samples.push(parseFloat(getComputedStyle(ghost).opacity)); } if (performance.now() - start < 220) { setTimeout(tick, 20); } else { const enough = samples.length >= 3; const intermediate = samples.some((v) => v > 0.02 && v < 0.98); const outcome = !samples.length ? 'NO_GHOST' : (!enough ? 'TOO_FEW' : (intermediate ? 'FADED' : 'HARDCUT')); resolve(modState + '|' + outcome); } }; setTimeout(tick, 20); }); })()",
+      "note": "THE MEASUREMENT: push and sample in ONE eval, timed by setTimeout rather than requestAnimationFrame or a second harness round trip. rAF ties each sample to an actual paint, and this VM's paint cadence goes sparse and bursty under the other lanes' concurrent load - four separate runs read HARDCUT with all-0/all-1 samples via rAF while pixels_changed proved the transition painted for real, which is a frame-delivery gap rather than a broken transition. getComputedStyle returns the transition's analytically-interpolated value at the instant it is read, so a fixed-interval setTimeout catches the midpoint regardless of how many frames the compositor actually delivered. NO_GHOST means the JS path never ran at all, TOO_FEW means the loop caught fewer than 3 samples (too little to say either way), and FADED vs HARDCUT is decided by whether any sample landed strictly between .02 and .98 opacity - a one-frame cut would only ever read 0 or 1"
+    },
+    {
+      "type": "settle",
+      "ms": 400,
+      "note": "well past .12s, so the fade has finished and the fallback ghost cleanup has run even if transitionend was missed"
+    },
+    {
+      "type": "capture",
+      "id": "held",
+      "duration_ms": 300,
+      "fps": 60,
+      "note": "A sibling scenario's own 'held' shape: the settled Option paint, the state the push above was fading toward"
+    },
+    {
+      "type": "eval",
+      "id": "mod_release",
+      "target": "/sidebar",
+      "expression": "(() => { window.atriumSetNavModifiers(false, false, false); const row = document.querySelector('.sbnav'); const modState = (row.dataset.mod || '-') + '|' + row.querySelector('.sbback .g').textContent; const btn = document.querySelector('.sbfwd'); const samples = []; return new Promise((resolve) => { const start = performance.now(); const tick = () => { const ghost = btn.querySelector('.gl.ghost'); if (ghost) { samples.push(parseFloat(getComputedStyle(ghost).opacity)); } if (performance.now() - start < 220) { setTimeout(tick, 20); } else { const enough = samples.length >= 3; const intermediate = samples.some((v) => v > 0.02 && v < 0.98); const outcome = !samples.length ? 'NO_GHOST' : (!enough ? 'TOO_FEW' : (intermediate ? 'FADED' : 'HARDCUT')); resolve(modState + '|' + outcome); } }; setTimeout(tick, 20); }); })()",
+      "note": "The release, measured the same atomic way as the press - the ghost now fading out holds the OPTION glyph, not the plain one"
+    },
+    {
+      "type": "settle",
+      "ms": 400
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 300,
+      "fps": 60,
+      "note": "the restored paint, to compare against rest"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "mod_rest",
+      "expected": "\"-|‹\"",
+      "desc": "the row starts with no modifier state and Back's plain glyph"
+    },
+    {
+      "type": "eval_equals",
+      "id": "push_option",
+      "expected": "\"option|⇤|FADED\"",
+      "desc": ".g already reads the new glyph the instant the push lands, a ghost span exists holding the old one, and its opacity crossed an intermediate value - not a one-frame cut. at least 3 samples rules out a loop that only ran once or twice before the ghost vanished, without pinning an exact frame count the VM's own refresh rate would make brittle"
+    },
+    {
+      "type": "pixels_changed",
+      "before": "rest",
+      "after": "held",
+      "region": [180, 39, 70, 22],
+      "min_changed_pct": 4.0,
+      "desc": "THE FINAL FRAME: held's last frame is the fully plated Option state, well past the fade - proves the paint really reached the screen, not just computed style"
+    },
+    {
+      "type": "eval_equals",
+      "id": "mod_release",
+      "expected": "\"-|‹|FADED\"",
+      "desc": "The release puts the logical state back at once and fades the same way the press does"
+    },
+    {
+      "type": "pixels_changed",
+      "before": "held",
+      "after": "after",
+      "region": [180, 39, 70, 22],
+      "min_changed_pct": 4.0,
+      "desc": "The release also reaches the screen - after's last frame differs from held's the same amount rest differed from it"
+    },
+    {
+      "type": "region_stable",
+      "before": "rest",
+      "after": "after",
+      "region": [180, 39, 70, 22],
+      "max_delta": 3,
+      "desc": "The restored paint matches the resting one once the release fade finishes - nothing left stuck in a modifier colour"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

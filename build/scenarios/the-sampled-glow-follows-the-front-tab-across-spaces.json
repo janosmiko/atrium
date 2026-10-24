@@ -1,0 +1,120 @@
+{
+  "name": "the-sampled-glow-follows-the-front-tab-across-spaces",
+  "description": "Same switch as its sibling, but neither page declares a theme-color or carries a coloured favicon, so only the frame sampler can move the band. This is the path every real site without a theme-color takes.",
+  "fixture": "sampled-two-spaces.spaces.json",
+  "settings": "icon-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "peek-scrim-red.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/peek-scrim-red.html",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 2500
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: ambilight edges",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "on-red",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+right"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "capture",
+      "id": "on-run",
+      "duration_ms": 400,
+      "fps": 20
+    },
+    {
+      "type": "eval_until",
+      "id": "run-page",
+      "target": "ambilight-run.html",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/ambilight-run.html",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+left"
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "capture",
+      "id": "back-on-red",
+      "duration_ms": 400,
+      "fps": 20
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "run-page",
+      "expected": "http://127.0.0.1:8000/ambilight-run.html",
+      "label": "the-run-page-really-came-to-the-front"
+    },
+    {
+      "type": "theme_changed",
+      "before": "on-red",
+      "after": "on-run",
+      "region": [
+        206,
+        460,
+        16,
+        100
+      ],
+      "min_delta": 5,
+      "label": "the-band-moved-to-the-run-page"
+    },
+    {
+      "type": "theme_changed",
+      "before": "on-run",
+      "after": "back-on-red",
+      "region": [
+        206,
+        460,
+        16,
+        100
+      ],
+      "min_delta": 5,
+      "label": "and-back-to-red"
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

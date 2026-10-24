@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 13 Oct 2026 10:05:26 +0200
+Subject: [PATCH 153/154] feat(side-panel): add the native extension panel slot
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index bfd219fd560e8..013b673961137 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -666,6 +666,7 @@ static_library("ui") {
+     "//chrome/browser/ui/atrium:search_engine_mirror",
+     "//chrome/browser/ui/atrium:settings_json_cache",
+     "//chrome/browser/ui/atrium:sidebar_drop_decision",
++    "//chrome/browser/ui/atrium:extension_panel_width",
+     "//chrome/browser/ui/atrium:sidebar_grip_bounds",
+     "//chrome/browser/ui/atrium:sidebar_move_execution_decision",
+     "//chrome/browser/ui/atrium:sidebar_seam_line",
+@@ -3541,6 +3542,8 @@ static_library("ui") {
+       "atrium/atrium_external_link_hook.cc",
+       "atrium/atrium_extension_bridge.h",
+       "atrium/atrium_extension_bridge.cc",
++      "atrium/atrium_extension_panel_view.cc",
++      "atrium/atrium_extension_panel_view.h",
+       "atrium/atrium_extension_popup_host.cc",
+       "atrium/atrium_fedcm_anchor_hook.h",
+       "atrium/atrium_fedcm_anchor_hook.cc",

@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 11 Aug 2026 11:37:58 +0200
+Subject: [PATCH 063/154] build: move atrium_settings_menu_hook.mm into the
+ is_mac arm
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+It imported <Cocoa/Cocoa.h> and its header already lived in is_mac, but the
+.mm landed in the portable arm by mistake. A Linux gn gen would
+have handed an Objective-C++ file to a non-Mac toolchain.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index f3f0dcdfa5fc8..cbd2099a13b9a 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3502,7 +3502,6 @@ static_library("ui") {
+       "atrium/atrium_peek_navigation_throttle.cc",
+       "atrium/atrium_settings_window.cc",
+       "atrium/atrium_settings_source.cc",
+-      "atrium/atrium_settings_menu_hook.mm",
+       "atrium/atrium_profile_bootstrap.h",
+       "atrium/atrium_profile_bootstrap.cc",
+       "atrium/atrium_status_bubble_hook.h",
+@@ -3542,6 +3541,7 @@ static_library("ui") {
+       "atrium/atrium_settings_window.h",
+       "atrium/atrium_settings_source.h",
+       "atrium/atrium_settings_menu_hook.h",
++      "atrium/atrium_settings_menu_hook.mm",
+       "atrium/atrium_peek_widget.h",
+       "atrium/atrium_peek_widget.mm",
+       "atrium/atrium_sidebar_overlay_widget.h",

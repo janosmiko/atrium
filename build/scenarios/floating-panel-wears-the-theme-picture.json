@@ -1,0 +1,222 @@
+{
+  "name": "floating-panel-wears-the-theme-picture",
+  "description": "A space with a Theme Studio gradient must look the same floating as docked. Docked, the root view paints the tint and then the gradient picture at the glass alpha under the transparent page. The floating panel is a child window, so that paint never showed through it, and the page's own wash could carry only the flat tint: the panel came up a flat grey while the docked pane wore the picture.\n\nThe fixture's gradient runs from a rosy red at the top-left to a navy at the bottom-right at full opacity over sunsetOrange, loud on purpose so the two regions differ by more than the frost's own noise. Two regions inside the sidebar column, one high and one low, are read off a docked capture and off a floating capture. A picture makes the two regions differ from each other, and the same picture makes each region match its docked twin. The page behind the panel is flat white, so a flat wash would read as one colour in both regions.",
+  "fixture": "floating-panel-picture.spaces.json",
+  "themes": "floating-panel-picture.themes.json",
+  "startup_space": "89100002-0000-4000-8000-000000000002",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 5000,
+      "note": "first paint, and the sidebar announces itself"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "eval",
+      "id": "tab-opened",
+      "target": "/sidebar",
+      "expression": "(() => { const r = document.querySelector('.row'); if (!r) return 'no-row'; r.click(); return 'clicked'; })()",
+      "note": "the space's tab is cold at launch, so the row has to be pressed for the white page to paint"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "capture",
+      "id": "docked",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "eval",
+      "id": "pad-docked",
+      "target": "/sidebar",
+      "expression": "String(getComputedStyle(document.getElementById('atrium-root')).getPropertyValue('--sb-pad-trail').trim())",
+      "note": "the docked trailing inset leaves the grip band to make up the rest"
+    },
+    {
+      "type": "eval",
+      "id": "collapse-pressed",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.sbtoggle'); if (!b) return 'no-button'; b.click(); return 'clicked'; })()",
+      "note": "the row's own Hide button, not Cmd+S - the chord dies whenever an HTML surface holds first responder"
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar toggle requested from the chrome row",
+      "timeout_ms": 8000
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "capture",
+      "id": "page-alone",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "move",
+      "x": 300,
+      "y": 400,
+      "note": "park inside the page first: the arming strip fires on the crossing"
+    },
+    {
+      "type": "settle",
+      "ms": 600
+    },
+    {
+      "type": "move",
+      "x": 20,
+      "y": 400
+    },
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar overlay revealing at width",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 2500,
+      "note": "the slide and the frost fade finish, so the capture is of a settled panel"
+    },
+    {
+      "type": "capture",
+      "id": "floating",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "eval",
+      "id": "still-floating",
+      "target": "/sidebar",
+      "expression": "String(document.documentElement.classList.contains('atrium-sidebar-floating'))"
+    },
+    {
+      "type": "eval",
+      "id": "pad-floating",
+      "target": "/sidebar",
+      "expression": "String(getComputedStyle(document.getElementById('atrium-root')).getPropertyValue('--sb-pad-trail').trim())",
+      "note": "no grip band floats, so the page carries the whole inset itself"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "collapse-pressed",
+      "expected": "\"clicked\""
+    },
+    {
+      "type": "eval_equals",
+      "id": "still-floating",
+      "expected": "\"true\"",
+      "desc": "the panel was up for the floating capture, so the regions below are the panel and not a docked pane"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pad-docked",
+      "expected": "\"2px\"",
+      "desc": "AC: docked, the grip band supplies the rest of the trailing inset"
+    },
+    {
+      "type": "eval_equals",
+      "id": "pad-floating",
+      "expected": "\"8px\"",
+      "desc": "AC: floating, the trailing inset equals the leading one, so the tiles sit as far from the panel's edge as they do from the docked pane's"
+    },
+    {
+      "type": "region_mean",
+      "capture": "page-alone",
+      "x": 40,
+      "y": 300,
+      "w": 200,
+      "h": 200,
+      "min_mean": 200,
+      "max_mean": 255,
+      "label": "the-page-under-the-panel-is-white",
+      "desc": "the control: with the panel away this region is the flat white page, so any colour in the floating regions is the panel"
+    },
+    {
+      "type": "region_mean",
+      "capture": "docked",
+      "x": 40,
+      "y": 170,
+      "w": 200,
+      "h": 60,
+      "label": "docked-high-region",
+      "min_r": 172,
+      "max_r": 192,
+      "max_g": 100,
+      "max_b": 110,
+      "min_mean": 100,
+      "max_mean": 140,
+      "desc": "MEASURED 2026-09-11: 179.3/85.8/96.8. The gradient's rosy stop sits up here, so R runs well above the low region's."
+    },
+    {
+      "type": "region_mean",
+      "capture": "docked",
+      "x": 40,
+      "y": 560,
+      "w": 200,
+      "h": 80,
+      "label": "docked-low-region",
+      "min_r": 152,
+      "max_r": 171,
+      "max_g": 100,
+      "max_b": 110,
+      "min_mean": 100,
+      "max_mean": 140,
+      "desc": "MEASURED 2026-09-11: 161.0/88.0/100.2. Nearer the navy stop, so R drops by about 18 against the high region: that gap IS the picture."
+    },
+    {
+      "type": "region_mean",
+      "capture": "floating",
+      "x": 40,
+      "y": 170,
+      "w": 200,
+      "h": 60,
+      "label": "floating-high-region",
+      "min_r": 172,
+      "max_r": 192,
+      "max_g": 100,
+      "max_b": 110,
+      "min_mean": 100,
+      "max_mean": 140,
+      "desc": "MEASURED 2026-09-11: 182.4/88.6/98.5, within 4 of the docked reading. A flat wash of the sunsetOrange tint read 149.6/125.5/108.7 in the sibling scenario and fails max_g here."
+    },
+    {
+      "type": "region_mean",
+      "capture": "floating",
+      "x": 40,
+      "y": 560,
+      "w": 200,
+      "h": 80,
+      "label": "floating-low-region",
+      "min_r": 152,
+      "max_r": 171,
+      "max_g": 100,
+      "max_b": 110,
+      "min_mean": 100,
+      "max_mean": 140,
+      "desc": "MEASURED 2026-09-11: 164.7/89.0/101.7, within 4 of the docked reading. max_r keeps this region under the high one, which is the picture showing through the panel."
+    },
+    {
+      "type": "quit"
+    }
+  ],
+  "settings": "floating-panel-tint.settings.json",
+  "serve_fixtures": true
+}

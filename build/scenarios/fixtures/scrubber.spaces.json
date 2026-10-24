@@ -1,0 +1,26 @@
+{
+  "spaces": [
+    {
+      "id": "43843843-4384-4384-8384-438438438438",
+      "name": "Scrubber",
+      "emoji": "🕒",
+      "tint": "oceanBlue",
+      "profileID": "Default",
+      "order": 0,
+      "pinnedTabs": [],
+      "tabs": [
+        {
+          "lastActiveAt": 805135300.0,
+          "url": "http://127.0.0.1:8000/example-domain.html",
+          "title": "Example Domain"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "appState": {
+    "sidebarWidth": 280,
+    "schemaVersion": 1,
+    "activeSpaceID": "43843843-4384-4384-8384-438438438438"
+  }
+}

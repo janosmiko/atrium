@@ -1,0 +1,112 @@
+{
+  "name": "the-hidden-bar-gives-its-room-back",
+  "description": "Cmd+Shift+D hides the sidebar's own address bar, and the rows below move up into its place instead of sitting under a blank strip. The hoisted row's room is a padding on the pane, so the page's computed padding is the reading, and a capture pair shows the rows moved.",
+  "fixture": "ambilight-mirror.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: sidebar rows drawn [1-9]",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "eval_until",
+      "id": "padding-before",
+      "target": "/sidebar",
+      "expression": "(() => { const s = document.querySelector('.railpane .sidebar'); return s ? getComputedStyle(s).paddingTop : 'no-railpane'; })()",
+      "expected": "90px",
+      "timeout_ms": 5000,
+      "note": "THE CONTROL: the row's room is reserved while the bar shows."
+    },
+    {
+      "type": "capture",
+      "id": "bar-shown",
+      "duration_ms": 300,
+      "fps": 10
+    },
+    {
+      "type": "key",
+      "combo": "cmd+shift+d"
+    },
+    {
+      "type": "eval_until",
+      "id": "devbar-class",
+      "target": "/sidebar",
+      "expression": "String(document.querySelector('#atrium-root').classList.contains('devbar-shown'))",
+      "expected": "true",
+      "timeout_ms": 5000,
+      "note": "the chord reached the page"
+    },
+    {
+      "type": "eval_until",
+      "id": "padding-after",
+      "target": "/sidebar",
+      "expression": "(() => { const s = document.querySelector('.railpane .sidebar'); return s ? getComputedStyle(s).paddingTop : 'no-railpane'; })()",
+      "expected": "44px",
+      "timeout_ms": 5000,
+      "note": "The bar's 34px came back to the rows."
+    },
+    {
+      "type": "settle",
+      "ms": 800
+    },
+    {
+      "type": "capture",
+      "id": "bar-hidden",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "eval_equals",
+      "id": "padding-before",
+      "expected": "90px",
+      "desc": "THE CONTROL: the reserved room is there while the bar shows."
+    },
+    {
+      "type": "eval_equals",
+      "id": "devbar-class",
+      "expected": "true",
+      "desc": "the chord hid the bar"
+    },
+    {
+      "type": "eval_equals",
+      "id": "padding-after",
+      "expected": "44px",
+      "desc": "The room shrank by the bar's height."
+    },
+    {
+      "type": "theme_changed",
+      "before": "bar-shown",
+      "after": "bar-hidden",
+      "region": [
+        40,
+        60,
+        200,
+        120
+      ],
+      "min_delta": 5,
+      "desc": "In pixels: the band the bar and the first rows stood in changed, because the rows moved up into it."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 1 Sep 2026 03:14:29 +0200
+Subject: [PATCH 106/154] feat(toast): the confirmation card gets its own
+ window
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Hosted on the sidebar's document, .toasts resolved top 44 right 14 against that
+narrow column, so a Link copied card appeared in the SIDEBAR's upper right
+rather than the window's - reported twice. No CSS could fix it: a card in the
+sidebar's WebContents cannot paint outside it.
+
+Sized to the STACK, not the window, unlike HintOverlayWidget. A toast carries a
+close button, so it cannot decline the mouse the way the hint now does, and a
+window-spanning surface would swallow page clicks everywhere it covered. A
+widget only as large as its cards is not over the page when there are none, and
+it hides when the last card leaves.
+
+The visibility guard in OnWidgetBoundsChanged is deliberately not copied. That
+guard is what left the hint at a stale rect: macOS refits the window during the
+show handshake while the Views flag is still unset, so the resize is discarded.
+
+Two things the scenario caught that review would not have. An unregistered
+chrome.send is FATAL, not ignored, so the first run took the browser down with
+NOTREACHED on toastReady. And the stack kept its window-corner insets inside its
+own widget, which put the card at -24,44 in a 171x48 surface - on the right
+surface, in the right corner, and mostly clipped. It now measures 5,0 166x48.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 46be246cead94..9eace827a2d41 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3597,6 +3597,8 @@ static_library("ui") {
+       "atrium/atrium_extension_pill_widget.mm",
+       "atrium/atrium_hint_overlay_widget.h",
+       "atrium/atrium_hint_overlay_widget.mm",
++      "atrium/atrium_toast_overlay_widget.h",
++      "atrium/atrium_toast_overlay_widget.mm",
+       "atrium/atrium_overview_widget.h",
+       "atrium/atrium_overview_widget.mm",
+       "atrium/atrium_courtyard_widget.h",

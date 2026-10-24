@@ -1,0 +1,45 @@
+{
+  "name": "a-space-dot-magnifies-under-the-cursor",
+  "description": "The magnification lives in a module the sidebar has to install on every rebuilt dots bar, so the unit suite cannot say whether production wires it at all. Puts the pointer over a dot through a real mousemove on the bar and reads which dot wears the chip and what it says.",
+  "fixture": "lab-compare.spaces.json",
+  "startup_space": "1ab00001-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    { "type": "wait_vlog", "pattern": "Atrium: sidebar rows drawn [1-9]", "timeout_ms": 20000 },
+    { "type": "activate" },
+    { "type": "settle", "ms": 1500 },
+    {
+      "type": "eval",
+      "id": "before",
+      "target": "/sidebar",
+      "expression": "String(document.querySelectorAll('.spacedots .sdot.mag').length)"
+    },
+    {
+      "type": "eval",
+      "id": "over-the-second-space",
+      "target": "/sidebar",
+      "expression": "(() => { const bar = document.querySelector('.spacedots'); const target = bar.querySelector('.sdot[data-space-index=\"1\"]'); if (!target) return 'no-dot'; const box = target.getBoundingClientRect(); bar.dispatchEvent(new MouseEvent('mousemove', {bubbles: true, clientX: box.left + box.width / 2, clientY: box.top + box.height / 2})); const chip = bar.querySelector('.sdot.mag'); return chip === target ? 'chip=' + chip.querySelector('.d').textContent : 'wrong-dot'; })()"
+    },
+    {
+      "type": "eval",
+      "id": "the-neighbour-steps-aside",
+      "target": "/sidebar",
+      "expression": "(() => { const chip = document.querySelector('.spacedots .sdot.mag'); if (!chip) return 'no-chip'; const after = chip.nextElementSibling; if (!after) return 'no-neighbour'; const t = getComputedStyle(after).transform; return t && t !== 'none' ? 'shoved' : 'still'; })()"
+    },
+    { "type": "capture", "id": "magnified", "duration_ms": 300, "fps": 10 },
+    {
+      "type": "eval",
+      "id": "after-leaving",
+      "target": "/sidebar",
+      "expression": "(() => { const bar = document.querySelector('.spacedots'); bar.dispatchEvent(new MouseEvent('mouseleave', {bubbles: true})); return String(bar.querySelectorAll('.sdot.mag').length); })()"
+    }
+  ],
+  "assertions": [
+    { "type": "eval_equals", "id": "before", "expected": "\"0\"", "desc": "setup: nothing is magnified before the pointer arrives" },
+    { "type": "eval_equals", "id": "over-the-second-space", "expected": "\"chip=W\"", "desc": "The dot under the cursor wears the chip and shows the space initial" },
+    { "type": "eval_equals", "id": "the-neighbour-steps-aside", "expected": "\"shoved\"", "desc": "The dot after it slides out of the way" },
+    { "type": "eval_equals", "id": "after-leaving", "expected": "\"0\"", "desc": "The bar settles back when the cursor leaves" },
+    { "type": "quit", "desc": "Cmd+Q still quits cleanly" }
+  ]
+}

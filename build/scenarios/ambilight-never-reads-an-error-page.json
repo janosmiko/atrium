@@ -1,0 +1,53 @@
+{
+  "name": "ambilight-never-reads-an-error-page",
+  "description": "The first half: an error page is never sampled, and a page that cannot be read leaves the chrome where it was rather than dragging it toward Chromium's grey.\n\nThe fixture points at a port nothing listens on, so the tab commits an error page. That page is Chromium's own chrome wearing the site's clothes - sampling it would wash the window the same way for every failed load on the web, which is the opposite of a signal about which page is in front.\n\nThe setting is ON here, unlike ambilight-off-leaves-the-space-alone. That is the whole point: this proves the SKIP RULE fires, not that the feature is off.",
+  "fixture": "ambilight-error.spaces.json",
+  "settings": "icon-tint-on.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "the navigation fails and the error page commits"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "many sampler ticks, every one of which must decline this page"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 1,
+      "min_area": 200000,
+      "desc": "sanity: one real window rendered"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: page tint sampled",
+      "label": "the-feature-is-actually-on",
+      "desc": "THE CONTROL, and this scenario is worthless without it: the event path ran, so the page tint setting really is enabled. Without this, a build with the whole feature disabled would satisfy the assertions below."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "Atrium: page tint sampled #FFFFFF",
+      "label": "the-error-pages-own-white-never-reached-the-chrome",
+      "desc": "The skip rule has to gate BOTH doors. Chromium's error page declares theme-color white, so an earlier version of this scenario passed its readback assertion while the declared-tag path washed the chrome white anyway - which is the exact failure the rule exists to prevent. The control above proves the event path ran, so this cannot pass by the sampler being idle."
+    },
+    {
+      "type": "vlog_absent",
+      "pattern": "Atrium: ambilight edges",
+      "label": "the-error-page-was-never-read",
+      "desc": "The readback declined this page on every tick across four seconds. Its sibling ambilight-reads-both-edges logs this line within half a second on a page that loads."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}

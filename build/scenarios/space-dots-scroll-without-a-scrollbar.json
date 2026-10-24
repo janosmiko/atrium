@@ -1,0 +1,80 @@
+{
+  "name": "space-dots-scroll-without-a-scrollbar",
+  "description": "A sideways scroll over the space dots bar must never draw a scrollbar. The bar keeps overflow-x: auto so a long dot list still scrolls, and hides the bar itself with scrollbar-width: none plus the -webkit-scrollbar rule, the same treatment .scrollzone got for the vertical list. The fixture carries 20 spaces so the dots genuinely outgrow the bar. The graded assertions pin the live page: the bar overflows, the computed scrollbar-width is none, and the gesture really moved scrollLeft, so the absence claim cannot pass on a bar that never scrolled. The scrollbar pixels themselves are checked by reading the scrub burst's frames.",
+  "fixture": "space-dots-overflow.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "10000000-0000-4000-8000-000000000001",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "eval_until",
+      "id": "startup-page",
+      "target": "example-domain.html?d1",
+      "expression": "location.href",
+      "expected": "http://127.0.0.1:8000/example-domain.html?d1"
+    },
+    { "type": "settle", "ms": 4000 },
+    { "type": "activate", "note": "ssh-launched Atrium is not frontmost on a clean snapshot" },
+    { "type": "settle", "ms": 1000 },
+    {
+      "type": "eval",
+      "id": "dots-overflow",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.dotscroll'); if (!b) return 'NOBAR'; return b.scrollWidth > b.clientWidth ? 'overflows' : 'flat:' + b.scrollWidth + '/' + b.clientWidth; })()",
+      "note": "the setup holds: 20 spaces make the dots outgrow the bar, otherwise there is nothing to scroll and nothing to assert"
+    },
+    {
+      "type": "eval",
+      "id": "dots-scrollbar-css",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.dotscroll'); if (!b) return 'NOBAR'; return getComputedStyle(b).scrollbarWidth || 'unset'; })()"
+    },
+    {
+      "type": "move",
+      "x": 110,
+      "y": 687,
+      "note": "Overview and + sit outside the scroller, so x30 (their slot) no longer reaches it - x110 sits inside .dotscroll itself. A hover scrub here is harmless: nothing below reads the magnify state."
+    },
+    { "type": "settle", "ms": 400 },
+    {
+      "type": "scroll_during_capture",
+      "x": 110,
+      "y": 687,
+      "dx": -220,
+      "phase_ms": 400,
+      "capture_id": "scrub",
+      "duration_ms": 1400,
+      "fps": 25,
+      "note": "the burst frames are the scrollbar check: before the fix an overlay bar paints along the strip under the dots while the scroll runs"
+    },
+    {
+      "type": "eval",
+      "id": "dots-scrolled",
+      "target": "/sidebar",
+      "expression": "(() => { const b = document.querySelector('.dotscroll'); if (!b) return 'NOBAR'; return b.scrollLeft > 0 ? 'scrolled' : 'unscrolled'; })()",
+      "note": "the presence assertion beside the absence one: the wheel really reached the scroller"
+    },
+    { "type": "settle", "ms": 600 },
+    { "type": "capture", "id": "end", "duration_ms": 400, "fps": 10 }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "dots-overflow",
+      "expected": "\"overflows\"",
+      "desc": "THE CONTROL: the dot list is wider than the bar, so a scrollbar would have something to indicate"
+    },
+    {
+      "type": "eval_equals",
+      "id": "dots-scrollbar-css",
+      "expected": "\"none\"",
+      "desc": "THE RULE: the live page computes scrollbar-width none on the bar"
+    },
+    {
+      "type": "eval_equals",
+      "id": "dots-scrolled",
+      "expected": "\"scrolled\"",
+      "desc": "the gesture landed in the scroller - without this, the two assertions above would pass on a bar nobody scrolled"
+    }
+  ]
+}

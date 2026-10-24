@@ -1,0 +1,95 @@
+{
+  "name": "settings-menu-item",
+  "description": "the app menu's Settings item opens the Atrium settings window.\n\nIt needs its own route and its own test because main_menu_builder.mm wires this item with an explicit target and action on the app delegate, which bypasses commandDispatch and therefore the IDC_OPTIONS intercept entirely. Un-gating that intercept would have brought the item back for nothing.\n\nDriven by two real clicks - the Atrium menu, then the Settings item - at coordinates read off a captured frame. The menu is the stock app menu, so its geometry is Chromium's, not ours.\n\nThe click assertion was measured ABSENT on a run that opened the menu and stopped there, so it cannot pass on the menu merely appearing.",
+  "fixture": "two-tabs.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "seed_prefs": "search-default-google.prefs.json",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://(dl|0y)\\.localhost",
+      "timeout_ms": 20000,
+      "note": "gate: the app is up"
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate",
+      "note": "Atrium frontmost, so its menu bar is the one on screen"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "click",
+      "x": 76,
+      "y": 14,
+      "note": "the Atrium menu in the menu bar"
+    },
+    {
+      "type": "settle",
+      "ms": 1500,
+      "note": "let the menu drop"
+    },
+    {
+      "type": "capture",
+      "id": "menu",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "MEASUREMENT: the open menu, for reading the Settings item's coordinate"
+    },
+    {
+      "type": "click",
+      "x": 107,
+      "y": 83,
+      "note": "THE MEASUREMENT: the Settings item, at a coordinate read off the measurement run's frame. It rendered ENABLED there, which is the validateMenuItem answer this task had to decide"
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "let the window build and its route load"
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "evidence of the settings window"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "vlog",
+      "label": "the-item-was-retargeted-at-startup",
+      "pattern": "Atrium: settings menu item retargeted",
+      "note": "the hook found the item and repointed it. Without this the click would be measuring the stock item"
+    },
+    {
+      "type": "vlog",
+      "label": "the-item-was-clicked",
+      "pattern": "Atrium: settings menu item claimed",
+      "note": "measured ABSENT on the run that only opened the menu, so it can only come from the click on the item"
+    },
+    {
+      "type": "vlog",
+      "label": "the-window-was-built",
+      "pattern": "Atrium: settings window built"
+    },
+    {
+      "type": "vlog",
+      "label": "the-route-loaded-and-answered",
+      "pattern": "Atrium: settings surface ready"
+    },
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "note": "the browser window AND the settings window"
+    }
+  ]
+}

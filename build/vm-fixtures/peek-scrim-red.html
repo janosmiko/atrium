@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Peek Scrim Parent</title></head>
+<!-- the PARENT page for the dim-scrim measurement. Solid #ff0000 and
+     nothing else, so any pixel sampled outside the peek card is exactly
+     255,0,0 unless something dimmed it. The task's claim to check is that it
+     becomes 166,0,0, an alpha of 0x59; against a page with text or gradients
+     that difference would have to be argued rather than read.
+
+     The link is absolute and cross-site on purpose. A peek only opens for an
+     http/https navigation whose eTLD+1 differs from the current page
+     (ShouldAutoPeek), so 127.0.0.1 -> localhost is the cheapest pair that
+     qualifies while still being served by the same local server. -->
+<body style="margin:0;padding:0;background:#ff0000;">
+<a id="peeklink" href="http://localhost:8000/peek-target.html"
+   style="position:absolute;left:40px;top:40px;font-size:28px;color:#ffffff;">
+  open the peek
+</a>
+</body>
+</html>

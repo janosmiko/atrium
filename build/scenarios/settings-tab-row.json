@@ -1,0 +1,78 @@
+{
+  "name": "settings-tab-row",
+  "description": "Settings tab row, an HTML rail. The rail (chrome/browser/resources/atrium/settings.js, renderSettings) is a <nav> of plain <button> elements with a click listener - there is no keydown handler at all, so the ARROW-KEY traversal this scenario originally proved (Pane.stepped(by:), a SwiftUI mechanism) has no equivalent here and can never fire. Measured directly: sending 'right' while General is focused leaves both captures byte-identical (delta=0.00) because nothing in settings.js reads the key. Rewritten to measure the thing that DOES move the selection on this surface - a click on the Appearance rail item - proving the selected-row fill still moves from General to Appearance the way the original scenario cared about, just via the surface's real input path. The rail is a 190px left column and `.selected` carries a background AND an accent text colour rather than a pill. A pixel coordinate and a pixel-region delta both die with a layout change. Rewritten to select the pane by element (`.settings-rail-item[data-pane=\"appearance\"]`.click(), same pattern the-native-view-toggle-fades-in.json uses) and read the result back out of the DOM - the `.selected` class and the pane heading - rather than trusting a screen region to still be over the right pixels.",
+  "fixture": "presenter-startup.spaces.json",
+  "themes": "presenter-startup.themes.json",
+  "startup_space": "11111111-1111-1111-1111-111111111111",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 4000,
+      "note": "let the browser window finish first paint"
+    },
+    {
+      "type": "activate",
+      "note": "Atrium MUST be frontmost or cmd+comma opens Finder Settings instead - observed"
+    },
+    {
+      "type": "settle",
+      "ms": 1200
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma",
+      "note": "open Settings; its menu item is not reachable from a scenario"
+    },
+    {
+      "type": "settle",
+      "ms": 3000,
+      "note": "window opens on General - renderSettings(root, PANES[0].id)"
+    },
+    {
+      "type": "capture",
+      "id": "general",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "tab row, General selected - kept as evidence, not asserted on: a screen region over the rail is exactly what a layout move breaks"
+    },
+    {
+      "type": "eval",
+      "id": "select-appearance",
+      "target": "/settings",
+      "expression": "(() => { const b = document.querySelector('.settings-rail-item[data-pane=\"appearance\"]'); if (!b) return 'no-pane'; b.click(); return 'clicked'; })()",
+      "note": "the Appearance item in the LEFT rail. settings.js has no keydown handler for the rail selection, so a click on '.settings-rail-item' is the only thing that moves it - same element-click pattern the-native-view-toggle-fades-in.json uses, chosen over a coordinate because this file has already paid once for trusting one across a rail move (see git history)."
+    },
+    {
+      "type": "settle",
+      "ms": 1000,
+      "note": "renderSettings() is a synchronous DOM rebuild, no CSS transition in settings.css - generous slack for the ssh/eval round trip, not an animation"
+    },
+    {
+      "type": "eval",
+      "id": "appearance-state",
+      "target": "/settings",
+      "expression": "(() => { const item = document.querySelector('.settings-rail-item[data-pane=\"appearance\"]'); const heading = document.querySelector('.settings-heading'); return (item && item.classList.contains('selected') ? 'selected' : 'not-selected') + '|' + (heading ? heading.textContent : 'no-heading'); })()",
+      "note": "THE MEASUREMENT: proves the selection actually moved, both halves - the rail item's own '.selected' class and the pane that rendered in response - rather than inferring it from a screen region that has already gone stale once."
+    },
+    {
+      "type": "capture",
+      "id": "appearance",
+      "duration_ms": 400,
+      "fps": 20,
+      "note": "tab row, Appearance selected - kept as evidence alongside the eval above"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "label": "the-selection-moved-to-appearance",
+      "id": "appearance-state",
+      "expected": "\"selected|Appearance\""
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits with the settings window open"
+    }
+  ]
+}

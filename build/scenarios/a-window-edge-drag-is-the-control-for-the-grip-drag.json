@@ -1,0 +1,155 @@
+{
+  "name": "a-window-edge-drag-is-the-control-for-the-grip-drag",
+  "description": "control. Runs the SAME 80pt 40-step mouse drag twice on the same page and the same window, once on the sidebar grip and once on the window's right edge, and reads the page's own innerWidth log after each.\n\nThe grip drag goes through AtriumBrowserWindow::SetSidebarWidthLive, which arms SetForceSpecifiedDeadline(2) on the tab's view and gates on the renderer's resize ack. The window-edge drag goes through the stock Chromium window resize path, which on macOS uses BrowserCompositorMac::GetResizeDeadlinePolicy -> UseSpecifiedDeadline(0) and no ack gate. Same renderer, same page, same pointer profile, so the difference in page steps and settle time is the Atrium path's own cost.\n\nThe window is pinned to 900x700 at 0,30 first so the right edge is at x=900 and the drag can find it. Records numbers only - a threshold picked before the first reading would be a guess.",
+  "fixture": "right-marker.spaces.json",
+  "serve_fixtures": true,
+  "startup_space": "44444444-4444-4444-4444-444444444444",
+  "app_process": "Atrium",
+  "actions": [
+    {
+      "type": "wait_vlog",
+      "pattern": "Atrium: tab [0-9]+ url http://dl\\.localhost",
+      "timeout_ms": 20000
+    },
+    {
+      "type": "settle",
+      "ms": 6000
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "settle",
+      "ms": 1500
+    },
+    {
+      "type": "resize",
+      "w": 900,
+      "h": 700,
+      "note": "pins the right edge at x=900 so the control drag can grab it"
+    },
+    {
+      "type": "move_window",
+      "x": 0,
+      "y": 30
+    },
+    {
+      "type": "settle",
+      "ms": 3000
+    },
+    {
+      "type": "eval",
+      "id": "before-grip",
+      "target": "dl.localhost",
+      "expression": "String(window.innerWidth)"
+    },
+    {
+      "type": "eval",
+      "id": "reset-grip",
+      "target": "dl.localhost",
+      "expression": "window.__atriumWidthReset()"
+    },
+    {
+      "type": "drag",
+      "x1": 263,
+      "y1": 400,
+      "x2": 343,
+      "y2": 400,
+      "steps": 40,
+      "note": "the sidebar grip, 2 points a step, same profile as sidebar-drag-page-width-lag"
+    },
+    {
+      "type": "eval",
+      "id": "grip-end",
+      "target": "dl.localhost",
+      "expression": "String(Date.now())",
+      "note": "the wall clock the last pointer step of this gesture landed at - every page step after it is tail, not gesture"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "eval",
+      "id": "grip-widths",
+      "target": "dl.localhost",
+      "expression": "window.__atriumWidthLog()"
+    },
+    {
+      "type": "eval",
+      "id": "stash-grip",
+      "target": "dl.localhost",
+      "expression": "(() => { window.__cmp = window.__cmp || {}; window.__cmp['grip'] = JSON.parse(window.__atriumWidthLog()); return String(window.__cmp['grip'].length - 1); })()",
+      "note": "page steps this gesture cost, kept for the comparison below"
+    },
+    {
+      "type": "eval",
+      "id": "after-grip",
+      "target": "dl.localhost",
+      "expression": "String(window.innerWidth)"
+    },
+    {
+      "type": "eval",
+      "id": "reset-window",
+      "target": "dl.localhost",
+      "expression": "window.__atriumWidthReset()"
+    },
+    {
+      "type": "drag",
+      "x1": 901,
+      "y1": 400,
+      "x2": 981,
+      "y2": 400,
+      "steps": 40,
+      "note": "the window's right edge, same 80pt over 40 steps"
+    },
+    {
+      "type": "eval",
+      "id": "window-end",
+      "target": "dl.localhost",
+      "expression": "String(Date.now())",
+      "note": "the wall clock the last pointer step of this gesture landed at - every page step after it is tail, not gesture"
+    },
+    {
+      "type": "settle",
+      "ms": 4000
+    },
+    {
+      "type": "eval",
+      "id": "window-widths",
+      "target": "dl.localhost",
+      "expression": "window.__atriumWidthLog()"
+    },
+    {
+      "type": "eval",
+      "id": "stash-window",
+      "target": "dl.localhost",
+      "expression": "(() => { window.__cmp = window.__cmp || {}; window.__cmp['window'] = JSON.parse(window.__atriumWidthLog()); return String(window.__cmp['window'].length - 1); })()",
+      "note": "page steps this gesture cost, kept for the comparison below"
+    },
+    {
+      "type": "eval",
+      "id": "after-window",
+      "target": "dl.localhost",
+      "expression": "String(window.innerWidth)"
+    },
+    {
+      "type": "eval",
+      "id": "grip-within-control",
+      "target": "dl.localhost",
+      "expression": "(() => { const g = window.__cmp.grip.length - 1, w = window.__cmp.window.length - 1; if (!g || !w) { return 'a gesture reflowed the page 0 times - the drag missed'; } return g <= w * 1.5 ? 'within control' : 'grip cost ' + g + ' page reflows against the window edge\\'s ' + w; })()",
+      "note": "re-aimed. The old gate was a fixed quiet window, which this page fails under a native window-edge resize too. This asks the only question the grip owns: does the grip cost the page more than the platform's own resize of the same page in the same run. A backlog-building grip floods the renderer past the native count."
+    }
+  ],
+  "assertions": [
+    {
+      "type": "eval_equals",
+      "id": "grip-within-control",
+      "expected": "\"within control\"",
+      "desc": "the grip drag does not cost the page more reflows than a native window-edge resize of the same page"
+    },
+    {
+      "type": "quit"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1nos=20Mik=C3=B3?=
+ <693558+janosmiko@users.noreply.github.com>
+Date: Tue, 18 Aug 2026 12:49:54 +0200
+Subject: [PATCH 070/154] feat(sidebar): reveal a hidden pane from the window
+ edge, and take a tab back
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Two gestures that were built and unreachable.
+
+THE EDGE REVEAL. AtriumSidebarOverlayWidget needs a second sidebar NSView
+from a Swift entry point that no longer exists, so nothing had been able to
+construct it and the reveal was dead rather than broken. The replacement
+opens the pane the window ALREADY has, through the same SetSidebarWidth path
+the toggle uses - so there is no second view to keep in sync and whichever
+rail pane was showing comes back untouched.
+
+The zone has two widths. Hidden, it is a thin strip, narrow enough that
+reading a page does not arm it. Open by hover, it covers the pane, or the
+pointer moving onto the sidebar it just revealed would read as leaving and
+the pane would flicker shut under the cursor. The zone never takes an event:
+hitTest returns nil, and a tracking area is geometric, so clicks pass to the
+page beneath while enter and exit still report.
+
+A hover reveal is not a dock. The toggle on a hover-revealed pane KEEPS it,
+rather than hiding it, so the chord's meaning does not depend on how the pane
+came to be open - something the user cannot see.
+
+TAKING A TAB BACK. BrowserController::ActivateTab has done the cross-window
+move, the desaturated freeze of the losing pane and the becomes-active focus
+since M2c, but its only caller was the retired Swift ABI, so it sat private
+with no caller at all. Made public, and ActivateSidebarTab now falls through
+to it instead of logging the row as stale.
+
+Signed-off-by: János Mikó <693558+janosmiko@users.noreply.github.com>
+---
+ chrome/browser/ui/BUILD.gn | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index c2d67f0917a04..2b0dba61970a1 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -3581,6 +3581,8 @@ static_library("ui") {
+       "atrium/atrium_settings_menu_hook.mm",
+       "atrium/atrium_peek_widget.h",
+       "atrium/atrium_peek_widget.mm",
++      "atrium/atrium_sidebar_edge_reveal.h",
++      "atrium/atrium_sidebar_edge_reveal.mm",
+       "atrium/atrium_sidebar_overlay_widget.h",
+       "atrium/atrium_sidebar_overlay_widget.mm",
+       "atrium/atrium_window_corner_radius.h",

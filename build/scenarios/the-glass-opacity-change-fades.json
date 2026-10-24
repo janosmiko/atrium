@@ -1,0 +1,105 @@
+{
+  "name": "the-glass-opacity-change-fades",
+  "description": "Committing a new Glass opacity crossfades the backdrop to the new alpha rather than reinstalling it in one frame. The control commits on change, not per pointer move, so there is no live drag to lag - the fade is safe on every commit.",
+  "fixture": "ambilight.spaces.json",
+  "settings": "ambilight-off.settings.json",
+  "app_process": "Atrium",
+  "serve_fixtures": true,
+  "actions": [
+    {
+      "type": "settle",
+      "ms": 3500,
+      "note": "the window paints its tint, which is what the fade needs to fade from"
+    },
+    {
+      "type": "activate"
+    },
+    {
+      "type": "key",
+      "combo": "cmd+comma"
+    },
+    {
+      "type": "settle",
+      "ms": 6000,
+      "note": "the settings window builds and the route answers"
+    },
+    {
+      "type": "eval",
+      "id": "appearance-pane",
+      "target": "settings",
+      "expression": "(() => { const b = document.querySelector('.settings-rail-item[data-pane=\"appearance\"]'); if (!b) return 'no-pane'; b.click(); return 'clicked'; })()"
+    },
+    {
+      "type": "settle",
+      "ms": 1000
+    },
+    {
+      "type": "capture",
+      "id": "before",
+      "duration_ms": 300,
+      "fps": 10,
+      "note": "the sidebar column on glass"
+    },
+    {
+      "type": "eval",
+      "id": "glass-to-sixty",
+      "target": "settings",
+      "expression": "(() => { const i = document.querySelector('.settings-row[data-key=\"glassOpacity\"] input'); if (!i) return 'no-input'; i.value = '0.6'; i.dispatchEvent(new Event('change', {bubbles: true})); return 'changed'; })()"
+    },
+    {
+      "type": "capture",
+      "id": "during",
+      "duration_ms": 600,
+      "fps": 20,
+      "note": "kept for the artifacts: the fade runs 300ms after the write lands, and the write's timing is the file system's"
+    },
+    {
+      "type": "settle",
+      "ms": 2000
+    },
+    {
+      "type": "capture",
+      "id": "after",
+      "duration_ms": 300,
+      "fps": 10
+    }
+  ],
+  "assertions": [
+    {
+      "type": "ax_window_count",
+      "expected": 2,
+      "min_area": 200000,
+      "desc": "sanity: the browser window and the settings window"
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: settings written",
+      "label": "the-setting-landed",
+      "desc": "THE CONTROL: the toggle reached the file, so the window had a change to apply."
+    },
+    {
+      "type": "vlog",
+      "pattern": "Atrium: glass alpha crossfading to 153",
+      "label": "the-alpha-went-through-the-crossfade",
+      "desc": ".6 of 255 is 153, and the flat path handed it to the crossfading setter rather than reinstalling a solid background at it."
+    },
+    {
+      "type": "theme_changed",
+      "before": "before",
+      "after": "after",
+      "region": [
+        40,
+        600,
+        150,
+        60
+      ],
+      "min_delta": 10,
+      "desc": "THE OUTCOME: the sidebar column ended up on the new appearance. Without this the fade lines could come from a fade to nowhere.",
+      "note": "Low in the sidebar column, under the rows and clear of the settings window."
+    },
+    {
+      "type": "quit",
+      "desc": "Cmd+Q still quits cleanly"
+    }
+  ]
+}
