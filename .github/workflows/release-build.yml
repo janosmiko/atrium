@@ -52,6 +52,8 @@ jobs:
           compression-level: 0
           overwrite: true
 
+  # A dispatch through the API sends stage_minutes as a string, and the
+  # stage workflow rejects a string for a number input. fromJSON makes it a number.
   stage1:
     needs: prepare
     uses: ./.github/workflows/release-build-stage.yml
@@ -59,7 +61,7 @@ jobs:
       stage: 1
       prev_stage: 0
       target: ${{ inputs.target || 'chrome' }}
-      stage_minutes: ${{ inputs.stage_minutes || 0 }}
+      stage_minutes: ${{ fromJSON(inputs.stage_minutes || 0) }}
 
   stage2:
     needs: stage1
@@ -69,7 +71,7 @@ jobs:
       stage: 2
       prev_stage: 1
       target: ${{ inputs.target || 'chrome' }}
-      stage_minutes: ${{ inputs.stage_minutes || 0 }}
+      stage_minutes: ${{ fromJSON(inputs.stage_minutes || 0) }}
 
   stage3:
     needs: stage2
@@ -79,7 +81,7 @@ jobs:
       stage: 3
       prev_stage: 2
       target: ${{ inputs.target || 'chrome' }}
-      stage_minutes: ${{ inputs.stage_minutes || 0 }}
+      stage_minutes: ${{ fromJSON(inputs.stage_minutes || 0) }}
 
   stage4:
     needs: stage3
@@ -89,7 +91,7 @@ jobs:
       stage: 4
       prev_stage: 3
       target: ${{ inputs.target || 'chrome' }}
-      stage_minutes: ${{ inputs.stage_minutes || 0 }}
+      stage_minutes: ${{ fromJSON(inputs.stage_minutes || 0) }}
 
   stage5:
     needs: stage4
@@ -99,7 +101,7 @@ jobs:
       stage: 5
       prev_stage: 4
       target: ${{ inputs.target || 'chrome' }}
-      stage_minutes: ${{ inputs.stage_minutes || 0 }}
+      stage_minutes: ${{ fromJSON(inputs.stage_minutes || 0) }}
 
   stage6:
     needs: stage5
@@ -109,7 +111,7 @@ jobs:
       stage: 6
       prev_stage: 5
       target: ${{ inputs.target || 'chrome' }}
-      stage_minutes: ${{ inputs.stage_minutes || 0 }}
+      stage_minutes: ${{ fromJSON(inputs.stage_minutes || 0) }}
 
   stage7:
     needs: stage6
@@ -119,7 +121,7 @@ jobs:
       stage: 7
       prev_stage: 6
       target: ${{ inputs.target || 'chrome' }}
-      stage_minutes: ${{ inputs.stage_minutes || 0 }}
+      stage_minutes: ${{ fromJSON(inputs.stage_minutes || 0) }}
 
   stage8:
     needs: stage7
@@ -129,7 +131,7 @@ jobs:
       stage: 8
       prev_stage: 7
       target: ${{ inputs.target || 'chrome' }}
-      stage_minutes: ${{ inputs.stage_minutes || 0 }}
+      stage_minutes: ${{ fromJSON(inputs.stage_minutes || 0) }}
 
   # A failed job can still expose a finished status that an earlier step
   # wrote, so the job results decide first.
