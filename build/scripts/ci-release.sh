@@ -85,6 +85,8 @@ get_depot_tools() {
   retry 3 git -C "$d" fetch -q --depth 1 \
     https://chromium.googlesource.com/chromium/tools/depot_tools.git "$DEPOT_TOOLS_COMMIT"
   git -C "$d" checkout -q FETCH_HEAD
+  # DEPOT_TOOLS_UPDATE=0 also skips the Python bootstrap, and the gn wrapper fails without it.
+  retry 3 "$d/ensure_bootstrap"
 }
 
 # depot_tools rides along because ninja actions can call its vpython3.
