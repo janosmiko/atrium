@@ -113,7 +113,10 @@ cmd_prepare() {
   git config --global user.email "atrium-ci@users.noreply.github.com"
 
   cd "$CHROMIUM_DIR"
-  gclient config --unmanaged --name src https://chromium.googlesource.com/chromium/src.git
+  # The .git dirs are cut below, and tools/metrics/BUILD.gn then drops a target
+  # that location tags still depend on, so gn gen fails.
+  gclient config --unmanaged --name src --custom-var=generate_location_tags=False \
+    https://chromium.googlesource.com/chromium/src.git
   echo 'target_os = ["mac"]' >>.gclient
   retry 3 gclient sync --no-history --shallow --nohooks -r "src@$(ver chromium_commit)"
   gclient runhooks
